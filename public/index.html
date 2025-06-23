@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Probe2 Météo</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="logo">
+            <img src="img/probe-logo.png" alt="Probe Logo">
+        </div>
+        <nav>
+            <ul>
+                <li data-section="currents" class="active">Currents</li>
+                <li data-section="historique">Historique</li>
+                <li data-section="settings">Settings</li>
+            </ul>
+        </nav>
+    </header>
+
+    <main id="content-container" class="content-container">
+        <section id="currents" class="content-section active">
+            <h1>Données Actuelles</h1>
+            <p>Afficher ici les données météo en temps réel.</p>
+            </section>
+        <section id="historique" class="content-section">
+            <h1>Historique des Données</h1>
+            <p>Afficher ici les graphiques et tableaux historiques.</p>
+            </section>
+        <section id="settings" class="content-section">
+            <h1>Paramètres</h1>
+            <p>Gérer les configurations des capteurs ou de l'application.</p>
+            </section>
+    </main>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

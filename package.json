@@ -1,0 +1,17 @@
+{
+  "name": "probe2-api",
+  "version": "0.0.1",
+  "description": "API pour récupérer des informations sur l'application Probe2",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "influxdb": "^0.0.1",
+    "net": "^1.0.2"
+  }
+}

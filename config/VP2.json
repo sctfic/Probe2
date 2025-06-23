@@ -1,0 +1,14 @@
+[
+    {
+        "Name": "vp2 Serramoune",
+        "port": 22222,
+        "host": "vp2.lan",
+        "longitude": 4.75,
+        "latitude": 45.5,
+        "altitude": 100,
+        "timezone": "Europe/Paris",
+        "windCupSize": "1-Large",
+        "rainCollectorSize": "1-0.2mm",
+        "rainSaisonStart": "1-Janvier"
+    }
+]
