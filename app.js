@@ -16,14 +16,17 @@ const path = require('path');
 // }
 // Charge la configuration de la station VP2 pour host et port
 const vp2ConfigPath = path.resolve(__dirname, 'config/VP2.json');
-let vp2StationConfig;
+let vp2StationConfigs;
 try {
-    vp2StationConfig = require(vp2ConfigPath)[0]; // Prend le premier objet du tableau
+    vp2StationConfigs = require(vp2ConfigPath); // Charge toutes les configurations de station
 } catch (error) {
     console.error(`Erreur lors du chargement de config/VP2.json: ${error.message}`);
     process.exit(1);
 }
 const app = express();
+
+// Middleware pour parser les corps de requête JSON
+app.use(express.json());
 
 // Importe les routes de l'API
 const apiRoutes = require('./routes/');
@@ -50,6 +53,9 @@ if (process.env.PORT > 1 && process.env.PORT < 65536) {
 app.listen(PORT, () => {
   console.log(`Serveur démarré sur le port ${PORT}`);
   console.log(`Accès aux informations de l'application sur http://localhost:${PORT}/api/info`);
-  console.log(`Accès aux contrôles de la station sur http://localhost:${PORT}/api/station/*`);
-  console.log(`La station VP2 est configurée pour être contactée à ${vp2StationConfig.host}:${vp2StationConfig.port}`);
+  console.log(`Accès aux contrôles de la station sur http://localhost:${PORT}/api/station/:stationId/*`);
+  console.log('Stations VP2 configurées:');
+  for (const stationId in vp2StationConfigs) {
+      console.log(`- ${stationId} (${vp2StationConfigs[stationId].host}:${vp2StationConfigs[stationId].port})`);
+  }
 });

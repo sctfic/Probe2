@@ -7,7 +7,8 @@ const stationRoutes = require('./stationRoutes'); // Importe les nouvelles route
 // Route pour obtenir les informations de l'application
 router.get('/info', infoController.getAppInfo);
 
-// Utilise les routes spécifiques à la station
+// Délègue toutes les routes commençant par /station au routeur stationRoutes.
+// Par exemple, une requête pour /api/station/vp2_Serramoune/settings sera transmise à stationRoutes pour gérer /vp2_Serramoune/settings.
 router.use('/station', stationRoutes);
 
 module.exports = router;

@@ -99,11 +99,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set Time
     const setTimeBtn = document.getElementById('set-time-btn');
     if (setTimeBtn) {
+        const stationId = 'vp2_Serramoune'; // TODO: Rendre ceci dynamique en fonction de la sélection de l'utilisateur
         setTimeBtn.addEventListener('click', async () => {
             displayMessage('time-status', 'Synchronisation en cours...');
             try {
-                const response = await fetch('/api/station/set-time');
+                const response = await fetch(`/api/station/${stationId}/set-time`);
                 const data = await response.json();
+                console.log('Set time response:', data);
                 if (response.ok) {
                     displayMessage('time-status', data.message);
                 } else {
@@ -119,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const setLocationForm = document.getElementById('set-location-form');
     if (setLocationForm) {
         setLocationForm.addEventListener('submit', async (e) => {
+            const stationId = 'vp2_Serramoune'; // TODO: Rendre ceci dynamique
             e.preventDefault();
             displayMessage('location-status', 'Définition de la localisation en cours...');
             const latitude = parseFloat(document.getElementById('latitude').value);
@@ -126,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const elevation = parseInt(document.getElementById('elevation').value, 10);
 
             try {
-                const response = await fetch('/api/station/set-location', {
+                const response = await fetch(`/api/station/${stationId}/set-location`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ latitude, longitude, elevation })
@@ -165,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (setTimezoneForm) {
         setTimezoneForm.addEventListener('submit', async (e) => {
+            const stationId = 'vp2_Serramoune'; // TODO: Rendre ceci dynamique
             e.preventDefault();
             displayMessage('timezone-status', 'Définition du fuseau horaire en cours...');
             const type = timezoneTypeSelect.value;
@@ -176,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetch('/api/station/set-timezone', {
+                const response = await fetch(`/api/station/${stationId}/set-timezone`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body)
@@ -200,11 +204,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchCurrentConditions() {
+        const stationId = 'vp2_Serramoune'; // TODO: Rendre ceci dynamique
         displayMessage('conditions-data', 'Chargement des conditions actuelles...');
         try {
-            const response = await fetch('/api/station/current-conditions');
+            const response = await fetch(`/api/station/${stationId}/current-conditions`);
             const data = await response.json();
             if (response.ok) {
+                // Supposons que data.data est l'objet avec les valeurs converties
                 for (const key in data.data) {
                     const span = document.getElementById(key);
                     if (span) {
@@ -227,11 +233,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchStationSettings() {
+        const stationId = 'vp2_Serramoune'; // TODO: Rendre ceci dynamique
         displayMessage('settings-data', 'Chargement des paramètres de la station...');
         try {
-            const response = await fetch('/api/station/settings');
+            const response = await fetch(`/api/station/${stationId}/settings`);
             const data = await response.json();
             if (response.ok) {
+                // Supposons que data.settings est l'objet avec les paramètres
                 for (const key in data.settings) {
                     const span = document.getElementById(`setting-${key}`);
                     if (span) {
