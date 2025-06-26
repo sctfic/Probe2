@@ -2,61 +2,66 @@
     "temperature": {
       "unit": "°C", 
       "avaible_units": [{"title":"Celsius","symbol":"°C"}, {"title": "Fahrenheit","symbol":"°F"}, {"title":"Kelvin","symbol":"K"}],
-      "precision": 1,
       "sensors": ["THSW", "inside temperature", "outside temperature", "dewPoint", "windChill", "heatIndex", "soil temperature", "leaf temperature"]
     },
     "speed": {
       "unit": "km/h", 
       "avaible_units": [{"title":"mph","symbol":"mph"}, {"title":"m/s","symbol":"m/s"}, {"title":"km/h","symbol":"km/h"}, {"title":"knots","symbol":"knots"}],
-      "precision": 1,
       "sensors": ["windSpeed", "windGust"]
     },
     "direction": {
-      "unit": "degrees", 
+      "unit": "cardinal", 
       "avaible_units": [{"title":"degrees","symbol":"°"}, {"title":"cardinal","symbol":"cardinal"}],
-      "precision": 0,
       "sensors": ["windDirection"]
     },
     "pressure": {
-      "unit": "hpa", 
-      "avaible_units": [{"title":"imperial","symbol":"inhg"}, {"title":"metric","symbol":"hpa"}, {"title":"metric","symbol":"mb"}],
-      "precision": 1,
+      "unit": "Bar", 
+      "avaible_units": [{"title":"imperial","symbol":"inhg"}, {"title":"metric","symbol":"hpa"}, {"title":"metric","symbol":"mb"}, {"title":"Bar","symbol":"Bar"}],
       "sensors": ["Barometer"]
     },
     "rain": {
-      "unit": "mm",   
+      "unit": "l/m²",   
       "avaible_units": [{"title":"milimetre","symbol":"mm"}, {"title":"inch","symbol":"in"}, {"title":"litre per square meter","symbol":"l/m²"}],
-      "precision": 2,
-      "sensors": ["Day rain","month rain","year rain", "storm rain", "day ET"]
+      "sensors": ["Day rain","month rain","year rain", "storm rain", "day ET", "month ET", "year ET"]
     },
     "rainRate": {
-      "unit": "mm/h",   
+      "unit": "l/m²/h",   
       "avaible_units": [{"title":"milimetre per hour","symbol":"mm/h"}, {"title":"inch per hour","symbol":"in/h"}, {"title":"litre per square meter per hour","symbol":"l/m²/h"}],
-      "precision": 2,
       "sensors": ["rainRate"]
     },
     "uv": {
       "unit": "index",
       "avaible_units": [{"title":"index","symbol":"index"}, {"title":"temps d'exposition maximum","symbol":"min"}],
-      "precision": 0,
       "sensors": ["uvIndex"]
     },
     "powerRadiation": {
       "unit": "w/m²",  
       "avaible_units": [{"title":"watt per square meter","symbol":"w/m²"}],
-      "precision": 0,
       "sensors": ["Solar Radiation"]
     },
     "humidity": {
       "unit": "%", 
       "avaible_units": [{"title":"percent","symbol":"%"}],
-      "precision": 0,
       "sensors": ["inside humidity","outside humidity"]
     },
     "battery": {
-      "unit": "%", 
+      "unit": "%",
       "avaible_units": [{"title":"percent","symbol":"%"}, {"title":"volts","symbol":"V"}],
-      "precision": 0,
       "sensors": ["Console Battery Voltage"]
+    },
+    "date": {
+      "unit": "date",
+      "avaible_units": [{"title":"date","symbol":""}],
+      "sensors": ["dateStormRain"]
+    },
+    "time": {
+      "unit": "time",
+      "avaible_units": [{"title":"time","symbol":""}],
+      "sensors": ["sunrise", "sunset", "moonrise", "moonset"]
+    },
+    "Forecast": {
+      "unit": "ForecastClass",
+      "avaible_units": [{"title":"ForecastNum","symbol":""}, {"title":"ForecastClass","symbol":""}],
+      "sensors": ["ForecastIcons"]
     }
 }
