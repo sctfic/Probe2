@@ -50,13 +50,13 @@
       "sensors": ["Console Battery Voltage"]
     },
     "date": {
-      "unit": "date",
+      "unit": "yyyy-mm-dd",
       "avaible_units": [{"title":"date","symbol":""}],
       "sensors": ["dateStormRain"]
     },
     "time": {
-      "unit": "time",
-      "avaible_units": [{"title":"time","symbol":""}],
+      "unit": "hh:mm",
+      "avaible_units": [{"title":"heure minute","symbol":"hh:mm"}],
       "sensors": ["sunrise", "sunset", "moonrise", "moonset"]
     },
     "Forecast": {

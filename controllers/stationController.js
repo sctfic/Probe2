@@ -38,6 +38,7 @@ const getArchiveData = async (req, res) => {
         res.status(400).json({ error: "Format de startDate invalide. Utilisez le format ISO 8601." });
         return;
     }
+    console.log(`[Archive Download] Requête pour ${req.stationConfig.id} à partir de ${startDate ? startDate : 'la dernière archive'}`);
     return await stationService.downloadArchiveData(req.stationConfig, startDate ? new Date(startDate) : undefined);
 };
 

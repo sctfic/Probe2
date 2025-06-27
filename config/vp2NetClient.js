@@ -232,6 +232,26 @@ async function wakeUpConsole(stationConfig) {
 }
 
 /**
+ * Écrit des données brutes sur le socket sans attendre de réponse spécifique.
+ * Utile pour les séquences de commandes où une partie de la commande n'attend pas d'ACK immédiat.
+ * @param {object} stationConfig La configuration de la station.
+ * @param {Buffer} data Les données à envoyer.
+ * @returns {Promise<void>} Résout si l'écriture est réussie, rejette sinon.
+ */
+async function writeRaw(stationConfig, data) {
+    const state = _getConnectionState(stationConfig);
+    await ensureConnection(state); // Assurer que la connexion est établie
+    return new Promise((resolve, reject) => {
+        state.client.write(data, (err) => {
+            if (err) {
+                return reject(new Error(`Erreur d'écriture raw sur le socket: ${err.message}`));
+            }
+            resolve();
+        });
+    });
+}
+
+/**
  * Gère l'envoi brut d'une commande et la réception d'une réponse.
  * @private
  */
@@ -394,7 +414,8 @@ async function toggleLamps(stationConfig, state) {
 
 
 module.exports = {
-    sendCommand,
+    sendCommand, // Keep sendCommand for general use
+    writeRaw,    // Expose writeRaw for specific sequences like DMPAFT
     wakeUpConsole,
     toggleLamps
 };

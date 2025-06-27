@@ -1,7 +1,7 @@
 // services/stationService.js
 const fs = require('fs');
 const path = require('path');
-const { sendCommand } = require('../config/vp2NetClient');
+const { sendCommand, writeRaw } = require('../config/vp2NetClient'); // Import writeRaw
 const { calculateCRC } = require('../utils/crc');
 const { parseLOOP1Data, parseLOOP2Data, parseDMPRecord, processWeatherData } = require('../utils/weatherDataParser');
 
@@ -224,14 +224,16 @@ async function downloadArchiveData(stationConfig, startDate) {
     } else if (stationConfig.lastArchiveDate) {
         effectiveStartDate = new Date(stationConfig.lastArchiveDate);
         effectiveStartDate.setMinutes(effectiveStartDate.getMinutes() + 1);
-    } else {
-        effectiveStartDate = new Date(new Date().getTime() - 24 * 60 * 60 * 1000);
+    } else { // on télécharge les données de la journée en cours
+        effectiveStartDate = new Date(new Date().getTime() - 4 * 24 * 60 * 60 * 1000);
     }
 
-    console.log(`[Archive Download] Début du téléchargement pour ${stationConfig.id} à partir de ${effectiveStartDate.toISOString()}`);
+    console.warn(`[Archive Download] Début du téléchargement pour ${stationConfig.id} à partir de ${effectiveStartDate.toISOString()}`);
 
-    await sendCommand(stationConfig, 'DMPAFT', 1000, "<ACK>");
+    // 1. Envoyer DMPAFT et attendre ACK
+    await sendCommand(stationConfig, 'DMPAFT', 2000, "<ACK>");
 
+    // 2. Préparer le payload complet (date + CRC)
     const year = effectiveStartDate.getFullYear();
     const month = effectiveStartDate.getMonth() + 1;
     const day = effectiveStartDate.getDate();
@@ -241,13 +243,20 @@ async function downloadArchiveData(stationConfig, startDate) {
     const datePayload = Buffer.alloc(4);
     datePayload.writeUInt16LE(dateStamp, 0);
     datePayload.writeUInt16LE(timeStamp, 2);
+
     const dateCrc = calculateCRC(datePayload);
     const dateCrcBytes = Buffer.from([(dateCrc >> 8) & 0xFF, dateCrc & 0xFF]);
-    const fullDatePayload = Buffer.concat([datePayload, dateCrcBytes]);
+    
+    // Créer un buffer unique avec payload + CRC
+    const fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
 
-    const pageInfo = await sendCommand(stationConfig, fullDatePayload, 1000, "<ACK>4<CRC>");
+    // console.log(`[Archive Download] Full payload: ${fullPayload.toString('hex')}`);
+
+    // 3. Envoyer les 6 octets en une seule commande
+    const pageInfo = await sendCommand(stationConfig, fullPayload, 5000, "<ACK>4<CRC>");
+
     const numberOfPages = pageInfo.readUInt16LE(0);
-
+    console.log(`[Archive Download] Nombre de pages: ${numberOfPages}`);
     if (numberOfPages === 0) {
         return { status: 'success', message: 'Aucune nouvelle donnée d\'archive à télécharger.', data: [] };
     }
@@ -256,11 +265,31 @@ async function downloadArchiveData(stationConfig, startDate) {
     for (let i = 0; i < numberOfPages; i++) {
         const ackByte = Buffer.from([0x06]);
         const pageData = await sendCommand(stationConfig, ackByte, 2000, "265<CRC>");
+
+            // le premier octet est le numero de la page
+            const pageNumber = pageData.readUInt8(0);
+            // on retire le 1er octet
+            const pageDataOnly = pageData.slice(1, pageData.length-4);
         for (let j = 0; j < 5; j++) {
-            const recordBuffer = pageData.slice(j * 52, (j + 1) * 52);
+            // ensuite 5 x 52octets
+            console.warn(`[Archive Download] Page[Reccord] number: ${pageNumber}[${j+1}]/${numberOfPages}`);
+            const recordBuffer = pageDataOnly.slice(j * 52, (j + 1) * 52);
             if (recordBuffer.length === 52) {
                 const parsedRecord = parseDMPRecord(recordBuffer);
-                allRecords.push(parsedRecord);
+                const processedData = processWeatherData(parsedRecord, stationConfig, userUnitsConfig);
+                const datetime = parsedRecord.date.value + 'T' + parsedRecord.time.value + ':00.000Z';
+                const processedRecord = {
+                    status: 'success',
+                    message: 'Données d\'archive récupérées avec succès.',
+                    timestamp: datetime,
+                    data: processedData
+                };
+                // on enregiste les date de derniere archive dans le vp2.json
+                stationConfig.lastArchiveDate = datetime;
+                fs.writeFileSync(path.resolve(__dirname, '../config/VP2.json'), JSON.stringify(allVp2StationConfigs, null, 4));
+                allRecords.push(processedRecord);
+                // console.log(`[Archive Download] Enregistrement téléchargé: ${JSON.stringify(processedRecord)}`);
+
             }
         }
     }

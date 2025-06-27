@@ -87,17 +87,37 @@ function parseLOOP2Data(data) {
 
 function parseDMPRecord(recordBuffer) {
     const record = {};
-    const dateStamp = recordBuffer.readUInt16LE(0);
-    const timeStamp = recordBuffer.readUInt16LE(2);
-    const year = Math.floor(dateStamp / 512) + 2000;
-    const month = Math.floor((dateStamp % 512) / 32);
-    const day = dateStamp % 32;
-    const hour = Math.floor(timeStamp / 100);
-    const minute = timeStamp % 100;
-    record.timestamp = new Date(year, month - 1, day, hour, minute).toISOString();
-    record.outTemp = { value: readSignedInt16LE(recordBuffer, 3), native_unit: "F_tenths" };
-    record.rain = { value: readUInt16LE(recordBuffer, 9), native_unit: "clicks*cup_size" };
-    record.barometer = { value: readUInt16LE(recordBuffer, 13), native_unit: "inHg_1000th" };
+    record.date = { value: readUInt16LE(recordBuffer, 0), native_unit: "date"}
+    record.time = { value: readUInt16LE(recordBuffer, 2), native_unit: "time" };
+    record.outTemp = { value: readSignedInt16LE(recordBuffer, 4), native_unit: "F_tenths" };
+    record.rainFlow = { value: readUInt16LE(recordBuffer, 10), native_unit: "clicks*cup_size" };
+    record.barometer = { value: readUInt16LE(recordBuffer, 14), native_unit: "inHg_1000th" };
+    record.powerRadiation = { value: readUInt16LE(recordBuffer, 16), native_unit: "w/m²" };
+    record.inTemp = { value: readSignedInt16LE(recordBuffer, 20), native_unit: "F_tenths" };
+    record.inHumidity = { value: readUInt8(recordBuffer, 22), native_unit: "percent" };
+    record.outHumidity = { value: readUInt8(recordBuffer, 23), native_unit: "percent" };
+    record.windSpeed = { value: readUInt8(recordBuffer, 25), native_unit: "mph_whole" };
+    record.windDir = { value: readUInt8(recordBuffer, 27), native_unit: "degrees" };
+    record.uvIndex = { value: readUInt8(recordBuffer, 28), native_unit: "uv_index" };
+    record.ET = { value: readUInt8(recordBuffer, 29), native_unit: "in_100th" };
+    record.leafTemp1 = { value: readUInt8(recordBuffer, 34), native_unit: "F_whole" };
+    record.leafTemp2 = { value: readUInt8(recordBuffer, 35), native_unit: "F_whole" };
+    record.leafWetness1 = { value: readUInt8(recordBuffer, 36), native_unit: "percent" };
+    record.leafWetness2 = { value: readUInt8(recordBuffer, 37), native_unit: "percent" };
+    record.soilTemp1 = { value: readUInt8(recordBuffer, 38), native_unit: "F_whole" };
+    record.soilTemp2 = { value: readUInt8(recordBuffer, 39), native_unit: "F_whole" };
+    record.soilTemp3 = { value: readUInt8(recordBuffer, 40), native_unit: "F_whole" };
+    record.soilTemp4 = { value: readUInt8(recordBuffer, 41), native_unit: "F_whole" };
+    record.extraHumidity1 = { value: readUInt8(recordBuffer, 43), native_unit: "percent" };
+    record.extraHumidity2 = { value: readUInt8(recordBuffer, 44), native_unit: "percent" };
+    record.extraTemp1 = { value: readUInt8(recordBuffer, 45), native_unit: "F_whole" };
+    record.extraTemp2 = { value: readUInt8(recordBuffer, 46), native_unit: "F_whole" };
+    record.extraTemp3 = { value: readUInt8(recordBuffer, 47), native_unit: "F_whole" };
+    record.extraSoilMoisture1 = { value: readUInt8(recordBuffer, 48), native_unit: "percent" };
+    record.extraSoilMoisture2 = { value: readUInt8(recordBuffer, 49), native_unit: "percent" };
+    record.extraSoilMoisture3 = { value: readUInt8(recordBuffer, 50), native_unit: "percent" };
+    record.extraSoilMoisture4 = { value: readUInt8(recordBuffer, 51), native_unit: "percent" };
+
     return record;
 }
 
@@ -111,7 +131,6 @@ function convertRawValue2NativeValue(key, rawValue, nativeUnit, stationConfig) {
         case 'in_1000th': return rawValue / 1000;
         case 'clicks*cup_size': // doit etre en mm
             // stationConfig.rainCollectorSize.value peut avoir 3 valeurs : "1-0.2mm", "2-0.1mm", "0-0.01mm"
-            console.log(stationConfig.rainCollectorSize.value);
             const cup = stationConfig.rainCollectorSize.value.split('-')[0]*1;
             switch (cup) {
                 case 0: return Math.round(rawValue * 0.254 * 1000)/1000;
@@ -122,15 +141,15 @@ function convertRawValue2NativeValue(key, rawValue, nativeUnit, stationConfig) {
         case 'mph_tenths': return rawValue / 10;
         case '((DataRaw * 3)/512) V': return Math.round((rawValue * 3) / 512 * 1000) / 1000;
         case 'time':
-            console.warn(rawValue, key, nativeUnit);
             const hours = Math.floor(rawValue / 100);
             const minutes = rawValue % 100;
             return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
         case 'date':
             // Bit 15 to bit 12 is the month, bit 11 to bit 7 is the day and bit 6 to bit 0 is the year offseted by 2000.
-            const month = Math.floor(rawValue / 512); // Bit 15 to bit 12
-            const day = Math.floor(rawValue / 32); // Bit 11 to bit 7
-            const year = rawValue % 32; // Bit 6 to bit 0
+            const yearOffset = 2000;
+            const year = Math.floor(rawValue / 512); // Bit 15 to bit 12
+            const month = Math.floor(rawValue / 32 & 0x0F); // Bit 11 to bit 7
+            const day = rawValue % 32; // Bit 6 to bit 0
             return `20${(year).toString().padStart(2, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
         default:
             return rawValue;
