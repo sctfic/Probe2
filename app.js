@@ -51,7 +51,7 @@ if (process.env.PORT > 1 && process.env.PORT < 65536) {
 
 // Lance le serveur
 app.listen(PORT, () => {
-  console.log(`Serveur démarré sur le port ${PORT}`);
+  console.log(`Serveur démarré sur le port ${PORT} (${process.env.watch}, ${process.env.ignore_watch})`); // on affiche les option watch et ignore_watch
   console.log(`Accès aux informations de l'application sur http://localhost:${PORT}/api/info`);
   console.log(`Accès aux contrôles de la station sur http://localhost:${PORT}/api/station/:stationId/*`);
   console.log('Stations VP2 configurées:');

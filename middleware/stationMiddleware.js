@@ -50,6 +50,8 @@ const withStationLamps = (handler) => {
             }
         } finally {
             try {
+                // await wakeUpConsole(stationConfig);
+                // await ensureConnection(stationConfig);
                 await toggleLamps(stationConfig, 0);
             } catch (lampError) {
                 console.error('Erreur critique lors de l\'extinction des lampes:', lampError.message);

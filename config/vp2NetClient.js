@@ -193,7 +193,8 @@ async function wakeUpConsole(stationConfig) {
         console.log(`[VP2 Client] Attempting console wakeup for ${stationConfig.id} (${attempts + 1}/${maxAttempts})...`); //
         state.currentResponseBuffer = Buffer.from([]); // Vider le buffer pour la réponse de réveil
         try {
-            const wakeUpBuffer = Buffer.from([0x0A]); // Envoyer un Line Feed (0x0A)
+            // Envoyer ESC (0x1B) pour effacer toute ligne de commande précédente, puis LF (0x0A) pour obtenir un prompt.
+            const wakeUpBuffer = Buffer.from([0x1B, 0x0A]);
             const response = await new Promise((resolve, reject) => {
                 let timeoutId = setTimeout(() => reject(new Error('Wakeup response timeout')), wakeupTimeout);
                 
@@ -257,7 +258,6 @@ async function writeRaw(stationConfig, data) {
  */
 function _internalSendAndReceive(state, command, timeout, parsedFormat) {
     return new Promise((resolve, reject) => {
-        console.log(`[VP2 Client] Envoi de la commande ${command} à ${state.config.host}:${state.config.port}`);
         if (state.currentResponsePromiseResolve) {
             return reject(new Error('Une commande est déjà en attente de réponse.'));
         }
@@ -273,7 +273,7 @@ function _internalSendAndReceive(state, command, timeout, parsedFormat) {
             state.client.removeListener('data', responseListener);
             state.currentResponsePromiseResolve = null;
             state.currentResponsePromiseReject = null;
-            console.log(`[VP2 Client] Command ${command} finished (${finalStatus}). Final buffer: ${finalData ? finalData.toString('hex') : 'empty'}`);
+            // console.log(`[VP2 Client] Command ${command} finished (${finalStatus}). Final buffer: ${finalData ? finalData.toString('hex') : 'empty'}`);
             console.log(`[VP2 Client] Message: ${logMessage}`);
         };
 
@@ -287,13 +287,13 @@ function _internalSendAndReceive(state, command, timeout, parsedFormat) {
             // state.currentResponseBuffer est mis à jour par l'écouteur global du client
 
             // Vérifier la complétude basée sur la longueur totale attendue
-            console.log(`[VP2 Client] Response Listener - Buffer length: ${state.currentResponseBuffer.length}, Expected: ${parsedFormat.totalExpectedLength}`);
+            // console.log(`[VP2 Client] Response Listener - Buffer length: ${state.currentResponseBuffer.length}, Expected: ${parsedFormat.totalExpectedLength}`);
             if (state.currentResponseBuffer.length < parsedFormat.totalExpectedLength) { // [cite: vp2NetClient.js]
                 console.log(`[VP2 Client] Response Listener - Not enough data yet. Returning.`);
                 return; // Pas assez de données encore
             }
 
-            console.log(`[VP2 Client] Response Listener - Enough data received. Proceeding with validation.`);
+            // console.log(`[VP2 Client] Response Listener - Enough data received. Proceeding with validation.`);
             // Si nous arrivons ici, nous avons suffisamment de données. Procéder à la validation des segments.
             let currentOffset = 0;
             const dataSegments = [];
@@ -327,7 +327,7 @@ function _internalSendAndReceive(state, command, timeout, parsedFormat) {
             }
 
             // Si nous arrivons ici, tous les segments sont présents et la validation de base a réussi.
-            cleanup('SUCCESS', 'Réponse complète et validée reçue.', state.currentResponseBuffer);
+            cleanup('SUCCESS', `Réponse complète et validée, longueur [${state.currentResponseBuffer.length}]`, state.currentResponseBuffer);
             // Retourne les segments de données ET les segments CRC concaténés pour validation dans sendCommand.
             resolve(Buffer.concat([...dataSegments, ...crcSegments]));
         };
@@ -359,8 +359,17 @@ async function sendCommand(stationConfig, command, timeout = 2000, answerFormat 
     const parsedFormat = parseAnswerFormatString(answerFormat); // Analyse le format une seule fois
 
     while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 200));
         attempts++;
-        console.log(`[VP2 Client] Sending command to ${stationConfig.id} (Attempt ${attempts}/${maxAttempts}): '${commandDescription}', AnswerFormat: ${answerFormat}`);
+        // remplace les caractères spéciaux par leur équivalent
+        // 0x0D = '<CR>'
+        // 0x0A = '<LF>'
+        // 0x06 = '<ACK>'
+        // 0x21 = '<NAK>'
+        // 0x18 = '<CANCEL>'
+
+        const commandText = command.toString().replace(/\r/g, '<CR>').replace(/\n/g, '<LF>').replace(/\x06/g, '<ACK>').replace(/\x21/g, '<NAK>').replace(/\x18/g, '<CANCEL>');
+        console.log(`[VP2 Client] Sending to ${stationConfig.id} [${stationConfig.host}:${stationConfig.port}] (${attempts}/${maxAttempts}): '${commandText}', AnswerFormat: ${answerFormat}`);
 
         try {
             // _internalSendAndReceive retourne maintenant la charge utile directement (ou lève une erreur)
@@ -372,7 +381,7 @@ async function sendCommand(stationConfig, command, timeout = 2000, answerFormat 
                 const receivedCrcBytes = payload.slice(parsedFormat.dataLengthForCrc, parsedFormat.dataLengthForCrc + 2);
                 const receivedCrc = receivedCrcBytes.readUInt16BE(0);
                 const calculatedCrc = calculateCRC(data);
-                console.log(`[VP2 Client] CRC, Calculé: 0x${calculatedCrc.toString(16)}, Reçu: 0x${receivedCrc.toString(16)}`);
+                // console.log(`[VP2 Client] CRC valide: 0x${receivedCrc.toString(16)}`);
                 if (calculatedCrc !== receivedCrc) {
                     const crcError = new Error(`CRC invalide. Calculé: 0x${calculatedCrc.toString(16)}, Reçu: 0x${receivedCrc.toString(16)}`);
                     crcError.name = 'CRCError';
@@ -384,7 +393,6 @@ async function sendCommand(stationConfig, command, timeout = 2000, answerFormat 
         } catch (error) {
             if (error.name === 'CRCError' && attempts < maxAttempts) {
                 console.warn(`[VP2 Client] Erreur CRC pour ${stationConfig.id} (tentative ${attempts}). Nouvel essai...`);
-                await new Promise(resolve => setTimeout(resolve, 200));
             } else {
                 console.error(`[VP2 Client] La commande '${commandDescription}' pour ${stationConfig.id} a échoué après ${attempts} tentative(s): ${error.message}`);
                 throw error;
@@ -404,7 +412,7 @@ async function toggleLamps(stationConfig, state) {
     console.log(`[VP2 Client] Demande ${state === 1 ? 'd\'allumage' : 'd\'extinction'} des lampes pour ${stationConfig.id}...`);
     try {
         // sendCommand avec expectOkCRLF:true garantit que la réponse est "OK" ou lève une erreur.
-        await sendCommand(stationConfig, `LAMPS ${state}`, 2000, "<LF><CR>OK<LF><CR>");
+        await sendCommand(stationConfig, `LAMPS ${state}`, 3000, "<LF><CR>OK<LF><CR>");
         console.log(`[VP2 Client] Screen ${stationConfig.id} ${state === 1 ? 'ON 🔥' : 'OFF 🌋'}`);
     } catch (error) {
         console.error(`[VP2 Client] Erreur lors de la commande LAMPS ${state}:`, error.message);

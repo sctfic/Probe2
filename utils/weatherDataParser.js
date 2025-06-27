@@ -121,7 +121,7 @@ function parseDMPRecord(recordBuffer) {
     return record;
 }
 
-function convertRawValue2NativeValue(key, rawValue, nativeUnit, stationConfig) {
+function convertRawValue2NativeValue(rawValue, nativeUnit, stationConfig) {
     switch (nativeUnit) {
         case 'F_tenths': return rawValue / 10;
         case 'F_whole': return rawValue;
@@ -141,16 +141,17 @@ function convertRawValue2NativeValue(key, rawValue, nativeUnit, stationConfig) {
         case 'mph_tenths': return rawValue / 10;
         case '((DataRaw * 3)/512) V': return Math.round((rawValue * 3) / 512 * 1000) / 1000;
         case 'time':
-            const hours = Math.floor(rawValue / 100);
-            const minutes = rawValue % 100;
-            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            const hours = Math.floor(rawValue / 100).toString().padStart(2, '0');
+            const minutes = (rawValue % 100).toString().padStart(2, '0');
+            // console.warn(`raw: ${rawValue}, hours: ${hours}, minutes: ${minutes}`);
+            return `${hours}:${minutes}`;
         case 'date':
             // Bit 15 to bit 12 is the month, bit 11 to bit 7 is the day and bit 6 to bit 0 is the year offseted by 2000.
-            const yearOffset = 2000;
-            const year = Math.floor(rawValue / 512); // Bit 15 to bit 12
-            const month = Math.floor(rawValue / 32 & 0x0F); // Bit 11 to bit 7
-            const day = rawValue % 32; // Bit 6 to bit 0
-            return `20${(year).toString().padStart(2, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+            const year = (Math.floor(rawValue / 512)).toString().padStart(2, '0'); // Bit 15 to bit 12
+            const month = Math.floor(rawValue / 32 & 0x0F).toString().padStart(2, '0'); // Bit 11 to bit 7
+            const day = (rawValue % 32).toString().padStart(2, '0'); // Bit 6 to bit 0
+            // console.warn(`raw: ${rawValue}, year: 20${year}, month: ${month}, day: ${day}`);
+            return `20${year}/${month}/${day}`;
         default:
             return rawValue;
     }
@@ -190,7 +191,9 @@ const sensorTypeMap = {
     last24HourRain: 'rain',
     ForecastIcon: 'Forecast',
     sunrise: 'time',
-    sunset: 'time'
+    sunset: 'time',
+    date: 'date',
+    time: 'time'
 };
 
 const conversionTable = {
@@ -268,12 +271,15 @@ const conversionTable = {
             }
         }
     },
-    date: {
+    date: { // format d'entré : yyyy/MM/dd
+        'iso8601': (d) => `${d.slice(0, 4)}-${d.slice(5, 7)}-${d.slice(8, 10)}T`,
+        'yyyy-mm-dd': (d) => `${d.slice(0, 4)}-${d.slice(5, 7)}-${d.slice(8, 10)}`,
         'yyyy/mm/dd': (d) => d,
-        'dd/mm/yyyy': (d) => d,
-        'mm/dd/yy': (d) => d,
+        'dd/mm/yyyy': (d) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`
     },
-    time: {
+    time: { // format d'entré : hh:mm
+        'iso8601': (t) => `${t.slice(0, 2)}:${t.slice(3, 5)}:00.000Z`,// on concatene les 2 premier caractere avec ':' puis les 2 dernier caractere et ':00.000Z'
+        'hh:mm:ss': (t) => `${t.slice(0, 2)}:${t.slice(3, 5)}:00`,// on concatene les 2 premier caractere avec ':' puis les 2 dernier caractere et ':00'
         'hh:mm': (t) => t
     }
 };
@@ -290,8 +296,8 @@ const metricUnits = {
     humidity: '%',
     battery: 'V',
     Forecast: 'ForecastClass',
-    date: 'yyyy/mm/dd',
-    time: 'hh:mm'
+    date: 'iso8601',
+    time: 'iso8601'
 };
 
 function convertToMetric(nativeValue, key) {
@@ -362,7 +368,7 @@ function processWeatherData(weatherData, stationConfig, userUnitsConfig) {
     const processed = {};
     for (const [key, data] of Object.entries(weatherData)) {
         if (!isNaN(data.value)) {
-            const nativeValue = convertRawValue2NativeValue(key, data.value, data.native_unit, stationConfig);
+            const nativeValue = convertRawValue2NativeValue(data.value, data.native_unit, stationConfig);
             const nativeUnit = data.native_unit;
             if (userUnitsConfig){
                 processed['datagramme'] = {Type:"User units", message:"Success"};
@@ -388,5 +394,7 @@ module.exports = {
     parseLOOP1Data,
     parseLOOP2Data,
     parseDMPRecord,
-    processWeatherData
+    processWeatherData,
+    convertRawValue2NativeValue,
+    conversionTable // Ajout de conversionTable à l'export
 };
