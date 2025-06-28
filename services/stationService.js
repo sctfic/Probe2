@@ -36,7 +36,6 @@ async function updateStationTime(stationConfig) {
     stationConfig.timezone.index = davisTimeZoneIndex;
     stationConfig.timezone.lastUpdate = new Date().toISOString();
 
-
     // Utilise la fonction pour obtenir l'heure locale précise
     const targetLocalTime = await getLocalTimeFromCoordinates(stationConfig);
     const VP2DateTime = await getVp2DateTime(stationConfig); // UTC
@@ -47,7 +46,7 @@ async function updateStationTime(stationConfig) {
     // Compare en UTC
     const timeDiffSeconds = Math.abs((targetUTCTime.getTime() - VP2DateTime.getTime()) / 1000);
 
-    if (timeDiffSeconds <= 5) {
+    if (timeDiffSeconds <= 1) {
         console.log(`Décalage de ${timeDiffSeconds.toFixed(2)} sec. L'heure est déjà synchronisée.`);
         return {
             status: 'unchanged',
@@ -84,6 +83,7 @@ async function updateStationTime(stationConfig) {
     console.log(`Configuration du fuseau horaire sur index ${davisTimeZoneIndex} (${ianaTimeZone}) en hex: ${davisTimeZoneIndexHex}`);
     await sendCommand(stationConfig, `EEWR 11 ${davisTimeZoneIndexHex}`, 2000, "<LF><CR>OK<LF><CR>");
 
+
     // Utiliser le fuseau horaire prédéfini 
     await sendCommand(stationConfig, `EEWR 16 00`, 2000, "<LF><CR>OK<LF><CR>");
     
@@ -92,10 +92,9 @@ async function updateStationTime(stationConfig) {
 
     // Appliquer les nouveaux paramètres à la console 
     await sendCommand(stationConfig, 'NEWSETUP', 2000, "<ACK>");
-
     return {
         status: 'success',
-        message: 'Heure et fuseau horaire de la station définis avec succès.',
+        message: 'Heure et fuseau horaire synchronisés avec succès.',
         details: {
             DateTime: targetUTCTime.toISOString(),
             timeSetTo: targetLocalTime.toISOString(),
@@ -104,78 +103,174 @@ async function updateStationTime(stationConfig) {
     };
 }
 
-async function fetchStationSettings(stationConfig) {
+const EEPROM_MAPPINGS = {
+    latitude: { address: 0x0B, length: 2, type: 'int', scale: 10 },
+    longitude: { address: 0x0D, length: 2, type: 'int', scale: 10 },
+    altitude: { address: 0x0F, length: 2, type: 'uint', scale: 3.281},
+    archiveInterval: { address: 0x30, length: 1, type: 'uint', scale: 1},
+    // timezone: { address: 0x11, length: 1, type: 'uint' },
+    AMPMMode: { address: 0x2B, length: 1, type: 'bit', mask: 0x01, shift: 0 },
+    isAMPMMode: { address: 0x2B, length: 1, type: 'bit', mask: 0x02, shift: 1 },
+    dateFormat: { address: 0x2B, length: 1, type: 'bit', mask: 0x04, shift: 2 },
+    windCupSize: { address: 0x2B, length: 1, type: 'bit', mask: 0x08, shift: 3 },
+    rainCollectorSize: { address: 0x2B, length: 1, type: 'bit', mask: 0x30, shift: 4 },
+    latitudeNorthSouth: { address: 0x2B, length: 1, type: 'bit', mask: 0x40, shift: 6 },
+    longitudeEastWest: { address: 0x2B, length: 1, type: 'bit', mask: 0x80, shift: 7 },
+    rainSaisonStart: { address: 0x2C, length: 1, type: 'bit', mask: 0x0F, shift: 0 }
+};
 
-    const mergedConfig = await _fetchAndMergeStationConfig(stationConfig);
-    console.warn('mergedConfig', mergedConfig);
-    const dateTime = (await updateStationTime(stationConfig)).details.DateTime;
+const VP2_CONFIG_PATH = path.resolve(__dirname, '../config/VP2.json');
 
-    const staticSettings = {
-        name: mergedConfig.Name,
-        host: mergedConfig.host,
-        port: mergedConfig.port,
-        longitude: mergedConfig.longitude,
-        latitude: mergedConfig.latitude,
-        altitude: mergedConfig.altitude,
-        timezone: mergedConfig.timezone,
-        AMPMMode: mergedConfig.AMPMMode,
-        isAMPMMode: mergedConfig.isAMPMMode,
-        dateFormat: mergedConfig.dateFormat,
-        windCupSize: mergedConfig.windCupSize,
-        rainCollectorSize: mergedConfig.rainCollectorSize,
-        rainSaisonStart: mergedConfig.rainSaisonStart,
-        latitudeNorthSouth: mergedConfig.latitudeNorthSouth,
-        longitudeEastWest: mergedConfig.longitudeEastWest,
-        archiveInterval: mergedConfig.archiveInterval
-    };
-    console.warn('staticSettings', staticSettings);
-    let message = 'Paramètres de la station récupérés avec succès.';
-    let status = 'success';
-
-    return { status, message, settings: { ...staticSettings, currentTime: dateTime, dateTime } };
+// Fonction pour charger le fichier de configuration
+function loadVp2Config() {
+    try {
+        return JSON.parse(fs.readFileSync(VP2_CONFIG_PATH, 'utf8'));
+    } catch (error) {
+        console.error('Erreur lors du chargement du fichier VP2.json', error);
+        return {};
+    }
 }
 
-async function _fetchAndMergeStationConfig(stationConfig) {
-    const mergedConfig = { ...stationConfig };
-    console.warn('>>> mergedConfig', mergedConfig);
+// Fonction pour sauvegarder le fichier de configuration
+function saveVp2Config(config) {
+    try {
+        fs.writeFileSync(VP2_CONFIG_PATH, JSON.stringify(config, null, 4));
+        return true;
+    } catch (error) {
+        console.error('Erreur lors de la sauvegarde de VP2.json', error);
+        return false;
+    }
+}
+
+async function syncStationSettings(stationConfig) {
+    // Charger la configuration à jour
+    const allVp2StationConfigs = loadVp2Config();
+    
+    // Récupérer la configuration spécifique à la station
+    let updatedConfig = { ...allVp2StationConfigs[stationConfig.id] };
+    let changesMade = false;
+
+    // Fonctions pour lire/écrire dans l'EEPROM
     const readEeprom = async (address, length) => {
         const command = `EEBRD ${address.toString(16).padStart(2, '0').toUpperCase()} ${length.toString(16).padStart(2, '0').toUpperCase()}`;
         return await sendCommand(stationConfig, command, 2000, `<ACK>${length}<CRC>`);
     };
 
-    const appendSetup = async (name, data, mask, shift) => {
-        if (mergedConfig[name] === undefined) {
-            mergedConfig[name] = {
+    const writeEeprom = async (address, value, length, type) => {
+        const buffer = Buffer.alloc(length);
+        if (length === 2) {
+            if (type === 'uint') buffer.writeUInt16LE(value, 0);
+            else buffer.writeInt16LE(value, 0);
+        } else buffer.writeUInt8(value, 0);
+        
+        const crc = calculateCRC(buffer);
+        const crcBytes = Buffer.from([(crc >> 8) & 0xFF, crc & 0xFF]);
+        const payload = Buffer.concat([buffer, crcBytes]);
+
+        await sendCommand(stationConfig, `EEBWR ${address.toString(16).padStart(2, '0').toUpperCase()} ${length.toString(16).padStart(2, '0').toUpperCase()}`, 1000, "<ACK>");
+        await sendCommand(stationConfig, payload, 2000, "<ACK>");
+        return true;
+    };
+
+    // Parcourir tous les paramètres mappés
+    for (const [param, config] of Object.entries(EEPROM_MAPPINGS)) {
+        if (!updatedConfig[param]) {
+            updatedConfig[param] = {
                 value: null,
                 lastUpdate: null
             };
+            changesMade = true;
         }
-        if (mergedConfig[name].value === null) {
-            console.warn(`Lecture du mode ${name}...`);
-            mergedConfig[name].value = Math.round((data & mask) / shift);
+
+        const setting = updatedConfig[param];
+        
+        // Opération de LECTURE si value est null
+        if (setting.value === null) {
+            try {
+                const data = await readEeprom(config.address, config.length);
+                let value;
+                
+                switch (config.type) {
+                    case 'int':
+                        value = data.readInt16LE(0);
+                        if (config.scale) value /= config.scale;
+                        break;
+                    case 'uint':
+                        value = config.length === 2 ? 
+                            data.readUInt16LE(0) : 
+                            data.readUInt8(0);
+                        break;
+                    case 'bit':
+                        const byte = data.readUInt8(0);
+                        value = (byte & config.mask) >> config.shift;
+                        break;
+                }
+                
+                setting.value = value;
+                setting.lastUpdate = null; // Marquer comme non synchronisé
+                changesMade = true;
+                console.log(`[Sync] Lecture ${param}: ${value}`);
+                
+            } catch (error) {
+                console.error(`[Sync] Erreur lecture ${param}: ${error.message}`);
+            }
+        } 
+        // Opération d'ÉCRITURE si lastUpdate est "now!"
+        else if (setting.lastUpdate === "now!") {
+            try {
+                let valueToWrite = setting.value;
+                
+                // Appliquer les conversions pour l'écriture
+                if (config.scale) valueToWrite *= config.scale;
+
+                // Cas spécial pour les bits
+                if (config.type === 'bit') {
+                    // Lire la valeur actuelle
+                    const currentData = await readEeprom(config.address, config.length);
+                    let currentValue = config.length === 2 ? 
+                        currentData.readUInt16LE(0) : 
+                        currentData.readUInt8(0);
+                    
+                    // Mettre à jour seulement les bits concernés
+                    currentValue &= ~config.mask; // Effacer les bits
+                    currentValue |= (valueToWrite << config.shift) & config.mask; // Définir les nouveaux bits
+                    
+                    valueToWrite = currentValue;
+                }
+                
+                // Écrire la valeur
+                await writeEeprom(config.address, Math.round(valueToWrite), config.length, config.type);
+                
+                // Mettre à jour le timestamp
+                setting.lastUpdate = new Date().toISOString();
+                changesMade = true;
+                console.log(`[Sync] Écriture ${param}: ${setting.value}`);
+                
+            } catch (error) {
+                console.error(`[Sync] Erreur écriture ${param}: ${error.message}`);
+            }
         }
-        console.warn('>>> mergedConfig', mergedConfig[name]);
+    }
+
+    const changesTime = (await updateStationTime(updatedConfig)).status;
+
+    // Sauvegarder les modifications si nécessaire
+    if (changesMade || changesTime == 'success') {
+        allVp2StationConfigs[stationConfig.id] = updatedConfig;
+        if (!saveVp2Config(allVp2StationConfigs)) {
+            console.error('Échec de la sauvegarde des paramètres');
+        }
+        // console.warn('Configuration synchronisée avec succès');
+    }
+
+    return {
+        status: 'success',
+        message: changesMade ? 
+            'Configuration synchronisée avec succès' : 
+            'Aucun changement nécessaire',
+        config: updatedConfig
     };
-
-    await appendSetup('latitude', (await readEeprom(11, 2)).readInt16LE(0), 0xFFFF, 10.0);
-    await appendSetup('longitude', (await readEeprom(13, 2)).readInt16LE(0), 0xFFFF, 10.0);
-    await appendSetup('altitude', (await readEeprom(15, 2)).readUInt16LE(0), 0xFFFF, 3.281);
-    // read SETUP_BITS
-    const data = (await readEeprom(0x2B, 1)).readUInt8(0);// a verifier
-        console.warn('SETUP_BITS',data);
-        await appendSetup('AMPMMode', data, 0x01, 1);
-        await appendSetup('isAMPMMode', data, 0x02, 2);
-        await appendSetup('dateFormat', data, 0x04, 4);
-        await appendSetup('windCupSize', data, 0x08, 8);
-        await appendSetup('rainCollectorSize', data, 0x30, 16);
-        await appendSetup('latitudeNorthSouth', data, 0x40, 64);
-        await appendSetup('longitudeEastWest', data, 0x80, 128);
-
-    await appendSetup('rainSaisonStart', (await readEeprom(0x2C, 1)).readUInt8(0), 0x0F, 0);
-
-    return mergedConfig;
 }
-
 
 async function updateStationLocation(stationConfig, { latitude, longitude, elevation }) {
     const latValue = Math.round(latitude * 10);
@@ -206,30 +301,6 @@ async function updateStationLocation(stationConfig, { latitude, longitude, eleva
     return {
         status: 'success',
         message: 'Localisation de la station définie avec succès.'
-    };
-}
-
-async function updateStationTimezone(stationConfig, { type, index, offsetGMT }) {
-    if (type === 'preset') {
-        await sendCommand(stationConfig, `EEWR 11 ${index.toString(16).padStart(2, '0')}`, 2000, "<LF><CR>OK<LF><CR>");
-        await sendCommand(stationConfig, `EEWR 16 00`, 2000, "<LF><CR>OK<LF><CR>");
-    } else if (type === 'custom') {
-        const gmtOffsetBuffer = Buffer.alloc(2);
-        gmtOffsetBuffer.writeInt16LE(offsetGMT, 0);
-        const gmtCrc = calculateCRC(gmtOffsetBuffer);
-        const gmtCrcBytes = Buffer.from([(gmtCrc >> 8) & 0xFF, gmtCrc & 0xFF]);
-        const gmtPayload = Buffer.concat([gmtOffsetBuffer, gmtCrcBytes]);
-
-        await sendCommand(stationConfig, `EEBWR 14 02`, 1000, "<ACK>");
-        await sendCommand(stationConfig, gmtPayload, 2000, "<ACK>");
-        await sendCommand(stationConfig, `EEWR 16 01`, 2000, "<LF><CR>OK<LF><CR>");
-    }
-
-    await sendCommand(stationConfig, 'NEWSETUP', 2000, "<ACK>");
-
-    return {
-        status: 'success',
-        message: 'Fuseau horaire de la station défini avec succès.'
     };
 }
 
@@ -417,10 +488,12 @@ async function updateArchiveConfiguration(stationConfig) {
 module.exports = {
     updateStationTime,
     updateStationLocation,
-    updateStationTimezone,
+    // updateStationTimezone,
     fetchCurrentConditions,
-    fetchStationSettings,
+    // getStationSettings,
+    // updateStationSettings,
     downloadArchiveData,
     saveReceivedArchiveData,
-    updateArchiveConfiguration // Export de la nouvelle fonction
+    updateArchiveConfiguration,
+    syncStationSettings
 };

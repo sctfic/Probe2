@@ -10,6 +10,7 @@ async function getLocalTimeFromCoordinates(stationConfig) {
     const timeZone = getTimeZoneFromCoordinates(lat, lon);
 
     if (typeof lat !== 'number' || typeof lon !== 'number') {
+        console.error(`Latitude/longitude invalide ou manquante ${lat}, ${lon} dans la configuration de la station.`);
         throw new Error('Latitude/longitude invalide ou manquante dans la configuration de la station.');
     }
 
