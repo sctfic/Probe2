@@ -1,0 +1,66 @@
+{
+    "id": "vp2_lointaine",
+    "Name": "vp2 lointaine",
+    "comment": "Cabled Plus, USA",
+    "host": "vp2.com",
+    "port": 22223,
+    "longitude": {
+        "desired": -0.479901,
+        "read": null
+    },
+    "latitude": {
+        "desired": 43.20758,
+        "read": null
+    },
+    "altitude": {
+        "desired": 242,
+        "read": null
+    },
+    "timezone": {
+        "desired": "Europe/Paris",
+        "read": null,
+        "index": 21
+    },
+    "isAMPMMode": {
+        "desired": 0,
+        "read": null
+    },
+    "dateFormat": {
+        "desired": 0,
+        "read": null
+    },
+    "windCupSize": {
+        "desired": 1,
+        "read": null
+    },
+    "rainCollectorSize": {
+        "desired": 0,
+        "read": null
+    },
+    "rainSaisonStart": {
+        "desired": 1,
+        "read": null
+    },
+    "latitudeNorthSouth": {
+        "desired": 1,
+        "read": null
+    },
+    "longitudeEastWest": {
+        "desired": 0,
+        "read": null
+    },
+    "AMPMMode": {
+        "desired": null,
+        "read": null
+    },
+    "archiveInterval": {
+        "desired": 10,
+        "read": null
+    },
+    "archiveRecordsEnable": {
+        "desired": true,
+        "read": null
+    },
+    "lastArchiveDate": "2025-06-29T05:50:00.000Z",
+    "deltaTimeSeconds": "1.14"
+}

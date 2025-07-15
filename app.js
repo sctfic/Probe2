@@ -1,61 +1,112 @@
 // app.js
 const express = require('express');
 const path = require('path');
+const configManager = require('./services/configManager');
+const { V } = require('./utils/icons');
 
-// // Chemin vers ecosystem.config.js
-// const ecosystemConfigPath = path.resolve(__dirname, 'ecosystem.config.js');
-
-// // On charge directement le module de configuration
-// let ecosystemConfig;
-// try {
-//   ecosystemConfig = require(ecosystemConfigPath);
-// } catch (error) {
-//   console.error(`Erreur lors du chargement de ecosystem.config.js: ${error.message}`);
-//   // Gérer l'erreur, par exemple, en terminant l'application ou en utilisant des valeurs par défaut
-//   process.exit(1);
-// }
-// Charge la configuration de la station VP2 pour host et port
-const vp2ConfigPath = path.resolve(__dirname, 'config/VP2.json');
-let vp2StationConfigs;
-try {
-    vp2StationConfigs = require(vp2ConfigPath); // Charge toutes les configurations de station
-} catch (error) {
-    console.error(`Erreur lors du chargement de config/VP2.json: ${error.message}`);
-    process.exit(1);
-}
 const app = express();
+const PORT = process.env.PORT || 3000;
 
-// Middleware pour parser les corps de requête JSON
+// Middleware pour parser le JSON
 app.use(express.json());
 
-// Importe les routes de l'API
-const apiRoutes = require('./routes/');
-
-// Utilise les routes de l'API avec un préfixe /api
-app.use('/api', apiRoutes);
-
-// Route de base (optionnel, pour vérifier que le serveur est démarré)
-app.get('/', (req, res) => {
-  res.send('API Probe2 en cours d\'exécution. Accédez à /api/info pour les informations.');
+// Middleware pour les logs des requêtes
+app.use((req, res, next) => {
+    const timestamp = new Date().toISOString();
+    console.log(`${V.arrow_right} [${timestamp}] ${req.method} ${req.path}`);
+    next();
 });
 
-const defaultPort = 3000;
-const PORT = process.env.PORT || defaultPort;
+// Import des routes
+const apiRoutes = require('./routes/apiRoutes');
+const stationRoutes = require('./routes/stationRoutes');
 
-if (process.env.PORT > 1 && process.env.PORT < 65536) {
-    // console.log('< process.env >',process.env);
-} else {
-    console.warn(`Avertissement: process.env.PORT (${process.env.PORT}) non défini dans les variables d'environnement. Utilisation du port par défaut ${defaultPort}.`);
-    console.warn('pm2 reload ecosystem.config.js')
-}
+// Configuration des routes
+app.use('/api', apiRoutes);
+app.use('/api/station', stationRoutes);
+
+// Route racine
+app.get('/', (req, res) => {
+    const allConfigs = configManager.loadAllConfigs();
+    const stationsList = Object.keys(allConfigs);
+    
+    res.json({
+        message: 'API Probe2 - Surveillance de stations météorologiques VP2',
+        version: require('./package.json').version,
+        endpoints: {
+            info: '/api/info',
+            health: '/api/health',
+            stations: '/api/stations',
+            station: '/api/station/:stationId/*'
+        },
+        stations: {
+            count: stationsList.length,
+            configured: stationsList
+        },
+        documentation: {
+            info: 'GET /api/info - Informations sur l\'application',
+            health: 'GET /api/health - État de santé de l\'application',
+            stations: 'GET /api/stations - Liste toutes les stations configurées',
+            stationInfo: 'GET /api/station/:stationId/info - Informations d\'une station',
+            weather: 'GET /api/station/:stationId/weather - Données météo actuelles',
+            test: 'GET /api/station/:stationId/test - Test de connexion',
+            config: 'GET /api/station/:stationId/config - Configuration d\'une station',
+            updateConfig: 'PUT /api/station/:stationId/config - Mise à jour de la configuration',
+            syncTime: 'POST /api/station/:stationId/sync-time - Synchronisation de l\'heure',
+            syncSettings: 'POST /api/station/:stationId/sync-settings - Synchronisation des paramètres'
+        }
+    });
+});
+
+// Middleware de gestion des erreurs 404
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        error: 'Route non trouvée',
+        path: req.path,
+        method: req.method,
+        message: 'Consultez la documentation des endpoints disponibles sur /'
+    });
+});
+
+// Middleware de gestion des erreurs globales
+app.use((err, req, res, next) => {
+    console.error(`${V.error} Erreur non gérée:`, err);
+    res.status(500).json({
+        success: false,
+        error: 'Erreur interne du serveur',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'Une erreur est survenue'
+    });
+});
+
+// Vérification de l'existence du répertoire de configuration au démarrage
+const configDir = path.resolve(__dirname, 'config/stations');
+console.log(`${V.folder} Répertoire de configuration: ${configDir}`);
+
+// Chargement initial des configurations
+const allConfigs = configManager.loadAllConfigs();
+const stationsList = Object.keys(allConfigs);
+
+console.log(`${V.satellite} ${stationsList.length} station(s) configurée(s):`);
+stationsList.forEach(stationId => {
+    const config = allConfigs[stationId];
+    console.log(`  ${V.arrow_right} ${stationId} (${config.ip}:${config.port}) - ${config.name || 'Sans nom'}`);
+});
 
 // Lance le serveur
 app.listen(PORT, () => {
-  console.log(`Serveur démarré sur le port ${PORT} (${process.env.watch}, ${process.env.ignore_watch})`); // on affiche les option watch et ignore_watch
-  console.log(`Accès aux informations de l'application sur http://localhost:${PORT}/api/info`);
-  console.log(`Accès aux contrôles de la station sur http://localhost:${PORT}/api/station/:stationId/*`);
-  console.log('Stations VP2 configurées:');
-  for (const stationId in vp2StationConfigs) {
-      console.log(`- ${stationId} (${vp2StationConfigs[stationId].host}:${vp2StationConfigs[stationId].port})`);
-  }
+    console.log(`${V.rocket} Serveur Probe2 démarré sur le port ${PORT}`);
+    console.log(`${V.info} Environnement: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`${V.earth} Accès aux informations: http://localhost:${PORT}/`);
+    console.log(`${V.gear} API: http://localhost:${PORT}/api/info`);
+    console.log(`${V.satellite} Stations: http://localhost:${PORT}/api/stations`);
+    
+    if (process.env.watch) {
+        console.log(`${V.eye} Watch mode: ${process.env.watch}`);
+    }
+    if (process.env.ignore_watch) {
+        console.log(`${V.ignore} Ignore watch: ${process.env.ignore_watch}`);
+    }
 });
+
+module.exports = app;

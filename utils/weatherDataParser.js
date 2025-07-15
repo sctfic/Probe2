@@ -90,7 +90,7 @@ function parseDMPRecord(recordBuffer) {
     record.date = { value: readUInt16LE(recordBuffer, 0), native_unit: "date"}
     record.time = { value: readUInt16LE(recordBuffer, 2), native_unit: "time" };
     record.outTemp = { value: readSignedInt16LE(recordBuffer, 4), native_unit: "F_tenths" };
-    record.rainFlow = { value: readUInt16LE(recordBuffer, 10), native_unit: "clicks*cup_size" };
+    record.rainFall = { value: readUInt16LE(recordBuffer, 10), native_unit: "clicks*cup_size" };
     record.barometer = { value: readUInt16LE(recordBuffer, 14), native_unit: "inHg_1000th" };
     record.powerRadiation = { value: readUInt16LE(recordBuffer, 16), native_unit: "w/m²" };
     record.inTemp = { value: readSignedInt16LE(recordBuffer, 20), native_unit: "F_tenths" };
@@ -131,7 +131,7 @@ function convertRawValue2NativeValue(rawValue, nativeUnit, stationConfig) {
         case 'in_1000th': return rawValue / 1000;
         case 'clicks*cup_size': // doit etre en mm
             // stationConfig.rainCollectorSize.value peut avoir 3 valeurs : "1-0.2mm", "2-0.1mm", "0-0.01mm"
-            const cup = stationConfig.rainCollectorSize.value.split('-')[0]*1;
+            const cup = stationConfig.rainCollectorSize.value;
             switch (cup) {
                 case 0: return Math.round(rawValue * 0.254 * 1000)/1000;
                 case 1: return Math.round(rawValue * 0.2 * 100)/100;
@@ -168,6 +168,7 @@ const sensorTypeMap = {
     windDir: 'direction',
     outHumidity: 'humidity',
     rainRate: 'rainRate',
+    rainFall: 'rain',
     uvIndex: 'uv',
     solarRadiation: 'powerRadiation',
     stormRain: 'rain',
@@ -221,18 +222,20 @@ const conversionTable = {
         'Bar': (inHg) => inHg * 0.0338639
     },
     rain: {
-        'mm': (mm) => mm,
         'in': (mm) => mm/25.4,
+        'mm': (mm) => mm,
         'l/m²': (mm) => mm
     },
     rainRate: {
-        'mm/h': (in_h) => in_h * 25.4,
         'in/h': (in_h) => in_h,
+        'mm/h': (in_h) => in_h * 25.4,
         'l/m²/h': (in_h) => in_h * 25.4
     },
     uv: {
         'index': (uv) => uv ,
-        'min': (uv) => 180/(uv*uv)
+        'min': (uv) => 210/(uv*Math.exp(uv/32))
+        // temps d'exposition avant un coup de soleil = (DEM*6.5)/(UVIndex*exp(uvindex/DEM))
+        // DEM (Dose Erythemale Minimal) = 32 mJ/cm² peau claire de Type 2, (type 6 = noire)
     },
     powerRadiation: {
         'w/m²': (w) => w

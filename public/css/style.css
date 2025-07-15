@@ -81,3 +81,197 @@ body {
 h1 {
     color: var(--accent-blue);
 }
+/* Stations section */
+.stations-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+#filter-stations {
+    padding: 8px;
+    width: 300px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.station-item {
+    border: 1px solid var(--primary-dark);
+    border-radius: 5px;
+    margin-bottom: 10px;
+    padding: 10px;
+    background-color: #f9f9f9;
+}
+
+.station-header {
+    display: flex;
+    justify-content: space-between;
+    cursor: pointer;
+    align-items: center;
+}
+
+.station-name {
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.station-last-archive {
+    color: #666;
+    font-size: 0.9em;
+    margin-left: 10px;
+}
+
+.station-details {
+    display: none;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
+.station-details.visible {
+    display: block;
+}
+
+.station-properties {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 10px;
+}
+
+.property-item {
+    margin-bottom: 8px;
+}
+
+.property-label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 3px;
+}
+
+.property-value {
+    padding: 5px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    min-height: 20px;
+}
+
+.station-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 25px;
+    width: 80%;
+    max-width: 800px;
+    border-radius: 8px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.form-row .form-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+/* Ajoutez ceci à la fin de style.css */
+
+/* Correction pour la modale et les champs */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 25px;
+    width: 80%;
+    max-width: 800px;
+    border-radius: 8px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Permettre l'interaction avec les champs */
+.property-value {
+    /* Supprimer les styles qui empêchent l'interaction */
+    padding: 5px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    min-height: 20px;
+}
+
+/* Correction pour les champs de formulaire */
+input, select, textarea {
+    /* Réinitialiser les styles qui pourraient empêcher l'interaction */
+    background-color: white;
+    color: var(--primary-dark);
+    border: 1px solid #ddd;
+    padding: 8px;
+    border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Boutons */
+button, input[type="submit"], input[type="button"] {
+    background-color: var(--accent-blue);
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover, input[type="submit"]:hover, input[type="button"]:hover {
+    background-color: #3a9db6;
+}
+
+/* Station détails visible */
+.station-details.visible {
+    display: block !important;
+}

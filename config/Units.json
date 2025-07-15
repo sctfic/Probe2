@@ -22,7 +22,7 @@
     "rain": {
       "unit": "l/m²",   
       "avaible_units": [{"title":"milimetre","symbol":"mm"}, {"title":"inch","symbol":"in"}, {"title":"litre per square meter","symbol":"l/m²"}],
-      "sensors": ["Day rain","month rain","year rain", "storm rain", "day ET", "month ET", "year ET"]
+      "sensors": ["rainFall", "Day rain","month rain","year rain", "storm rain", "day ET", "month ET", "year ET"]
     },
     "rainRate": {
       "unit": "l/m²/h",   
@@ -31,7 +31,7 @@
     },
     "uv": {
       "unit": "index",
-      "avaible_units": [{"title":"index","symbol":"index"}, {"title":"temps d'exposition maximum","symbol":"min"}],
+      "avaible_units": [{"title":"index","symbol":"index"}, {"title":"temps d'exposition avant un coup de soleil = 210/(UVIndex*exp(uvindex/32))","symbol":"min"}],
       "sensors": ["uvIndex"]
     },
     "powerRadiation": {

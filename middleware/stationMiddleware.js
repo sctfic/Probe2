@@ -1,63 +1,74 @@
 // middleware/stationMiddleware.js
-const { wakeUpConsole, toggleLamps } = require('../config/vp2NetClient');
-const path = require('path');
-const allVp2StationConfigs = require(path.resolve(__dirname, '../config/VP2.json'));
+const configManager = require('../services/configManager');
+const { V } = require('../utils/icons');
 
-/**
- * Middleware pour charger la configuration de la station basée sur l'ID dans l'URL.
- * Attache la configuration à l'objet `req`.
- */
 const loadStationConfig = (req, res, next) => {
-    const { stationId } = req.params;
-    const validStationIds = Object.keys(allVp2StationConfigs);
-
+    const stationId = req.params.stationId;
+    
     if (!stationId) {
         return res.status(400).json({
-            error: 'Station ID is missing in the URL. Please provide a station ID.',
-            valid_station_ids: validStationIds
+            success: false,
+            error: 'Station ID manquant dans les paramètres'
         });
     }
 
-    const stationConfig = allVp2StationConfigs[stationId];
+    try {
+        const stationConfig = configManager.loadConfig(stationId);
+        
+        if (!stationConfig) {
+            return res.status(404).json({
+                success: false,
+                error: `Configuration non trouvée pour la station: ${stationId}`
+            });
+        }
 
-    if (!stationConfig) {
-        return res.status(404).json({ error: `Station with ID '${stationId}' not found.`, valid_station_ids: validStationIds });
+        // Mise à jour de la propriété id avec le nom du fichier
+        stationConfig.id = stationId;
+        
+        // Validation de la structure de config
+        if (!stationConfig.ip || !stationConfig.port) {
+            return res.status(500).json({
+                success: false,
+                error: `Configuration invalide pour la station: ${stationId} - IP ou port manquant`
+            });
+        }
+
+        req.stationConfig = stationConfig;
+        next();
+    } catch (error) {
+        console.error(`${V.error} Erreur lors du chargement de la config pour ${stationId}:`, error.message);
+        return res.status(500).json({
+            success: false,
+            error: `Erreur lors du chargement de la configuration: ${error.message}`
+        });
     }
-    
-    stationConfig.id = stationId;
-    req.stationConfig = stationConfig;
-    next();
 };
 
-/**
- * Higher-order function pour envelopper les opérations sur la station.
- * Gère le réveil de la console, l'allumage/extinction des lampes et la gestion centralisée des erreurs.
- */
 const withStationLamps = (handler) => {
     return async (req, res) => {
-        const { stationConfig } = req;
+        const stationConfig = req.stationConfig;
+        
         try {
-            await wakeUpConsole(stationConfig);
-            await toggleLamps(stationConfig, 1);
+            console.log(`${V.lamp_on} ${stationConfig.id} - Début de traitement`);
             const result = await handler(req, res);
-            if (result && !res.headersSent) {
-                res.json(result);
+            console.log(`${V.lamp_off} ${stationConfig.id} - Fin de traitement`);
+            
+            if (result && typeof result === 'object') {
+                res.json({
+                    success: true,
+                    stationId: stationConfig.id,
+                    data: result
+                });
             }
         } catch (error) {
-            console.error(`Erreur dans le handler pour ${req.path}:`, error.message);
-            if (!res.headersSent) {
-                res.status(500).json({ error: error.message });
-            }
-        } finally {
-            try {
-                // await wakeUpConsole(stationConfig);
-                // await ensureConnection(stationConfig);
-                await toggleLamps(stationConfig, 0);
-            } catch (lampError) {
-                console.error('Erreur critique lors de l\'extinction des lampes:', lampError.message);
-            }
+            console.error(`${V.error} ${stationConfig.id} - Erreur:`, error.message);
+            res.status(500).json({
+                success: false,
+                stationId: stationConfig.id,
+                error: error.message
+            });
         }
-    }
+    };
 };
 
 module.exports = {
