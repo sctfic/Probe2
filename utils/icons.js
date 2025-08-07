@@ -27,7 +27,7 @@ const V = {
     Ampoule:            '💡', // U+1F526 (Light Bulb)
     connect:            '🔌', // U+1F50C (Outlet)
     Parabol:            '📡', // U+1F512 (Satellite Antenna)
-    Satelite:           '🛰', // U+1F680 (Space Station)
+    satellite:           '🛰 ', // U+1F680 (Space Station)
     StartFlag:          '🏁', // U+1F3C1 (Finish Line)
     RedFlag:            '🚩', // U+1F6A9 (Triangular Flag)
     BlackFlag:          '🏴', // U+1F3F4 (Black Flag)
@@ -40,11 +40,11 @@ const V = {
     books:              '📚', // U+1F4DA (Books)
     book:               '📖', // U+1F4DA (Books)
     package:            '📦', // U+1F4E6 (Package)
-    cut:                '✂', // U+2705 (Scissors)
+    cut:                '✂️', // U+1F5    '✂', // U+2705 (Scissors)
     timeout:            '⌛', // U+23F1 (Hourglass)
-    error:              '❌', // U+274C (Cross Mark)
+    Error:              '❌', // U+274C (Cross Mark)
     success:            '✅', // U+2705 (Check Mark)
-    info:               'ℹ️', // U+2139 (Information)
+    info:               'ℹ️ ', // U+2139 (Information)
     fuck:               '🖕', // U+1F590 (Hand)
     sleep:              '💤', // U+1F590 (Sleeping)
     clock:              '⏱', // U+1F590 (Clock)
@@ -52,6 +52,23 @@ const V = {
     read:               '👓', // U+1F453 (Read)
     eu:                 '🇪🇺', // U+1F1EA (Europe)
     sunrise:            '🌅', // U+1F303 (Sunrise)
+    error:              '❌',
+    warning:            '⚠️',
+    rocket:             '🚀',
+    gear:               '⚙️',
+    database:           '💾',
+    network:            '🌐',
+    memory:             '💾',
+    cpu:                '⚡',
+    fail:               '❌',
+    trash:              '🗑️',
+    loading:            '⏳',
+    wifi:               '📶',
+    thermometer:        '🌡️',
+    droplet:            '💧',
+    wind:               '💨',
+    eye:                '👁️ ',
+    chart:              '📊'
 };
 
 const forecast = {

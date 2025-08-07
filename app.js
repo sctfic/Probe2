@@ -2,7 +2,8 @@
 const express = require('express');
 const path = require('path');
 const configManager = require('./services/configManager');
-const { V } = require('./utils/icons');
+const { V,O } = require('./utils/icons');
+console.log(`${O.green} Starting !`);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,7 +14,7 @@ app.use(express.json());
 // Middleware pour les logs des requêtes
 app.use((req, res, next) => {
     const timestamp = new Date().toISOString();
-    console.log(`${V.arrow_right} [${timestamp}] ${req.method} ${req.path}`);
+    console.log(`Call API [${timestamp}] ${req.method} ${req.path}`);
     next();
 });
 
@@ -26,9 +27,8 @@ app.use('/api', apiRoutes);
 app.use('/api/station', stationRoutes);
 
 // Route racine
-app.get('/', (req, res) => {
-    const allConfigs = configManager.loadAllConfigs();
-    const stationsList = Object.keys(allConfigs);
+app.get('/api/', (req, res) => {
+    const stationsList = configManager.listStations();
     
     res.json({
         message: 'API Probe2 - Surveillance de stations météorologiques VP2',
@@ -44,16 +44,15 @@ app.get('/', (req, res) => {
             configured: stationsList
         },
         documentation: {
-            info: 'GET /api/info - Informations sur l\'application',
-            health: 'GET /api/health - État de santé de l\'application',
-            stations: 'GET /api/stations - Liste toutes les stations configurées',
-            stationInfo: 'GET /api/station/:stationId/info - Informations d\'une station',
-            weather: 'GET /api/station/:stationId/weather - Données météo actuelles',
-            test: 'GET /api/station/:stationId/test - Test de connexion',
-            config: 'GET /api/station/:stationId/config - Configuration d\'une station',
+            info: 'GET /api/info - Informations sur l\'application',// ok
+            health: 'GET /api/health - État de santé de l\'application',//ok
+            stations: 'GET /api/stations - Liste toutes les stations configurées',//ok
+            stationInfo: 'GET /api/station/:stationId/info - Informations d\'une station',//ok
+            weather: 'GET /api/station/:stationId/weather - Données météo actuelles', // NOK !!!
+            test: 'GET /api/station/:stationId/test - Test de connexion',// ok
+            config: 'GET /api/station/:stationId/config - Configuration d\'une station', //NOK !!!
             updateConfig: 'PUT /api/station/:stationId/config - Mise à jour de la configuration',
-            syncTime: 'POST /api/station/:stationId/sync-time - Synchronisation de l\'heure',
-            syncSettings: 'POST /api/station/:stationId/sync-settings - Synchronisation des paramètres'
+            syncSettings: 'GET /api/station/:stationId/sync-settings - Synchronisation des paramètres'
         }
     });
 });
@@ -81,31 +80,22 @@ app.use((err, req, res, next) => {
 
 // Vérification de l'existence du répertoire de configuration au démarrage
 const configDir = path.resolve(__dirname, 'config/stations');
-console.log(`${V.folder} Répertoire de configuration: ${configDir}`);
+console.log(`${V.loading} Répertoire de configuration: ${configDir}`);
 
-// Chargement initial des configurations
-const allConfigs = configManager.loadAllConfigs();
-const stationsList = Object.keys(allConfigs);
-
-console.log(`${V.satellite} ${stationsList.length} station(s) configurée(s):`);
-stationsList.forEach(stationId => {
-    const config = allConfigs[stationId];
-    console.log(`  ${V.arrow_right} ${stationId} (${config.ip}:${config.port}) - ${config.name || 'Sans nom'}`);
-});
+// Chargement de la liste des configurations
+const stationsList = configManager.listStations();
 
 // Lance le serveur
 app.listen(PORT, () => {
-    console.log(`${V.rocket} Serveur Probe2 démarré sur le port ${PORT}`);
+    console.log(`${V.StartFlag} Serveur Probe2 démarré sur le port ${PORT}`);
     console.log(`${V.info} Environnement: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`${V.earth} Accès aux informations: http://localhost:${PORT}/`);
-    console.log(`${V.gear} API: http://localhost:${PORT}/api/info`);
     console.log(`${V.satellite} Stations: http://localhost:${PORT}/api/stations`);
     
     if (process.env.watch) {
-        console.log(`${V.eye} Watch mode: ${process.env.watch}`);
+        console.log(`${V.Gyro} Watch mode: ${process.env.watch}`);
     }
     if (process.env.ignore_watch) {
-        console.log(`${V.ignore} Ignore watch: ${process.env.ignore_watch}`);
+        console.log(`${V.Travaux} Ignore watch: ${process.env.ignore_watch}`);
     }
 });
 

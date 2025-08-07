@@ -9,27 +9,24 @@ const { V } = require('../utils/icons');
 router.use('/:stationId', loadStationConfig);
 
 // Route pour récupérer les données d'archive depuis la station (GET)
-router.get('/:stationId/archives', withStationLamps(async (req, res) => {
+router.get('/:stationId/archives', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/archives
     return await stationController.getArchiveData(req, res);
 }));
 // Routes pour les stations météorologiques
-router.get('/:stationId/info', withStationLamps(async (req, res) => {
+router.get('/:stationId/info', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/info
     return await stationController.getStationInfo(req, res);
 }));
 
-router.get('/:stationId/weather', withStationLamps(async (req, res) => {
+router.get('/:stationId/current', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/current
     return await stationController.getCurrentWeather(req, res);
 }));
 
-router.get('/:stationId/datetime', withStationLamps(async (req, res) => {
+router.get('/:stationId/datetime', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/datetime
     return await stationController.getDateTime(req, res);
 }));
 
-router.post('/:stationId/sync-time', withStationLamps(async (req, res) => {
-    return await stationController.updateTime(req, res);
-}));
 
-router.post('/:stationId/sync-settings', withStationLamps(async (req, res) => {
+router.get('/:stationId/sync-settings', withStationLamps(async (req, res) => {
     return await stationController.syncSettings(req, res);
 }));
 
@@ -47,9 +44,10 @@ router.get('/:stationId/test', withStationLamps(async (req, res) => {
             message: `Connexion établie avec succès à la station ${stationConfig.id}`,
             station: {
                 id: stationConfig.id,
-                ip: stationConfig.ip,
+                host: stationConfig.host,
                 port: stationConfig.port,
                 name: stationConfig.name || stationConfig.id
+                
             },
             timestamp: new Date().toISOString()
         };

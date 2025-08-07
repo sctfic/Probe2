@@ -1,6 +1,7 @@
 // middleware/stationMiddleware.js
 const configManager = require('../services/configManager');
-const { V } = require('../utils/icons');
+const { sendCommand, wakeUpConsole } = require('../config/vp2NetClient');
+const { O, V } = require('../utils/icons');
 
 const loadStationConfig = (req, res, next) => {
     const stationId = req.params.stationId;
@@ -26,7 +27,7 @@ const loadStationConfig = (req, res, next) => {
         stationConfig.id = stationId;
         
         // Validation de la structure de config
-        if (!stationConfig.ip || !stationConfig.port) {
+        if (!stationConfig.host || !stationConfig.port) {
             return res.status(500).json({
                 success: false,
                 error: `Configuration invalide pour la station: ${stationId} - IP ou port manquant`
@@ -49,9 +50,9 @@ const withStationLamps = (handler) => {
         const stationConfig = req.stationConfig;
         
         try {
-            console.log(`${V.lamp_on} ${stationConfig.id} - Début de traitement`);
+            await wakeUpConsole(stationConfig, true);
+
             const result = await handler(req, res);
-            console.log(`${V.lamp_off} ${stationConfig.id} - Fin de traitement`);
             
             if (result && typeof result === 'object') {
                 res.json({
@@ -67,6 +68,9 @@ const withStationLamps = (handler) => {
                 stationId: stationConfig.id,
                 error: error.message
             });
+        } finally {
+            await sendCommand(stationConfig, `LAMPS 0`, 2000, "<LF><CR>OK<LF><CR>");
+            console.log(`${O.black} ${stationConfig.id} - Screen OFF`);
         }
     };
 };

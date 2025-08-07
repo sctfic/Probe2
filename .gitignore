@@ -3,3 +3,7 @@ node_modules/
 npm-debug.log*
 .DS_Store
 package-lock.json
+coverage/
+logs/
+docs/
+

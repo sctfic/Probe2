@@ -46,6 +46,28 @@ exports.getCurrentWeather = async (req, res) => {
         });
     }
 };
+exports.getArchiveData = async (req, res) => {
+    try {
+        const stationConfig = req.stationConfig;
+        console.log(`${V.Parabol} Demande de données d'archive pour la station ${stationConfig.id}`);
+        
+        const archiveData = await stationService.downloadArchiveData(stationConfig);
+        
+        res.json({
+            success: true,
+            stationId: stationConfig.id,
+            timestamp: new Date().toISOString(),
+            data: archiveData
+        });
+    } catch (error) {
+        console.error(`${V.error} Erreur dans getArchiveData pour ${req.stationConfig?.id}:`, error);
+        res.status(500).json({
+            success: false,
+            stationId: req.stationConfig?.id || 'unknown',
+            error: error.message
+        });
+    }
+};
 
 exports.syncSettings = async (req, res) => {
     try {

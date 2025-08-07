@@ -1,7 +1,7 @@
 // services/stationService.js
 const fs = require('fs');
 const path = require('path');
-const { sendCommand, wakeUpConsole } = require('../config/vp2NetClient');
+const { writeRaw, sendCommand, wakeUpConsole } = require('../config/vp2NetClient');
 const { calculateCRC } = require('../utils/crc');
 const { parseLOOP1Data, parseLOOP2Data, parseDMPRecord, processWeatherData, convertRawValue2NativeValue, conversionTable } = require('../utils/weatherDataParser');
 const { getLocalTimeFromCoordinates, getTimeZoneFromCoordinates } = require('../utils/timeHelper');
@@ -155,7 +155,7 @@ async function syncStationSettings(stationConfig) {
 
                 // Comparer avec la valeur désirée
                 if (currentValue !== desiredValue) {
-                    console.log(`${V.arrow_right} ${configKey}: ${currentValue} -> ${desiredValue}`);
+                    console.log(`Compare ${configKey}: ${currentValue} -> ${desiredValue}`);
                     
                     if (mapping.type === 'bit') {
                         // Pour les bits, lire, modifier, écrire
@@ -186,14 +186,14 @@ async function syncStationSettings(stationConfig) {
             // Sauvegarder la configuration modifiée
             configManager.saveConfig(stationId, stationConfig);
             
-            console.log(`${V.check} Synchronisation terminée avec succès pour ${stationId}`);
+            console.log(`${V.Check} Synchronisation terminée avec succès pour ${stationId}`);
             return {
                 status: 'success',
                 message: `Paramètres synchronisés avec succès pour la station ${stationId}`,
                 changes: changesMade
             };
         } else {
-            console.log(`${V.check} Aucun changement nécessaire pour ${stationId}`);
+            console.log(`${V.Check} Aucun changement nécessaire pour ${stationId}`);
             return {
                 status: 'unchanged',
                 message: `Tous les paramètres sont déjà synchronisés pour la station ${stationId}`,
@@ -238,7 +238,7 @@ async function getStationInfo(stationConfig) {
             name: stationConfig.name || stationConfig.id,
             location: stationConfig.location || 'Non défini',
             connection: {
-                ip: stationConfig.ip,
+                host: stationConfig.host,
                 port: stationConfig.port
             },
             coordinates: {
@@ -320,7 +320,6 @@ async function downloadArchiveData(stationConfig, startDate, res) {
     } else {
         effectiveStartDate = (new Date(new Date().getTime() - 4 * 24 * 60 * 60 * 1000));
     }
-
     await sendCommand(stationConfig, 'DMPAFT', 2000, "<ACK>");
 
     const year = effectiveStartDate.getUTCFullYear();
@@ -328,31 +327,48 @@ async function downloadArchiveData(stationConfig, startDate, res) {
     const day = effectiveStartDate.getUTCDate();
     const dateStamp = (year - 2000) * 512 + month * 32 + day;
     const timeStamp = effectiveStartDate.getUTCHours() * 100 + effectiveStartDate.getUTCMinutes();
+    // console.log(`${V.StartFlag} historique a partie de ${effectiveStartDate}`,year, month, day,'=', dateStamp,':',effectiveStartDate.getUTCHours(), 'h = ', timeStamp);
 
-    const datePayload = Buffer.alloc(4);
-    datePayload.writeUInt16LE(dateStamp, 0);
-    datePayload.writeUInt16LE(timeStamp, 2);
 
-    const nativedate = convertRawValue2NativeValue( dateStamp, 'date', null);
-    const nativetime = convertRawValue2NativeValue( timeStamp, 'time', null);
-    const datetime = conversionTable.date.iso8601(nativedate) + conversionTable.time.iso8601(nativetime);
+    const datePayload = Buffer.from([dateStamp >> 8, dateStamp & 0xFF, timeStamp >> 8, timeStamp & 0xFF]);
+
+
+        // const nativedate = convertRawValue2NativeValue( dateStamp, 'date', null);
+        // const nativetime = convertRawValue2NativeValue( timeStamp, 'time', null);
+        // const datetime = conversionTable.date.iso8601(nativedate) + conversionTable.time.iso8601(nativetime);
+        // console.log(`${V.info} relecture de la date ${datetime}`, nativedate, nativetime);
 
     const dateCrc = calculateCRC(datePayload);
     const dateCrcBytes = Buffer.from([(dateCrc >> 8) & 0xFF, dateCrc & 0xFF]);
     const fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
-
+    // console.log(`${V.transmission} fullPayload`, fullPayload.toString('hex'));
+    // on ne peu pas utiliser sendCommand pour datePayload, on ecrit directement
+    // writeRaw(stationConfig, datePayload);
+    console.log(`${V.thermometer} Récupération des données météo pour ${stationConfig.id}`);
     const pageInfo = await sendCommand(stationConfig, fullPayload, 5000, "<ACK>4<CRC>");
 
     const numberOfPages = pageInfo.readUInt16LE(0);
     let firstReccord = pageInfo.readUInt8(2);
     console.log(`${V.books} Nombre de pages d'archives : ${numberOfPages}`);
     console.log(`${V.book} Premier enregistrement d'archive à télécharger : ${firstReccord}`);
-
-    res.write(JSON.stringify({
-        status: 'start',
-        totalPages: numberOfPages,
-        processedPages: 0,
-    }) + '\n');
+// return;
+    //function interne pour l'avancement
+    const sendProgress = (page, total) => {
+        if (total > 1) {
+            const out = {
+                status: 'in progress',
+                processedPages: page,
+                totalPages: total,
+            }
+            try {
+                // Envoi de l'avancement au client
+                res.write(JSON.stringify(out) + '\n');
+            } catch (error) {
+                console.error(`${V.error} Erreur lors de l'envoi de l'avancement pour ${stationId}:`, out);
+            }
+        }
+    };
+    sendProgress(0, numberOfPages);
 
     const allRecords = {};
     for (let i = 0; i < numberOfPages; i++) {
@@ -378,16 +394,8 @@ async function downloadArchiveData(stationConfig, startDate, res) {
             }
         }        
         firstReccord = 0;
-        if (numberOfPages > 1) {
-            res.write(JSON.stringify({
-                status: 'progress',
-                totalPages: numberOfPages,
-                processedPages: i + 1,
-            }) + '\n');
-        }
-        configManager.updateStationConfig({
-            lastArchiveDate: stationConfig.lastArchiveDate
-        });
+        sendProgress(i+1, numberOfPages);
+        configManager.autoSaveConfig(stationConfig);
     }
     await wakeUpConsole(stationConfig);
     return { status: 'success', message: `${Object.keys(allRecords).length}/${numberOfPages} enregistrements d'archive téléchargés.`, data: allRecords };

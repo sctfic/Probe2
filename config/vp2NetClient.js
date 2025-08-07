@@ -13,7 +13,7 @@ const { O, V } = require('../utils/icons');
  */
 function _createConnectionState(stationConfig) {
     const key = `${stationConfig.host}:${stationConfig.port}`;
-    console.log(`${V.Satelite} Creating new connection state for ${key}`);
+    console.log(`${V.satellite} Creating new connection state for ${key}`);
 
     const state = {
         config: stationConfig,
@@ -183,7 +183,7 @@ async function ensureConnection(state) {
  * Exécute la procédure de réveil et assure que la console est prête à recevoir les commandes.
  * @returns {Promise<void>} Résout si la console est réveillée, rejette sinon.
  */
-async function wakeUpConsole(stationConfig) {
+async function wakeUpConsole(stationConfig, screen = false) {
     const state = _getConnectionState(stationConfig);
     await ensureConnection(state); // S'assurer que la connexion TCP est active avant le réveil
 
@@ -220,6 +220,11 @@ async function wakeUpConsole(stationConfig) {
             });
 
             if (response.includes(0x0A) && response.includes(0x0D)) { // Vérification de la réponse
+                if (screen) {
+                    await sendCommand(stationConfig, `LAMPS 1`, 2000, "<LF><CR>OK<LF><CR>");
+                    console.log(`${O.yellow} ${stationConfig.id} - Screen ON`);
+
+                }
                 return; // Console est réveillée
             } else {
                 console.warn(`${V.sleep} Unexpected wakeup response (no \\n\\r): ${response.toString('hex')}`); //
@@ -365,7 +370,6 @@ async function sendCommand(stationConfig, command, timeout = 2000, answerFormat 
         // 0x06 = '<ACK>'
         // 0x21 = '<NAK>'
         // 0x18 = '<CANCEL>'
-
         const commandText = command.toString().replace(/\r/g, '<CR>').replace(/\n/g, '<LF>').replace(/\x06/g, '<ACK>').replace(/\x21/g, '<NAK>').replace(/\x18/g, '<CANCEL>').replace(/\x1B/g, '<ESC>');
         console.log(`${V.send} Sending to ${stationConfig.id} [${stationConfig.host}:${stationConfig.port}] (${attempts}/${maxAttempts}): '${commandText}', AnswerFormat: ${answerFormat}`);
 

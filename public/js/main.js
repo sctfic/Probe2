@@ -212,7 +212,7 @@ function checkEventListeners(elementId, eventType) {
         stationItem.innerHTML = `
             <div class="station-header">
                 <div>
-                    <span class="station-name">${station.Name}</span>
+                    <span class="station-name">${station.name}</span>
                     <span class="station-last-archive">${lastArchiveDate}</span>
                 </div>
                 <div>▶</div>
@@ -230,7 +230,7 @@ function checkEventListeners(elementId, eventType) {
         const propertiesContainer = stationItem.querySelector('.station-properties');
         if (propertiesContainer) {
             Object.keys(station).forEach(key => {
-                if (key === 'id' || key === 'Name' || key === 'comment' || 
+                if (key === 'id' || key === 'name' || key === 'lastName' || key === 'comment' || 
                     key === 'lastArchiveDate' || key === 'deltaTimeSeconds') return;
                     
                 let value = station[key];
@@ -292,7 +292,7 @@ function checkEventListeners(elementId, eventType) {
             const station = stationsConfig[stationId];
             if (!station) return;
             
-            const name = station.Name ? station.Name.toLowerCase() : '';
+            const name = station.name ? station.name.toLowerCase() : '';
             const host = station.host ? station.host.toLowerCase() : '';
             const comment = station.comment ? station.comment.toLowerCase() : '';
             
@@ -319,7 +319,7 @@ function checkEventListeners(elementId, eventType) {
         const station = stationsConfig[stationId];
         if (!station || !modalTitle || !stationIdInput) return;
         
-        modalTitle.textContent = `Modifier ${station.Name}`;
+        modalTitle.textContent = `Modifier ${station.name}`;
         stationIdInput.value = stationId;
         
         // Remplir le formulaire avec les données de la station
@@ -339,7 +339,7 @@ function checkEventListeners(elementId, eventType) {
         const archiveintervalInput = document.getElementById('station-archiveinterval');
         const archiverecordsenableInput = document.getElementById('station-archiverecordsenable');
         
-        if (nameInput) nameInput.value = station.Name;
+        if (nameInput) nameInput.value = station.name;
         if (hostInput) hostInput.value = station.host;
         if (portInput) portInput.value = station.port;
         if (commentInput) commentInput.value = station.comment || '';
@@ -399,7 +399,7 @@ function checkEventListeners(elementId, eventType) {
         }
         
         const stationData = {
-            Name: nameInput.value,
+            name: nameInput.value,
             host: hostInput.value,
             port: parseInt(portInput.value),
             comment: commentInput ? commentInput.value : '',
@@ -426,7 +426,7 @@ function checkEventListeners(elementId, eventType) {
             
             if (isNewStation) {
                 // Générer un ID unique
-                newId = `vp2_${stationData.Name.replace(/\s+/g, '_')}`;
+                newId = `vp2_${stationData.name.replace(/\s+/g, '_')}`;
                 
                 // Ajouter la nouvelle station
                 response = await fetch(`http://probe2.lpz.ovh/api/config/vp2/${newId}`, {
@@ -464,7 +464,7 @@ function checkEventListeners(elementId, eventType) {
             return;
         }
         
-        if (!confirm(`Êtes-vous sûr de vouloir supprimer la station ${station.Name}?`)) {
+        if (!confirm(`Êtes-vous sûr de vouloir supprimer la station ${station.name}?`)) {
             return;
         }
         

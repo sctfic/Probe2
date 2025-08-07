@@ -1,20 +1,21 @@
 {
-    "id": "vp2_Serramoune",
-    "Name": "vp2 Serramoune",
+    "id": "VP2_Serramoune",
+    "name": "vp2 Serramoune",
     "comment": "Cabled Plus, alban",
     "host": "vp2",
     "port": 22222,
     "longitude": {
-        "desired": -10.479901,
-        "read": -0.5
+        "desired": -0.479901,
+        "read": -10.479901
     },
     "latitude": {
-        "desired": 53.20758,
-        "read": 43.2
+        "desired": 43.20758,
+        "read": 53.20758
     },
     "altitude": {
+        "comment": "in meters",
         "desired": 1000,
-        "read": 111
+        "read": 1000
     },
     "timezone": {
         "value": "Europe/Paris",
@@ -61,6 +62,7 @@
         "desired": true,
         "read": null
     },
-    "lastArchiveDate": "2025-07-01T17:20:00.000Z",
-    "deltaTimeSeconds": "0.75"
+    "lastArchiveDate": "2025-08-01T02:40:00.000Z",
+    "deltaTimeSeconds": "0.75",
+    "path": "/home/alban/www/Probe2/config/stations/VP2_Serramoune.json"
 }

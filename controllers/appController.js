@@ -1,36 +1,27 @@
-// controllers/infoController.js
-const fs = require('fs');
-const path = require('path');
+// controllers/appController.js
 const configManager = require('../services/configManager');
 const { V } = require('../utils/icons');
 
-const packageJson = require('../package.json');
-
-exports.getInfo = (req, res) => {
+exports.getAppInfo = (req, res) => { // http://probe2.lpz.ovh/api/info
     try {
-        // Charger toutes les configurations de stations
+        console.log(`${V.info} Récupération des informations de l'application`);
+        
         const allConfigs = configManager.loadAllConfigs();
         const stationsList = Object.keys(allConfigs);
-        
-        console.log(`${V.info} Demande d'informations sur l'application`);
-        
+
         const info = {
-            name: packageJson.name,
-            version: packageJson.version,
-            description: packageJson.description,
-            author: packageJson.author,
-            license: packageJson.license,
+            name: 'Probe2 API',
+            version: require('../package.json').version,
+            description: 'API pour la surveillance de stations météorologiques Davis Vantage Pro 2',
+            status: 'running',
+            timestamp: new Date().toISOString(),
             uptime: process.uptime(),
-            environment: process.env.NODE_ENV || 'development',
             nodeVersion: process.version,
             platform: process.platform,
-            architecture: process.arch,
-            memory: process.memoryUsage(),
-            timestamp: new Date().toISOString(),
+            arch: process.arch,
             stations: {
                 count: stationsList.length,
-                list: stationsList,
-                configurations: Object.keys(allConfigs).map(stationId => ({
+                configured: stationsList.map(stationId => ({
                     id: stationId,
                     host: allConfigs[stationId].host,
                     port: allConfigs[stationId].port,
@@ -40,8 +31,10 @@ exports.getInfo = (req, res) => {
             },
             endpoints: {
                 info: '/api/info',
-                stations: '/api/station/:stationId/*',
-                config: '/api/config'
+                health: '/api/health',
+                stations: '/api/stations',
+                station: '/api/station/:stationId/*',
+                config: '/api/station/:stationId/config'
             }
         };
 
@@ -57,20 +50,33 @@ exports.getInfo = (req, res) => {
 
 exports.getHealth = (req, res) => {
     try {
+        console.log(`${V.heart} Check de santé de l'application`);
+        
         const allConfigs = configManager.loadAllConfigs();
         const stationsList = Object.keys(allConfigs);
         
         const health = {
-            status: 'ok',
+            status: 'healthy',
             timestamp: new Date().toISOString(),
             uptime: process.uptime(),
+            version: require('../package.json').version,
+            system: {
+                nodeVersion: process.version,
+                platform: process.platform,
+                arch: process.arch
+            },
             stations: {
                 total: stationsList.length,
                 configured: stationsList
             },
             memory: {
                 used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-                total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
+                total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+                external: Math.round(process.memoryUsage().external / 1024 / 1024),
+                rss: Math.round(process.memoryUsage().rss / 1024 / 1024)
+            },
+            cpu: {
+                usage: process.cpuUsage()
             }
         };
 
@@ -78,8 +84,10 @@ exports.getHealth = (req, res) => {
     } catch (error) {
         console.error(`${V.error} Erreur lors du check de santé:`, error);
         res.status(500).json({
-            status: 'error',
-            error: 'Erreur lors du check de santé'
+            status: 'unhealthy',
+            timestamp: new Date().toISOString(),
+            error: 'Erreur lors du check de santé',
+            message: error.message
         });
     }
 };
