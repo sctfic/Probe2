@@ -316,7 +316,7 @@ async function downloadArchiveData(stationConfig, startDate, res) {
         effectiveStartDate = startDate;
     } else if (stationConfig.lastArchiveDate) {
         effectiveStartDate = new Date(stationConfig.lastArchiveDate);
-        effectiveStartDate.setMinutes(effectiveStartDate.getMinutes() + 1);
+        effectiveStartDate.setMinutes(effectiveStartDate.getMinutes());
     } else {
         effectiveStartDate = (new Date(new Date().getTime() - 4 * 24 * 60 * 60 * 1000));
     }
@@ -326,12 +326,14 @@ async function downloadArchiveData(stationConfig, startDate, res) {
     const month = effectiveStartDate.getUTCMonth() + 1;
     const day = effectiveStartDate.getUTCDate();
     const dateStamp = (year - 2000) * 512 + month * 32 + day;
-    const timeStamp = effectiveStartDate.getUTCHours() * 100 + effectiveStartDate.getUTCMinutes();
-    // console.log(`${V.StartFlag} historique a partie de ${effectiveStartDate}`,year, month, day,'=', dateStamp,':',effectiveStartDate.getUTCHours(), 'h = ', timeStamp);
+    // console.log(`${V.StartFlag} historique a partie de y=`,year, 'm= ', month, 'd= ', day,'=>', dateStamp);
+    const hours = effectiveStartDate.getUTCHours();
+    const minutes = effectiveStartDate.getUTCMinutes();
+    const timeStamp = hours * 100 + minutes;
+    // console.log(`${V.StartFlag} historique a partie de h=`,hours, 'm= ', minutes,'=>', timeStamp);
 
-
-    const datePayload = Buffer.from([dateStamp >> 8, dateStamp & 0xFF, timeStamp >> 8, timeStamp & 0xFF]);
-
+    // construction du buffer datePayload = dateStamp + timeStamp, attention a l'ordre de Octets !!!!
+    const datePayload = Buffer.from([ dateStamp & 0xFF, dateStamp >> 8, timeStamp & 0xFF, timeStamp >> 8]);
 
         // const nativedate = convertRawValue2NativeValue( dateStamp, 'date', null);
         // const nativetime = convertRawValue2NativeValue( timeStamp, 'time', null);
@@ -339,19 +341,24 @@ async function downloadArchiveData(stationConfig, startDate, res) {
         // console.log(`${V.info} relecture de la date ${datetime}`, nativedate, nativetime);
 
     const dateCrc = calculateCRC(datePayload);
-    const dateCrcBytes = Buffer.from([(dateCrc >> 8) & 0xFF, dateCrc & 0xFF]);
+    const dateCrcBytes = Buffer.from([dateCrc >> 8, dateCrc & 0xFF]);
     const fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
+    // const testBuffer = Buffer.concat([Buffer.from([1,2,4,0,15]),Buffer.from([0,32,64,128])]);
+    // console.log(`${V.warning} testBuffer`, testBuffer.toString('hex'), testBuffer.readUInt16LE(3), testBuffer.readUInt16BE(3));
     // console.log(`${V.transmission} fullPayload`, fullPayload.toString('hex'));
     // on ne peu pas utiliser sendCommand pour datePayload, on ecrit directement
-    // writeRaw(stationConfig, datePayload);
-    console.log(`${V.thermometer} Récupération des données météo pour ${stationConfig.id}`);
-    const pageInfo = await sendCommand(stationConfig, fullPayload, 5000, "<ACK>4<CRC>");
+    // console.log(`${V.thermometer} Récupération des données météo pour ${stationConfig.id}`);
+    // await writeRaw(stationConfig, datePayload);
+    // console.log(`${V.send} datePayload`, datePayload.toString('hex'));
+    // // sleep 100ms
+    // await new Promise(resolve => setTimeout(resolve, 100));
+    // console.log(`${V.timeout} wait`, 100);
 
+    const pageInfo = await sendCommand(stationConfig, fullPayload, 5000, "<ACK>4<CRC>"); // pageInfo 01020200
+    // console.log(`${V.droplet} pageInfo`, pageInfo.toString('hex'));
     const numberOfPages = pageInfo.readUInt16LE(0);
     let firstReccord = pageInfo.readUInt8(2);
-    console.log(`${V.books} Nombre de pages d'archives : ${numberOfPages}`);
-    console.log(`${V.book} Premier enregistrement d'archive à télécharger : ${firstReccord}`);
-// return;
+    console.log(`${V.books} ${numberOfPages} pages d'archives`, `${V.book} debute au ${firstReccord}ieme enregistrement de la 1er page`);
     //function interne pour l'avancement
     const sendProgress = (page, total) => {
         if (total > 1) {
