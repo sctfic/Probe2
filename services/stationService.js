@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { writeRaw, sendCommand, wakeUpConsole } = require('../config/vp2NetClient');
 const { calculateCRC } = require('../utils/crc');
-const { parseLOOP1Data, parseLOOP2Data, parseDMPRecord, processWeatherData, convertRawValue2NativeValue, conversionTable } = require('../utils/weatherDataParser');
+const { parseLOOP1Data, parseLOOP2Data, parseDMPRecord, processWeatherData, convertRawValue2NativeValue, conversionTable, readSignedInt16LE, readUInt16LE, readInt8, readUInt8  } = require('../utils/weatherDataParser');
 const { getLocalTimeFromCoordinates, getTimeZoneFromCoordinates } = require('../utils/timeHelper');
 const { findDavisTimeZoneIndex } = require('../utils/timeZoneMapping');
 const { V } = require('../utils/icons');
@@ -94,18 +94,19 @@ async function updateStationTime(stationConfig) {
 }
 
 const EEPROM_MAPPINGS = {
-    latitude: { address: 0x0B, length: 2, type: 'int', scale: 10 },
-    longitude: { address: 0x0D, length: 2, type: 'int', scale: 10 },
-    altitude: { address: 0x0F, length: 2, type: 'uint', scale: 3.281},
-    archiveInterval: { address: 0x2D, length: 1, type: 'uint', scale: 1},
-    AMPMMode: { address: 0x2B, length: 1, type: 'bit', mask: 0x01, shift: 0 },
-    isAMPMMode: { address: 0x2B, length: 1, type: 'bit', mask: 0x02, shift: 1 },
-    dateFormat: { address: 0x2B, length: 1, type: 'bit', mask: 0x04, shift: 2 },
-    windCupSize: { address: 0x2B, length: 1, type: 'bit', mask: 0x08, shift: 3 },
-    rainCollectorSize: { address: 0x2B, length: 1, type: 'bit', mask: 0x30, shift: 4 },
-    latitudeNorthSouth: { address: 0x2B, length: 1, type: 'bit', mask: 0x40, shift: 6 },
-    longitudeEastWest: { address: 0x2B, length: 1, type: 'bit', mask: 0x80, shift: 7 },
-    rainSaisonStart: { address: 0x2C, length: 1, type: 'bit', mask: 0x0F, shift: 0 },
+    latitude:           { address: 0x0B, length: 2, type: 'int',  scale: 10 },
+    longitude:          { address: 0x0D, length: 2, type: 'int',  scale: 10 },
+    altitude:           { address: 0x0F, length: 2, type: 'uint', scale: 3.281},
+    rainSaisonStart:    { address: 0x2C, length: 1, type: 'int',  scale: 1 },
+    archiveInterval:    { address: 0x2D, length: 1, type: 'uint', scale: 1}, // Use "SETPER" to set this value. 
+    // le block 0x2B doist etr lu et ecris en block !
+    // AMPMMode:           { address: 0x2B, length: 1, type: 'bit',  mask: 0x01, shift: 0 },
+    // isAMPMMode:         { address: 0x2B, length: 1, type: 'bit',  mask: 0x02, shift: 1 },
+    // dateFormat:         { address: 0x2B, length: 1, type: 'bit',  mask: 0x04, shift: 2 },
+    // windCupSize:        { address: 0x2B, length: 1, type: 'bit',  mask: 0x08, shift: 3 },
+    // rainCollectorSize:  { address: 0x2B, length: 1, type: 'bit',  mask: 0x30, shift: 4 },
+    // latitudeNorthSouth: { address: 0x2B, length: 1, type: 'bit',  mask: 0x40, shift: 6 },
+    // longitudeEastWest:  { address: 0x2B, length: 1, type: 'bit',  mask: 0x80, shift: 7 },
 };
 
 async function syncStationSettings(stationConfig) {
@@ -128,59 +129,84 @@ async function syncStationSettings(stationConfig) {
 
         // Parcourir tous les mappings EEPROM
         for (const [configKey, mapping] of Object.entries(EEPROM_MAPPINGS)) {
+            console.log(`${V.read} Read ${configKey}, need ${stationConfig[configKey].desired}`);
+
             if (stationConfig.hasOwnProperty(configKey) && stationConfig[configKey].hasOwnProperty('desired')) {
                 const desiredValue = stationConfig[configKey].desired;
-                
-                // Lire la valeur actuelle
-                const currentData = await readEeprom(mapping.address, mapping.length);
-                let currentValue;
 
+                let currentValue;
+                // Lire la valeur actuelle
+                let currentData = await readEeprom(mapping.address, mapping.length);
                 if (mapping.type === 'bit') {
                     currentValue = (currentData[0] & mapping.mask) >> mapping.shift;
                 } else if (mapping.type === 'int') {
                     if (mapping.length === 2) {
-                        currentValue = (currentData[1] << 8) | currentData[0];
-                        if (currentValue > 32767) currentValue -= 65536; // Conversion en signé
+                        currentValue = readSignedInt16LE(currentData);
                     } else {
-                        currentValue = currentData[0];
-                        if (currentValue > 127) currentValue -= 256; // Conversion en signé
+                        currentValue = readInt8(currentData);
                     }
                 } else { // uint
                     if (mapping.length === 2) {
-                        currentValue = (currentData[1] << 8) | currentData[0];
+                        currentValue = readUInt16LE(currentData);
                     } else {
-                        currentValue = currentData[0];
+                        currentValue = readUInt8(currentData);
                     }
+                }
+                let floorDesiredValue = desiredValue;
+                if(mapping.scale){
+                    floorDesiredValue = Math.floor(desiredValue * mapping.scale);
                 }
 
                 // Comparer avec la valeur désirée
-                if (currentValue !== desiredValue) {
-                    console.log(`Compare ${configKey}: ${currentValue} -> ${desiredValue}`);
+                if (currentValue !== floorDesiredValue) {
+                    stationConfig[configKey].read = currentValue;
+                    console.log(`${V.write} Compare ${configKey}: ${currentValue} -> ${floorDesiredValue}`);
                     
                     if (mapping.type === 'bit') {
                         // Pour les bits, lire, modifier, écrire
                         let newValue = currentData[0];
-                        newValue = (newValue & ~mapping.mask) | ((desiredValue << mapping.shift) & mapping.mask);
+                        newValue = (newValue & ~mapping.mask) | ((floorDesiredValue << mapping.shift) & mapping.mask);
                         await writeEeprom(mapping.address, newValue);
                     } else {
                         // Pour les valeurs entières
                         if (mapping.length === 2) {
-                            await writeEeprom(mapping.address, desiredValue & 0xFF);
-                            await writeEeprom(mapping.address + 1, (desiredValue >> 8) & 0xFF);
+                            await writeEeprom(mapping.address, floorDesiredValue & 0xFF);
+                            await writeEeprom(mapping.address + 1, (floorDesiredValue >> 8) & 0xFF);
                         } else {
-                            await writeEeprom(mapping.address, desiredValue);
+                            await writeEeprom(mapping.address, floorDesiredValue);
                         }
                     }
-                    
-                    // Mettre à jour la configuration
-                    stationConfig[configKey].read = desiredValue;
                     changesMade = true;
+
+                    // reLire la valeur actuelle
+                    currentData = await readEeprom(mapping.address, mapping.length);
+                    if (mapping.type === 'bit') {
+                        currentValue = (currentData[0] & mapping.mask) >> mapping.shift;
+                    } else if (mapping.type === 'int') {
+                        if (mapping.length === 2) {
+                            currentValue = readSignedInt16LE(currentData);
+                        } else {
+                            currentValue = readInt8(currentData);
+                        }
+                    } else { // uint
+                        if (mapping.length === 2) {
+                            currentValue = readUInt16LE(currentData);
+                        } else {
+                            currentValue = readUInt8(currentData);
+                        }
+                    }
+                    if(mapping.scale){
+                        currentValue *= mapping.scale;
+                    }
+                    console.log(`${V.eye} Compare ${configKey}: ${currentValue} -> ${currentValue} (desired:${desiredValue})`);
+                    // Mettre à jour la configuration
+                    stationConfig[configKey].read = currentValue;
                 }
             }
         }
 
         if (changesMade) {
-            console.log(`${V.download} Application des changements avec NEWSETUP...`);
+            console.log(`${V.memory} Application des changements avec NEWSETUP...`);
             await sendCommand(stationConfig, 'NEWSETUP', 2000, "<ACK>");
             
             // Sauvegarder la configuration modifiée
