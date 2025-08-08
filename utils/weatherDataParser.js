@@ -39,7 +39,7 @@ function parseLOOP1Data(data) {
     weatherData.windDir = { value: readUInt16LE(data, 16), native_unit: "degrees" };
     weatherData.outHumidity = { value: readUInt8(data, 33), native_unit: "percent" };
     weatherData.rainRate = { value: readUInt16LE(data, 41), native_unit: "clicks*cup_size" };
-    weatherData.uvIndex = { value: readUInt8(data, 43), native_unit: "uv_index" };
+    weatherData.UV = { value: readUInt8(data, 43), native_unit: "uvIndex_tenths" };
     weatherData.solarRadiation = { value: readUInt16LE(data, 44), native_unit: "w/m²" };
     // weatherData.stormRain = { value: readUInt16LE(data, 46), native_unit: "in_100th" };
     weatherData.dayRain = { value: readUInt16LE(data, 50), native_unit: "clicks*cup_size" };
@@ -73,7 +73,7 @@ function parseLOOP2Data(data) {
     weatherData.windChill = { value: readSignedInt16LE(data, 37), native_unit: "F_whole" };
     weatherData.THSW = { value: readSignedInt16LE(data, 39), native_unit: "F_whole" };
     weatherData.rainRate = { value: readUInt16LE(data, 41), native_unit: "clicks*cup_size" };
-    weatherData.uvIndex = { value: readUInt8(data, 43), native_unit: "uv_index" };
+    weatherData.UV = { value: readUInt8(data, 43), native_unit: "uvIndex_tenths" };
     weatherData.solarRadiation = { value: readUInt16LE(data, 44), native_unit: "w/m²" };
     weatherData.stormRain = { value: readUInt16LE(data, 46), native_unit: "clicks*cup_size" };
     weatherData.dateStormRain = { value: readUInt16LE(data, 48), native_unit: "date" };
@@ -98,7 +98,7 @@ function parseDMPRecord(recordBuffer) {
     record.outHumidity = { value: readUInt8(recordBuffer, 23), native_unit: "percent" };
     record.windSpeed = { value: readUInt8(recordBuffer, 25), native_unit: "mph_whole" };
     record.windDir = { value: readUInt8(recordBuffer, 27), native_unit: "degrees" };
-    record.uvIndex = { value: readUInt8(recordBuffer, 28), native_unit: "uv_index" };
+    record.UV = { value: readUInt8(recordBuffer, 28), native_unit: "uvIndex_tenths" };
     record.ET = { value: readUInt8(recordBuffer, 29), native_unit: "in_100th" };
     record.leafTemp1 = { value: readUInt8(recordBuffer, 34), native_unit: "F_whole" };
     record.leafTemp2 = { value: readUInt8(recordBuffer, 35), native_unit: "F_whole" };
@@ -123,6 +123,7 @@ function parseDMPRecord(recordBuffer) {
 
 function convertRawValue2NativeValue(rawValue, nativeUnit, stationConfig) {
     switch (nativeUnit) {
+        case 'uvIndex_tenths': return rawValue / 10;
         case 'F_tenths': return rawValue / 10;
         case 'F_whole': return rawValue;
         case 'F_-90': return rawValue - 90;
@@ -169,7 +170,7 @@ const sensorTypeMap = {
     outHumidity: 'humidity',
     rainRate: 'rainRate',
     rainFall: 'rain',
-    uvIndex: 'uv',
+    UV: 'uv',
     solarRadiation: 'powerRadiation',
     stormRain: 'rain',
     dateStormRain: 'date',

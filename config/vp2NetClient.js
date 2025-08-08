@@ -379,7 +379,7 @@ async function sendCommand(stationConfig, command, timeout = 2000, answerFormat 
 
             // Effectuer la validation CRC si applicable
             if (parsedFormat.expectsCrc) {
-                const data = payload.slice(0, parsedFormat.dataLengthForCrc);
+                const data = payload.slice(0, parsedFormat.dataLengthForCrc); // decoupe les data
                 const receivedCrcBytes = payload.slice(parsedFormat.dataLengthForCrc, parsedFormat.dataLengthForCrc + 2);
                 const receivedCrc = receivedCrcBytes.readUInt16BE(0);
                 const calculatedCrc = calculateCRC(data);

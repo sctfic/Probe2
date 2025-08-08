@@ -1,5 +1,6 @@
 // controllers/stationController.js
 const stationService = require('../services/stationService');
+const configManager = require('../services/configManager');
 const { V } = require('../utils/icons');
 
 exports.getStationInfo = async (req, res) => {
@@ -23,7 +24,6 @@ exports.getStationInfo = async (req, res) => {
         });
     }
 };
-
 exports.getCurrentWeather = async (req, res) => {
     try {
         const stationConfig = req.stationConfig;
@@ -68,18 +68,20 @@ exports.getArchiveData = async (req, res) => {
         });
     }
 };
-
 exports.syncSettings = async (req, res) => {
     try {
         const stationConfig = req.stationConfig;
         console.log(`${V.gear} Demande de synchronisation des paramètres pour la station ${stationConfig.id}`);
         
         const result = await stationService.syncStationSettings(stationConfig);
+        // autosave config
+        configManager.autoSaveConfig(stationConfig);
         
         res.json({
             success: true,
             stationId: stationConfig.id,
-            data: result
+            data: result,
+            settings: stationConfig
         });
     } catch (error) {
         console.error(`${V.error} Erreur dans syncSettings pour ${req.stationConfig?.id}:`, error);

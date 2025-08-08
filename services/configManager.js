@@ -74,6 +74,13 @@ class ConfigManager {
     }
     autoSaveConfig(config) {
         try {
+            // on retire toute les sous proprietes "previousValue"
+            // for (const key in config) {
+            //     if (config[key].hasOwnProperty('previousValue')) {
+            //         delete config[key].previousValue;
+            //     }
+            // }
+            
             fs.writeFileSync(config.path, JSON.stringify(config, null, 4));
             console.log(`${V.database} Configuration pour ${config.id} sauvegardée avec succès. ${V.Check}`);
             return true;

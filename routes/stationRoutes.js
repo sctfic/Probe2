@@ -17,21 +17,21 @@ router.get('/:stationId/info', withStationLamps(async (req, res) => { //http://p
     return await stationController.getStationInfo(req, res);
 }));
 
-router.get('/:stationId/current', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/current
+router.get('/:stationId/currents', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/currents
     return await stationController.getCurrentWeather(req, res);
 }));
 
 router.get('/:stationId/datetime', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/datetime
-    return await stationController.getDateTime(req, res);
+    return await stationController.updateTime(req, res);
 }));
 
 
-router.get('/:stationId/sync-settings', withStationLamps(async (req, res) => {
+router.get('/:stationId/sync-settings', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/sync-settings
     return await stationController.syncSettings(req, res);
 }));
 
 // Route pour tester la connexion à une station
-router.get('/:stationId/test', withStationLamps(async (req, res) => {
+router.get('/:stationId/test', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/test
     const stationConfig = req.stationConfig;
     const { wakeUpConsole } = require('../config/vp2NetClient');
     
@@ -58,7 +58,7 @@ router.get('/:stationId/test', withStationLamps(async (req, res) => {
 }));
 
 // Route pour obtenir la configuration d'une station
-router.get('/:stationId/config', (req, res) => {
+router.get('/:stationId/config', (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/config
     try {
         const stationConfig = req.stationConfig;
         console.log(`${V.gear} Récupération de la configuration pour la station ${stationConfig.id}`);
@@ -66,7 +66,7 @@ router.get('/:stationId/config', (req, res) => {
         res.json({
             success: true,
             stationId: stationConfig.id,
-            data: stationConfig
+            settings: stationConfig
         });
     } catch (error) {
         console.error(`${V.error} Erreur lors de la récupération de la configuration:`, error);

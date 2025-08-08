@@ -5,64 +5,61 @@
     "host": "vp2",
     "port": 22222,
     "longitude": {
-        "desired": -0.479901,
-        "read": -10.479901
+        "desired": -0.479921,
+        "lastReadValue": -0.5
     },
     "latitude": {
-        "desired": 43.20758,
-        "read": 53.20758
+        "desired": 43.20759,
+        "lastReadValue": 43.2
     },
     "altitude": {
         "comment": "in meters",
-        "desired": 1000,
-        "read": 1000
+        "desired": 242,
+        "lastReadValue": 242.01
     },
     "timezone": {
         "value": "Europe/Paris",
         "desired": 21,
-        "read": null
+        "lastReadValue": 21,
+        "method": "GPS"
     },
     "isAMPMMode": {
         "desired": 0,
-        "read": null
+        "lastReadValue": 0
     },
     "dateFormat": {
         "desired": 1,
-        "read": 0
+        "lastReadValue": 1
     },
     "windCupSize": {
         "desired": 1,
-        "read": 1
+        "lastReadValue": 1
     },
     "rainCollectorSize": {
         "desired": 0,
-        "read": 0
+        "lastReadValue": 0
     },
     "rainSaisonStart": {
         "desired": 2,
-        "read": 1
+        "lastReadValue": 2
     },
     "latitudeNorthSouth": {
         "desired": 1,
-        "read": 1
+        "lastReadValue": 1
     },
     "longitudeEastWest": {
         "desired": 0,
-        "read": 0
+        "lastReadValue": 0
     },
     "AMPMMode": {
         "desired": 0,
-        "read": 0
+        "lastReadValue": 0
     },
     "archiveInterval": {
         "desired": 5,
-        "read": 5
+        "lastReadValue": 5
     },
-    "archiveRecordsEnable": {
-        "desired": true,
-        "read": null
-    },
-    "lastArchiveDate": "2025-08-04T06:45:00.000Z",
-    "deltaTimeSeconds": "0.75",
+    "lastArchiveDate": "2025-08-06T05:25:00.000Z",
+    "deltaTimeSeconds": 2.716,
     "path": "/home/alban/www/Probe2/config/stations/VP2_Serramoune.json"
 }

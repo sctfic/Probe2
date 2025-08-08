@@ -55,7 +55,7 @@ const V = {
     error:              '❌',
     warning:            '⚠️',
     rocket:             '🚀',
-    gear:               '⚙️',
+    gear:               '⚙️ ',
     database:           '💾',
     network:            '🌐',
     memory:             '💾',

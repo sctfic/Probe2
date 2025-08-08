@@ -30,9 +30,9 @@
       "sensors": ["rainRate"]
     },
     "uv": {
-      "unit": "index",
+      "unit": "min",
       "avaible_units": [{"title":"index","symbol":"index"}, {"title":"temps d'exposition avant un coup de soleil = 210/(UVIndex*exp(uvindex/32))","symbol":"min"}],
-      "sensors": ["uvIndex"]
+      "sensors": ["UV"]
     },
     "powerRadiation": {
       "unit": "w/m²",  

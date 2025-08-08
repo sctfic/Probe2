@@ -3,8 +3,8 @@ const tzLookup = require('tz-lookup');
 const moment = require('moment-timezone');
 
 async function getLocalTimeFromCoordinates(stationConfig) {
-    const lat = stationConfig.latitude.read;
-    const lon = stationConfig.longitude.read;
+    const lat = stationConfig.latitude.lastReadValue;
+    const lon = stationConfig.longitude.lastReadValue;
     
     // Utiliser la nouvelle fonction utilitaire
     const timeZone = getTimeZoneFromCoordinates(lat, lon);
