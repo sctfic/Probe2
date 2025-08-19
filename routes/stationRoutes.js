@@ -8,8 +8,12 @@ const { V } = require('../utils/icons');
 // Middleware pour toutes les routes de stations
 router.use('/:stationId', loadStationConfig);
 
+// route pour lire la base de donnee
+router.post('/:stationId/query', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/query
+    return await stationController.query(req, res);
+}));
 // Route pour récupérer les données d'archive depuis la station (GET)
-router.get('/:stationId/archives', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/archives
+router.get('/:stationId/collect', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/collect
     return await stationController.getArchiveData(req, res);
 }));
 // Routes pour les stations météorologiques
@@ -21,7 +25,7 @@ router.get('/:stationId/currents', withStationLamps(async (req, res) => { //http
     return await stationController.getCurrentWeather(req, res);
 }));
 
-router.get('/:stationId/datetime', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/datetime
+router.get('/:stationId/update-datetime', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/update-datetime
     return await stationController.updateTime(req, res);
 }));
 
@@ -58,13 +62,14 @@ router.get('/:stationId/test', withStationLamps(async (req, res) => { //http://p
 }));
 
 // Route pour obtenir la configuration d'une station
-router.get('/:stationId/config', (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/config
+router.get('/:stationId', (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/config
     try {
         const stationConfig = req.stationConfig;
         console.log(`${V.gear} Récupération de la configuration pour la station ${stationConfig.id}`);
         
         res.json({
             success: true,
+            timestamp: new Date().toISOString(),
             stationId: stationConfig.id,
             settings: stationConfig
         });
@@ -79,7 +84,7 @@ router.get('/:stationId/config', (req, res) => { //http://probe2.lpz.ovh/api/sta
 });
 
 // Route pour mettre à jour la configuration d'une station
-router.put('/:stationId/config', (req, res) => {
+router.put('/:stationId', (req, res) => {
     try {
         const stationConfig = req.stationConfig;
         const updates = req.body;
@@ -97,6 +102,7 @@ router.put('/:stationId/config', (req, res) => {
         if (success) {
             res.json({
                 success: true,
+                timestamp: new Date().toISOString(),
                 stationId: stationConfig.id,
                 message: 'Configuration mise à jour avec succès',
                 data: updatedConfig
@@ -109,6 +115,44 @@ router.put('/:stationId/config', (req, res) => {
         res.status(500).json({
             success: false,
             stationId: req.params.stationId,
+            error: error.message
+        });
+    }
+});
+
+// Route pour supprimer une configuration de station
+router.delete('/stations/:stationId', (req, res) => {
+    try {
+        const stationId = req.params.stationId;
+        
+        console.log(`${V.trash} Suppression de la configuration pour la station ${stationId}`);
+        
+        // Vérifier si la station existe
+        const existingConfig = configManager.loadConfig(stationId);
+        if (!existingConfig) {
+            return res.status(404).json({
+                success: false,
+                error: `Configuration non trouvée pour la station ${stationId}`
+            });
+        }
+        
+        // Supprimer la configuration
+        const success = configManager.deleteConfig(stationId);
+        
+        if (success) {
+            res.json({
+                success: true,
+                timestamp: new Date().toISOString(),
+                message: `Configuration supprimée avec succès pour la station ${stationId}`,
+                stationId: stationId
+            });
+        } else {
+            throw new Error('Échec de la suppression de la configuration');
+        }
+    } catch (error) {
+        console.error(`${V.error} Erreur lors de la suppression de la configuration:`, error);
+        res.status(500).json({
+            success: false,
             error: error.message
         });
     }

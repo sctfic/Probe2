@@ -22,12 +22,11 @@ router.get('/stations', (req, res) => { // http://probe2.lpz.ovh/api/stations
             name: allConfigs[stationId].name || stationId,
             location: allConfigs[stationId].location || 'Non défini',
             host: allConfigs[stationId].host,
-            port: allConfigs[stationId].port,
-            status: 'configured'
+            port: allConfigs[stationId].port
         }));
         res.json({
             success: true,
-            count: stationsList.length,
+            timestamp: new Date().toISOString(),
             stations: stationsList
         });
     } catch (error) {
@@ -89,41 +88,5 @@ router.post('/stations/:stationId', (req, res) => { // http://probe2.lpz.ovh/api
     }
 });
 
-// Route pour supprimer une configuration de station
-router.delete('/stations/:stationId', (req, res) => {
-    try {
-        const stationId = req.params.stationId;
-        
-        console.log(`${V.trash} Suppression de la configuration pour la station ${stationId}`);
-        
-        // Vérifier si la station existe
-        const existingConfig = configManager.loadConfig(stationId);
-        if (!existingConfig) {
-            return res.status(404).json({
-                success: false,
-                error: `Configuration non trouvée pour la station ${stationId}`
-            });
-        }
-        
-        // Supprimer la configuration
-        const success = configManager.deleteConfig(stationId);
-        
-        if (success) {
-            res.json({
-                success: true,
-                message: `Configuration supprimée avec succès pour la station ${stationId}`,
-                stationId: stationId
-            });
-        } else {
-            throw new Error('Échec de la suppression de la configuration');
-        }
-    } catch (error) {
-        console.error(`${V.error} Erreur lors de la suppression de la configuration:`, error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
 
 module.exports = router;

@@ -27,33 +27,33 @@ app.use('/api', apiRoutes);
 app.use('/api/station', stationRoutes);
 
 // Route racine
-app.get('/api/', (req, res) => {
+app.get('/api/', (req, res) => { //http://probe2.lpz.ovh/api/
     const stationsList = configManager.listStations();
     
     res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
         message: 'API Probe2 - Surveillance de stations météorologiques VP2',
         version: require('./package.json').version,
         endpoints: {
-            info: '/api/info',
-            health: '/api/health',
-            stations: '/api/stations',
-            station: '/api/station/:stationId/*'
+            root: {url:'/api', method:'GET'}, //http://probe2.lpz.ovh/api
+            info: {url:'/api/info', method:'GET'}, //http://probe2.lpz.ovh/api/info
+            health: {url:'/api/health', method:'GET'}, //http://probe2.lpz.ovh/api/health
+            stations: {url:'/api/stations', method:'GET'}, //http://probe2.lpz.ovh/api/stations
+            station: {
+                info: {url:'/api/station/:stationId/info', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/info
+                test: {url:'/api/station/:stationId/test', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/test
+                currents: {url:'/api/station/:stationId/currents', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/currents
+                collect: {url:'/api/station/:stationId/collect', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/collect
+                datetime: {url:'/api/station/:stationId/update-datetime', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/update-datetime
+                'syncSettings': {url:'/api/station/:stationId/sync-settings', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/sync-settings
+                read: {url:'/api/station/:stationId', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune
+                modify: {url:'/api/station/:stationId', method:'PUT'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune
+                remove: {url:'/api/station/:stationId', method:'DELETE'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune
+                query: {url:'/api/station/:stationId/query', method:'POST'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/query
+            },
         },
-        stations: {
-            count: stationsList.length,
-            configured: stationsList
-        },
-        documentation: {
-            info: 'GET /api/info - Informations sur l\'application',// ok
-            health: 'GET /api/health - État de santé de l\'application',//ok
-            stations: 'GET /api/stations - Liste toutes les stations configurées',//ok
-            stationInfo: 'GET /api/station/:stationId/info - Informations d\'une station',//ok
-            weather: 'GET /api/station/:stationId/weather - Données météo actuelles', // NOK !!!
-            test: 'GET /api/station/:stationId/test - Test de connexion',// ok
-            config: 'GET /api/station/:stationId/config - Configuration d\'une station', //NOK !!!
-            updateConfig: 'PUT /api/station/:stationId/config - Mise à jour de la configuration',
-            syncSettings: 'GET /api/station/:stationId/sync-settings - Synchronisation des paramètres'
-        }
+        stations:  stationsList,
     });
 });
 

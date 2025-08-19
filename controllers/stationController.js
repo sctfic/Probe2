@@ -13,6 +13,7 @@ exports.getStationInfo = async (req, res) => {
         res.json({
             success: true,
             stationId: stationConfig.id,
+            timestamp: new Date().toISOString(),
             data: info
         });
     } catch (error) {
@@ -80,6 +81,7 @@ exports.syncSettings = async (req, res) => {
         res.json({
             success: true,
             stationId: stationConfig.id,
+            timestamp: new Date().toISOString(),
             data: result,
             settings: stationConfig
         });
@@ -103,6 +105,7 @@ exports.updateTime = async (req, res) => {
         res.json({
             success: true,
             stationId: stationConfig.id,
+            timestamp: new Date().toISOString(),
             data: result
         });
     } catch (error) {
@@ -125,6 +128,7 @@ exports.getDateTime = async (req, res) => {
         res.json({
             success: true,
             stationId: stationConfig.id,
+            timestamp: new Date().toISOString(),
             data: {
                 stationDateTime: stationDateTime.toISOString(),
                 serverDateTime: new Date().toISOString(),

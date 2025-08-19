@@ -58,6 +58,7 @@ const withStationLamps = (handler) => {
                 res.json({
                     success: true,
                     stationId: stationConfig.id,
+                    timestamp: new Date().toISOString(),
                     data: result
                 });
             }

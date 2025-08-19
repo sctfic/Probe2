@@ -428,7 +428,7 @@ async function syncStationSettings(stationConfig) {
         }
         if (currentSettings.setupBits) {
             stationConfig.AMPMMode.lastReadValue = currentSettings.setupBits.AMPMMode;
-            stationConfig.isAMPMMode.lastReadValue = currentSettings.setupBits.isAMPMMode;
+            // stationConfig.isAMPMMode.lastReadValue = currentSettings.setupBits.isAMPMMode;
             stationConfig.dateFormat.lastReadValue = currentSettings.setupBits.dateFormat;
             stationConfig.windCupSize.lastReadValue = currentSettings.setupBits.windCupSize;
             stationConfig.rainCollectorSize.lastReadValue = currentSettings.setupBits.rainCollectorSize;
