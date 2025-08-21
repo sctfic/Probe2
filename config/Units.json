@@ -12,7 +12,7 @@
     "direction": {
       "unit": "cardinal", 
       "avaible_units": [{"title":"degrees","symbol":"°"}, {"title":"cardinal","symbol":"cardinal"}],
-      "sensors": ["windDirection"]
+      "sensors": ["windDir"]
     },
     "pressure": {
       "unit": "Bar", 

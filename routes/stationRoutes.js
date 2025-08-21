@@ -8,14 +8,11 @@ const { V } = require('../utils/icons');
 // Middleware pour toutes les routes de stations
 router.use('/:stationId', loadStationConfig);
 
-// route pour lire la base de donnee
-router.post('/:stationId/query', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/query
-    return await stationController.query(req, res);
-}));
 // Route pour récupérer les données d'archive depuis la station (GET)
 router.get('/:stationId/collect', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/collect
     return await stationController.getArchiveData(req, res);
 }));
+
 // Routes pour les stations météorologiques
 router.get('/:stationId/info', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/info
     return await stationController.getStationInfo(req, res);

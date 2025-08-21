@@ -708,12 +708,12 @@ async function downloadArchiveData(stationConfig, startDate, res) {
                 processedPages: page,
                 totalPages: total,
             }
-            try {
-                // Envoi de l'avancement au client
-                res.write(JSON.stringify(out) + '\n');
-            } catch (error) {
-                console.error(`${V.error} Erreur lors de l'envoi de l'avancement pour ${stationId}:`, out);
-            }
+            // try {
+            //     // Envoi de l'avancement au client
+            //     res.write(JSON.stringify(out) + '\n');
+            // } catch (error) {
+            //     console.error(`${V.error} Erreur lors de l'envoi de l'avancement pour ${stationId}:`, out);
+            // }
         }
     };
     sendProgress(0, numberOfPages);
@@ -740,12 +740,16 @@ async function downloadArchiveData(stationConfig, startDate, res) {
                     // Écrire dans InfluxDB, 
                     const isWriteToDB = await writeArchiveToInfluxDB(processedData, new Date(datetime), stationConfig.id);
                     if (isWriteToDB){
+                        console.log(`${V.package} ${pageNumber+1}[${j+1}]/${numberOfPages} : ${datetime}`);
                         stationConfig.lastArchiveDate = datetime;
                         configManager.autoSaveConfig(stationConfig);
+                    } else {
+                        console.log(`${V.Warn} ${pageNumber+1}[${j+1}]/${numberOfPages} : ${datetime}`);
                     }
                 } else {
                     console.warn(`${V.Tache} ${pageNumber+1}[${j+1}]/${numberOfPages}: ${datetime} <= ${stationConfig.lastArchiveDate}`);
                 }
+
             }
         }        
         firstReccord = 0;

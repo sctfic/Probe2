@@ -21,10 +21,12 @@ app.use((req, res, next) => {
 // Import des routes
 const apiRoutes = require('./routes/apiRoutes');
 const stationRoutes = require('./routes/stationRoutes');
+const queryDbRoutes = require('./routes/queryDbRoutes');
 
 // Configuration des routes
 app.use('/api', apiRoutes);
 app.use('/api/station', stationRoutes);
+app.use('/query', queryDbRoutes);
 
 // Route racine
 app.get('/api/', (req, res) => { //http://probe2.lpz.ovh/api/
@@ -50,7 +52,15 @@ app.get('/api/', (req, res) => { //http://probe2.lpz.ovh/api/
                 read: {url:'/api/station/:stationId', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune
                 modify: {url:'/api/station/:stationId', method:'PUT'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune
                 remove: {url:'/api/station/:stationId', method:'DELETE'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune
-                query: {url:'/api/station/:stationId/query', method:'POST'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/query
+                query: {url:'/api/station/:stationId/query?sensorRefs=...&nbrStep=...&grouping=...&startDate=...&endDate=...', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/query
+            },
+            queryDb: {
+                metadata: {url:'/query/:stationId', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune
+                range: {url:'/query/:stationId/Range/:sensorRef', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Range/inTemp
+                raw: {url:'/query/:stationId/Raw/:sensorRef', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Raw/inTemp
+                wind: {url:'/query/:stationId/Wind', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Wind
+                rain: {url:'/query/:stationId/Rain', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Rain
+                candle: {url:'/query/:stationId/Candle', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Candle
             },
         },
         stations:  stationsList,
