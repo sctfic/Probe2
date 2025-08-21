@@ -1,6 +1,6 @@
 {
-    "id": "VP2_Default",
-    "name": "config vp2 Default",
+    "id": "default",
+    "name": "Config VP2 par Default",
     "comment": "Cabled Plus",
     "host": "vp2",
     "port": 22222,
@@ -66,6 +66,6 @@
         "lastReadValue": 5
     },
     "lastArchiveDate": "2025-08-13T06:50:00.000Z",
-    "deltaTimeSeconds": 2.716,
-    "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\VP2_Serramoune.json"
+    "deltaTimeSeconds": 0.959,
+    "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\default.json"
 }

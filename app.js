@@ -43,7 +43,7 @@ app.get('/api/', (req, res) => { //http://probe2.lpz.ovh/api/
             station: {
                 info: {url:'/api/station/:stationId/info', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/info
                 test: {url:'/api/station/:stationId/test', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/test
-                currents: {url:'/api/station/:stationId/currents', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/currents
+                currents: {url:'/api/station/:stationId/current-conditions', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/current-conditions
                 collect: {url:'/api/station/:stationId/collect', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/collect
                 datetime: {url:'/api/station/:stationId/update-datetime', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/update-datetime
                 'syncSettings': {url:'/api/station/:stationId/sync-settings', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/sync-settings

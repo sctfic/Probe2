@@ -21,7 +21,7 @@ router.get('/:stationId/info', withStationLamps(async (req, res) => { //http://p
     return await stationController.getStationInfo(req, res);
 }));
 
-router.get('/:stationId/currents', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/currents
+router.get('/:stationId/current-conditions', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/current-conditions
     return await stationController.getCurrentWeather(req, res);
 }));
 
@@ -90,7 +90,7 @@ router.put('/:stationId', (req, res) => {
         const updates = req.body;
         const configManager = require('../services/configManager');
         
-        console.log(`${V.gear} Mise à jour de la configuration pour la station ${stationConfig.id}`);
+        console.log(`${V.gear} Mise à jour de la configuration pour la station ${stationConfig.id}`, updates);
         
         // Fusionner les modifications avec la configuration existante
         const updatedConfig = { ...stationConfig, ...updates };
@@ -105,7 +105,7 @@ router.put('/:stationId', (req, res) => {
                 timestamp: new Date().toISOString(),
                 stationId: stationConfig.id,
                 message: 'Configuration mise à jour avec succès',
-                data: updatedConfig
+                settings: updatedConfig
             });
         } else {
             throw new Error('Échec de la sauvegarde de la configuration');

@@ -3,11 +3,12 @@ const fs = require('fs');
 const path = require('path');
 const { writeRaw, sendCommand, wakeUpConsole } = require('../config/vp2NetClient');
 const { calculateCRC } = require('../utils/crc');
-const { parseLOOP1Data, parseLOOP2Data, parseDMPRecord, processWeatherData, convertRawValue2NativeValue, conversionTable, readSignedInt16LE, readUInt16LE, readInt8, readUInt8  } = require('../utils/weatherDataParser');
+const { sensorTypeMap, parseLOOP1Data, parseLOOP2Data, parseDMPRecord, processWeatherData, convertRawValue2NativeValue, conversionTable, readSignedInt16LE, readUInt16LE, readInt8, readUInt8  } = require('../utils/weatherDataParser');
 const { getLocalTimeFromCoordinates, getTimeZoneFromCoordinates } = require('../utils/timeHelper');
 const { findDavisTimeZoneIndex } = require('../utils/timeZoneMapping');
 const { V,O } = require('../utils/icons');
 const configManager = require('./configManager');
+const { writePoints, Point } = require('./influxdbService'); // Ajout pour InfluxDB
 
 const userUnitsConfig = require(path.resolve(__dirname, '../config/Units.json'));
 
@@ -618,6 +619,36 @@ async function fetchCurrentConditions(stationConfig) {
     };
 }
 
+/**
+ * Écrit les données d'un enregistrement d'archive dans InfluxDB.
+ * @param {object} processedData Les données météo traitées.
+ * @param {Date} datetime L'horodatage des données.
+ * @param {string} stationId L'ID de la station.
+ * @returns {Promise<boolean>} Retourne `true` si les données ont été écrites avec succès, sinon `false`.
+ */
+async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
+    const points = [];
+    for (const [key, data] of Object.entries(processedData)) {
+        const measurement = sensorTypeMap[key];
+        const value = data.Value;
+
+        // S'assurer que la mesure est définie et que la valeur est un nombre
+        if (measurement && typeof value === 'number' && isFinite(value)) {
+            const point = new Point(measurement)
+                .tag('station_id', stationId)
+                .tag('sensor_ref', key)
+                .floatField('value', value)
+                .timestamp(datetime);
+            points.push(point);
+        }
+    }
+
+    if (points.length > 0) {
+        return await writePoints(points);
+    }
+    return false;
+}
+
 async function downloadArchiveData(stationConfig, startDate, res) {
     const stationId = stationConfig.id;
 
@@ -700,11 +731,18 @@ async function downloadArchiveData(stationConfig, startDate, res) {
                 const processedData = processWeatherData(parsedRecord, stationConfig, userUnitsConfig); 
                 const nativedate = convertRawValue2NativeValue( parsedRecord.date.value, 'date', null);
                 const nativetime = convertRawValue2NativeValue( parsedRecord.time.value, 'time', null);
-                const datetime = conversionTable.date.iso8601(nativedate) + conversionTable.time.iso8601(nativetime);
+                const datetime = conversionTable.date.iso8601(nativedate) + conversionTable.time.iso8601(nativetime); // format ISO8601 ex: 2025-08-18T07:45:00.000Z
+
+
                 if (stationConfig.lastArchiveDate === null || (new Date(datetime)) > (new Date(stationConfig.lastArchiveDate))) {
-                    console.log(`${V.package} ${pageNumber+1}[${j+1}]/${numberOfPages}: ${datetime}`);
+                    console.log(`${V.package} ${pageNumber+1}[${j+1}]/${numberOfPages} : ${datetime}`);
                     allRecords[datetime] = processedData;
-                    stationConfig.lastArchiveDate = datetime;
+                    // Écrire dans InfluxDB, 
+                    const isWriteToDB = await writeArchiveToInfluxDB(processedData, new Date(datetime), stationConfig.id);
+                    if (isWriteToDB){
+                        stationConfig.lastArchiveDate = datetime;
+                        configManager.autoSaveConfig(stationConfig);
+                    }
                 } else {
                     console.warn(`${V.Tache} ${pageNumber+1}[${j+1}]/${numberOfPages}: ${datetime} <= ${stationConfig.lastArchiveDate}`);
                 }
@@ -712,10 +750,9 @@ async function downloadArchiveData(stationConfig, startDate, res) {
         }        
         firstReccord = 0;
         sendProgress(i+1, numberOfPages);
-        configManager.autoSaveConfig(stationConfig);
     }
     await wakeUpConsole(stationConfig);
-    return { status: 'success', message: `${Object.keys(allRecords).length}/${numberOfPages} enregistrements d'archive téléchargés.`, data: allRecords };
+    return { status: 'success', message: `${Object.keys(allRecords).length} pages sur ${numberOfPages} archive téléchargées.`, data: allRecords };
 }
 
 module.exports = {

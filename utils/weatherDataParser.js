@@ -160,6 +160,7 @@ function convertRawValue2NativeValue(rawValue, nativeUnit, stationConfig) {
 
 const sensorTypeMap = {
     // designation du capteur : type de données a convertir
+    // temperature,speed,direction,pressure,rain,rainRate,uv,powerRadiation,humidity,battery
     barometer: 'pressure',
     inTemp: 'temperature',
     inHumidity: 'humidity',
@@ -390,6 +391,7 @@ function processWeatherData(weatherData, stationConfig, userUnitsConfig) {
 }
 
 module.exports = {
+    sensorTypeMap,
     mapDegreesToCardinal,
     readSignedInt16LE,
     readInt8,

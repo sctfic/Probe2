@@ -1,0 +1,9 @@
+{
+    "url": "http://influxdb.lpz.ovh:8086",
+    "token": "4f8jm5FifMkHP4C-IlN2Ci2nmvhoCDow_vTi0AUFwHjDH8CLLamCtx5eek31l7bAAe4t4L--f5Y-JVtaIPf0zA==",
+    "org": "LPZ",
+    "bucket": "Probe2",
+    "user": "root",
+    "pwd": "nbv @influxdb",
+    "token-root": "z_2-1gf7RbLLPB9ZP30W8_s2ei5WuXoStsjPFMkVsK1dDdZRqsva6sBlrBavXTH18x3snFTWPssxs4d-TdX_PQ=="
+}

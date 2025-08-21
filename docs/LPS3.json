@@ -1,399 +1,119 @@
-// 20250626225650
-// http://probe2.lpz.ovh/api/station/vp2_Serramoune/currents
-
 {
-  "status": "success",
-  "message": "Données actuelles (LOOP & LOOP2) récupérées avec succès.",
+  "success": true,
+  "stationId": "VP2_Serramoune",
+  "timestamp": "2025-08-19T09:05:21.501Z",
   "data": {
-    "user": {
+      "datagramme": {
+          "Type": "User units",
+          "message": "Success"
+      },
       "barometer": {
-        "Value": 1.023,
-        "Unit": "Bar"
+          "Value": 1.023,
+          "Unit": "Bar"
       },
       "inTemp": {
-        "Value": 21.94,
-        "Unit": "°C"
+          "Value": 23.33,
+          "Unit": "°C"
       },
       "inHumidity": {
-        "Value": 68,
-        "Unit": "%"
+          "Value": 64,
+          "Unit": "%"
       },
       "outTemp": {
-        "Value": 19.28,
-        "Unit": "°C"
-      },
-      "windSpeed": {
-        "Value": 0,
-        "Unit": "km/h"
+          "Value": 1803,
+          "Unit": "°C"
       },
       "avgWindSpeed10Min": {
-        "Value": 0,
-        "Unit": "km/h"
+          "Value": 5273,
+          "Unit": "km/h"
       },
       "windDir": {
-        "Value": "SSW",
-        "Unit": "cardinal"
-      },
-      "outHumidity": {
-        "Value": 81,
-        "Unit": "%"
-      },
-      "rainRate": {
-        "Value": 0,
-        "Unit": "l/m²/h"
-      },
-      "uvIndex": {
-        "Value": 0,
-        "Unit": "index"
+          "Value": "N/A",
+          "Unit": "cardinal"
       },
       "solarRadiation": {
-        "Value": 0,
-        "Unit": "w/m²"
+          "Value": 32767,
+          "Unit": "w/m²"
       },
       "dayRain": {
-        "Value": 0.2,
-        "Unit": "l/m²"
+          "Value": 0,
+          "Unit": "l/m²"
       },
       "monthRain": {
-        "Value": 63.8,
-        "Unit": "l/m²"
+          "Value": 2,
+          "Unit": "l/m²"
       },
       "yearRain": {
-        "Value": 1124,
-        "Unit": "l/m²"
+          "Value": 5633,
+          "Unit": "l/m²"
       },
       "dayET": {
-        "Value": 0.107,
-        "Unit": "l/m²"
+          "Value": 0,
+          "Unit": "l/m²"
       },
       "monthET": {
-        "Value": 1.84,
-        "Unit": "l/m²"
+          "Value": 1.98,
+          "Unit": "l/m²"
       },
       "yearET": {
-        "Value": 27.6,
-        "Unit": "l/m²"
+          "Value": 34.24,
+          "Unit": "l/m²"
       },
       "batteryVoltage": {
-        "Value": "BATTERY MISSING",
-        "Unit": "%"
+          "Value": "BATTERY MISSING",
+          "Unit": "%"
       },
       "ForecastIcon": {
-        "Value": "PartialSun Cloud",
-        "Unit": "ForecastClass"
+          "Value": "PartialSun Cloud",
+          "Unit": "ForecastClass"
       },
       "sunrise": {
-        "Value": "06:24",
-        "Unit": "time"
+          "Value": "07:12",
+          "Unit": "hh:mm"
       },
       "sunset": {
-        "Value": "21:46",
-        "Unit": "time"
+          "Value": "20:58",
+          "Unit": "hh:mm"
       },
       "avgWindSpeed2Min": {
-        "Value": 0,
-        "Unit": "km/h"
+          "Value": 5273,
+          "Unit": "km/h"
       },
       "windGust10Min": {
-        "Value": 0,
-        "Unit": "km/h"
-      },
-      "windGustDir10Min": {
-        "Value": "N",
-        "Unit": "cardinal"
+          "Value": 41.04,
+          "Unit": "km/h"
       },
       "dewPoint": {
-        "Value": 16.11,
-        "Unit": "°C"
+          "Value": 123.9,
+          "Unit": "°C"
       },
       "heatIndex": {
-        "Value": 20,
-        "Unit": "°C"
+          "Value": 123.9,
+          "Unit": "°C"
       },
       "windChill": {
-        "Value": 19.44,
-        "Unit": "°C"
+          "Value": 123.9,
+          "Unit": "°C"
       },
       "THSW": {
-        "Value": 18.89,
-        "Unit": "°C"
+          "Value": 123.9,
+          "Unit": "°C"
       },
       "stormRain": {
-        "Value": 0,
-        "Unit": "l/m²"
+          "Value": 0,
+          "Unit": "l/m²"
       },
       "last15MinRain": {
-        "Value": 0,
-        "Unit": "l/m²"
+          "Value": 0,
+          "Unit": "l/m²"
       },
       "lastHourRain": {
-        "Value": 0,
-        "Unit": "l/m²"
+          "Value": 0,
+          "Unit": "l/m²"
       },
       "last24HourRain": {
-        "Value": 0.2,
-        "Unit": "l/m²"
+          "Value": 0,
+          "Unit": "l/m²"
       }
-    },
-    "native": {
-      "barometer": {
-        "Value": 30.209,
-        "Unit": "inHg_1000th"
-      },
-      "inTemp": {
-        "Value": 71.5,
-        "Unit": "F_tenths"
-      },
-      "inHumidity": {
-        "Value": 68,
-        "Unit": "percent"
-      },
-      "outTemp": {
-        "Value": 66.7,
-        "Unit": "F_tenths"
-      },
-      "windSpeed": {
-        "Value": 0,
-        "Unit": "mph_whole"
-      },
-      "avgWindSpeed10Min": {
-        "Value": 0,
-        "Unit": "mph_tenths"
-      },
-      "windDir": {
-        "Value": 208,
-        "Unit": "degrees"
-      },
-      "outHumidity": {
-        "Value": 81,
-        "Unit": "percent"
-      },
-      "rainRate": {
-        "Value": 0,
-        "Unit": "clicks*cup_size"
-      },
-      "uvIndex": {
-        "Value": 0,
-        "Unit": "uv_index"
-      },
-      "solarRadiation": {
-        "Value": 0,
-        "Unit": "w/m²"
-      },
-      "dayRain": {
-        "Value": 0.2,
-        "Unit": "clicks*cup_size"
-      },
-      "monthRain": {
-        "Value": 63.8,
-        "Unit": "clicks*cup_size"
-      },
-      "yearRain": {
-        "Value": 1123.6,
-        "Unit": "clicks*cup_size"
-      },
-      "dayET": {
-        "Value": 0.107,
-        "Unit": "in_1000th"
-      },
-      "monthET": {
-        "Value": 1.84,
-        "Unit": "in_100th"
-      },
-      "yearET": {
-        "Value": 27.6,
-        "Unit": "in_100th"
-      },
-      "batteryVoltage": {
-        "Value": 4.77,
-        "Unit": "((DataRaw * 3)/512) V"
-      },
-      "ForecastIcon": {
-        "Value": 6,
-        "Unit": "ForecastNum"
-      },
-      "sunrise": {
-        "Value": "06:24",
-        "Unit": "time"
-      },
-      "sunset": {
-        "Value": "21:46",
-        "Unit": "time"
-      },
-      "avgWindSpeed2Min": {
-        "Value": 0,
-        "Unit": "mph_tenths"
-      },
-      "windGust10Min": {
-        "Value": 0,
-        "Unit": "mph_tenths"
-      },
-      "windGustDir10Min": {
-        "Value": 359,
-        "Unit": "degrees"
-      },
-      "dewPoint": {
-        "Value": 61,
-        "Unit": "F_whole"
-      },
-      "heatIndex": {
-        "Value": 68,
-        "Unit": "F_whole"
-      },
-      "windChill": {
-        "Value": 67,
-        "Unit": "F_whole"
-      },
-      "THSW": {
-        "Value": 66,
-        "Unit": "F_whole"
-      },
-      "stormRain": {
-        "Value": 0,
-        "Unit": "clicks*cup_size"
-      },
-      "last15MinRain": {
-        "Value": 0,
-        "Unit": "clicks*cup_size"
-      },
-      "lastHourRain": {
-        "Value": 0,
-        "Unit": "clicks*cup_size"
-      },
-      "last24HourRain": {
-        "Value": 0.2,
-        "Unit": "clicks*cup_size"
-      }
-    },
-    "metric": {
-      "barometer": {
-        "Value": 1023,
-        "Unit": "hpa"
-      },
-      "inTemp": {
-        "Value": 295.1,
-        "Unit": "K"
-      },
-      "inHumidity": {
-        "Value": 68,
-        "Unit": "%"
-      },
-      "outTemp": {
-        "Value": 292.4,
-        "Unit": "K"
-      },
-      "windSpeed": {
-        "Value": 0,
-        "Unit": "m/s"
-      },
-      "avgWindSpeed10Min": {
-        "Value": 0,
-        "Unit": "m/s"
-      },
-      "windDir": {
-        "Value": 208,
-        "Unit": "°"
-      },
-      "outHumidity": {
-        "Value": 81,
-        "Unit": "%"
-      },
-      "rainRate": {
-        "Value": 0,
-        "Unit": "mm/h"
-      },
-      "uvIndex": {
-        "Value": 0,
-        "Unit": "index"
-      },
-      "solarRadiation": {
-        "Value": 0,
-        "Unit": "w/m²"
-      },
-      "dayRain": {
-        "Value": 0.2,
-        "Unit": "mm"
-      },
-      "monthRain": {
-        "Value": 63.8,
-        "Unit": "mm"
-      },
-      "yearRain": {
-        "Value": 1124,
-        "Unit": "mm"
-      },
-      "dayET": {
-        "Value": 0.107,
-        "Unit": "mm"
-      },
-      "monthET": {
-        "Value": 1.84,
-        "Unit": "mm"
-      },
-      "yearET": {
-        "Value": 27.6,
-        "Unit": "mm"
-      },
-      "batteryVoltage": {
-        "Value": 4.77,
-        "Unit": "V"
-      },
-      "ForecastIcon": {
-        "Value": "PartialSun Cloud",
-        "Unit": "ForecastClass"
-      },
-      "sunrise": {
-        "Value": "06:24",
-        "Unit": "hh:mm"
-      },
-      "sunset": {
-        "Value": "21:46",
-        "Unit": "hh:mm"
-      },
-      "avgWindSpeed2Min": {
-        "Value": 0,
-        "Unit": "m/s"
-      },
-      "windGust10Min": {
-        "Value": 0,
-        "Unit": "m/s"
-      },
-      "windGustDir10Min": {
-        "Value": 359,
-        "Unit": "°"
-      },
-      "dewPoint": {
-        "Value": 289.3,
-        "Unit": "K"
-      },
-      "heatIndex": {
-        "Value": 293.1,
-        "Unit": "K"
-      },
-      "windChill": {
-        "Value": 292.6,
-        "Unit": "K"
-      },
-      "THSW": {
-        "Value": 292,
-        "Unit": "K"
-      },
-      "stormRain": {
-        "Value": 0,
-        "Unit": "mm"
-      },
-      "last15MinRain": {
-        "Value": 0,
-        "Unit": "mm"
-      },
-      "lastHourRain": {
-        "Value": 0,
-        "Unit": "mm"
-      },
-      "last24HourRain": {
-        "Value": 0.2,
-        "Unit": "mm"
-      }
-    }
   }
 }
