@@ -96,25 +96,6 @@ async function executeQuery(fluxQuery) {
 }
 
 /**
- * Récupère les données pour une station et un capteur spécifiques.
- * @param {Object} queryParams - Paramètres de la requête (stationId, sensorRefs, startDate, endDate).
- * @returns {Promise<Array>} Un tableau des données récupérées.
- */
-// async function queryData(queryParams) {
-//     // Implémentation de queryData (similaire à stationController)
-//     // Ceci est un exemple basique, à adapter selon les besoins réels
-//     const { stationId, sensorRefs, startDate, endDate } = queryParams;
-//     let fluxQuery = `from(bucket: "${bucket}") |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'}) |> filter(fn: (r) => r.station_id == "${stationId}")`;
-
-//     if (sensorRefs && sensorRefs.length > 0) {
-//         const sensorFilter = sensorRefs.map(ref => `r.sensor_ref == "${ref}"`).join(' or ');
-//         fluxQuery += ` |> filter(fn: (r) => ${sensorFilter})`;
-//     }
-
-//     return await executeQuery(fluxQuery);
-// }
-
-/**
  * Récupère les métadonnées pour une station spécifique.
  * @param {string} stationId - Identifiant de la station.
  * @returns {Promise<Object>} Un objet contenant les métadonnées de la station.
@@ -123,7 +104,7 @@ async function getMetadata(stationId) {
     const fluxQuery = `
         import "influxdata/influxdb/schema"
 
-        schema.tagValues(bucket: "${bucket}", tag: "sensor_ref", predicate: (r) => r.station_id == "${stationId}", start: -365d)
+        schema.tagValues(bucket: "${bucket}", tag: "_field", predicate: (r) => r.station_id == "${stationId}", start: -365d)
     `;
     const sensorRefs = await executeQuery(fluxQuery);
 
@@ -136,7 +117,7 @@ async function getMetadata(stationId) {
 
     return {
         station_id: stationId,
-        sensor_refs: sensorRefs.map(r => r._value),
+        _field: sensorRefs.map(r => r._value),
         _measurements: measurements.map(m => m._value)
     };
 }
@@ -150,27 +131,33 @@ async function getMetadata(stationId) {
  * @returns {Promise<Object>} Un objet contenant la plage de dates.
  */
 async function queryDateRange(stationId, sensorRef, startDate, endDate) {
-    const query = `
-        import "experimental"
+    // const query = `
+    //     import "experimental"
         
-        data = from(bucket: "${bucket}")
-          |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'})
-          |> filter(fn: (r) => r.station_id == "${stationId}" and r.sensor_ref == "${sensorRef}")
+    //     data = from(bucket: "${bucket}")
+    //       |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'})
+    //       |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "${sensorRef}")
         
-        first = data 
-          |> first() 
-          |> map(fn: (r) => ({_time: r._time, _value: "first", _field: "operation"}))
+    //     first = data 
+    //       |> first() 
+    //       |> map(fn: (r) => ({_time: r._time, _value: "first", _field: "operation"}))
         
-        last = data 
-          |> last() 
-          |> map(fn: (r) => ({_time: r._time, _value: "last", _field: "operation"}))
+    //     last = data 
+    //       |> last() 
+    //       |> map(fn: (r) => ({_time: r._time, _value: "last", _field: "operation"}))
         
-        count = data 
-          |> count() 
-          |> map(fn: (r) => ({_time: now(), _value: string(v: r._value), _field: "count"}))
+    //     count = data 
+    //       |> count() 
+    //       |> map(fn: (r) => ({_time: now(), _value: string(v: r._value), _field: "count"}))
         
-        union(tables: [first, last, count])
-    `;
+    //     union(tables: [first, last, count])
+    // `;
+    const query = `from(bucket: "${bucket}")
+    |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'})
+    |> filter(fn: (r) => r._measurement == "${sensorRef}")
+    |> first()
+    |> last()
+    |> count()`;
 
     const result = await executeQuery(query);
     
@@ -202,52 +189,6 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate) {
 }
 
 /**
- * Calcule l'intervalle optimal pour les candles basé sur la plage de dates et le nombre d'étapes souhaité
- * @param {Date} startTime - Date de début
- * @param {Date} endTime - Date de fin
- * @param {number} stepCount - Nombre d'intervalles souhaité
- * @returns {string} Intervalle InfluxDB (ex: "1h", "30m", "1d")
- */
-function calculateOptimalInterval(startTime, endTime, stepCount) {
-    const totalMs = endTime.getTime() - startTime.getTime();
-    const intervalMs = totalMs / stepCount;
-    
-    // Conversion en secondes
-    const intervalSeconds = Math.floor(intervalMs / 1000);
-    
-    // Définition des intervalles disponibles (en secondes)
-    const intervals = [
-        { seconds: 60, flux: "1m" },           // 1 minute
-        { seconds: 300, flux: "5m" },          // 5 minutes
-        { seconds: 900, flux: "15m" },         // 15 minutes
-        { seconds: 1800, flux: "30m" },        // 30 minutes
-        { seconds: 3600, flux: "1h" },         // 1 heure
-        { seconds: 7200, flux: "2h" },         // 2 heures
-        { seconds: 14400, flux: "4h" },        // 4 heures
-        { seconds: 21600, flux: "6h" },        // 6 heures
-        { seconds: 43200, flux: "12h" },       // 12 heures
-        { seconds: 86400, flux: "1d" },        // 1 jour
-        { seconds: 259200, flux: "3d" },       // 3 jours
-        { seconds: 604800, flux: "1w" },       // 1 semaine
-        { seconds: 2629746, flux: "1mo" }      // 1 mois
-    ];
-    
-    // Trouve l'intervalle le plus proche
-    let bestInterval = intervals[0];
-    let minDiff = Math.abs(intervalSeconds - intervals[0].seconds);
-    
-    for (const interval of intervals) {
-        const diff = Math.abs(intervalSeconds - interval.seconds);
-        if (diff < minDiff) {
-            minDiff = diff;
-            bestInterval = interval;
-        }
-    }
-    
-    return bestInterval.flux;
-}
-
-/**
  * Récupère les données brutes pour une station et un capteur spécifiques.
  * @param {string} stationId - Identifiant de la station.
  * @param {string} sensorRef - Référence du capteur.
@@ -255,12 +196,12 @@ function calculateOptimalInterval(startTime, endTime, stepCount) {
  * @param {string} endDate - Date de fin.
  * @returns {Promise<Array>} Un tableau des données brutes.
  */
-async function queryRaw(stationId, sensorRef, startDate, endDate) {
+async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSeconds = 3600) {
     const fluxQuery = `
         from(bucket: "${bucket}")
           |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'}) 
-          |> filter(fn: (r) => r.station_id == "${stationId}" and r.sensor_ref == "${sensorRef}")
-          |> keep(columns: ["_time", "_value"])
+          |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "${sensorRef}")
+          |> keep(columns: ["_time", "_value", "unit"])
     `;
     return await executeQuery(fluxQuery);
 }
@@ -272,12 +213,12 @@ async function queryRaw(stationId, sensorRef, startDate, endDate) {
  * @param {string} endDate - Date de fin.
  * @returns {Promise<Array>} Un tableau des données pour le graphique du vent.
  */
-async function queryWind(stationId, startDate, endDate) {
+async function queryWind(stationId, startDate, endDate, intervalSeconds = 3600) {
     const fluxQuery = `
         from(bucket: "${bucket}")
             |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'}) 
-            |> filter(fn: (r) => r.station_id == "${stationId}" and (r.sensor_ref == "windSpeed" or r.sensor_ref == "windDir"))
-            |> pivot(rowKey:["_time"], columnKey: ["sensor_ref"], valueColumn: "_value")
+            |> filter(fn: (r) => r.station_id == "${stationId}" and (r._field == "windSpeed" or r._field == "windDir"))
+            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
             |> window(every: 10m)
             |> reduce(
                 identity: {avg_speed: 0.0, avg_direction: 0.0, max_speed: 0.0, max_direction: 0.0, count: 0},
@@ -302,14 +243,15 @@ async function queryWind(stationId, startDate, endDate) {
  * @param {string} stationId - Identifiant de la station.
  * @param {string} startDate - Date de début.
  * @param {string} endDate - Date de fin.
+ * @param {number} intervalSeconds - Intervalle en secondes (optionnel)
  * @returns {Promise<Array>} Un tableau des données pour le graphique de la pluie.
  */
-async function queryRain(stationId, startDate, endDate) {
+async function queryRain(stationId, startDate, endDate, intervalSeconds = 3600) {
     const fluxQuery = `
         from(bucket: "${bucket}")
             |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'}) 
-            |> filter(fn: (r) => r.station_id == "${stationId}" and (r.sensor_ref == "rainFall" or r.sensor_ref == "rainRate"))
-            |> pivot(rowKey:["_time"], columnKey: ["sensor_ref"], valueColumn: "_value")
+            |> filter(fn: (r) => r.station_id == "${stationId}" and (r._field == "rainFall" or r._field == "rainRate"))
+            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
             |> window(every: 1h)
             |> reduce(
                 identity: {sum_rainFall: 0.0, avg_rainRate: 0.0, max_rainRate: 0.0, count: 0},
@@ -333,24 +275,10 @@ async function queryRain(stationId, startDate, endDate) {
  * @param {string} sensorRef - Référence du capteur
  * @param {string} startDate - Date de début (optionnelle)
  * @param {string} endDate - Date de fin (optionnelle)
- * @param {number} stepCount - Nombre d'intervalles souhaité (défaut: 100)
+ * @param {number} intervalSeconds - Intervalle en secondes (optionnel)
  * @returns {Promise<string>} Données au format TSV
  */
-async function queryCandle(stationId, sensorRef, startDate, endDate, stepCount = 100) {
-    // 1. Récupère la plage de dates réelle des données
-    const dateRange = await queryDateRange(stationId, sensorRef, startDate, endDate);
-    console.log(`Plage de dates réelle pour ${stationId} - ${sensorRef}:`, dateRange);
-    // 2. Utilise les dates effectives ou celles fournies
-    const effectiveStart = startDate || dateRange.firstUtc;
-    const effectiveEnd = endDate || dateRange.lastUtc;
-    
-    // 3. Calcule l'intervalle optimal
-    const startTime = new Date(effectiveStart);
-    const endTime = new Date(effectiveEnd);
-    const totalSeconds  = (endTime.getTime() - startTime.getTime()) / 1000;
-    console.log(`Total de secondes: ${totalSeconds}`, endTime.getTime()/1000, startTime.getTime()/1000);
-    const intervalSeconds = Math.round(totalSeconds / stepCount);
-    // const interval = calculateOptimalInterval(startTime, endTime, stepCount);
+async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSeconds = 3600) {
     
     console.log(`Intervalle calculé: ${intervalSeconds}s pour ${stepCount} étapes entre ${effectiveStart} et ${effectiveEnd}`);
     
@@ -359,7 +287,7 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, stepCount =
         import "math"
         from(bucket: "${bucket}")
             |> range(start: time(v: "${effectiveStart}"), stop: time(v: "${effectiveEnd}"))
-            |> filter(fn: (r) => r.station_id == "${stationId}" and r.sensor_ref == "${sensorRef}")
+            |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "${sensorRef}")
             |> window(every: ${intervalSeconds}s)
             |> reduce(
                 identity: {
