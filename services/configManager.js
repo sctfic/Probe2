@@ -65,7 +65,7 @@ class ConfigManager {
         try {
             // config.id = stationId;
             fs.writeFileSync(configPath, JSON.stringify(config, null, 4));
-            console.log(`${V.database} Configuration pour ${stationId} sauvegardée avec succès.`);
+            // console.log(`${V.database} Configuration pour ${stationId} sauvegardée avec succès.`);
             return true;
         } catch (error) {
             console.error(`${V.error} Erreur de sauvegarde pour ${stationId}:`, error);
@@ -82,7 +82,7 @@ class ConfigManager {
             // }
             
             fs.writeFileSync(config.path, JSON.stringify(config, null, 4));
-            console.log(`${V.database} Configuration pour ${config.id} sauvegardée avec succès. ${V.Check}`);
+            // console.log(`${V.database} Configuration pour ${config.id} sauvegardée avec succès. ${V.Check}`);
             return true;
         } catch (error) {
             console.error(`${V.error} Erreur de sauvegarde pour ${config.id}:`, error);

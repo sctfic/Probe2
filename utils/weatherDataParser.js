@@ -92,12 +92,14 @@ function parseDMPRecord(recordBuffer) {
     record.outTemp = { value: readSignedInt16LE(recordBuffer, 4), native_unit: "F_tenths" };
     record.rainFall = { value: readUInt16LE(recordBuffer, 10), native_unit: "clicks*cup_size" };
     record.barometer = { value: readUInt16LE(recordBuffer, 14), native_unit: "inHg_1000th" };
-    record.powerRadiation = { value: readUInt16LE(recordBuffer, 16), native_unit: "w/m²" };
+    record.solarRadiation = { value: readUInt16LE(recordBuffer, 16), native_unit: "w/m²" };
     record.inTemp = { value: readSignedInt16LE(recordBuffer, 20), native_unit: "F_tenths" };
     record.inHumidity = { value: readUInt8(recordBuffer, 22), native_unit: "percent" };
     record.outHumidity = { value: readUInt8(recordBuffer, 23), native_unit: "percent" };
-    record.windSpeed = { value: readUInt8(recordBuffer, 25), native_unit: "mph_whole" };
-    record.windDir = { value: readUInt8(recordBuffer, 27), native_unit: "degrees" };
+    record.windSpeed = { value: readUInt8(recordBuffer, 24), native_unit: "mph_whole" };
+    record.windSpeedMax = { value: readUInt8(recordBuffer, 25), native_unit: "mph_whole" };
+    record.windDir = { value: readUInt8(recordBuffer, 26), native_unit: "degrees" };
+    record.windDirMax = { value: readUInt8(recordBuffer, 27), native_unit: "degrees" };
     record.UV = { value: readUInt8(recordBuffer, 28), native_unit: "uvIndex_tenths" };
     record.ET = { value: readUInt8(recordBuffer, 29), native_unit: "in_100th" };
     record.leafTemp1 = { value: readUInt8(recordBuffer, 34), native_unit: "F_whole" };
@@ -144,14 +146,12 @@ function convertRawValue2NativeValue(rawValue, nativeUnit, stationConfig) {
         case 'time':
             const hours = Math.floor(rawValue / 100).toString().padStart(2, '0');
             const minutes = (rawValue % 100).toString().padStart(2, '0');
-            // console.warn(`raw: ${rawValue}, hours: ${hours}, minutes: ${minutes}`);
             return `${hours}:${minutes}`;
         case 'date':
             // Bit 15 to bit 12 is the month, bit 11 to bit 7 is the day and bit 6 to bit 0 is the year offseted by 2000.
             const year = (Math.floor(rawValue / 512)).toString().padStart(2, '0'); // Bit 15 to bit 12
             const month = Math.floor(rawValue / 32 & 0x0F).toString().padStart(2, '0'); // Bit 11 to bit 7
             const day = (rawValue % 32).toString().padStart(2, '0'); // Bit 6 to bit 0
-            // console.warn(`raw: ${rawValue}, year: 20${year}, month: ${month}, day: ${day}`);
             return `20${year}/${month}/${day}`;
         default:
             return rawValue;
@@ -159,15 +159,17 @@ function convertRawValue2NativeValue(rawValue, nativeUnit, stationConfig) {
 }
 
 const sensorTypeMap = {
-    // designation du capteur : type de données a convertir
+    // designation du capteur : type de données à convertir
     // temperature,speed,direction,pressure,rain,rainRate,uv,powerRadiation,humidity,battery
     barometer: 'pressure',
     inTemp: 'temperature',
     inHumidity: 'humidity',
     outTemp: 'temperature',
     windSpeed: 'speed',
-    avgWindSpeed10Min: 'speed',
+    windSpeedMax: 'speed',
     windDir: 'direction',
+    windDirMax: 'direction',
+    avgWindSpeed10Min: 'speed',
     outHumidity: 'humidity',
     rainRate: 'rainRate',
     rainFall: 'rain',
@@ -196,7 +198,25 @@ const sensorTypeMap = {
     sunrise: 'time',
     sunset: 'time',
     date: 'date',
-    time: 'time'
+    time: 'time',
+    ET: 'rain',
+    leafTemp1: 'temperature',
+    leafTemp2: 'temperature',
+    leafWetness1: 'humidity',
+    leafWetness2: 'humidity',
+    soilTemp1: 'temperature',
+    soilTemp2: 'temperature',
+    soilTemp3: 'temperature',
+    soilTemp4: 'temperature',
+    extraHumidity1: 'humidity',
+    extraHumidity2: 'humidity',
+    extraTemp1: 'temperature',
+    extraTemp2: 'temperature',
+    extraTemp3: 'temperature',
+    extraSoilMoisture1: 'humidity',
+    extraSoilMoisture2: 'humidity',
+    extraSoilMoisture3: 'humidity',
+    extraSoilMoisture4: 'humidity'
 };
 
 const conversionTable = {
@@ -290,67 +310,35 @@ const conversionTable = {
 };
 
 const metricUnits = {
-    temperature: 'K',
-    speed: 'm/s',
-    direction: '°',
-    pressure: 'hpa',
-    rain: 'mm',
-    rainRate: 'mm/h',
-    uv: 'index',
-    powerRadiation: 'w/m²',
-    humidity: '%',
-    battery: 'V',
-    Forecast: 'ForecastClass',
-    date: 'iso8601',
-    time: 'iso8601'
+    temperature: {unit:'K'},
+    speed: {unit:'m/s'},
+    direction: {unit:'°'},
+    pressure: {unit:'hpa'},
+    rain: {unit:'mm'},
+    rainRate: {unit:'mm/h'},
+    uv: {unit:'index'},
+    powerRadiation: {unit:'w/m²'},
+    humidity: {unit:'%'},
+    battery: {unit:'V'},
+    Forecast: {unit:'ForecastClass'},
+    date: {unit:'iso8601'},
+    time: {unit:'iso8601'}
 };
 
-function convertToMetric(nativeValue, key) {
+function convertToUnit(nativeValue, key, userUnitsConfig) {
     const type = sensorTypeMap[key];
     if (!type){
         console.error(`No type found for ${key}`);
         return nativeValue;
     }
-    const targetUnit = metricUnits[type];
-    if (!targetUnit){
-        console.error(`No target unit found for ${type}`);
-        return nativeValue;
-    }
-    const convertFn = conversionTable[type]?.[targetUnit];
-    if (!convertFn){
-        console.error(`No conversion function found for ${type} to ${targetUnit}`);
-        return nativeValue;
-    }
-    console.log(`Converting ${nativeValue} to ${targetUnit}`);
-    // on affiche la fonction de conversion
-    console.log(`Conversion function: ${convertFn}`);
-
-    const convertedValue = convertFn(nativeValue);
-    if (typeof convertedValue === 'string')
-        return convertedValue;
-    else if (Math.abs(convertedValue) < 1) // si la valeur absolue est inferieur a 1, on arrondit a 4 chiffres apres la virgule
-        return Number(convertedValue.toFixed(4));
-    else if (Math.abs(convertedValue) < 10)
-        return Number(convertedValue.toFixed(3));
-    else if (Math.abs(convertedValue) < 100)
-        return Number(convertedValue.toFixed(2));
-    else if (Math.abs(convertedValue) < 1000)
-        return Number(convertedValue.toFixed(1));
-    else
-        return Number(convertedValue.toFixed(0));
-}
-
-function convertToUser(nativeValue, key, userUnitsConfig) {
-    const type = sensorTypeMap[key];
-    if (!type) return nativeValue;
-    const userUnit = userUnitsConfig[type]?.unit;
-    if (!userUnit) {
+    const unit = userUnitsConfig[type]?.unit;
+    if (!unit) {
         console.error(`No user unit found for ${type}`);
         return nativeValue;
     }
-    const convertFn = conversionTable[type]?.[userUnit];
+    const convertFn = conversionTable[type]?.[unit];
     if (!convertFn) {
-        console.error(`No conversion function found for ${type} to ${userUnit}`);
+        console.error(`No conversion function found for ${type} to ${unit}`);
         return nativeValue;
     }
 
@@ -376,13 +364,10 @@ function processWeatherData(weatherData, stationConfig, userUnitsConfig) {
             const nativeValue = convertRawValue2NativeValue(data.value, data.native_unit, stationConfig);
             const nativeUnit = data.native_unit;
             if (userUnitsConfig){
-                processed['datagramme'] = {Type:"User units", message:"Success"};
-                processed[key] = { Value: convertToUser(nativeValue, key, userUnitsConfig), Unit: userUnitsConfig[sensorTypeMap[key]]?.unit || nativeUnit };
+                processed[key] = { Value: convertToUnit(nativeValue, key, userUnitsConfig), Unit: userUnitsConfig[sensorTypeMap[key]]?.unit || nativeUnit };
             } else if (stationConfig) {
-                processed['datagramme'] = {Type:"Metric units", message:"Units.json not found"};
-                processed.metric[key] = { Value: convertToMetric(nativeValue, key), Unit: metricUnits[sensorTypeMap[key]] || nativeUnit };
+                processed[key] = { Value: convertToUnit(nativeValue, key, metricUnits), Unit: metricUnits[sensorTypeMap[key]]?.unit || nativeUnit };
             } else {
-                processed['datagramme'] = {Type:"Native units", message:"Units.json & VP2.json not found"};
                 processed[key] = { Value: nativeValue, Unit: nativeUnit };
             }
         }

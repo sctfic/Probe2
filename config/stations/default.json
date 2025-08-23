@@ -2,7 +2,7 @@
     "id": "default",
     "name": "Config VP2 par Default",
     "comment": "Cabled Plus",
-    "host": "vp2",
+    "host": "vp2.dev",
     "port": 22222,
     "location": "Default, 64290 devLab, FR",
     "longitude": {
@@ -65,7 +65,7 @@
         "desired": 5,
         "lastReadValue": 5
     },
-    "lastArchiveDate": "2025-08-13T06:50:00.000Z",
+    "lastArchiveDate": "2025-08-20T04:00:00.000Z",
     "deltaTimeSeconds": 0.959,
     "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\default.json"
 }

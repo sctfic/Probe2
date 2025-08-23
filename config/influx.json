@@ -1,6 +1,6 @@
 {
     "url": "http://influxdb.lpz.ovh:8086",
-    "token": "QltOmkmV6IPdTQOTI4cJGC47oYfqlJlUxjiNrIToRqPvMdMbU47pqFlidFxMxr5haZJCHxlsmZLtOgr6jcgRLw==",
+    "token": "o0TbXrTLFyhf0Mzw_Rqn7PfGdKh9eu7KmfMulQYBryWnJwWw61UuzIFjP8vPxSefW6Vb9NjoI_4LVpSiFsXwMg==",
     "org": "LPZ",
-    "bucket": "Probe2",
+    "bucket": "Probe2"
 }

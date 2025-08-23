@@ -100,16 +100,36 @@ exports.getQueryRain = async (req, res) => {
 };
 
 exports.getQueryCandle = async (req, res) => {
-    const { stationId } = req.params;
-    const { sensorRef, startDate, endDate } = req.query;
+    const { stationId, sensorRef } = req.params;
+    const { startDate, endDate, stepCount = 100 } = req.query;
+    
     if (!sensorRef) {
         return res.status(400).json({ success: false, error: 'Le paramètre sensorRef est requis.' });
     }
+    
     try {
-        console.log(`${V.info} Demande de données candle pour ${stationId} - ${sensorRef}`);
-        const data = await influxdbService.queryCandle(stationId, sensorRef, startDate, endDate);
+        console.log(`${V.info} Demande de données candle pour ${stationId} - ${sensorRef} avec ${stepCount} intervalles`);
+        const data = await influxdbService.queryCandle(stationId, sensorRef, startDate, endDate, parseInt(stepCount));
         handleResponse(res, stationId, data, 'tsv');
     } catch (error) {
         handleError(res, stationId, error, 'getQueryCandle');
+    }
+};
+
+exports.clearAllData = async (req, res) => {
+    try {
+        console.log(`${V.Warn} Demande de suppression de toutes les données du bucket`);
+        const success = await influxdbService.clearBucket();
+        if (success) {
+            res.json({
+                success: true,
+                message: 'Toutes les données du bucket ont été supprimées avec succès.',
+                timestamp: new Date().toISOString()
+            });
+        } else {
+            throw new Error('La suppression des données du bucket a échoué.');
+        }
+    } catch (error) {
+        handleError(res, 'all-stations', error, 'clearAllData');
     }
 };

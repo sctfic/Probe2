@@ -628,30 +628,44 @@ async function fetchCurrentConditions(stationConfig) {
  */
 async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
     const points = [];
+    // on supprime les champs inutiles
+    delete processedData.date;
+    delete processedData.time;
+
+    // regroupe les entrees par type pour les ecrires en un seul point par type
+    const groupedData = {};
     for (const [key, data] of Object.entries(processedData)) {
         const measurement = sensorTypeMap[key];
-        const value = data.Value;
-
-        // S'assurer que la mesure est définie et que la valeur est un nombre
-        if (measurement && typeof value === 'number' && isFinite(value)) {
-            const point = new Point(measurement)
-                .tag('station_id', stationId)
-                .tag('sensor_ref', key)
-                .floatField('value', value)
-                .timestamp(datetime);
-            points.push(point);
+        if (measurement && typeof data.Value === 'number' && isFinite(data.Value)) {
+            if (!groupedData[measurement]) {
+                groupedData[measurement] = {
+                    fields: {},
+                    unit: data.Unit
+                };
+            }
+            groupedData[measurement].fields[key] = data.Value;
         }
+    }
+    for (const [measurement, data] of Object.entries(groupedData)) {
+        const newPoint = new Point(measurement)
+            .tag('station_id', stationId)
+            .tag('unit', data.unit)
+            .timestamp(datetime);
+
+        for (const [fieldName, fieldValue] of Object.entries(data.fields)) {
+            newPoint.floatField(fieldName, fieldValue);
+        }
+        points.push(newPoint);
     }
 
     if (points.length > 0) {
         return await writePoints(points);
     }
-    return false;
+
+    return true; // Aucune donnée à écrire
 }
 
 async function downloadArchiveData(stationConfig, startDate, res) {
-    const stationId = stationConfig.id;
-
     let effectiveStartDate;
     if (startDate) {
         effectiveStartDate = startDate;
@@ -667,36 +681,18 @@ async function downloadArchiveData(stationConfig, startDate, res) {
     const month = effectiveStartDate.getUTCMonth() + 1;
     const day = effectiveStartDate.getUTCDate();
     const dateStamp = (year - 2000) * 512 + month * 32 + day;
-    // console.log(`${V.StartFlag} historique a partie de y=`,year, 'm= ', month, 'd= ', day,'=>', dateStamp);
     const hours = effectiveStartDate.getUTCHours();
     const minutes = effectiveStartDate.getUTCMinutes();
     const timeStamp = hours * 100 + minutes;
-    // console.log(`${V.StartFlag} historique a partie de h=`,hours, 'm= ', minutes,'=>', timeStamp);
 
     // construction du buffer datePayload = dateStamp + timeStamp, attention a l'ordre de Octets !!!!
     const datePayload = Buffer.from([ dateStamp & 0xFF, dateStamp >> 8, timeStamp & 0xFF, timeStamp >> 8]);
 
-        // const nativedate = convertRawValue2NativeValue( dateStamp, 'date', null);
-        // const nativetime = convertRawValue2NativeValue( timeStamp, 'time', null);
-        // const datetime = conversionTable.date.iso8601(nativedate) + conversionTable.time.iso8601(nativetime);
-        // console.log(`${V.info} relecture de la date ${datetime}`, nativedate, nativetime);
-
     const dateCrc = calculateCRC(datePayload);
     const dateCrcBytes = Buffer.from([dateCrc >> 8, dateCrc & 0xFF]);
     const fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
-    // const testBuffer = Buffer.concat([Buffer.from([1,2,4,0,15]),Buffer.from([0,32,64,128])]);
-    // console.log(`${V.warning} testBuffer`, testBuffer.toString('hex'), testBuffer.readUInt16LE(3), testBuffer.readUInt16BE(3));
-    // console.log(`${V.transmission} fullPayload`, fullPayload.toString('hex'));
-    // on ne peu pas utiliser sendCommand pour datePayload, on ecrit directement
-    // console.log(`${V.thermometer} Récupération des données météo pour ${stationConfig.id}`);
-    // await writeRaw(stationConfig, datePayload);
-    // console.log(`${V.send} datePayload`, datePayload.toString('hex'));
-    // // sleep 100ms
-    // await new Promise(resolve => setTimeout(resolve, 100));
-    // console.log(`${V.timeout} wait`, 100);
 
     const pageInfo = await sendCommand(stationConfig, fullPayload, 5000, "<ACK>4<CRC>"); // pageInfo 01020200
-    // console.log(`${V.droplet} pageInfo`, pageInfo.toString('hex'));
     const numberOfPages = pageInfo.readUInt16LE(0);
     let firstReccord = pageInfo.readUInt8(2);
     console.log(`${V.books} ${numberOfPages} pages d'archives`, `${V.book} debute au ${firstReccord}ieme enregistrement de la 1er page`);
@@ -728,26 +724,25 @@ async function downloadArchiveData(stationConfig, startDate, res) {
             const recordBuffer = pageDataOnly.slice(j * 52, (j + 1) * 52);
             if (recordBuffer.length === 52) {
                 const parsedRecord = parseDMPRecord(recordBuffer);
-                const processedData = processWeatherData(parsedRecord, stationConfig, userUnitsConfig); 
+                const processedData = processWeatherData(parsedRecord, stationConfig); // , userUnitsConfig);
                 const nativedate = convertRawValue2NativeValue( parsedRecord.date.value, 'date', null);
                 const nativetime = convertRawValue2NativeValue( parsedRecord.time.value, 'time', null);
                 const datetime = conversionTable.date.iso8601(nativedate) + conversionTable.time.iso8601(nativetime); // format ISO8601 ex: 2025-08-18T07:45:00.000Z
 
 
                 if (stationConfig.lastArchiveDate === null || (new Date(datetime)) > (new Date(stationConfig.lastArchiveDate))) {
-                    console.log(`${V.package} ${pageNumber+1}[${j+1}]/${numberOfPages} : ${datetime}`);
                     allRecords[datetime] = processedData;
                     // Écrire dans InfluxDB, 
-                    const isWriteToDB = await writeArchiveToInfluxDB(processedData, new Date(datetime), stationConfig.id);
-                    if (isWriteToDB){
-                        console.log(`${V.package} ${pageNumber+1}[${j+1}]/${numberOfPages} : ${datetime}`);
+                    const WriteToDB = await writeArchiveToInfluxDB(processedData, new Date(datetime), stationConfig.id);
+                    if (WriteToDB){
+                        console.log(`${V.package} Pages ${pageNumber+1}.${j+1}/${numberOfPages} Archives / Write ${WriteToDB} points influxDb for [${datetime}] ✅`);
                         stationConfig.lastArchiveDate = datetime;
                         configManager.autoSaveConfig(stationConfig);
                     } else {
-                        console.log(`${V.Warn} ${pageNumber+1}[${j+1}]/${numberOfPages} : ${datetime}`);
+                        console.log(`${V.package} Pages ${pageNumber+1}.${j+1}/${numberOfPages} Archives / Error writing points influxDb for [${datetime}] ${V.error}`);
                     }
                 } else {
-                    console.warn(`${V.Tache} ${pageNumber+1}[${j+1}]/${numberOfPages}: ${datetime} <= ${stationConfig.lastArchiveDate}`);
+                    console.warn(`${V.Gyro} ${pageNumber+1}[${j+1}]/${numberOfPages}: ${datetime} <= ${stationConfig.lastArchiveDate}`);
                 }
 
             }
