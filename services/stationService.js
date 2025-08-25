@@ -631,13 +631,35 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
     // on supprime les champs inutiles
     delete processedData.date;
     delete processedData.time;
+    
+    const point = new Point('wind')
+        .tag('station_id', stationId)
+        .tag('sensor_ref', 'windSpeed')
+        .floatField('speed', processedData.windSpeed.Value)
+        .tag('unit', processedData.windSpeed.Unit)
+        .tag('direction', processedData.windDir.Value)
+        .timestamp(datetime);
+    points.push(point);
+    delete processedData.windDir;
+    delete processedData.windSpeed;
+    
+    const point2 = new Point('windGust')
+        .tag('station_id', stationId)
+        .tag('sensor_ref', 'windSpeedMax')
+        .floatField('speed', processedData.windSpeedMax.Value)
+        .tag('unit', processedData.windSpeedMax.Unit)
+        .tag('direction', processedData.windDirMax.Value)
+        .timestamp(datetime);
+    points.push(point2);
+    delete processedData.windSpeedMax;
+    delete processedData.windDirMax;
 
     // regroupe les entrees par type pour les ecrires en un seul point par type
     const groupedData = {};
     for (const [key, data] of Object.entries(processedData)) {
         const measurement = sensorTypeMap[key];
         if (measurement && typeof data.Value === 'number' && isFinite(data.Value)) {
-            if (!groupedData[measurement]) {
+            if (!groupedData[measurement]) { // toutes les temperatures seront dans le même point
                 groupedData[measurement] = {
                     fields: {},
                     unit: data.Unit

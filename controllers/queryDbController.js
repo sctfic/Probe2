@@ -60,6 +60,11 @@ exports.getQueryMetadata = async (req, res) => {
 exports.getQueryRange = async (req, res) => {
     const { stationId, sensorRef } = req.params;
     const { startDate, endDate } = req.query;
+    
+    if (!stationId || !sensorRef) {
+        return res.status(400).json({ success: false, error: 'Les paramètres stationId et sensorRef sont requis.' });
+    }
+    
     try {
         console.log(`${V.info} Demande de plage de dates pour ${stationId} - ${sensorRef}`);
         const data = await influxdbService.queryDateRange(stationId, sensorRef, startDate, endDate);
@@ -72,6 +77,11 @@ exports.getQueryRange = async (req, res) => {
 exports.getQueryRaw = async (req, res) => {
     const { stationId, sensorRef } = req.params;
     const { startDate, endDate, stepCount = 100000 } = req.query;
+    
+    if (!stationId || !sensorRef) {
+        return res.status(400).json({ success: false, error: 'Les paramètres stationId et sensorRef sont requis.' });
+    }
+    
     try {
         console.log(`${V.info} Demande de données brutes pour ${stationId} - ${sensorRef}`);
         const intervalSeconds = await getIntervalSeconds(stationId, sensorRef, startDate, endDate, stepCount);
@@ -94,8 +104,8 @@ exports.getQueryCandle = async (req, res) => {
     const { stationId, sensorRef } = req.params;
     const { startDate, endDate, stepCount = 100000 } = req.query;
     
-    if (!sensorRef) {
-        return res.status(400).json({ success: false, error: 'Le paramètre sensorRef est requis.' });
+    if (!stationId || !sensorRef) {
+        return res.status(400).json({ success: false, error: 'Les paramètres stationId et sensorRef sont requis.' });
     }
     
     try {
@@ -123,6 +133,11 @@ exports.getQueryCandle = async (req, res) => {
 exports.getQueryWind = async (req, res) => {
     const { stationId } = req.params;
     const { startDate, endDate, stepCount = 100000 } = req.query;
+    
+    if (!stationId) {
+        return res.status(400).json({ success: false, error: 'Le paramètre stationId est requis.' });
+    }
+    
     try {
         console.log(`${V.info} Demande de données de vent pour ${stationId}`);
         const intervalSeconds = await getIntervalSeconds(stationId, 'windSpeed', startDate, endDate, stepCount);
@@ -136,6 +151,11 @@ exports.getQueryWind = async (req, res) => {
 exports.getQueryRain = async (req, res) => {
     const { stationId } = req.params;
     const { startDate, endDate, stepCount = 100000 } = req.query;
+    
+    if (!stationId) {
+        return res.status(400).json({ success: false, error: 'Le paramètre stationId est requis.' });
+    }
+    
     try {
         console.log(`${V.info} Demande de données de pluie pour ${stationId}`);
         const intervalSeconds = await getIntervalSeconds(stationId, 'rainFall', startDate, endDate, stepCount);

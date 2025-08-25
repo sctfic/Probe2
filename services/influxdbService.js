@@ -131,33 +131,27 @@ async function getMetadata(stationId) {
  * @returns {Promise<Object>} Un objet contenant la plage de dates.
  */
 async function queryDateRange(stationId, sensorRef, startDate, endDate) {
-    // const query = `
-    //     import "experimental"
+    const query = `
+        import "experimental"
         
-    //     data = from(bucket: "${bucket}")
-    //       |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'})
-    //       |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "${sensorRef}")
+        data = from(bucket: "${bucket}")
+          |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'})
+          |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "${sensorRef}")
         
-    //     first = data 
-    //       |> first() 
-    //       |> map(fn: (r) => ({_time: r._time, _value: "first", _field: "operation"}))
+        first = data 
+          |> first() 
+          |> map(fn: (r) => ({_time: r._time, _value: "first", _field: "operation"}))
         
-    //     last = data 
-    //       |> last() 
-    //       |> map(fn: (r) => ({_time: r._time, _value: "last", _field: "operation"}))
+        last = data 
+          |> last() 
+          |> map(fn: (r) => ({_time: r._time, _value: "last", _field: "operation"}))
         
-    //     count = data 
-    //       |> count() 
-    //       |> map(fn: (r) => ({_time: now(), _value: string(v: r._value), _field: "count"}))
+        count = data 
+          |> count() 
+          |> map(fn: (r) => ({_time: now(), _value: string(v: r._value), _field: "count"}))
         
-    //     union(tables: [first, last, count])
-    // `;
-    const query = `from(bucket: "${bucket}")
-    |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'})
-    |> filter(fn: (r) => r._measurement == "${sensorRef}")
-    |> first()
-    |> last()
-    |> count()`;
+        union(tables: [first, last, count])
+    `;
 
     const result = await executeQuery(query);
     
@@ -201,6 +195,7 @@ async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSecond
         from(bucket: "${bucket}")
           |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'}) 
           |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "${sensorRef}")
+          |> window(every: ${intervalSeconds}s)
           |> keep(columns: ["_time", "_value", "unit"])
     `;
     return await executeQuery(fluxQuery);
@@ -219,7 +214,7 @@ async function queryWind(stationId, startDate, endDate, intervalSeconds = 3600) 
             |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'}) 
             |> filter(fn: (r) => r.station_id == "${stationId}" and (r._field == "windSpeed" or r._field == "windDir"))
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-            |> window(every: 10m)
+            |> window(every: ${intervalSeconds}s)
             |> reduce(
                 identity: {avg_speed: 0.0, avg_direction: 0.0, max_speed: 0.0, max_direction: 0.0, count: 0},
                 fn: (r, accumulator) => ({
@@ -252,7 +247,7 @@ async function queryRain(stationId, startDate, endDate, intervalSeconds = 3600) 
             |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'}) 
             |> filter(fn: (r) => r.station_id == "${stationId}" and (r._field == "rainFall" or r._field == "rainRate"))
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-            |> window(every: 1h)
+            |> window(every: ${intervalSeconds}s)
             |> reduce(
                 identity: {sum_rainFall: 0.0, avg_rainRate: 0.0, max_rainRate: 0.0, count: 0},
                 fn: (r, accumulator) => ({
