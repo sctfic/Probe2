@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { writeRaw, sendCommand, wakeUpConsole } = require('../config/vp2NetClient');
 const { calculateCRC } = require('../utils/crc');
-const { sensorTypeMap, parseLOOP1Data, parseLOOP2Data, parseDMPRecord, processWeatherData, convertRawValue2NativeValue, conversionTable, readSignedInt16LE, readUInt16LE, readInt8, readUInt8  } = require('../utils/weatherDataParser');
+const { sensorTypeMap, mapDegreesToCardinal, mapCardinalToDegrees, parseLOOP1Data, parseLOOP2Data, parseDMPRecord, processWeatherData, convertRawValue2NativeValue, conversionTable, readSignedInt16LE, readUInt16LE, readInt8, readUInt8  } = require('../utils/weatherDataParser');
 const { getLocalTimeFromCoordinates, getTimeZoneFromCoordinates } = require('../utils/timeHelper');
 const { findDavisTimeZoneIndex } = require('../utils/timeZoneMapping');
 const { V,O } = require('../utils/icons');
@@ -535,6 +535,7 @@ async function getCurrentWeatherData(stationConfig) {
     console.log(`${V.thermometer} Données LOOP2 récupérées pour ${stationConfig.id}:`, loop2Data);
 
     const aggregatedData = { ...loop1Data, ...loop2Data };
+    console.log(`${V.thermometer} Données LOOP1 & LOOP2 récupérées pour ${stationConfig.id}:`, aggregatedData);
     const processedData = processWeatherData(aggregatedData, stationConfig, userUnitsConfig);
 
     return processedData;
@@ -570,38 +571,6 @@ async function getStationInfo(stationConfig) {
     }
 }
 
-// async function updateStationLocation(stationConfig, { latitude, longitude, elevation }) {
-//     const latValue = Math.round(latitude * 10);
-//     const latBuffer = Buffer.alloc(2);
-//     latBuffer.writeInt16LE(latValue, 0);
-
-//     const lonValue = Math.round(longitude * 10);
-//     const lonBuffer = Buffer.alloc(2);
-//     lonBuffer.writeInt16LE(lonValue, 0);
-
-//     const barCommand = `BAR=0 ${Math.round(elevation)}`;
-
-//     const latCrc = calculateCRC(latBuffer);
-//     const latCrcBytes = Buffer.from([(latCrc >> 8) & 0xFF, latCrc & 0xFF]);
-//     const latPayload = Buffer.concat([latBuffer, latCrcBytes]);
-//     await sendCommand(stationConfig, `EEBWR 0B 02`, 1000, "<ACK>");
-//     await sendCommand(stationConfig, latPayload, 2000, "<ACK>");
-
-//     const lonCrc = calculateCRC(lonBuffer);
-//     const lonCrcBytes = Buffer.from([(lonCrc >> 8) & 0xFF, lonCrc & 0xFF]);
-//     const lonPayload = Buffer.concat([lonBuffer, lonCrcBytes]);
-//     await sendCommand(stationConfig, `EEBWR 0D 02`, 1000, "<ACK>");
-//     await sendCommand(stationConfig, lonPayload, 2000, "<ACK>");
-
-//     await sendCommand(stationConfig, barCommand, 2000, "<LF><CR>OK<LF><CR>");
-//     await sendCommand(stationConfig, 'NEWSETUP', 2000, "<ACK>");
-
-//     return {
-//         status: 'success',
-//         message: 'Localisation de la station définie avec succès.'
-//     };
-// }
-
 async function fetchCurrentConditions(stationConfig) {
     const loop1Bytes = await sendCommand(stationConfig, 'LPS 1 1', 2000, "<ACK>97<CRC>");
     const loop1Data = parseLOOP1Data(loop1Bytes);
@@ -631,26 +600,50 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
     // on supprime les champs inutiles
     delete processedData.date;
     delete processedData.time;
+    if (processedData.windSpeed) { // si il y a des données de vent (ISS connected)
+        const windSpeed = processedData.windSpeed.Value;
+        const windDir = processedData.windDir?.Value !== undefined ? processedData.windDir.Value : null;
+        
+        const wind = new Point('wind')
+            .tag('station_id', stationId)
+            .floatField('speed', windSpeed)
+            .tag('unit', processedData.windSpeed.Unit)
+            .tag('direction', mapDegreesToCardinal(windDir))
+            .timestamp(datetime);
+        // N'ajouter l'angle que si on a du vent ET une direction valide
+        if (windSpeed > 0 && windDir !== null) {
+            wind.floatField('angle', windDir);
+        }
+        points.push(wind);
     
-    const point = new Point('wind')
-        .tag('station_id', stationId)
-        .tag('sensor_ref', 'windSpeed')
-        .floatField('speed', processedData.windSpeed.Value)
-        .tag('unit', processedData.windSpeed.Unit)
-        .tag('direction', processedData.windDir.Value)
-        .timestamp(datetime);
-    points.push(point);
+        if (windDir === 0) {
+            console.log('processedData', processedData);
+            console.warn('wind', wind);
+        }
+    
+        if (processedData.windSpeedMax) {
+            const windSpeedMax = processedData.windSpeedMax.Value;
+            const windDirMax = processedData.windDirMax?.Value !== undefined ? processedData.windDirMax.Value : null;
+            const gust = new Point('wind')
+                .tag('station_id', stationId)
+                .floatField('gust', windSpeedMax)
+                .tag('unit', processedData.windSpeedMax.Unit)
+                .tag('direction', mapDegreesToCardinal(windDirMax))
+                .timestamp(datetime);
+            // N'ajouter l'angle que si on a des rafales ET une direction valide
+            if (windSpeedMax > 0 && windDirMax !== null) {
+                gust.floatField('angle', windDirMax);
+            }
+            points.push(gust);
+    
+            if (windDirMax === 0) {
+                console.log('processedData', processedData);
+                console.warn('gust', gust);
+            }
+        }
+    }
     delete processedData.windDir;
     delete processedData.windSpeed;
-    
-    const point2 = new Point('windGust')
-        .tag('station_id', stationId)
-        .tag('sensor_ref', 'windSpeedMax')
-        .floatField('speed', processedData.windSpeedMax.Value)
-        .tag('unit', processedData.windSpeedMax.Unit)
-        .tag('direction', processedData.windDirMax.Value)
-        .timestamp(datetime);
-    points.push(point2);
     delete processedData.windSpeedMax;
     delete processedData.windDirMax;
 

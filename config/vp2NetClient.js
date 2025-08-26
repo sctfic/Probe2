@@ -183,7 +183,7 @@ async function ensureConnection(state) {
  * Exécute la procédure de réveil et assure que la console est prête à recevoir les commandes.
  * @returns {Promise<void>} Résout si la console est réveillée, rejette sinon.
  */
-async function wakeUpConsole(stationConfig, screen = false) {
+async function wakeUpConsole(stationConfig, screen = null) {
     const state = _getConnectionState(stationConfig);
     await ensureConnection(state); // S'assurer que la connexion TCP est active avant le réveil
 
@@ -224,6 +224,11 @@ async function wakeUpConsole(stationConfig, screen = false) {
                     await sendCommand(stationConfig, `LAMPS 1`, 2000, "<LF><CR>OK<LF><CR>");
                     console.log(`${O.yellow} ${stationConfig.id} - Screen ON`);
 
+                } else if (screen === false) {
+                    await sendCommand(stationConfig, `LAMPS 0`, 2000, "<LF><CR>OK<LF><CR>");
+                    console.log(`${O.black} ${stationConfig.id} - Screen OFF`);
+                }else{
+                    console.log(`${O.purple} ${stationConfig.id} - empty`);
                 }
                 return; // Console est réveillée
             } else {
@@ -338,12 +343,17 @@ function _internalSendAndReceive(state, command, timeout, parsedFormat) {
         state.client.on('data', responseListener);
 
         const dataToSend = typeof command === 'string' ? Buffer.from(`${command}\n`) : command;
-        state.client.write(dataToSend, (err) => {
-            if (err) {
-                cleanup('WRITE_ERROR', `Erreur d'écriture sur le socket: ${err.message}`, null);
-                reject(err);
-            }
-        });
+        try {
+            state.client.write(dataToSend, (err) => {
+                if (err) {
+                    cleanup('WRITE_ERROR', `Erreur d'écriture sur le socket: ${err.message}`, null);
+                    reject(err);
+                }
+            });
+        } catch (error) {
+            cleanup('WRITE_ERROR', `Erreur d'écriture sur le socket: ${error.message}`, null);
+            reject(error);
+        }
     });
 }
 

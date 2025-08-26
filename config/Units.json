@@ -61,7 +61,7 @@
   },
   "Forecast": {
     "unit": "ForecastClass",
-    "avaible_units": [{"title":"ForecastNum","symbol":""}, {"title":"ForecastClass","symbol":""}],
+    "avaible_units": [{"title":"Weather Forecast Num","symbol":"ForecastNum"}, {"title":"Weather Forecast Class for CSS","symbol":"ForecastClass"}],
     "sensors": ["ForecastIcon"]
   }
 }

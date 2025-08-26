@@ -48,12 +48,9 @@ const loadStationConfig = (req, res, next) => {
 const withStationLamps = (handler) => {
     return async (req, res) => {
         const stationConfig = req.stationConfig;
-        
         try {
             await wakeUpConsole(stationConfig, true);
-
             const result = await handler(req, res);
-            
             if (result && typeof result === 'object') {
                 res.json({
                     success: true,
@@ -70,8 +67,11 @@ const withStationLamps = (handler) => {
                 error: error.message
             });
         } finally {
-            await sendCommand(stationConfig, `LAMPS 0`, 2000, "<LF><CR>OK<LF><CR>");
-            console.log(`${O.black} ${stationConfig.id} - Screen OFF`);
+            try {
+                await wakeUpConsole(stationConfig, false);
+            } catch (error) {
+                console.error(`${V.error} ${stationConfig.id} - Erreur lors de la commande LAMPS OFF: ${error.message}`);
+            }
         }
     };
 };

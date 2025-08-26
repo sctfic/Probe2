@@ -42,7 +42,7 @@ async function getIntervalSeconds(stationId, sensorRef, startDate, endDate, step
     const endTime = new Date(dateRange.lastUtc);
     // 3. Calcule l'intervalle optimal
     const totalSeconds  = (endTime.getTime() - startTime.getTime()) / 1000;
-    console.log(`Total de secondes: ${totalSeconds}`, endTime.getTime()/1000, startTime.getTime()/1000);
+    // console.log(`Total de secondes: ${totalSeconds}`, endTime.getTime()/1000, startTime.getTime()/1000);
     return Math.round(totalSeconds / parseInt(stepCount));
 };
 
@@ -132,7 +132,7 @@ exports.getQueryCandle = async (req, res) => {
 
 exports.getQueryWind = async (req, res) => {
     const { stationId } = req.params;
-    const { startDate, endDate, stepCount = 100000 } = req.query;
+    const { startDate, endDate, stepCount = 10 } = req.query;
     
     if (!stationId) {
         return res.status(400).json({ success: false, error: 'Le paramètre stationId est requis.' });
@@ -140,7 +140,8 @@ exports.getQueryWind = async (req, res) => {
     
     try {
         console.log(`${V.info} Demande de données de vent pour ${stationId}`);
-        const intervalSeconds = await getIntervalSeconds(stationId, 'windSpeed', startDate, endDate, stepCount);
+        const intervalSeconds = await getIntervalSeconds(stationId, 'speed', startDate, endDate, stepCount);
+        console.log(`${V.info} Intervalle calculé: ${intervalSeconds}s pour ${stepCount} étapes`);
         const data = await influxdbService.queryWind(stationId, startDate, endDate, intervalSeconds);
         handleResponse(res, stationId, data);
     } catch (error) {

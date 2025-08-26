@@ -1,31 +1,37 @@
 // utils/weatherDataParser.js
 
 function mapDegreesToCardinal(degrees) {
-    if (degrees === 0 || degrees > 360) return "N/A";
+    if ( degrees > 337.5) return "N/A";
     const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
     const index = Math.round(degrees / 22.5);
     return directions[index % 16];
 }
+function mapCardinalToDegrees(cardinal) {
+    const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+    const index = directions.indexOf(cardinal);
+    return index * 22.5;
+}
+// conversion des valeur binaire avec gestion des valeurs aberantes
 
-function readSignedInt16LE(buffer, offset) {
+function readSignedInt16LE(buffer, offset, badValue = -32768) {
     let val = buffer.readUInt16LE(offset);
     val = (val > 0x7FFF ? val - 0x10000 : val);
-    return val === -32768 ? NaN : val;
+    return val === badValue ? NaN : val;
 }
 
-function readInt8(buffer, offset) {
+function readInt8(buffer, offset, badValue = -128) {
     const val = buffer.readInt8(offset);
-    return val === -128 ? NaN : val;
+    return val === badValue ? NaN : val;
 }
 
-function readUInt16LE(buffer, offset) {
+function readUInt16LE(buffer, offset, badValue = 65535) {
     const val = buffer.readUInt16LE(offset);
-    return val === 65535 ? NaN : val;
+    return val === badValue ? NaN : val;
 }
 
-function readUInt8(buffer, offset) {
+function readUInt8(buffer, offset, badValue = 255) {
     const val = buffer.readUInt8(offset);
-    return val === 255 ? NaN : val;
+    return val === badValue ? NaN : val;
 }
 
 function parseLOOP1Data(data) {
@@ -49,7 +55,7 @@ function parseLOOP1Data(data) {
     weatherData.monthET = { value: readUInt16LE(data, 58), native_unit: "in_100th" };
     weatherData.yearET = { value: readUInt16LE(data, 60), native_unit: "in_100th" };
     weatherData.batteryVoltage = { value: readUInt16LE(data, 87), native_unit: "((DataRaw * 3)/512) V" };
-    weatherData.ForecastIcon = { value: readUInt8(data, 89), native_unit: "ForecastNum" };
+    weatherData.ForecastNum = { value: readUInt8(data, 89), native_unit: "ForecastNum" };
     weatherData.sunrise = { value: readUInt16LE(data, 91), native_unit: "time" };
     weatherData.sunset = { value: readUInt16LE(data, 93), native_unit: "time" };
     return weatherData;
@@ -89,19 +95,22 @@ function parseDMPRecord(recordBuffer) {
     const record = {};
     record.date = { value: readUInt16LE(recordBuffer, 0), native_unit: "date"}
     record.time = { value: readUInt16LE(recordBuffer, 2), native_unit: "time" };
-    record.outTemp = { value: readSignedInt16LE(recordBuffer, 4), native_unit: "F_tenths" };
-    record.rainFall = { value: readUInt16LE(recordBuffer, 10), native_unit: "clicks*cup_size" };
-    record.barometer = { value: readUInt16LE(recordBuffer, 14), native_unit: "inHg_1000th" };
-    record.solarRadiation = { value: readUInt16LE(recordBuffer, 16), native_unit: "w/m²" };
-    record.inTemp = { value: readSignedInt16LE(recordBuffer, 20), native_unit: "F_tenths" };
+    record.inTemp = { value: readSignedInt16LE(recordBuffer, 20, 32767), native_unit: "F_tenths" };
+    record.outTemp = { value: readSignedInt16LE(recordBuffer, 4, 32767), native_unit: "F_tenths" };
+    record.barometer = { value: readUInt16LE(recordBuffer, 14, 0), native_unit: "inHg_1000th" };
     record.inHumidity = { value: readUInt8(recordBuffer, 22), native_unit: "percent" };
     record.outHumidity = { value: readUInt8(recordBuffer, 23), native_unit: "percent" };
+    record.ET = { value: readUInt8(recordBuffer, 29, 0), native_unit: "in_100th" };
+    record.rainFall = { value: readUInt16LE(recordBuffer, 10), native_unit: "clicks*cup_size" };
     record.windSpeed = { value: readUInt8(recordBuffer, 24), native_unit: "mph_whole" };
     record.windSpeedMax = { value: readUInt8(recordBuffer, 25), native_unit: "mph_whole" };
-    record.windDir = { value: readUInt8(recordBuffer, 26), native_unit: "degrees" };
-    record.windDirMax = { value: readUInt8(recordBuffer, 27), native_unit: "degrees" };
+    record.windDir = { value: readUInt8(recordBuffer, 26, 128), native_unit: "cardinalInt" };
+    record.windDirMax = { value: readUInt8(recordBuffer, 27, 128), native_unit: "cardinalInt" };
     record.UV = { value: readUInt8(recordBuffer, 28), native_unit: "uvIndex_tenths" };
-    record.ET = { value: readUInt8(recordBuffer, 29), native_unit: "in_100th" };
+    record.UVMax = { value: readUInt8(recordBuffer, 32), native_unit: "uvIndex_tenths" };
+    record.solarRadiation = { value: readUInt16LE(recordBuffer, 16, 32767), native_unit: "w/m²" };
+    record.solarRadiationMax = { value: readUInt16LE(recordBuffer, 30), native_unit: "w/m²" };
+    record.ForecastNum = { value: readUInt8(recordBuffer, 33, 193), native_unit: "ForecastNum" };
     record.leafTemp1 = { value: readUInt8(recordBuffer, 34), native_unit: "F_whole" };
     record.leafTemp2 = { value: readUInt8(recordBuffer, 35), native_unit: "F_whole" };
     record.leafWetness1 = { value: readUInt8(recordBuffer, 36), native_unit: "percent" };
@@ -132,12 +141,12 @@ function convertRawValue2NativeValue(rawValue, nativeUnit, stationConfig) {
         case 'inHg_1000th': return rawValue / 1000;
         case 'in_100th': return rawValue / 100;
         case 'in_1000th': return rawValue / 1000;
-        case 'clicks*cup_size': // doit etre en mm
+        case 'clicks*cup_size':
             // stationConfig.rainCollectorSize.value peut avoir 3 valeurs : "1-0.2mm", "2-0.1mm", "0-0.01mm"
-            const cup = stationConfig.rainCollectorSize.value;
+            const cup = stationConfig.rainCollectorSize.lastReadValue;
             switch (cup) {
                 case 0: return Math.round(rawValue * 0.254 * 1000)/1000;
-                case 1: return Math.round(rawValue * 0.2 * 100)/100;
+                case 1: return Math.round(rawValue * 0.2 * 10)/10;
                 case 2: return Math.round(rawValue * 0.1 * 10)/10;
                 default: return rawValue;
             }
@@ -153,6 +162,8 @@ function convertRawValue2NativeValue(rawValue, nativeUnit, stationConfig) {
             const month = Math.floor(rawValue / 32 & 0x0F).toString().padStart(2, '0'); // Bit 11 to bit 7
             const day = (rawValue % 32).toString().padStart(2, '0'); // Bit 6 to bit 0
             return `20${year}/${month}/${day}`;
+        case 'cardinalInt':
+            return 22.5*rawValue;
         default:
             return rawValue;
     }
@@ -175,6 +186,10 @@ const sensorTypeMap = {
     rainFall: 'rain',
     UV: 'uv',
     solarRadiation: 'powerRadiation',
+    solarRadiationMax: 'powerRadiation',
+    UVMax: 'uv',
+    ForecastClass: 'Forecast',
+    ForecastNum: 'Forecast',
     stormRain: 'rain',
     dateStormRain: 'date',
     dayRain: 'rain',
@@ -194,7 +209,6 @@ const sensorTypeMap = {
     last15MinRain: 'rain',
     lastHourRain: 'rain',
     last24HourRain: 'rain',
-    ForecastIcon: 'Forecast',
     sunrise: 'time',
     sunset: 'time',
     date: 'date',
@@ -284,15 +298,15 @@ const conversionTable = {
         'ForecastClass': (f) => {
             switch (f) {
                 case 8: return 'Sun';
-                case 6: return 'PartialSun Cloud';
+                case 6: return 'Sun Cloud';
                 case 2: return 'Cloud';
                 case 3: return 'Cloud Rain';
+                case 7: return 'Sun Cloud Rain';
                 case 18: return 'Cloud Snow';
                 case 19: return 'Cloud Rain Snow';
-                case 7: return 'Partial Sun Cloud Rain';
-                case 22: return 'Partial Sun Cloud Snow';
-                case 23: return 'Partial Sun Cloud Rain Snow';
-                default: return 'Unknown';
+                case 22: return 'Sun Cloud Snow';
+                case 23: return 'Sun Cloud Rain Snow';
+                default: return f; // 'Unknown';
             }
         }
     },
@@ -345,13 +359,13 @@ function convertToUnit(nativeValue, key, userUnitsConfig) {
     const convertedValue = convertFn(nativeValue);
     if (typeof convertedValue === 'string')
         return convertedValue;
-    else if (Math.abs(convertedValue) < 1) // si la valeur absolue est inferieur a 1, on arrondit a 4 chiffres apres la virgule
+    else if (Math.abs(convertedValue) < 1.2) // si la valeur absolue est inferieur a 1, on arrondit a 4 chiffres apres la virgule
         return Number(convertedValue.toFixed(4));
     else if (Math.abs(convertedValue) < 10)
         return Number(convertedValue.toFixed(3));
     else if (Math.abs(convertedValue) < 100)
         return Number(convertedValue.toFixed(2));
-    else if (Math.abs(convertedValue) < 1000)
+    else if (Math.abs(convertedValue) < 1200) // pour la pression
         return Number(convertedValue.toFixed(1));
     else
         return Number(convertedValue.toFixed(0));
@@ -359,9 +373,13 @@ function convertToUnit(nativeValue, key, userUnitsConfig) {
 
 function processWeatherData(weatherData, stationConfig, userUnitsConfig) {
     const processed = {};
+    // console.warn('weatherData', weatherData.windDir, weatherData.windDirMax);
     for (const [key, data] of Object.entries(weatherData)) {
         if (!isNaN(data.value)) {
             const nativeValue = convertRawValue2NativeValue(data.value, data.native_unit, stationConfig);
+            // if (key === 'windDir' || key === 'windDirMax') {
+            //     console.log('nativeValue', nativeValue);
+            // }
             const nativeUnit = data.native_unit;
             if (userUnitsConfig){
                 processed[key] = { Value: convertToUnit(nativeValue, key, userUnitsConfig), Unit: userUnitsConfig[sensorTypeMap[key]]?.unit || nativeUnit };
@@ -370,6 +388,9 @@ function processWeatherData(weatherData, stationConfig, userUnitsConfig) {
             } else {
                 processed[key] = { Value: nativeValue, Unit: nativeUnit };
             }
+            // if (key === 'windDir' || key === 'windDirMax') {
+            //     console.log('processed', processed[key]);
+            // }
         }
     }
     return processed;
@@ -377,6 +398,7 @@ function processWeatherData(weatherData, stationConfig, userUnitsConfig) {
 
 module.exports = {
     sensorTypeMap,
+    mapCardinalToDegrees,
     mapDegreesToCardinal,
     readSignedInt16LE,
     readInt8,

@@ -115,10 +115,21 @@ async function getMetadata(stationId) {
     `;
     const measurements = await executeQuery(measurementsQuery);
 
+    const tagsQuery = `
+        import "influxdata/influxdb/schema"
+
+        schema.tagKeys(
+            bucket: "Probe2",
+            predicate: (r) => r._measurement == "wind"
+        )
+    `;
+    const tags = await executeQuery(tagsQuery);
+
     return {
         station_id: stationId,
         _field: sensorRefs.map(r => r._value),
-        _measurements: measurements.map(m => m._value)
+        _measurements: measurements.map(m => m._value),
+        wind: tags.map(t => t._value)
     };
 }
 
@@ -132,53 +143,29 @@ async function getMetadata(stationId) {
  */
 async function queryDateRange(stationId, sensorRef, startDate, endDate) {
     const query = `
-        import "experimental"
-        
-        data = from(bucket: "${bucket}")
+        from(bucket: "${bucket}")
           |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'})
           |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "${sensorRef}")
-        
-        first = data 
-          |> first() 
-          |> map(fn: (r) => ({_time: r._time, _value: "first", _field: "operation"}))
-        
-        last = data 
-          |> last() 
-          |> map(fn: (r) => ({_time: r._time, _value: "last", _field: "operation"}))
-        
-        count = data 
-          |> count() 
-          |> map(fn: (r) => ({_time: now(), _value: string(v: r._value), _field: "count"}))
-        
-        union(tables: [first, last, count])
+          |> group()
+          |> reduce(
+              identity: {min_time: time(v: 0), max_time: time(v: 0), count: 0, unit: ""},
+              fn: (r, accumulator) => ({
+                  min_time: if accumulator.count == 0 or r._time < accumulator.min_time then r._time else accumulator.min_time,
+                  max_time: if accumulator.count == 0 or r._time > accumulator.max_time then r._time else accumulator.max_time,
+                  count: accumulator.count + 1,
+                  unit: if exists r.unit then r.unit else accumulator.unit
+              })
+          )
     `;
 
     const result = await executeQuery(query);
-    
-    // Traitement des résultats
-    let firstUtc = null;
-    let lastUtc = null;
-    let count = 0;
-    
-    result.forEach(row => {
-        switch (row._field) {
-            case 'operation':
-                if (row._value === 'first') {
-                    firstUtc = row._time;
-                } else if (row._value === 'last') {
-                    lastUtc = row._time;
-                }
-                break;
-            case 'count':
-                count = parseInt(row._value) || 0;
-                break;
-        }
-    });
+    const data = result[0];
 
     return {
-        firstUtc,
-        lastUtc,
-        count
+        firstUtc: data.min_time,
+        lastUtc: data.max_time,
+        count: data.count,
+        unit: data.unit
     };
 }
 
@@ -211,26 +198,85 @@ async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSecond
 async function queryWind(stationId, startDate, endDate, intervalSeconds = 3600) {
     const fluxQuery = `
         from(bucket: "${bucket}")
-            |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'}) 
-            |> filter(fn: (r) => r.station_id == "${stationId}" and (r._field == "windSpeed" or r._field == "windDir"))
-            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-            |> window(every: ${intervalSeconds}s)
-            |> reduce(
-                identity: {avg_speed: 0.0, avg_direction: 0.0, max_speed: 0.0, max_direction: 0.0, count: 0},
-                fn: (r, accumulator) => ({
-                    avg_speed: r.windSpeed + accumulator.avg_speed,
-                    avg_direction: r.windDir + accumulator.avg_direction,
-                    max_speed: if r.windSpeed > accumulator.max_speed then r.windSpeed else accumulator.max_speed,
-                    max_direction: if r.windDir > accumulator.max_direction then r.windDir else accumulator.max_direction,
-                    count: accumulator.count + 1
-                })
-            )
-            |> map(fn: (r) => ({ r with 
-                avg_speed: r.avg_speed / float(v: r.count),
-                avg_direction: r.avg_direction / float(v: r.count)
-            }))
+            |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'})
+            |> filter(fn: (r) => r.station_id == "${stationId}")
+            |> filter(fn: (r) => r._measurement == "wind")
+            |> filter(fn: (r) => r._field == "speed" or r._field == "gust")
+            |> filter(fn: (r) => r.direction != "N/A")
+            |> group(columns: ["direction", "_field", "unit"])
+            |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
+            |> pivot(rowKey: ["_time", "direction", "unit"], columnKey: ["_field"], valueColumn: "_value")
+            |> group()
+            |> sort(columns: ["_time", "direction"])
+            |> yield()
     `;
-    return await executeQuery(fluxQuery);
+    
+    const results = await executeQuery(fluxQuery);
+    return formatWindData(results, intervalSeconds);
+}
+
+function formatWindData(results, intervalSeconds) {
+    const formattedData = {};
+    const allDirections = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+
+    
+    // Grouper par timestamp
+    results.forEach(row => {
+        const timeKey = row._time;
+        const direction = row.direction;
+        let globalUnit;        
+        // Capturer l'unité dès le premier enregistrement
+        if (!globalUnit && row.unit) {
+            globalUnit = row.unit;
+        }
+        
+        if (!formattedData[timeKey]) {
+            formattedData[timeKey] = {
+                timestamp: timeKey,
+                period: intervalSeconds,
+                unit: globalUnit || row.unit || '',
+                directions: {}
+            };
+            
+            // Initialiser toutes les directions avec des valeurs par défaut
+            allDirections.forEach(dir => {
+                formattedData[timeKey].directions[dir] = {
+                    avgSpeed: 0,
+                    maxGust: 0
+                };
+            });
+            
+            // Ajouter N/A avec count
+            // formattedData[timeKey].directions["N/A"] = {
+            //     count: 0
+            // };
+        }
+        
+        // Mettre à jour l'unité si elle n'était pas définie
+        if (!formattedData[timeKey].unit && row.unit) {
+            formattedData[timeKey].unit = row.unit;
+        }
+        
+        // Mettre à jour les valeurs pour la direction courante
+        if (allDirections.includes(direction)) {
+            if (row.speed !== null && row.speed !== undefined) {
+                formattedData[timeKey].directions[direction].avgSpeed = row.speed;
+            }
+            if (row.gust !== null && row.gust !== undefined) {
+                formattedData[timeKey].directions[direction].maxGust = row.gust;
+            }
+        // } else if (direction === "N/A") {
+        //     formattedData[timeKey].directions["N/A"].count++;
+        }
+    });
+    
+    // Convertir l'objet en array et trier par timestamp
+    return Object.values(formattedData)
+        .map(period => ({
+            ...period,
+            unit: period.unit || globalUnit || "unknown"
+        }))
+        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 }
 
 /**
