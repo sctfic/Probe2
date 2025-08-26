@@ -102,7 +102,7 @@ exports.getQueryRaw = async (req, res) => {
 
 exports.getQueryCandle = async (req, res) => {
     const { stationId, sensorRef } = req.params;
-    const { startDate, endDate, stepCount = 100000 } = req.query;
+    const { startDate, endDate, stepCount = 100 } = req.query;
     
     if (!stationId || !sensorRef) {
         return res.status(400).json({ success: false, error: 'Les paramètres stationId et sensorRef sont requis.' });
@@ -151,7 +151,7 @@ exports.getQueryWind = async (req, res) => {
 
 exports.getQueryRain = async (req, res) => {
     const { stationId } = req.params;
-    const { startDate, endDate, stepCount = 100000 } = req.query;
+    const { startDate, endDate, stepCount = 100 } = req.query;
     
     if (!stationId) {
         return res.status(400).json({ success: false, error: 'Le paramètre stationId est requis.' });

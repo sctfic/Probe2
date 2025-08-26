@@ -115,21 +115,21 @@ async function getMetadata(stationId) {
     `;
     const measurements = await executeQuery(measurementsQuery);
 
-    const tagsQuery = `
-        import "influxdata/influxdb/schema"
+    // const tagsQuery = `
+    //     import "influxdata/influxdb/schema"
 
-        schema.tagKeys(
-            bucket: "Probe2",
-            predicate: (r) => r._measurement == "wind"
-        )
-    `;
-    const tags = await executeQuery(tagsQuery);
+    //     schema.tagKeys(
+    //         bucket: "Probe2",
+    //         predicate: (r) => r._measurement == "wind"
+    //     )
+    // `;
+    // const tags = await executeQuery(tagsQuery);
 
     return {
         station_id: stationId,
         _field: sensorRefs.map(r => r._value),
         _measurements: measurements.map(m => m._value),
-        wind: tags.map(t => t._value)
+        // wind: tags.map(t => t._value)
     };
 }
 
@@ -289,25 +289,36 @@ function formatWindData(results, intervalSeconds) {
  */
 async function queryRain(stationId, startDate, endDate, intervalSeconds = 3600) {
     const fluxQuery = `
-        from(bucket: "${bucket}")
-            |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'}) 
-            |> filter(fn: (r) => r.station_id == "${stationId}" and (r._field == "rainFall" or r._field == "rainRate"))
-            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-            |> window(every: ${intervalSeconds}s)
-            |> reduce(
-                identity: {sum_rainFall: 0.0, avg_rainRate: 0.0, max_rainRate: 0.0, count: 0},
-                fn: (r, accumulator) => ({
-                    sum_rainFall: r.rainFall + accumulator.sum_rainFall,
-                    avg_rainRate: r.rainRate + accumulator.avg_rainRate,
-                    max_rainRate: if r.rainRate > accumulator.max_rainRate then r.rainRate else accumulator.max_rainRate,
-                    count: accumulator.count + 1
-                })
-            )
-            |> map(fn: (r) => ({ r with 
-                avg_rainRate: r.avg_rainRate / float(v: r.count)
-            }))
+        rainFall = from(bucket: "${bucket}")
+            |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'})
+            |> filter(fn: (r) => r.station_id == "${stationId}" and r._measurement == "rain" and r._field == "rainFall")
+            |> aggregateWindow(every: ${intervalSeconds}s, fn: sum, createEmpty: false)
+            |> set(key: "_field", value: "totalRainFall")
+
+        evapotranspiration = from(bucket: "${bucket}")
+            |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'})
+            |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "ET")
+            |> aggregateWindow(every: ${intervalSeconds}s, fn: sum, createEmpty: false)
+            |> set(key: "_field", value: "totalET")
+
+        union(tables: [rainFall, evapotranspiration])
+            |> pivot(rowKey: ["_time", "unit"], columnKey: ["_field"], valueColumn: "_value")
+            |> group()
+            |> sort(columns: ["_time"])
+            |> yield()
     `;
-    return await executeQuery(fluxQuery);
+    
+    const results = await executeQuery(fluxQuery);
+    return formatRainData(results, intervalSeconds);
+}
+
+function formatRainData(results, intervalSeconds) {
+    return results.map(row => ({
+        timestamp: row._time,
+        rainFall: Math.round((row.totalRainFall || 0) * 100) / 100,
+        ET: Math.round((row.totalET || 0) * 100) / 100,
+        unit: row.unit || "mm"
+    }));
 }
 
 /**
@@ -320,14 +331,11 @@ async function queryRain(stationId, startDate, endDate, intervalSeconds = 3600) 
  * @returns {Promise<string>} Données au format TSV
  */
 async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSeconds = 3600) {
-    
-    console.log(`Intervalle calculé: ${intervalSeconds}s pour ${stepCount} étapes entre ${effectiveStart} et ${effectiveEnd}`);
-    
-    // 4. Requête InfluxDB optimisée
+    console.log(`Demande de données candle pour ${stationId} - ${sensorRef}`, startDate, endDate, intervalSeconds);
     const fluxQuery = `
         import "math"
         from(bucket: "${bucket}")
-            |> range(start: time(v: "${effectiveStart}"), stop: time(v: "${effectiveEnd}"))
+            |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'}) 
             |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "${sensorRef}")
             |> window(every: ${intervalSeconds}s)
             |> reduce(
@@ -354,7 +362,7 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
                 datetime: r.first_time,
                 first: r.first_value,
                 min: r.min_value,
-                avg: math.round(x: r.sum_value / float(v: r.count) * 100.0) / 1000.0,
+                avg: math.round(x: r.sum_value / float(v: r.count) * 1000.0) / 1000.0,
                 max: r.max_value,
                 last: r.last_value,
                 count: r.count
