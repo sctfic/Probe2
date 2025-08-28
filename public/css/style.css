@@ -125,9 +125,9 @@ h1 {
 /* Current conditions styles */
 .conditions-controls {
     background: #f8f9fa;
-    padding: 15px;
+    padding: 2px;
     border-radius: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 2px;
     display: flex;
     gap: 20px;
     align-items: center;
@@ -285,8 +285,8 @@ h1 {
 
 .conditions-stats {
     background: #e3f2fd;
-    padding: 12px 20px;
-    margin-bottom: 20px;
+    padding: 5px 8px;
+    margin-bottom: 2px;
     border-radius: 6px;
     font-size: 0.9em;
     color: #1976d2;
@@ -412,8 +412,8 @@ h1 {
 
 /* Status messages */
 .status-message {
-    padding: 10px;
-    margin: 10px 0;
+    padding: 8px;
+    margin: 0;
     border-radius: 4px;
     font-weight: bold;
 }
@@ -619,4 +619,110 @@ label {
     font-size: 0.9em;
     text-align: center;
     padding: 20px;
+}
+
+/* Styles pour la tuile de prévision météo ForecastIcon */
+
+.weather-forecast-container {
+    position: relative;
+    width: 100%;
+    height: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.weather-icon {
+    position: absolute;
+    width: 220px;
+    height: 220px;
+    top: 33%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.weather-icon.active {
+    opacity: 1;
+    filter: none;
+    transform: translate(-50%, -50%) scale(1.1);
+}
+
+/* Styles spécifiques pour chaque type de météo */
+.weather-sun {
+    top: 20%;
+    left: 40%;
+    opacity: 1;}
+
+.weather-sun.active {
+    filter: drop-shadow(0 0 10px #FFD700);
+}
+
+.weather-cloud {
+    top: 30%;
+    left: 60%;
+    opacity: 0.8;
+}
+
+.weather-cloud.active {
+    filter: drop-shadow(0 0 8px #87CEEB);
+}
+
+.weather-rain {
+    top: 50%;
+    left: 60%;
+    opacity: 0.8;
+}
+
+.weather-rain.active {
+    filter: drop-shadow(0 0 8px #4682B4);
+}
+
+.weather-snow {
+    top: 50%;
+    left: 60%;
+    opacity: 0.8;
+}
+
+.weather-snow.active {
+    filter: drop-shadow(0 0 10px #F0F8FF);
+}
+
+/* Nom de la météo affiché en bas */
+.weather-name {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.8em;
+    font-weight: bold;
+    color: var(--accent-blue, #4DC0E0);
+    text-align: center;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 2px 8px;
+    border-radius: 12px;
+    z-index: 10;
+}
+
+/* Animation de survol pour la tuile de prévision */
+.condition-tile[data-key="ForecastIcon"]:hover .weather-icon:not(.active) {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(1.05);
+}
+
+.condition-tile[data-key="ForecastIcon"]:hover .weather-icon.active {
+    transform: translate(-50%, -50%) scale(1.2);
+}
+
+/* Responsive pour les petits écrans */
+@media (max-width: 768px) {
+    .weather-icon {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .weather-name {
+        font-size: 0.7em;
+    }
 }

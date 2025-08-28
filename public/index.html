@@ -1,4 +1,3 @@
-
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -35,6 +34,7 @@
 <!-- Sélecteur global de station -->
 <div class="station-selector">
     <div class="station-info" id="station-info"></div>
+    <div class="status-message" id="conditions-status" style="display: none;"></div>
     <select id="global-station-select">
         <option value="">Chargement des stations...</option>
     </select>
@@ -42,14 +42,14 @@
 
 <main id="content-container" class="content-container">
     <section id="currents-section" class="content-section active">
-        <div class="status-message" id="conditions-status" style="display: none;"></div>
         
-        <!-- Contrôles de filtre -->
+        <!-- Contrôles de filtre réorganisés -->
         <div class="conditions-controls">
             <div class="filter-group">
                 <label for="conditions-filter">Recherche</label>
                 <input type="text" id="conditions-filter" placeholder="Rechercher une mesure...">
             </div>
+            <div class="conditions-stats" id="conditions-stats-display" style="display: none;"></div>
             <div class="view-group">
                 <label for="conditions-group">Grouper par</label>
                 <select id="conditions-group">
@@ -132,7 +132,7 @@
         let selectedStation = null;
         let stationsConfig = {};
         let currentConditionsData = null;
-        let filteredConditions = [];
+        let allConditions = []; // Stocke toutes les conditions sans filtre
         let dbSensorList = null;
 
         // Éléments DOM
@@ -246,7 +246,7 @@
 
                 if (data.success && data.data) {
                     currentConditionsData = data.data;
-                    applyFiltersAndDisplay();
+                    processAndDisplayConditions();
                     showConditionsStatus('Données actualisées avec succès', 'success');
                 } else {
                     throw new Error('Format de données invalide');
@@ -259,16 +259,12 @@
             }
         }
 
-        function applyFiltersAndDisplay() {
+        function processAndDisplayConditions() {
             if (!currentConditionsData) return;
-
-            const filterText = document.getElementById('conditions-filter')?.value?.toLowerCase() || '';
-            // const sortBy = document.getElementById('conditions-sort')?.value || 'unit';
-            const groupBy = document.getElementById('conditions-group')?.value || 'unit';
 
             // Convertir les données en tableau et exclure certains champs
             const excludeKeys = ['datagramme', 'timestamp'];
-            const conditionsArray = Object.entries(currentConditionsData)
+            allConditions = Object.entries(currentConditionsData)
                 .filter(([key]) => !excludeKeys.includes(key))
                 .map(([key, data]) => {
                     const sensorInfo = sensorMap[key] || {};
@@ -287,47 +283,84 @@
                     };
                 });
 
-            // Filtrer
-            filteredConditions = conditionsArray.filter(item => 
-                filterText === '' || item.searchText.includes(filterText)
-            );
-
-            // Trier
-            // filteredConditions.sort((a, b) => {
-            //     switch (sortBy) {
-            //         case 'name':
-            //             return a.name.localeCompare(b.name);
-            //         case 'value':
-            //             const aVal = parseFloat(a.value) || 0;
-            //             const bVal = parseFloat(b.value) || 0;
-            //             return bVal - aVal;
-            //         case 'measurement':
-            //             const measurementCompare = a.measurement.localeCompare(b.measurement);
-            //             if (measurementCompare === 0) {
-            //                 return a.name.localeCompare(b.name);
-            //             }
-            //             return measurementCompare;
-            //         case 'unit':
-            //         default:
-            //             const unitCompare = a.unit.localeCompare(b.unit);
-            //             if (unitCompare === 0) {
-            //                 return a.name.localeCompare(b.name);
-            //             }
-            //             return unitCompare;
-            //     }
-            // });
-
-            // Afficher selon le groupement
-            if (groupBy === 'none') {
-                displayConditionsList();
-            } else {
-                displayConditionsGrouped(groupBy);
-            }
+            // Afficher les conditions selon le groupement
+            displayConditions();
+            
+            // Appliquer le filtre en cours
+            applyCurrentFilter();
 
             // Charger les graphiques après affichage
             setTimeout(() => {
                 loadAllCharts();
             }, 100);
+        }
+
+        // Nouvelle fonction pour appliquer le filtre sans recharger
+        function applyCurrentFilter() {
+            const filterText = document.getElementById('conditions-filter')?.value?.toLowerCase() || '';
+            const tiles = document.querySelectorAll('.condition-tile');
+            
+            let visibleCount = 0;
+            
+            tiles.forEach(tile => {
+                const conditionKey = tile.dataset.key;
+                const condition = allConditions.find(c => c.key === conditionKey);
+                
+                if (!condition) return;
+                
+                const isVisible = filterText === '' || condition.searchText.includes(filterText);
+                
+                if (isVisible) {
+                    tile.style.display = '';
+                    visibleCount++;
+                } else {
+                    tile.style.display = 'none';
+                }
+            });
+
+            // Mise à jour des stats avec le nouveau système
+            updateConditionsStats(visibleCount);
+            
+            // Gestion des groupes vides
+            updateGroupVisibility();
+        }
+
+        function updateGroupVisibility() {
+            const groups = document.querySelectorAll('.unit-group');
+            
+            groups.forEach(group => {
+                const visibleTiles = group.querySelectorAll('.condition-tile[style=""], .condition-tile:not([style*="display: none"])');
+                const hasVisibleTiles = Array.from(group.querySelectorAll('.condition-tile')).some(tile => 
+                    tile.style.display !== 'none'
+                );
+                
+                if (hasVisibleTiles) {
+                    group.style.display = '';
+                    // Mettre à jour le compteur du groupe
+                    const counter = group.querySelector('.unit-count');
+                    if (counter) {
+                        counter.textContent = visibleTiles.length;
+                    }
+                } else {
+                    group.style.display = 'none';
+                }
+            });
+        }
+
+        function updateConditionsStats(visibleCount) {
+            const statsEl = document.getElementById('conditions-stats-display');
+            
+            if (statsEl && currentConditionsData) {
+                const totalCount = Object.keys(currentConditionsData).length;
+                const visibleConditions = allConditions.filter((_, index) => {
+                    const tile = document.querySelector(`.condition-tile[data-key="${allConditions[index].key}"]`);
+                    return tile && tile.style.display !== 'none';
+                });
+                const unitsCount = new Set(visibleConditions.map(item => item.unit)).size;
+                
+                statsEl.innerHTML = `${visibleCount} / ${totalCount} mesures • ${unitsCount} unités`;
+                statsEl.style.display = 'block';
+            }
         }
 
         function extractValue(data) {
@@ -346,17 +379,37 @@
             return '';
         }
 
-        function displayConditionsGrouped(groupBy) {
+        function displayConditions() {
+            const groupBy = document.getElementById('conditions-group')?.value || 'unit';
+            
+            if (groupBy === 'none') {
+                reorganizeConditionsList();
+            } else {
+                reorganizeConditionsGrouped(groupBy);
+            }
+        }
+
+        function reorganizeConditionsGrouped(groupBy) {
             const conditionsContainer = document.getElementById('conditions-container');
             if (!conditionsContainer) return;
 
-            if (filteredConditions.length === 0) {
+            if (allConditions.length === 0) {
                 conditionsContainer.innerHTML = '<div class="conditions-grid"><div class="no-results">Aucune donnée ne correspond à votre recherche.</div></div>';
                 return;
             }
 
+            // Détacher les tuiles existantes du DOM pour les préserver
+            const existingTiles = {};
+            document.querySelectorAll('.condition-tile').forEach(tile => {
+                const key = tile.dataset.key;
+                if (key) {
+                    tile.remove(); // Retirer du DOM mais garder la référence
+                    existingTiles[key] = tile;
+                }
+            });
+
             // Grouper selon le critère
-            const groupedData = filteredConditions.reduce((groups, item) => {
+            const groupedData = allConditions.reduce((groups, item) => {
                 let groupKey;
                 switch (groupBy) {
                     case 'measurement':
@@ -380,42 +433,97 @@
                 return groups;
             }, {});
 
-            let html = '';
-            console.log(groupedData);
+            // Créer la nouvelle structure
+            let newHTML = '';
             Object.entries(groupedData).sort((a, b) => a[0].localeCompare(b[0])).forEach(([groupName, items]) => {
-                html += `
+                newHTML += `
                     <div class="unit-group">
                         <h3>
                             ${groupName}
                             <span class="unit-count">${items.length}</span>
                         </h3>
-                        <div class="conditions-grid">
-                            ${items.map(item => createConditionTileHTML(item)).join('')}
+                        <div class="conditions-grid" data-group="${groupName}">
                         </div>
                     </div>
                 `;
             });
 
-            conditionsContainer.innerHTML = html;
-            displayConditionsStats();
+            conditionsContainer.innerHTML = newHTML;
+
+            // Réinsérer les tuiles existantes dans les bons groupes
+            Object.entries(groupedData).forEach(([groupName, items]) => {
+                const groupGrid = conditionsContainer.querySelector(`[data-group="${groupName}"]`);
+                if (groupGrid) {
+                    items.forEach(item => {
+                        if (existingTiles[item.key]) {
+                            // Réinsérer la tuile existante avec ses graphiques
+                            groupGrid.appendChild(existingTiles[item.key]);
+                        } else {
+                            // Créer une nouvelle tuile seulement si elle n'existe pas
+                            const tileElement = document.createElement('div');
+                            tileElement.innerHTML = createConditionTileHTML(item);
+                            groupGrid.appendChild(tileElement.firstElementChild);
+                            // Charger le graphique pour cette nouvelle tuile
+                            setTimeout(() => {
+                                if (item.sensorDb && dbSensorList && dbSensorList.data && dbSensorList.data._field && 
+                                    dbSensorList.data._field.includes(item.sensorDb)) {
+                                    const chartId = `chart_${item.key}`;
+                                    const param = `stepCount=240&startDate=${getStartDate(item.period)}`;
+                                    loadData(selectedStation.id, item.sensorDb, chartId, param);
+                                }
+                            }, 50);
+                        }
+                    });
+                }
+            });
         }
 
-        function displayConditionsList() {
+        function reorganizeConditionsList() {
             const conditionsContainer = document.getElementById('conditions-container');
             if (!conditionsContainer) return;
 
-            if (filteredConditions.length === 0) {
+            if (allConditions.length === 0) {
                 conditionsContainer.innerHTML = '<div class="conditions-grid"><div class="no-results">Aucune donnée ne correspond à votre recherche.</div></div>';
                 return;
             }
 
-            const html = `
-                <div class="conditions-grid">
-                    ${filteredConditions.map(item => createConditionTileHTML(item)).join('')}
-                </div>
-            `;
-            conditionsContainer.innerHTML = html;
-            displayConditionsStats();
+            // Détacher les tuiles existantes du DOM pour les préserver
+            const existingTiles = {};
+            document.querySelectorAll('.condition-tile').forEach(tile => {
+                const key = tile.dataset.key;
+                if (key) {
+                    tile.remove(); // Retirer du DOM mais garder la référence
+                    existingTiles[key] = tile;
+                }
+            });
+
+            // Créer la nouvelle structure
+            const newHTML = '<div class="conditions-grid" data-ungrouped="true"></div>';
+            conditionsContainer.innerHTML = newHTML;
+
+            const grid = conditionsContainer.querySelector('[data-ungrouped="true"]');
+            
+            // Réinsérer les tuiles existantes
+            allConditions.forEach(item => {
+                if (existingTiles[item.key]) {
+                    // Réinsérer la tuile existante avec ses graphiques
+                    grid.appendChild(existingTiles[item.key]);
+                } else {
+                    // Créer une nouvelle tuile seulement si elle n'existe pas
+                    const tileElement = document.createElement('div');
+                    tileElement.innerHTML = createConditionTileHTML(item);
+                    grid.appendChild(tileElement.firstElementChild);
+                    // Charger le graphique pour cette nouvelle tuile
+                    setTimeout(() => {
+                        if (item.sensorDb && dbSensorList && dbSensorList.data && dbSensorList.data._field && 
+                            dbSensorList.data._field.includes(item.sensorDb)) {
+                            const chartId = `chart_${item.key}`;
+                            const param = `stepCount=240&startDate=${getStartDate(item.period)}`;
+                            loadData(selectedStation.id, item.sensorDb, chartId, param);
+                        }
+                    }, 50);
+                }
+            });
         }
 
         function createConditionTileHTML(item) {
@@ -431,7 +539,27 @@
                 }
             }
 
-            const unitDisplay = item.unit ? `<span class="condition-unit">${item.unit}</span>` : '';
+            let unitDisplay = item.unit ? `<span class="condition-unit">${item.unit}</span>` : '';
+            
+            // Cas spécial pour ForecastIcon - afficher des images météo
+            let chartContent = '';
+            if (item.key === 'ForecastNum') {
+                console.log(displayValue);
+                const weatherImages = displayValue.split(' ');
+                chartContent = `
+                    <div class="weather-forecast-container">
+                        ${weatherImages.map(weather => `
+                            <img src="img/${weather}.png" 
+                                 alt="${weather}" 
+                                 class="weather-icon weather-${weather.toLowerCase()} ${displayValue === weather ? 'active' : ''}"
+                                 style="z-index: ${weather === 'Cloud' ? 3 : weather === 'Rain' ? 4 : weather === 'Snow' ? 5 : 2}">
+                        `).join('')}
+                    </div>
+                `;
+                unitDisplay = '';
+            } else {
+                chartContent = `<div id="chart_${item.key}" class="plot-container"></div>`;
+            }
             
             return `
                 <div class="condition-tile" data-key="${item.key}">
@@ -445,34 +573,13 @@
                             ${metaInfo}
                         </div>
                         <div class="condition-chart">
-                            <div id="chart_${item.key}" class="plot-container"></div>
+                            ${chartContent}
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        function displayConditionsStats() {
-            let statsEl = document.querySelector('.conditions-stats');
-            const conditionsContainer = document.getElementById('conditions-container');
-            
-            if (!statsEl && conditionsContainer) {
-                statsEl = document.createElement('div');
-                statsEl.className = 'conditions-stats';
-                conditionsContainer.parentNode.insertBefore(statsEl, conditionsContainer);
-            }
-
-            if (statsEl && currentConditionsData) {
-                const totalCount = Object.keys(currentConditionsData).length - 2;
-                const filteredCount = filteredConditions.length;
-                const unitsCount = new Set(filteredConditions.map(item => item.unit)).size;
-                
-                statsEl.innerHTML = `
-                    Affichage de ${filteredCount} mesure(s) sur ${totalCount} 
-                    • ${unitsCount} unité(s) différente(s)
-                `;
-            }
-        }
         function getStartDate (period){
             if (period === 'dateStormRain') return currentConditionsData.dateStormRain.Value;
             return Math.round((new Date()).getTime()/1000) - period;
@@ -481,7 +588,7 @@
         function loadAllCharts() {
             if (!selectedStation || !dbSensorList) return;
 
-            filteredConditions.forEach(item => {
+            allConditions.forEach(item => {
                 if (item.sensorDb && dbSensorList.data && dbSensorList.data._field && 
                     dbSensorList.data._field.includes(item.sensorDb)) {
                     const chartId = `chart_${item.key}`;
@@ -931,19 +1038,18 @@
         }
 
         const conditionsFilter = document.getElementById('conditions-filter');
-        // const conditionsSort = document.getElementById('conditions-sort');
         const conditionsGroup = document.getElementById('conditions-group');
 
+        // Nouveau comportement pour le filtre - pas de rechargement des données
         if (conditionsFilter) {
-            conditionsFilter.addEventListener('input', applyFiltersAndDisplay);
+            conditionsFilter.addEventListener('input', applyCurrentFilter);
         }
 
-        // if (conditionsSort) {
-        //     conditionsSort.addEventListener('change', applyFiltersAndDisplay);
-        // }
-
         if (conditionsGroup) {
-            conditionsGroup.addEventListener('change', applyFiltersAndDisplay);
+            conditionsGroup.addEventListener('change', () => {
+                displayConditions();
+                applyCurrentFilter();
+            });
         }
 
         // --- Initialisation ---
@@ -951,6 +1057,7 @@
         loadGlobalStations();
         updateView();
     });
+
 </script>
 </body>
 </html>

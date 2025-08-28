@@ -3,7 +3,7 @@ const sensorMap = {
         label: 'Baromètre',
         measurement: 'pressure',
         period: 60 * 60 * 24 * 7,
-        groupUsage: '2/ out',
+        groupUsage: '1/ Outdoor',
         groupCustom: 1,
         sensorDb: 'barometer'
     },
@@ -11,7 +11,7 @@ const sensorMap = {
         label: 'Température intérieure',
         measurement: 'temperature',
         period: 60 * 60 * 24 * 7,
-        groupUsage: '1/ in',
+        groupUsage: '3/ Intdoor',
         groupCustom: 1,
         sensorDb: 'inTemp'
     },
@@ -19,7 +19,7 @@ const sensorMap = {
         label: 'Humidité intérieure',
         measurement: 'humidity',
         period: 60 * 60 * 24 * 7,
-        groupUsage: '1/ in',
+        groupUsage: '3/ Intdoor',
         groupCustom: 1,
         sensorDb: 'inHumidity'
     },
@@ -27,7 +27,7 @@ const sensorMap = {
         label: 'Température extérieure',
         measurement: 'temperature',
         period: 60*60*24*7,
-        groupUsage: '2/ out',
+        groupUsage: '1/ Outdoor',
         groupCustom: 1,
         sensorDb: 'outTemp'
     },
@@ -35,7 +35,7 @@ const sensorMap = {
         label: 'Vitesse du vent',
         measurement: 'speed',
         period: 60*60*24*7,
-        groupUsage: '2/ out',
+        groupUsage: '1/ Outdoor',
         groupCustom: 1,
         sensorDb: 'speed'
     },
@@ -43,7 +43,7 @@ const sensorMap = {
         label: 'Vitesse du vent max',
         measurement: 'speed',
         period: 60*60*24*3,
-        groupUsage: '2/ out',
+        groupUsage: '1/ Outdoor',
         groupCustom: 1,
         sensorDb: 'gust'
     },
@@ -75,7 +75,7 @@ const sensorMap = {
         label: 'Humidité extérieure',
         measurement: 'humidity',
         period: 60*60*24*7,
-        groupUsage: '2/ out',
+        groupUsage: '1/ Outdoor',
         groupCustom: 1,
         sensorDb: 'outHumidity'
     },
@@ -91,7 +91,7 @@ const sensorMap = {
         label: 'Index UV',
         measurement: 'uv',
         period: 60*60*24*7,
-        groupUsage: '3/ sun',
+        groupUsage: '2/ Sun',
         groupCustom: 1,
         sensorDb: 'UV'
     },
@@ -99,7 +99,7 @@ const sensorMap = {
         label: 'puissance Radiation solaire',
         measurement: 'powerRadiation',
         period: 60*60*24*7,
-        groupUsage: '3/ sun',
+        groupUsage: '2/ Sun',
         groupCustom: 1,
         sensorDb: 'solarRadiationMax'
     },
@@ -107,7 +107,7 @@ const sensorMap = {
         label: "Dernieres preciperiode d'averces",
         measurement: 'rain',
         period: 'dateStormRain',
-        groupUsage: '2/ out',
+        groupUsage: '1/ Outdoor',
         groupCustom: 1,
         sensorDb: 'rainFall'
     },
@@ -139,7 +139,7 @@ const sensorMap = {
         label: 'Évapotranspiration du jour',
         measurement: 'rain',
         period: 60*60*24*1,
-        groupUsage: '2/ out',
+        groupUsage: '1/ Outdoor',
         groupCustom: 1,
         sensorDb: 'ET'
     },
@@ -171,7 +171,7 @@ const sensorMap = {
         label: 'Prévision météo',
         measurement: 'Forecast',
         period: 60*60*24*7,
-        groupUsage: '2/ out',
+        groupUsage: '1/ Outdoor',
         groupCustom: 1,
         sensorDb: null // Pas disponible dans la liste des fields
     },
@@ -179,7 +179,7 @@ const sensorMap = {
         label: 'Lever du soleil',
         measurement: 'time',
         period: 60*60*24*7,
-        groupUsage: '3/ sun',
+        groupUsage: '2/ Sun',
         groupCustom: 1,
         sensorDb: null // Pas disponible dans la liste des fields
     },
@@ -187,7 +187,7 @@ const sensorMap = {
         label: 'Coucher du soleil',
         measurement: 'time',
         period: 60*60*24*7,
-        groupUsage: '3/ sun',
+        groupUsage: '2/ Sun',
         groupCustom: 1,
         sensorDb: null // Pas disponible dans la liste des fields
     },
@@ -219,7 +219,7 @@ const sensorMap = {
         label: 'Point de rosée',
         measurement: 'temperature',
         period: 60*60*24*7,
-        groupUsage: '2/ out',
+        groupUsage: '1/ Outdoor',
         groupCustom: 1,
         sensorDb: 'outTemp'
     },
@@ -243,7 +243,7 @@ const sensorMap = {
         label: 'Indice THSW',
         measurement: 'temperature',
         period: 60*60*24*7,
-        groupUsage: '2/ out',
+        groupUsage: '1/ Outdoor',
         groupCustom: 1,
         sensorDb: 'outTemp'
     },

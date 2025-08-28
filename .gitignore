@@ -7,3 +7,4 @@ coverage/
 logs/
 docs/
 config/influxDb.json
+public/plot/
