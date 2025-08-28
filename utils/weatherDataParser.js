@@ -1,4 +1,5 @@
 // utils/weatherDataParser.js
+const units = require('../config/Units.json');
 
 function mapDegreesToCardinal(degrees) {
     if ( degrees > 337.5) return "N/A";
@@ -36,22 +37,22 @@ function readUInt8(buffer, offset, badValue = 255) {
 
 function parseLOOP1Data(data) {
     const weatherData = {};
-    weatherData.barometer = { value: readUInt16LE(data, 7), native_unit: "inHg_1000th" };
-    weatherData.inTemp = { value: readSignedInt16LE(data, 9), native_unit: "F_tenths" };
-    weatherData.inHumidity = { value: readUInt8(data, 11), native_unit: "percent" };
-    weatherData.outTemp = { value: readSignedInt16LE(data, 12), native_unit: "F_tenths" };
-    weatherData.windSpeed = { value: readUInt8(data, 14), native_unit: "mph_whole" };
-    weatherData.avgWindSpeed10Min = { value: readUInt8(data, 15), native_unit: "mph_whole" };
-    weatherData.windDir = { value: readUInt16LE(data, 16), native_unit: "degrees" };
-    weatherData.outHumidity = { value: readUInt8(data, 33), native_unit: "percent" };
-    weatherData.rainRate = { value: readUInt16LE(data, 41), native_unit: "clicks*cup_size" };
-    weatherData.UV = { value: readUInt8(data, 43), native_unit: "uvIndex_tenths" };
-    weatherData.solarRadiation = { value: readUInt16LE(data, 44), native_unit: "w/m²" };
+    // weatherData.barometer = { value: readUInt16LE(data, 7), native_unit: "inHg_1000th" };
+    // weatherData.inTemp = { value: readSignedInt16LE(data, 9), native_unit: "F_tenths" };
+    // weatherData.inHumidity = { value: readUInt8(data, 11), native_unit: "percent" };
+    // weatherData.outTemp = { value: readSignedInt16LE(data, 12), native_unit: "F_tenths" };
+    // weatherData.windSpeed = { value: readUInt8(data, 14), native_unit: "mph_whole" };
+    // weatherData.avgWindSpeed10Min = { value: readUInt8(data, 15), native_unit: "mph_whole" };
+    // weatherData.windDir = { value: readUInt16LE(data, 16), native_unit: "degrees" };
+    // weatherData.outHumidity = { value: readUInt8(data, 33), native_unit: "percent" };
+    // weatherData.rainRate = { value: readUInt16LE(data, 41), native_unit: "clicks*cup_size" };
+    // weatherData.UV = { value: readUInt8(data, 43), native_unit: "uvIndex_tenths" };
+    // weatherData.solarRadiation = { value: readUInt16LE(data, 44, 32767), native_unit: "w/m²" };
     // weatherData.stormRain = { value: readUInt16LE(data, 46), native_unit: "in_100th" };
-    weatherData.dayRain = { value: readUInt16LE(data, 50), native_unit: "clicks*cup_size" };
+    // weatherData.dayRain = { value: readUInt16LE(data, 50), native_unit: "clicks*cup_size" };
     weatherData.monthRain = { value: readUInt16LE(data, 52), native_unit: "clicks*cup_size" };
     weatherData.yearRain = { value: readUInt16LE(data, 54), native_unit: "clicks*cup_size" };
-    weatherData.dayET = { value: readUInt16LE(data, 56), native_unit: "in_1000th" };
+    // weatherData.dayET = { value: readUInt16LE(data, 56), native_unit: "in_1000th" };
     weatherData.monthET = { value: readUInt16LE(data, 58), native_unit: "in_100th" };
     weatherData.yearET = { value: readUInt16LE(data, 60), native_unit: "in_100th" };
     weatherData.batteryVoltage = { value: readUInt16LE(data, 87), native_unit: "((DataRaw * 3)/512) V" };
@@ -80,9 +81,9 @@ function parseLOOP2Data(data) {
     weatherData.THSW = { value: readSignedInt16LE(data, 39), native_unit: "F_whole" };
     weatherData.rainRate = { value: readUInt16LE(data, 41), native_unit: "clicks*cup_size" };
     weatherData.UV = { value: readUInt8(data, 43), native_unit: "uvIndex_tenths" };
-    weatherData.solarRadiation = { value: readUInt16LE(data, 44), native_unit: "w/m²" };
+    weatherData.solarRadiation = { value: readUInt16LE(data, 44, 32767), native_unit: "w/m²" };
     weatherData.stormRain = { value: readUInt16LE(data, 46), native_unit: "clicks*cup_size" };
-    weatherData.dateStormRain = { value: readUInt16LE(data, 48), native_unit: "date" };
+    weatherData.dateStormRain = { value: readUInt16LE(data, 48), native_unit: "date_MMddYY" };
     weatherData.dayRain = { value: readUInt16LE(data, 50), native_unit: "clicks*cup_size" };
     weatherData.last15MinRain = { value: readUInt16LE(data, 52), native_unit: "clicks*cup_size" };
     weatherData.lastHourRain = { value: readUInt16LE(data, 54), native_unit: "clicks*cup_size" };
@@ -93,7 +94,7 @@ function parseLOOP2Data(data) {
 
 function parseDMPRecord(recordBuffer) {
     const record = {};
-    record.date = { value: readUInt16LE(recordBuffer, 0), native_unit: "date"}
+    record.date = { value: readUInt16LE(recordBuffer, 0), native_unit: "date_YYMMdd"}
     record.time = { value: readUInt16LE(recordBuffer, 2), native_unit: "time" };
     record.inTemp = { value: readSignedInt16LE(recordBuffer, 20, 32767), native_unit: "F_tenths" };
     record.outTemp = { value: readSignedInt16LE(recordBuffer, 4, 32767), native_unit: "F_tenths" };
@@ -109,7 +110,7 @@ function parseDMPRecord(recordBuffer) {
     record.UV = { value: readUInt8(recordBuffer, 28), native_unit: "uvIndex_tenths" };
     record.UVMax = { value: readUInt8(recordBuffer, 32), native_unit: "uvIndex_tenths" };
     record.solarRadiation = { value: readUInt16LE(recordBuffer, 16, 32767), native_unit: "w/m²" };
-    record.solarRadiationMax = { value: readUInt16LE(recordBuffer, 30), native_unit: "w/m²" };
+    record.solarRadiationMax = { value: readUInt16LE(recordBuffer, 30, 32767), native_unit: "w/m²" };
     record.ForecastNum = { value: readUInt8(recordBuffer, 33, 193), native_unit: "ForecastNum" };
     record.leafTemp1 = { value: readUInt8(recordBuffer, 34), native_unit: "F_whole" };
     record.leafTemp2 = { value: readUInt8(recordBuffer, 35), native_unit: "F_whole" };
@@ -156,12 +157,17 @@ function convertRawValue2NativeValue(rawValue, nativeUnit, stationConfig) {
             const hours = Math.floor(rawValue / 100).toString().padStart(2, '0');
             const minutes = (rawValue % 100).toString().padStart(2, '0');
             return `${hours}:${minutes}`;
-        case 'date':
-            // Bit 15 to bit 12 is the month, bit 11 to bit 7 is the day and bit 6 to bit 0 is the year offseted by 2000.
-            const year = (Math.floor(rawValue / 512)).toString().padStart(2, '0'); // Bit 15 to bit 12
-            const month = Math.floor(rawValue / 32 & 0x0F).toString().padStart(2, '0'); // Bit 11 to bit 7
-            const day = (rawValue % 32).toString().padStart(2, '0'); // Bit 6 to bit 0
+        case 'date_YYMMdd':
+            const year = (Math.floor(rawValue / 512)).toString().padStart(2, '0');
+            const month = Math.floor(rawValue / 32 & 0x0F).toString().padStart(2, '0');
+            const day = (rawValue % 32).toString().padStart(2, '0');
             return `20${year}/${month}/${day}`;
+        case 'date_MMddYY':
+            // Bit 15 to bit 12 is the month, bit 11 to bit 7 is the day and bit 6 to bit 0 is the year offseted by 2000.
+            const mm = ((rawValue >> 12) & 0x0F).toString().padStart(2, '0'); // Bit 15 to bit 12 (4 bits)
+            const dd = ((rawValue >> 7) & 0x1F).toString().padStart(2, '0');  // Bit 11 to bit 7 (5 bits)
+            const yy = (rawValue & 0x7F).toString().padStart(2, '0');         // Bit 6 to bit 0 (7 bits)
+            return `20${yy}/${mm}/${dd}`;
         case 'cardinalInt':
             return 22.5*rawValue;
         default:
@@ -191,7 +197,6 @@ const sensorTypeMap = {
     ForecastClass: 'Forecast',
     ForecastNum: 'Forecast',
     stormRain: 'rain',
-    dateStormRain: 'date',
     dayRain: 'rain',
     monthRain: 'rain',
     yearRain: 'rain',
@@ -206,14 +211,15 @@ const sensorTypeMap = {
     heatIndex: 'temperature',
     windChill: 'temperature',
     THSW: 'temperature',
+    ET: 'rain',
     last15MinRain: 'rain',
     lastHourRain: 'rain',
     last24HourRain: 'rain',
-    sunrise: 'time',
-    sunset: 'time',
+    dateStormRain: 'date',
     date: 'date',
     time: 'time',
-    ET: 'rain',
+    sunrise: 'time',
+    sunset: 'time',
     leafTemp1: 'temperature',
     leafTemp2: 'temperature',
     leafWetness1: 'humidity',
@@ -323,29 +329,13 @@ const conversionTable = {
     }
 };
 
-const metricUnits = {
-    temperature: {unit:'K'},
-    speed: {unit:'m/s'},
-    direction: {unit:'°'},
-    pressure: {unit:'hpa'},
-    rain: {unit:'mm'},
-    rainRate: {unit:'mm/h'},
-    uv: {unit:'index'},
-    powerRadiation: {unit:'w/m²'},
-    humidity: {unit:'%'},
-    battery: {unit:'V'},
-    Forecast: {unit:'ForecastClass'},
-    date: {unit:'iso8601'},
-    time: {unit:'iso8601'}
-};
-
-function convertToUnit(nativeValue, key, userUnitsConfig) {
+function convertToUnit(nativeValue, key, UnitsType='user') {
     const type = sensorTypeMap[key];
     if (!type){
         console.error(`No type found for ${key}`);
         return nativeValue;
     }
-    const unit = userUnitsConfig[type]?.unit;
+    const unit = units[type]?.[UnitsType];
     if (!unit) {
         console.error(`No user unit found for ${type}`);
         return nativeValue;
@@ -371,26 +361,16 @@ function convertToUnit(nativeValue, key, userUnitsConfig) {
         return Number(convertedValue.toFixed(0));
 }
 
-function processWeatherData(weatherData, stationConfig, userUnitsConfig) {
+function processWeatherData(weatherData, stationConfig, UnitsType='metric') {
     const processed = {};
     // console.warn('weatherData', weatherData.windDir, weatherData.windDirMax);
     for (const [key, data] of Object.entries(weatherData)) {
-        if (!isNaN(data.value)) {
+        if (!isNaN(data.value)) { // on illimine les capteurs sans valeur !
             const nativeValue = convertRawValue2NativeValue(data.value, data.native_unit, stationConfig);
-            // if (key === 'windDir' || key === 'windDirMax') {
-            //     console.log('nativeValue', nativeValue);
-            // }
-            const nativeUnit = data.native_unit;
-            if (userUnitsConfig){
-                processed[key] = { Value: convertToUnit(nativeValue, key, userUnitsConfig), Unit: userUnitsConfig[sensorTypeMap[key]]?.unit || nativeUnit };
-            } else if (stationConfig) {
-                processed[key] = { Value: convertToUnit(nativeValue, key, metricUnits), Unit: metricUnits[sensorTypeMap[key]]?.unit || nativeUnit };
-            } else {
-                processed[key] = { Value: nativeValue, Unit: nativeUnit };
-            }
-            // if (key === 'windDir' || key === 'windDirMax') {
-            //     console.log('processed', processed[key]);
-            // }
+            processed[key] = {
+                Value: convertToUnit(nativeValue, key, UnitsType),
+                Unit: units[sensorTypeMap[key]]?.[UnitsType] || data.native_unit
+            };
         }
     }
     return processed;

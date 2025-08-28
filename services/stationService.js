@@ -9,8 +9,9 @@ const { findDavisTimeZoneIndex } = require('../utils/timeZoneMapping');
 const { V,O } = require('../utils/icons');
 const configManager = require('./configManager');
 const { writePoints, Point } = require('./influxdbService'); // Ajout pour InfluxDB
+const units = require('../config/Units.json');
 
-const userUnitsConfig = require(path.resolve(__dirname, '../config/Units.json'));
+// const userUnitsConfig = require(path.resolve(__dirname, '../config/Units.json'));
 
 async function getVp2DateTime(stationConfig) {
     const stationTimeDataBytes = await sendCommand(stationConfig, 'GETTIME', 2000, "<ACK>6<CRC>");
@@ -536,7 +537,7 @@ async function getCurrentWeatherData(stationConfig) {
 
     const aggregatedData = { ...loop1Data, ...loop2Data };
     console.log(`${V.thermometer} Données LOOP1 & LOOP2 récupérées pour ${stationConfig.id}:`, aggregatedData);
-    const processedData = processWeatherData(aggregatedData, stationConfig, userUnitsConfig);
+    const processedData = processWeatherData(aggregatedData, stationConfig, 'user');
 
     return processedData;
 }
@@ -571,23 +572,6 @@ async function getStationInfo(stationConfig) {
     }
 }
 
-async function fetchCurrentConditions(stationConfig) {
-    const loop1Bytes = await sendCommand(stationConfig, 'LPS 1 1', 2000, "<ACK>97<CRC>");
-    const loop1Data = parseLOOP1Data(loop1Bytes);
-
-    const loop2Bytes = await sendCommand(stationConfig, 'LPS 2 1', 2000, "<ACK>97<CRC>");
-    const loop2Data = parseLOOP2Data(loop2Bytes);
-
-    const aggregatedData = { ...loop1Data, ...loop2Data };
-    const processedData = processWeatherData(aggregatedData, stationConfig, userUnitsConfig);
- 
-    return {
-        status: 'success',
-        message: 'Données actuelles (LOOP & LOOP2) récupérées avec succès.',
-        data: processedData
-    };
-}
-
 /**
  * Écrit les données d'un enregistrement d'archive dans InfluxDB.
  * @param {object} processedData Les données météo traitées.
@@ -611,15 +595,15 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
             .tag('direction', mapDegreesToCardinal(windDir))
             .timestamp(datetime);
         // N'ajouter l'angle que si on a du vent ET une direction valide
-        if (windSpeed > 0 && windDir !== null) {
-            wind.floatField('angle', windDir);
-        }
+        // if (windSpeed > 0 && windDir !== null) {
+        //     wind.floatField('angle', windDir);
+        // }
         points.push(wind);
     
-        if (windDir === 0) {
-            console.log('processedData', processedData);
-            console.warn('wind', wind);
-        }
+        // if (windDir === 0) {
+        //     console.log('processedData', processedData);
+        //     console.warn('wind', wind);
+        // }
     
         if (processedData.windSpeedMax) {
             const windSpeedMax = processedData.windSpeedMax.Value;
@@ -631,15 +615,15 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
                 .tag('direction', mapDegreesToCardinal(windDirMax))
                 .timestamp(datetime);
             // N'ajouter l'angle que si on a des rafales ET une direction valide
-            if (windSpeedMax > 0 && windDirMax !== null) {
-                gust.floatField('angle', windDirMax);
-            }
+            // if (windSpeedMax > 0 && windDirMax !== null) {
+            //     gust.floatField('angle', windDirMax);
+            // }
             points.push(gust);
     
-            if (windDirMax === 0) {
-                console.log('processedData', processedData);
-                console.warn('gust', gust);
-            }
+            // if (windDirMax === 0) {
+            //     console.log('processedData', processedData);
+            //     console.warn('gust', gust);
+            // }
         }
     }
     delete processedData.windDir;
@@ -739,11 +723,10 @@ async function downloadArchiveData(stationConfig, startDate, res) {
             const recordBuffer = pageDataOnly.slice(j * 52, (j + 1) * 52);
             if (recordBuffer.length === 52) {
                 const parsedRecord = parseDMPRecord(recordBuffer);
-                const processedData = processWeatherData(parsedRecord, stationConfig); // , userUnitsConfig);
-                const nativedate = convertRawValue2NativeValue( parsedRecord.date.value, 'date', null);
+                const processedData = processWeatherData(parsedRecord, stationConfig, 'metric'); // , userUnitsConfig);
+                const nativedate = convertRawValue2NativeValue( parsedRecord.date.value, 'date_YYMMdd', null);
                 const nativetime = convertRawValue2NativeValue( parsedRecord.time.value, 'time', null);
                 const datetime = conversionTable.date.iso8601(nativedate) + conversionTable.time.iso8601(nativetime); // format ISO8601 ex: 2025-08-18T07:45:00.000Z
-
 
                 if (stationConfig.lastArchiveDate === null || (new Date(datetime)) > (new Date(stationConfig.lastArchiveDate))) {
                     allRecords[datetime] = processedData;
@@ -754,7 +737,7 @@ async function downloadArchiveData(stationConfig, startDate, res) {
                         stationConfig.lastArchiveDate = datetime;
                         configManager.autoSaveConfig(stationConfig);
                     } else {
-                        console.log(`${V.package} Pages ${pageNumber+1}.${j+1}/${numberOfPages} Archives / Error writing points influxDb for [${datetime}] ${V.error}`);
+                        console.warn(`${V.package} Pages ${pageNumber+1}.${j+1}/${numberOfPages} Archives / Error writing points influxDb for [${datetime}] ${V.error}`);
                     }
                 } else {
                     console.warn(`${V.Gyro} ${pageNumber+1}[${j+1}]/${numberOfPages}: ${datetime} <= ${stationConfig.lastArchiveDate}`);
@@ -774,8 +757,6 @@ module.exports = {
     getCurrentWeatherData,
     getStationInfo,
     updateStationTime,
-    // updateStationLocation,
-    fetchCurrentConditions,
     downloadArchiveData,
     updateArchiveConfiguration,
     syncStationSettings,

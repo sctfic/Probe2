@@ -18,10 +18,10 @@ router.get('/:stationId/Range/:sensorRef', queryDbController.getQueryRange); // 
 router.get('/:stationId/Raw/:sensorRef', queryDbController.getQueryRaw); // http://probe2.lpz.ovh/query/VP2_Serramoune/Raw/barometer?startDate=2025-08-21T00:00:00.000Z&endDate=2025-08-21T23:00:00.000Z
 
 // Route to get wind data (startDate and endDate are optional)
-router.get('/:stationId/Wind', queryDbController.getQueryWind); // NOK  http://probe2.lpz.ovh/query/VP2_Serramoune/Wind?startDate=2025-08-21T00:00:00.000Z&endDate=2025-08-21T23:00:00.000Z
+router.get('/:stationId/WindRose', queryDbController.getQueryWindRose); // http://probe2.lpz.ovh/query/VP2_Serramoune/WindRose?startDate=2025-08-21T00:00:00.000Z&endDate=2025-08-21T23:00:00.000Z
 
-// Route to get rain data (startDate and endDate are optional)
-router.get('/:stationId/Rain', queryDbController.getQueryRain); // NOK  http://probe2.lpz.ovh/query/VP2_Serramoune/Rain?startDate=2025-08-21T00:00:00.000Z&endDate=2025-08-21T23:00:00.000Z
+// Route to get wind data (startDate and endDate are optional)
+router.get('/:stationId/WindVectors', queryDbController.getQueryWindVectors); // http://probe2.lpz.ovh/query/VP2_Serramoune/WindVectors?startDate=2025-08-21T00:00:00.000Z&endDate=2025-08-21T23:00:00.000Z
 
 // Route to get candle data
 router.get('/:stationId/Candle/:sensorRef', queryDbController.getQueryCandle); // http://probe2.lpz.ovh/query/VP2_Serramoune/Candle/barometer?startDate=2025-08-21T00:00:00.000Z&endDate=2025-08-21T23:00:00.000Z

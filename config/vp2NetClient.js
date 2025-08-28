@@ -227,8 +227,8 @@ async function wakeUpConsole(stationConfig, screen = null) {
                 } else if (screen === false) {
                     await sendCommand(stationConfig, `LAMPS 0`, 2000, "<LF><CR>OK<LF><CR>");
                     console.log(`${O.black} ${stationConfig.id} - Screen OFF`);
-                }else{
-                    console.log(`${O.purple} ${stationConfig.id} - empty`);
+                } else {
+                    console.log(`${O.purple} ${stationConfig.id} - WakeUp!`);
                 }
                 return; // Console est réveillée
             } else {

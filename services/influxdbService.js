@@ -144,7 +144,7 @@ async function getMetadata(stationId) {
 async function queryDateRange(stationId, sensorRef, startDate, endDate) {
     const query = `
         from(bucket: "${bucket}")
-          |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'})
+          |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
           |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "${sensorRef}")
           |> group()
           |> reduce(
@@ -164,7 +164,7 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate) {
     return {
         firstUtc: data.min_time,
         lastUtc: data.max_time,
-        count: data.count,
+        count: data.count-1,
         unit: data.unit
     };
 }
@@ -180,10 +180,12 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate) {
 async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSeconds = 3600) {
     const fluxQuery = `
         from(bucket: "${bucket}")
-          |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'}) 
+          |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'}) 
           |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "${sensorRef}")
-          |> window(every: ${intervalSeconds}s)
-          |> keep(columns: ["_time", "_value", "unit"])
+          |> group(columns: ["unit"])
+          |> aggregateWindow(every: ${intervalSeconds}s, fn: ${sensorRef == 'rainFall' ? 'sum' : 'mean'}, createEmpty: false)
+          |> keep(columns: ["_time", "_field", "_value", "unit"])
+          |> sort(columns: ["_time"])
     `;
     return await executeQuery(fluxQuery);
 }
@@ -195,16 +197,25 @@ async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSecond
  * @param {string} endDate - Date de fin.
  * @returns {Promise<Array>} Un tableau des données pour le graphique du vent.
  */
-async function queryWind(stationId, startDate, endDate, intervalSeconds = 3600) {
+async function queryWindRose(stationId, startDate, endDate, intervalSeconds = 3600) {
     const fluxQuery = `
-        from(bucket: "${bucket}")
-            |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'})
-            |> filter(fn: (r) => r.station_id == "${stationId}")
-            |> filter(fn: (r) => r._measurement == "wind")
-            |> filter(fn: (r) => r._field == "speed" or r._field == "gust")
+        speedAvg = from(bucket: "${bucket}")
+            |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
+            |> filter(fn: (r) => r.station_id == "${stationId}" and r._measurement == "wind" and r._field == "speed")
             |> filter(fn: (r) => r.direction != "N/A")
-            |> group(columns: ["direction", "_field", "unit"])
+            |> group(columns: ["direction", "unit"])
             |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
+            |> set(key: "_field", value: "avg")
+
+        gustMax = from(bucket: "${bucket}")
+            |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
+            |> filter(fn: (r) => r.station_id == "${stationId}" and r._measurement == "wind" and r._field == "gust")
+            |> filter(fn: (r) => r.direction != "N/A")
+            |> group(columns: ["direction", "unit"])
+            |> aggregateWindow(every: ${intervalSeconds}s, fn: max, createEmpty: false)
+            |> set(key: "_field", value: "gust")
+
+        union(tables: [speedAvg, gustMax])
             |> pivot(rowKey: ["_time", "direction", "unit"], columnKey: ["_field"], valueColumn: "_value")
             |> group()
             |> sort(columns: ["_time", "direction"])
@@ -216,109 +227,266 @@ async function queryWind(stationId, startDate, endDate, intervalSeconds = 3600) 
 }
 
 function formatWindData(results, intervalSeconds) {
-    const formattedData = {};
+    const Data = {};
     const allDirections = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-
-    
     // Grouper par timestamp
     results.forEach(row => {
         const timeKey = row._time;
         const direction = row.direction;
-        let globalUnit;        
-        // Capturer l'unité dès le premier enregistrement
-        if (!globalUnit && row.unit) {
-            globalUnit = row.unit;
-        }
         
-        if (!formattedData[timeKey]) {
-            formattedData[timeKey] = {
-                timestamp: timeKey,
+        if (!Data[timeKey]) {
+            Data[timeKey] = {
+                d: timeKey,
                 period: intervalSeconds,
-                unit: globalUnit || row.unit || '',
-                directions: {}
+                unit: row.unit || "",
+                petals: {}
             };
             
             // Initialiser toutes les directions avec des valeurs par défaut
             allDirections.forEach(dir => {
-                formattedData[timeKey].directions[dir] = {
-                    avgSpeed: 0,
-                    maxGust: 0
+                Data[timeKey].petals[dir] = {
+                    avg: 0,
+                    gust: 0
                 };
             });
-            
-            // Ajouter N/A avec count
-            // formattedData[timeKey].directions["N/A"] = {
-            //     count: 0
-            // };
-        }
-        
-        // Mettre à jour l'unité si elle n'était pas définie
-        if (!formattedData[timeKey].unit && row.unit) {
-            formattedData[timeKey].unit = row.unit;
         }
         
         // Mettre à jour les valeurs pour la direction courante
         if (allDirections.includes(direction)) {
-            if (row.speed !== null && row.speed !== undefined) {
-                formattedData[timeKey].directions[direction].avgSpeed = row.speed;
+            if (row.avg !== null && row.avg !== undefined) {
+                Data[timeKey].petals[direction].avg = Math.round(row.avg * 10) / 10;
             }
             if (row.gust !== null && row.gust !== undefined) {
-                formattedData[timeKey].directions[direction].maxGust = row.gust;
+                Data[timeKey].petals[direction].gust = Math.round(row.gust * 10) / 100;
             }
-        // } else if (direction === "N/A") {
-        //     formattedData[timeKey].directions["N/A"].count++;
         }
     });
     
     // Convertir l'objet en array et trier par timestamp
-    return Object.values(formattedData)
-        .map(period => ({
-            ...period,
-            unit: period.unit || globalUnit || "unknown"
-        }))
-        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    return Object.values(Data).sort((a, b) => new Date(a.d) - new Date(b.d));
+}
+// function formatWindData(results, intervalSeconds) {
+//     const formattedData = {};
+//     const allDirections = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+
+    
+//     // Grouper par timestamp
+//     results.forEach(row => {
+//         const timeKey = row._time;
+//         const direction = row.direction;
+//         let globalUnit;        
+//         // Capturer l'unité dès le premier enregistrement
+//         if (!globalUnit && row.unit) {
+//             globalUnit = row.unit;
+//         }
+        
+//         if (!formattedData[timeKey]) {
+//             formattedData[timeKey] = {
+//                 timestamp: timeKey,
+//                 period: intervalSeconds,
+//                 unit: globalUnit || row.unit || '',
+//                 directions: {}
+//             };
+            
+//             // Initialiser toutes les directions avec des valeurs par défaut
+//             allDirections.forEach(dir => {
+//                 formattedData[timeKey].directions[dir] = {
+//                     avgSpeed: 0,
+//                     maxGust: 0
+//                 };
+//             });
+            
+//             // Ajouter N/A avec count
+//             // formattedData[timeKey].directions["N/A"] = {
+//             //     count: 0
+//             // };
+//         }
+        
+//         // Mettre à jour l'unité si elle n'était pas définie
+//         if (!formattedData[timeKey].unit && row.unit) {
+//             formattedData[timeKey].unit = row.unit;
+//         }
+        
+//         // Mettre à jour les valeurs pour la direction courante
+//         if (allDirections.includes(direction)) {
+//             if (row.speed !== null && row.speed !== undefined) {
+//                 formattedData[timeKey].directions[direction].avgSpeed = row.speed;
+//             }
+//             if (row.gust !== null && row.gust !== undefined) {
+//                 formattedData[timeKey].directions[direction].maxGust = row.gust;
+//             }
+//         // } else if (direction === "N/A") {
+//         //     formattedData[timeKey].directions["N/A"].count++;
+//         }
+//     });
+    
+//     // Convertir l'objet en array et trier par timestamp
+//     return Object.values(formattedData)
+//         .map(period => ({
+//             ...period,
+//             unit: period.unit || globalUnit || "unknown"
+//         }))
+//         .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+// }
+
+const dir = {
+    "N": { "angle": 0, "sinus": 0, "cosinus": 1 },
+    "NNE": { "angle": 22.5, "sinus": 0.3826834323650898, "cosinus": 0.9238795325112867 },
+    "NE": { "angle": 45, "sinus": 0.7071067811865475, "cosinus": 0.7071067811865476 },
+    "ENE": { "angle": 67.5, "sinus": 0.9238795325112867, "cosinus": 0.38268343236508984 },
+    "E": { "angle": 90, "sinus": 1, "cosinus": 6.123233995736766e-17 },
+    "ESE": { "angle": 112.5, "sinus": 0.9238795325112867, "cosinus": -0.3826834323650897 },
+    "SE": { "angle": 135, "sinus": 0.7071067811865476, "cosinus": -0.7071067811865475 },
+    "SSE": { "angle": 157.5, "sinus": 0.3826834323650899, "cosinus": -0.9238795325112867 },
+    "S": { "angle": 180, "sinus": 1.2246467991473532e-16, "cosinus": -1 },
+    "SSW": { "angle": 202.5, "sinus": -0.3826834323650892, "cosinus": -0.923879532511287 },
+    "SW": { "angle": 225, "sinus": -0.7071067811865475, "cosinus": -0.7071067811865477 },
+    "WSW": { "angle": 247.5, "sinus": -0.9238795325112868, "cosinus": -0.3826834323650895 },
+    "W": { "angle": 270, "sinus": -1, "cosinus": -1.8369701987210297e-16 },
+    "WNW": { "angle": 292.5, "sinus": -0.9238795325112866, "cosinus": 0.38268343236509 },
+    "NW": { "angle": 315, "sinus": -0.7071067811865477, "cosinus": 0.7071067811865474 },
+    "NNW": { "angle": 337.5, "sinus": -0.38268343236508956, "cosinus": 0.9238795325112868 }
+};
+
+async function queryWindVectors(stationId, startDate, endDate, intervalSeconds = 3600) {
+    // Requête simple pour récupérer les données avec les tags de direction
+    const fluxQuery = `
+        from(bucket: "${bucket}")
+            |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
+            |> filter(fn: (r) => r.station_id == "${stationId}")
+            |> filter(fn: (r) => r._measurement == "wind")
+            |> filter(fn: (r) => r._field == "speed" or r._field == "gust")
+            |> keep(columns: ["_time", "_field", "_value", "direction", "unit"])
+            |> yield()
+    `;
+    
+    try {
+        const results = await executeQuery(fluxQuery);
+        return processWindVectorsWithTags(results, intervalSeconds);
+    } catch (error) {
+        console.error('Erreur lors de la requête des vecteurs de vent:', error);
+        throw error;
+    }
 }
 
-/**
- * Récupère les données pour le graphique de la pluie pour une station spécifique.
- * @param {string} stationId - Identifiant de la station.
- * @param {string} startDate - Date de début.
- * @param {string} endDate - Date de fin.
- * @param {number} intervalSeconds - Intervalle en secondes (optionnel)
- * @returns {Promise<Array>} Un tableau des données pour le graphique de la pluie.
- */
-async function queryRain(stationId, startDate, endDate, intervalSeconds = 3600) {
+function processWindVectorsWithTags(data, intervalSeconds) {
+    if (!data || data.length === 0) {
+        return [];
+    }
+    
+    // Grouper les données par intervalle de temps
+    const intervalMs = intervalSeconds * 1000;
+    const intervals = {};
+    let unit = 'm/s';
+    
+    data.forEach(row => {
+        // Skip si pas de direction ou si direction invalide
+        if (!row.direction || !dir[row.direction]) {
+            return;
+        }
+        
+        // Calculer l'intervalle de temps
+        const timestamp = new Date(row._time);
+        const intervalStart = new Date(Math.floor(timestamp.getTime() / intervalMs) * intervalMs);
+        const key = intervalStart.toISOString();
+        
+        if (!intervals[key]) {
+            intervals[key] = {
+                timestamp: intervalStart,
+                windVectors: [],
+                gustData: []
+            };
+        }
+        
+        if (row.unit) {
+            unit = row.unit;
+        }
+        
+        const directionData = dir[row.direction];
+        
+        if (row._field === 'speed' && row._value > 0) {
+            // Ajouter le vecteur de vitesse
+            intervals[key].windVectors.push({
+                u: row._value * directionData.cosinus,
+                v: row._value * directionData.sinus,
+                speed: row._value,
+                direction: directionData.angle
+            });
+        } else if (row._field === 'gust' && row._value > 0) {
+            // Ajouter les données de rafale
+            intervals[key].gustData.push({
+                speed: row._value,
+                direction: directionData.angle
+            });
+        }
+    });
+    
+    // Calculer les moyennes vectorielles et les rafales max pour chaque intervalle
+    const results = Object.values(intervals).map(interval => {
+        const result = {
+            time: interval.timestamp,
+            unit: unit
+        };
+        
+        // Calcul de la moyenne vectorielle pour le vent
+        if (interval.windVectors.length > 0) {
+            // Somme des composantes U et V
+            const sumU = interval.windVectors.reduce((sum, vec) => sum + vec.u, 0);
+            const sumV = interval.windVectors.reduce((sum, vec) => sum + vec.v, 0);
+            
+            // Moyennes des composantes
+            const avgU = sumU / interval.windVectors.length;
+            const avgV = sumV / interval.windVectors.length;
+            
+            // Conversion en vitesse et direction
+            const avgSpeed = Math.sqrt(avgU * avgU + avgV * avgV);
+            let avgDirection = Math.atan2(avgV, avgU) * 180 / Math.PI;
+            
+            // Normaliser la direction entre 0 et 360
+            if (avgDirection < 0) {
+                avgDirection += 360;
+            }
+            
+            result.avgVector = {
+                speed: Math.round(avgSpeed * 1000) / 1000,
+                direction: Math.round(avgDirection * 1000) / 1000
+            };
+        }
+        
+        // Trouver la rafale maximale avec sa direction
+        if (interval.gustData.length > 0) {
+            const maxGust = interval.gustData.reduce((max, current) => 
+                current.speed > max.speed ? current : max
+            );
+            
+            result.gustVector = {
+                speed: Math.round(maxGust.speed * 1000) / 1000,
+                direction: Math.round(maxGust.direction * 1000) / 1000
+            };
+        }
+        
+        return result;
+    }).filter(r => r.avgVector || r.gustVector); // Filtrer les intervalles sans données
+    
+    // Trier par timestamp
+    return results.sort((a, b) => a.time - b.time);
+}
+
+// Fonction utilitaire pour déboguer et vérifier les données
+async function debugWindData(stationId, startDate, endDate) {
     const fluxQuery = `
-        rainFall = from(bucket: "${bucket}")
-            |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'})
-            |> filter(fn: (r) => r.station_id == "${stationId}" and r._measurement == "rain" and r._field == "rainFall")
-            |> aggregateWindow(every: ${intervalSeconds}s, fn: sum, createEmpty: false)
-            |> set(key: "_field", value: "totalRainFall")
-
-        evapotranspiration = from(bucket: "${bucket}")
-            |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'})
-            |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "ET")
-            |> aggregateWindow(every: ${intervalSeconds}s, fn: sum, createEmpty: false)
-            |> set(key: "_field", value: "totalET")
-
-        union(tables: [rainFall, evapotranspiration])
-            |> pivot(rowKey: ["_time", "unit"], columnKey: ["_field"], valueColumn: "_value")
-            |> group()
-            |> sort(columns: ["_time"])
+        from(bucket: "${bucket}")
+            |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
+            |> filter(fn: (r) => r.station_id == "${stationId}")
+            |> filter(fn: (r) => r._measurement == "wind")
+            |> filter(fn: (r) => r._field == "speed" or r._field == "gust")
+            |> limit(n: 10)
             |> yield()
     `;
     
     const results = await executeQuery(fluxQuery);
-    return formatRainData(results, intervalSeconds);
-}
-
-function formatRainData(results, intervalSeconds) {
-    return results.map(row => ({
-        timestamp: row._time,
-        rainFall: Math.round((row.totalRainFall || 0) * 100) / 100,
-        ET: Math.round((row.totalET || 0) * 100) / 100,
-        unit: row.unit || "mm"
-    }));
+    console.log("Échantillon de données wind:", results);
+    return results;
 }
 
 /**
@@ -335,8 +503,9 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
     const fluxQuery = `
         import "math"
         from(bucket: "${bucket}")
-            |> range(start: ${startDate ? `time(v: "${startDate}")` : '0'}, stop: ${endDate ? `time(v: "${endDate}")` : 'now()'}) 
+            |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'}) 
             |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "${sensorRef}")
+            |> group(columns: ["unit"])
             |> window(every: ${intervalSeconds}s)
             |> reduce(
                 identity: {
@@ -365,10 +534,11 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
                 avg: math.round(x: r.sum_value / float(v: r.count) * 1000.0) / 1000.0,
                 max: r.max_value,
                 last: r.last_value,
-                count: r.count
+                count: r.count,
+                unit: r.unit
             }))
             |> sort(columns: ["datetime"])
-            |> keep(columns: ["datetime", "first", "min", "avg", "max", "last", "count"])
+            |> keep(columns: ["datetime", "first", "min", "avg", "max", "last", "count", "unit"])
     `;
     
     return await executeQuery(fluxQuery);
@@ -381,8 +551,8 @@ module.exports = {
     getMetadata,
     queryDateRange,
     queryRaw,
-    queryWind,
-    queryRain,
+    queryWindRose,
+    queryWindVectors,
     queryCandle,
     clearBucket
 };

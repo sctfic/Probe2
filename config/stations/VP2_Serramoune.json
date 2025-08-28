@@ -1,6 +1,6 @@
 {
     "id": "VP2_Serramoune",
-    "name": "vp2 Serramoune",
+    "name": "VP2 chantier Serramoune",
     "comment": "Cabled Plus, alban",
     "host": "vp2",
     "port": 22222,
@@ -65,7 +65,7 @@
         "desired": 5,
         "lastReadValue": 5
     },
-    "lastArchiveDate": "2025-08-26T23:05:00.000Z",
-    "deltaTimeSeconds": 1.142,
+    "lastArchiveDate": "2025-08-28T20:10:00.000Z",
+    "deltaTimeSeconds": 0.317,
     "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\VP2_Serramoune.json"
 }

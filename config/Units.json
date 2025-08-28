@@ -1,66 +1,79 @@
 {
   "temperature": {
-    "unit": "°C", 
+    "user": "°C", 
+    "metric": "K",
     "avaible_units": [{"title":"Celsius","symbol":"°C"}, {"title": "Fahrenheit","symbol":"°F"}, {"title":"Kelvin","symbol":"K"}],
     "sensors": ["inTemp", "outTemp", "dewPoint", "heatIndex", "windChill", "THSW", "leafTemp1", "leafTemp2", "soilTemp1", "soilTemp2", "soilTemp3", "soilTemp4", "extraTemp1", "extraTemp2", "extraTemp3"]
   },
   "speed": {
-    "unit": "km/h", 
+    "user": "km/h", 
+    "metric": "m/s",
     "avaible_units": [{"title":"mph","symbol":"mph"}, {"title":"m/s","symbol":"m/s"}, {"title":"km/h","symbol":"km/h"}, {"title":"knots","symbol":"knots"}],
     "sensors": ["windSpeed", "windSpeedMax", "avgWindSpeed10Min", "avgWindSpeed2Min", "windGust10Min"]
   },
   "direction": {
-    "unit": "cardinal", 
+    "user": "cardinal", 
+    "metric": "°",
     "avaible_units": [{"title":"degrees","symbol":"°"}, {"title":"cardinal","symbol":"cardinal"}],
     "sensors": ["windDir", "windDirMax", "windGustDir10Min"]
   },
   "pressure": {
-    "unit": "Bar", 
+    "user": "Bar", 
+    "metric": "hpa",
     "avaible_units": [{"title":"imperial","symbol":"inhg"}, {"title":"metric","symbol":"hpa"}, {"title":"metric","symbol":"mb"}, {"title":"Bar","symbol":"Bar"}],
     "sensors": ["barometer"]
   },
   "rain": {
-    "unit": "l/m²",   
+    "user": "l/m²",   
+    "metric": "mm",
     "avaible_units": [{"title":"milimetre","symbol":"mm"}, {"title":"inch","symbol":"in"}, {"title":"litre per square meter","symbol":"l/m²"}],
     "sensors": ["rainFall", "stormRain", "dayRain", "monthRain", "yearRain", "dayET", "monthET", "yearET", "last15MinRain", "lastHourRain", "last24HourRain", "ET"]
   },
   "rainRate": {
-    "unit": "l/m²/h",   
+    "user": "l/m²/h",   
+    "metric": "mm/h",
     "avaible_units": [{"title":"milimetre per hour","symbol":"mm/h"}, {"title":"inch per hour","symbol":"in/h"}, {"title":"litre per square meter per hour","symbol":"l/m²/h"}],
     "sensors": ["rainRate"]
   },
   "uv": {
-    "unit": "min",
+    "user": "min",
+    "metric": "index",
     "avaible_units": [{"title":"index","symbol":"index"}, {"title":"temps d'exposition avant un coup de soleil = 210/(UVIndex*exp(uvindex/32))","symbol":"min"}],
-    "sensors": ["UV"]
+    "sensors": ["UV", "UVMax"]
   },
   "powerRadiation": {
-    "unit": "w/m²",  
+    "user": "w/m²",  
+    "metric": "w/m²",
     "avaible_units": [{"title":"watt per square meter","symbol":"w/m²"}],
-    "sensors": ["solarRadiation"]
+    "sensors": ["solarRadiation", "solarRadiationMax"]
   },
   "humidity": {
-    "unit": "%", 
+    "user": "%", 
+    "metric": "%",
     "avaible_units": [{"title":"percent","symbol":"%"}],
     "sensors": ["inHumidity", "outHumidity", "leafWetness1", "leafWetness2", "extraHumidity1", "extraHumidity2", "extraSoilMoisture1", "extraSoilMoisture2", "extraSoilMoisture3", "extraSoilMoisture4"]
   },
   "battery": {
-    "unit": "%",
+    "user": "%",
+    "metric": "V",
     "avaible_units": [{"title":"percent","symbol":"%"}, {"title":"volts","symbol":"V"}],
     "sensors": ["batteryVoltage"]
   },
   "date": {
-    "unit": "yyyy-mm-dd",
+    "user": "yyyy-mm-dd",
+    "metric": "iso8601",
     "avaible_units": [{"title":"date","symbol":""}],
     "sensors": ["dateStormRain", "date"]
   },
   "time": {
-    "unit": "hh:mm",
+    "user": "hh:mm",
+    "metric": "iso8601",
     "avaible_units": [{"title":"heure minute","symbol":"hh:mm"}],
     "sensors": ["sunrise", "sunset", "time"]
   },
   "Forecast": {
-    "unit": "ForecastClass",
+    "user": "ForecastClass",
+    "metric": "ForecastClass",
     "avaible_units": [{"title":"Weather Forecast Num","symbol":"ForecastNum"}, {"title":"Weather Forecast Class for CSS","symbol":"ForecastClass"}],
     "sensors": ["ForecastIcon"]
   }

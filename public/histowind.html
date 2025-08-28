@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualisation des Données de Vent</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 2px solid #e0e6ed;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 2.5rem;
+            font-weight: 300;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .metadata {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            border: 1px solid #dee2e6;
+        }
+
+        .metadata-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .metadata-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .metadata-value {
+            font-size: 1.2rem;
+            color: #495057;
+            font-weight: 700;
+            margin-top: 5px;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 1px solid #e9ecef;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .control-group label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+
+        .control-group input, .control-group select {
+            padding: 8px 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .control-group input:focus, .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Styles pour D3.js */
+        .sensitive {
+            fill: transparent;
+            cursor: move;
+        }
+
+        .hair {
+            stroke: #3182bd;
+            stroke-width: 2;
+            marker-end: url(#arrowhead);
+            transition: all 0.2s ease;
+        }
+
+        .hair2 {
+            stroke: #3182bd;
+            stroke-width: 6;
+            opacity: 0;
+            marker-end: url(#arrowhead);
+            cursor: pointer;
+        }
+
+        .arrow:hover .hair {
+            stroke: #E6550D;
+            stroke-width: 3;
+            marker-end: url(#arrowheadHover);
+        }
+
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: #6c757d;
+            shape-rendering: crispEdges;
+        }
+
+        .axis text {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 11px;
+            fill: #495057;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2rem;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .status.success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .status.warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Visualisation des Données de Vent</h1>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <div class="metadata" id="metadata">
+            <div class="loading">
+                <div class="spinner"></div>
+                Chargement des métadonnées...
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="station">Station:</label>
+                <input type="text" id="station" value="VP2_Serramoune" readonly>
+            </div>
+            <div class="control-group">
+                <label for="sensor">Capteur:</label>
+                <select id="sensor">
+                    <option value="avgVector">Vitesse Moyenne</option>
+                    <option value="gustVector">Rafales</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Historique du Vent - Vecteurs de Direction et Vitesse</div>
+            <div id="wind-chart"></div>
+        </div>
+    </div>
+
+    <script>
+        // Données d'exemple (normalement chargées depuis l'API)
+        const mockData = {
+            "success": true,
+            "message": "<!> Data missing suspected !",
+            "metadata": {
+                "stationId": "VP2_Serramoune",
+                "sensor": ["speed","gust"],
+                "queryTime": "2025-08-27T17:04:59.988Z",
+                "first": "2025-08-23T13:55:00.000Z",
+                "last": "2025-08-26T23:05:00.000Z",
+                "intervalSeconds": 8594,
+                "count": 24,
+                "unit": "m/s"
+            },
+            "data": [
+                {"time": "2025-08-23T12:24:22.000Z","unit": "m/s","avgVector": {"speed": 0.215,"direction": 101.701},"gustVector": {"speed": 3.129,"direction": 0}},
+                {"time": "2025-08-23T14:47:36.000Z","unit": "m/s","avgVector": {"speed": 0.135,"direction": 34.077},"gustVector": {"speed": 4.023,"direction": 0}},
+                {"time": "2025-08-23T17:10:50.000Z","unit": "m/s","avgVector": {"speed": 0.346,"direction": 341.634},"gustVector": {"speed": 2.682,"direction": 337.5}},
+                {"time": "2025-08-23T19:34:04.000Z","unit": "m/s","gustVector": {"speed": 0.894,"direction": 0}},
+                {"time": "2025-08-24T00:20:32.000Z","unit": "m/s","gustVector": {"speed": 0.447,"direction": 337.5}},
+                {"time": "2025-08-24T09:53:28.000Z","unit": "m/s","avgVector": {"speed": 0.514,"direction": 345.153},"gustVector": {"speed": 2.682,"direction": 0}},
+                {"time": "2025-08-24T12:16:42.000Z","unit": "m/s","avgVector": {"speed": 0.175,"direction": 42.64},"gustVector": {"speed": 2.682,"direction": 0}},
+                {"time": "2025-08-24T14:39:56.000Z","unit": "m/s","avgVector": {"speed": 0.177,"direction": 356.941},"gustVector": {"speed": 2.235,"direction": 90}},
+                {"time": "2025-08-24T17:03:10.000Z","unit": "m/s","avgVector": {"speed": 0.249,"direction": 20.545},"gustVector": {"speed": 2.235,"direction": 67.5}},
+                {"time": "2025-08-25T02:36:06.000Z","unit": "m/s","gustVector": {"speed": 2.235,"direction": 270}},
+                {"time": "2025-08-25T04:59:20.000Z","unit": "m/s","avgVector": {"speed": 0.447,"direction": 135},"gustVector": {"speed": 3.129,"direction": 157.5}},
+                {"time": "2025-08-25T09:45:48.000Z","unit": "m/s","avgVector": {"speed": 0.447,"direction": 247.5},"gustVector": {"speed": 1.788,"direction": 247.5}},
+                {"time": "2025-08-25T12:09:02.000Z","unit": "m/s","avgVector": {"speed": 0.447,"direction": 342.994},"gustVector": {"speed": 2.235,"direction": 0}},
+                {"time": "2025-08-25T14:32:16.000Z","unit": "m/s","avgVector": {"speed": 0.327,"direction": 353.185},"gustVector": {"speed": 2.235,"direction": 0}},
+                {"time": "2025-08-25T16:55:30.000Z","unit": "m/s","gustVector": {"speed": 1.341,"direction": 90}},
+                {"time": "2025-08-25T19:18:44.000Z","unit": "m/s","gustVector": {"speed": 0.894,"direction": 247.5}},
+                {"time": "2025-08-25T21:41:58.000Z","unit": "m/s","gustVector": {"speed": 1.788,"direction": 0}},
+                {"time": "2025-08-26T00:05:12.000Z","unit": "m/s","gustVector": {"speed": 0.447,"direction": 0}},
+                {"time": "2025-08-26T02:28:26.000Z","unit": "m/s","gustVector": {"speed": 1.341,"direction": 0}},
+                {"time": "2025-08-26T07:14:54.000Z","unit": "m/s","avgVector": {"speed": 0.447,"direction": 22.5},"gustVector": {"speed": 1.788,"direction": 0}},
+                {"time": "2025-08-26T12:01:22.000Z","unit": "m/s","gustVector": {"speed": 0.894,"direction": 0}},
+                {"time": "2025-08-26T16:47:50.000Z","unit": "m/s","gustVector": {"speed": 0.894,"direction": 202.5}},
+                {"time": "2025-08-26T19:11:04.000Z","unit": "m/s","avgVector": {"speed": 0.447,"direction": 270},"gustVector": {"speed": 2.235,"direction": 270}},
+                {"time": "2025-08-26T21:34:18.000Z","unit": "m/s","gustVector": {"speed": 0.894,"direction": 247.5}}
+            ]
+        };
+
+        // Fonctions utilitaires
+        function formatDate(date, format) {
+            if (format === 'T') {
+                return date.toISOString();
+            }
+            return date.toISOString();
+        }
+
+        function formulaConverter(type, unit) {
+            return function(value) {
+                if (type === 'WindSpeed') {
+                    return (value * 3.6).toFixed(1) + ' ' + unit; // m/s vers km/h
+                } else if (type === 'angle') {
+                    return Math.round(value) + unit;
+                } else if (type === 'strDate') {
+                    return value.toLocaleDateString() + ' ' + value.toLocaleTimeString();
+                }
+                return value;
+            };
+        }
+
+        // Console.TimeStep pour compatibilité
+        console.TimeStep = function(message) {
+            console.log('[TimeStep]', message);
+        };
+
+        // Adaptation de votre code D3.js original
+        function timeSeriesChart_histoWind() {
+            var data,
+                margin = {top: 5, right: 25, bottom: 50, left: 25},
+                width = 1200,
+                height = 300,
+                dataheader = null,
+                station = null,
+                withAxis = true,
+                timeFormat = d3.time.format("%Y-%m-%dT%H:%M:%S"),
+                dateParser = function(d) { 
+                    if (typeof d.date === 'string') {
+                        return timeFormat.parse(d.date.replace('Z', ''));
+                    }
+                    return d.date;
+                },
+                dateDomain = [formatDate(new Date(0)), formatDate(new Date())],
+                Speed = function(d) { return +d.speed || 0; },
+                angle = function(d) { return +d.angle || 0; },
+                xSpeed = function(d) { return +d.x || 0; },
+                ySpeed = function(d) { return +d.y || 0; },
+                xScale = d3.time.scale().range([0, width]),
+                yScale = d3.scale.linear().range([height, 0]),
+                xAxis = d3.svg.axis().scale(xScale).orient("bottom").tickSize(4,0),
+                yAxis = d3.svg.axis().scale(yScale).orient("left").ticks(4).tickSize(3,0),
+                onClickAction = function(d) { 
+                    console.log('Clicked data:', d);
+                    alert(`Vitesse: ${d.Speed.toFixed(2)} m/s\nDirection: ${d.angle.toFixed(1)}°\nDate: ${d.date.toLocaleString()}`);
+                },
+                toHumanSpeed = formulaConverter('WindSpeed', 'km/h'),
+                toHumanAngle = formulaConverter('angle', '°'),
+                toHumanDate = formulaConverter('strDate', 'ISO');
+
+            function chart(selection) {
+                selection.each(function(rawdata) {
+                    console.log('Raw data:', rawdata);
+                    // Conversion des données au format attendu
+                    data = rawdata.map(function(d, i) {
+                        const vectorType = document.getElementById('sensor').value;
+                        const vector = d[vectorType] || d.gustVector || d.avgVector || {};
+                        
+                        // Conversion angle en coordonnées cartésiennes pour les vecteurs
+                        const angleRad = (vector.direction || 0) * Math.PI / 180;
+                        const speed = vector.speed || 0;
+                        
+                        return {
+                            date: timeFormat.parse(d.time),
+                            Speed: speed,
+                            angle: vector.direction || 0,
+                            xSpeed: speed * Math.cos(angleRad - Math.PI/2), // -PI/2 pour corriger l'orientation
+                            ySpeed: speed * Math.sin(angleRad - Math.PI/2)
+                        };
+                    });
+                    console.log('Converted data:', data);
+                    // Filtrer les données valides
+                    data = data.filter(d => d.date && !isNaN(d.Speed));
+
+                    if (data.length === 0) {
+                        console.warn('Aucune donnée valide trouvée');
+                        return;
+                    }
+
+                    const domainDate = d3.extent(data, function(d) { return d.date; });
+                    
+                    // Mise à jour des échelles
+                    yScale
+                        .domain(d3.extent(data, function(d) { return d.ySpeed; }))
+                        .range([height - margin.top - margin.bottom, 0]);
+                        
+                    xScale
+                        .domain(domainDate)
+                        .range([0, width - margin.left - margin.right]);
+
+                    // Calcul des marges dynamiques
+                    const rightMargin = Math.max(25, d3.max(data, function(d) {
+                        const offset = (yScale(0) - yScale(d.xSpeed)) - (xScale(domainDate[1]) - xScale(d.date));
+                        return offset > 0 ? offset : 0;
+                    })) + 10;
+                    
+                    const leftMargin = Math.max(25, d3.max(data, function(d) {
+                        const offset = (yScale(d.xSpeed) - yScale(0)) - (xScale(d.date) - xScale(domainDate[0]));
+                        return offset > 0 ? offset : 0;
+                    })) + 10;
+
+                    margin.right = rightMargin;
+                    margin.left = leftMargin;
+
+                    // Mise à jour de l'échelle X avec les nouvelles marges
+                    xScale.range([0, width - (margin.left + margin.right)]);
+
+                    // Création du SVG
+                    var svg = d3.select(this).selectAll("svg").data([data]);
+                    var gEnter = svg.enter()
+                                    .append("svg")
+                                    .attr("width", "100%")
+                                    .attr("height", height + margin.top + margin.bottom)
+                                    .style("background", "#f8f9fa");
+
+                    // Définition des marqueurs pour les flèches
+                    var defs = gEnter.append("defs");
+
+                    defs.append("marker")
+                        .attr("id", "arrowhead")
+                        .attr("refX", 2)
+                        .attr("refY", 0)
+                        .attr("viewBox", "-5 -5 12 10")
+                        .attr("markerUnits", "strokeWidth")
+                        .attr("markerWidth", 6)
+                        .attr("markerHeight", 12)
+                        .attr("orient", "auto")
+                        .append("polygon")
+                            .attr("fill", "#3182bd")
+                            .attr("stroke", "#3182bd")
+                            .attr("points", "0,0 -2.5,-2.5 5,0 -2.5,2.5");
+
+                    defs.append("marker")
+                        .attr("id", "arrowheadHover")
+                        .attr("refX", 2)
+                        .attr("refY", 0)
+                        .attr("viewBox", "-5 -5 12 10")
+                        .attr("markerUnits", "strokeWidth")
+                        .attr("markerWidth", 6)
+                        .attr("markerHeight", 12)
+                        .attr("orient", "auto")
+                        .append("polygon")
+                            .attr("fill", "#E6550D")
+                            .attr("stroke", "#E6550D")
+                            .attr("points", "0,0 -2.5,-2.5 5,0 -2.5,2.5");
+
+                    // Zone sensible pour le zoom
+                    var sensitive = svg.append("rect")
+                        .attr("class", "sensitive")
+                        .attr('width', width - margin.left - margin.right)
+                        .attr('height', height - margin.top - margin.bottom)
+                        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+                    // Groupe principal
+                    var g = gEnter.append("g")
+                                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+                    // Axes
+                    g.append("g").attr("class", "x axis");
+                    g.append("g").attr("class", "y axis");
+
+                    // Calcul du coefficient pour la conversion des vecteurs
+                    var coef = (yScale.range()[0] - yScale.range()[1]) / (yScale.domain()[1] - yScale.domain()[0]);
+                    if (isNaN(coef) || !isFinite(coef)) coef = 20; // Valeur par défaut
+
+                    // Création des flèches pour chaque point de données
+                    var arrows = g.selectAll(".arrow")
+                                    .data(data)
+                                    .enter()
+                                    .append("g")
+                                    .attr("class", "arrow")
+                                    .on("click", onClickAction);
+
+                    arrows.append("line").attr("class", "hair");
+                    arrows.append("line").attr("class", "hair2");
+                    arrows.append("title")
+                        .text(function(d) {
+                            return "Vitesse: " + toHumanSpeed(d.Speed) +
+                                   "\nDirection: " + toHumanAngle(d.angle) +
+                                   "\nDate: " + toHumanDate(d.date);
+                        });
+
+                    // Fonction de mise à jour des courbes
+                    g.updateCurve = function() {
+                        var xExtent = xScale.domain();
+                        
+                        this.selectAll('.hair, .hair2')
+                            .attr("x1", function(d) { return xScale(d.date); })
+                            .attr("y1", function(d) { return yScale(0); })
+                            .attr("x2", function(d) { return xScale(d.date) + d.xSpeed * coef; })
+                            .attr("y2", function(d) { return yScale(d.ySpeed); })
+                            .attr("display", function(d) { 
+                                return (d.date >= xExtent[0] && d.date <= xExtent[1]) ? 'inline' : 'none'; 
+                            });
+                        return this;
+                    };
+
+                    // Fonction de dessin des axes
+                    g.drawAxis = function() {
+                        var xPos;
+                        if (0 < yScale.domain()[0])
+                            xPos = yScale.range()[0];
+                        else if (yScale.domain()[1] < 0)
+                            xPos = yScale.range()[1];
+                        else
+                            xPos = yScale(0);
+
+                        if (withAxis) {
+                            g.select(".x.axis")
+                                .attr("transform", "translate(0," + xPos + ")")
+                                .call(xAxis);
+                            
+                            g.select(".y.axis")
+                                .call(yAxis);
+                        }
+                        return this;
+                    };
+
+                    // Configuration du zoom
+                    var zoom = d3.behavior.zoom()
+                        .x(xScale)
+                        .scaleExtent([1, 1000])
+                        .on("zoom", function() {
+                            g.updateCurve().drawAxis();
+                        });
+
+                    sensitive.call(zoom);
+
+                    // Mise à jour initiale
+                    g.updateCurve().drawAxis();
+                });
+            }
+
+            // Accesseurs (version simplifiée)
+            chart.width = function(_) {
+                if (!arguments.length) return width;
+                width = _;
+                return chart;
+            };
+
+            chart.station = function(_) {
+                if (!arguments.length) return station;
+                station = _;
+                return chart;
+            };
+
+            chart.onClickAction = function(_) {
+                if (!arguments.length) return onClickAction;
+                onClickAction = _;
+                return chart;
+            };
+
+            return chart;
+        }
+
+        // Fonction principale d'initialisation
+        function initializeVisualization() {
+            // Mise à jour du statut
+            const statusDiv = document.getElementById('status');
+            if (mockData.success) {
+                statusDiv.className = 'status success';
+                statusDiv.textContent = '✓ Données chargées avec succès';
+                if (mockData.message) {
+                    statusDiv.textContent += ' - ' + mockData.message;
+                }
+            }
+
+            // Mise à jour des métadonnées
+            const metadataDiv = document.getElementById('metadata');
+            const metadata = mockData.metadata;
+            metadataDiv.innerHTML = `
+                <div class="metadata-item">
+                    <div class="metadata-label">Station</div>
+                    <div class="metadata-value">${metadata.stationId}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Période</div>
+                    <div class="metadata-value">${new Date(metadata.first).toLocaleDateString()} - ${new Date(metadata.last).toLocaleDateString()}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Points de données</div>
+                    <div class="metadata-value">${metadata.count}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Unité</div>
+                    <div class="metadata-value">${metadata.unit}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Capteurs</div>
+                    <div class="metadata-value">${metadata.sensor.join(', ')}</div>
+                </div>
+            `;
+
+            // Création du graphique
+            createChart();
+        }
+
+        function createChart() {
+            const container = document.getElementById('wind-chart');
+            container.innerHTML = '';
+
+            const chart = timeSeriesChart_histoWind()
+                .width(1200)
+                .station(mockData.metadata.stationId)
+                .onClickAction(function(d) {
+                    const vectorType = document.getElementById('sensor').value === 'avgVector' ? 'Moyenne' : 'Rafale';
+                    alert(`${vectorType}\nVitesse: ${d.Speed.toFixed(2)} m/s (${(d.Speed * 3.6).toFixed(1)} km/h)\nDirection: ${d.angle.toFixed(1)}°\nDate: ${d.date.toLocaleString()}`);
+                });
+
+            d3.select(container)
+                .datum(mockData.data)
+                .call(chart);
+        }
+
+        // Event listeners
+        document.getElementById('sensor').addEventListener('change', createChart);
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', initializeVisualization);
+    </script>
+</body>
+</html>
