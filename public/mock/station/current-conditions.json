@@ -120,7 +120,7 @@
             "Unit": "l/m²"
         },
         "dateStormRain": {
-            "Value": "2070-00-25",
+            "Value": "2025-08-28",
             "Unit": "yyyy-mm-dd"
         },
         "last15MinRain": {

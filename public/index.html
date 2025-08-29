@@ -237,15 +237,15 @@
             let data, api0;
             try {
                 try {
-                    // en cas de status code erreur, on essaie de charger les données mockées
                     api0 = await fetch(`/api/station/${selectedStation.id}/current-conditions`, { cache: 'no-cache' });
+                    if (!api0.ok) {
+                        throw new Error(`HTTP error! status: ${api0.status}`);
+                    }
                 } catch (error) {
                     console.warn('Données mock chargées', error.message);
                     api0 = await fetch(`/mock/station/current-conditions.json`);
                 }
-                console.log(api0.url);
 
-                if (!api0.ok) throw new Error('Erreur de récupération des données');
                 data = await api0.json();                
                 const api1 = await fetch(`/query/${selectedStation.id}`);
                 if (!api1.ok) console.log('Erreur de récupération des _field');
@@ -552,7 +552,6 @@
             // Cas spécial pour ForecastIcon - afficher des images météo
             let chartContent = '';
             if (item.key === 'ForecastNum') {
-                console.log(displayValue);
                 const weatherImages = displayValue.split(' ');
                 chartContent = `
                     <div class="weather-forecast-container">
@@ -562,6 +561,16 @@
                                  class="weather-icon weather-${weather.toLowerCase()} ${displayValue === weather ? 'active' : ''}"
                                  style="z-index: ${weather === 'Cloud' ? 3 : weather === 'Rain' ? 4 : weather === 'Snow' ? 5 : 2}">
                         `).join('')}
+                    </div>
+                `;
+                unitDisplay = '';
+            } else if (item.key === 'windDir'){
+                console.log(displayValue);
+                const windDirection = parseFloat(displayValue) || 0;
+                chartContent = `
+                    <div class="wind-compass">
+                        <img src="img/windRose.png" alt="Rose des vents" class="wind-rose">
+                        <img src="img/windArrow.png" alt="Direction du vent" class="wind-arrow" style="transform: translate(50ps, 50px) rotate(${windDirection}deg)">
                     </div>
                 `;
                 unitDisplay = '';

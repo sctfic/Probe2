@@ -5,15 +5,15 @@
       "avaible_units": {
           "°C": {
               "title": "Celsius",
-              "fnFromMetric": "(k) => k-273.15"
+              "fnFromMetric": "(k) => Number((k-273.15).toFixed(1))"
           },
           "°F": {
               "title": "Fahrenheit",
-              "fnFromMetric": "(k) => (k-273.15)*9/5+32"
+              "fnFromMetric": "(k) => Number(((k-273.15)*9/5+32).toFixed(1))"
           },
           "K": {
               "title": "Kelvin",
-              "fnFromMetric": "(k) => k"
+              "fnFromMetric": "(k) => Number(k.toFixed(1))"
           }
       },
       "sensors": [
@@ -40,19 +40,19 @@
       "avaible_units": {
           "mph": {
               "title": "mph",
-              "fnFromMetric": "(ms) => ms*2.23693"
+              "fnFromMetric": "(ms) => Number((ms*2.23693).toFixed(1))"
           },
           "m/s": {
               "title": "m/s",
-              "fnFromMetric": "(ms) => ms"
+              "fnFromMetric": "(ms) => Number(ms.toFixed(1))"
           },
           "km/h": {
               "title": "km/h",
-              "fnFromMetric": "(ms) => ms*3.6"
+              "fnFromMetric": "(ms) => Number((ms*3.6).toFixed(1))"
           },
           "knots": {
               "title": "knots",
-              "fnFromMetric": "(ms) => ms*2.23693"
+              "fnFromMetric": "(ms) => Number((ms*2.23693).toFixed(1))"
           }
       },
       "sensors": [
@@ -64,7 +64,7 @@
       ]
   },
   "direction": {
-      "user": "cardinal",
+      "user": "°",
       "metric": "°",
       "avaible_units": {
           "°": {
@@ -88,19 +88,19 @@
       "avaible_units": {
           "inHg": {
               "title": "imperial",
-              "fnFromMetric": "(hpa) => hpa*0.750062"
+              "fnFromMetric": "(hpa) => Number((hpa*0.750062).toFixed(1))"
           },
           "hpa": {
               "title": "metric",
-              "fnFromMetric": "(hpa) => hpa"
+              "fnFromMetric": "(hpa) => Number(hpa.toFixed(1))"
           },
           "mb": {
               "title": "millibar",
-              "fnFromMetric": "(hpa) => hpa"
+              "fnFromMetric": "(hpa) => Number(hpa.toFixed(1))"
           },
           "Bar": {
               "title": "Barometric pressure",
-              "fnFromMetric": "(hpa) => hpa/1000"
+              "fnFromMetric": "(hpa) => Number((hpa/1000).toFixed(3))"
           }
       },
       "sensors": [
@@ -112,16 +112,16 @@
       "metric": "mm",
       "avaible_units": {
           "mm": {
-              "title": "milimetre",
-              "fnFromMetric": "(mm) => mm"
+              "title": "millimetre",
+              "fnFromMetric": "(mm) => Number(mm.toFixed(1))"
           },
           "in": {
               "title": "inch",
-              "fnFromMetric": "(mm) => mm/25.4"
+              "fnFromMetric": "(mm) => Number((mm/25.4).toFixed(2))"
           },
           "l/m²": {
               "title": "litre per square meter",
-              "fnFromMetric": "(mm) => mm*10"
+              "fnFromMetric": "(mm) => Number((mm*10).toFixed(2))"
           }
       },
       "sensors": [
@@ -145,15 +145,15 @@
       "avaible_units": {
           "mm/h": {
               "title": "milimetre per hour",
-              "fnFromMetric": "(mmh) => mmh"
+              "fnFromMetric": "(mmh) => Number(mmh.toFixed(1))"
           },
           "in/h": {
               "title": "inch per hour",
-              "fnFromMetric": "(mmh) => mmh/25.4"
+              "fnFromMetric": "(mmh) => Number((mmh/25.4).toFixed(2))"
           },
           "l/m²/h": {
               "title": "litre per square meter per hour",
-              "fnFromMetric": "(mmh) => mmh*10"
+              "fnFromMetric": "(mmh) => Number((mmh*10).toFixed(2))"
           }
       },
       "sensors": [
@@ -166,11 +166,11 @@
       "avaible_units": {
           "index": {
               "title": "index",
-              "fnFromMetric": "(uv) => uv"
+              "fnFromMetric": "(uv) => Number(uv.toFixed(1))"
           },
           "min": {
               "title": "temps d'exposition avant un coup de soleil = 210/(UVIndex*exp(uvindex/32))",
-              "fnFromMetric": "(uv) => 210/(uv*Math.exp(uv/32))"
+              "fnFromMetric": "(uv) => Number((210/(uv*Math.exp(uv/32))).toFixed(0))"
           }
       },
       "sensors": [
@@ -184,7 +184,7 @@
       "avaible_units": {
           "w/m²": {
               "title": "watt per square meter",
-              "fnFromMetric": "(w) => w"
+              "fnFromMetric": "(w) => Number(w.toFixed(1))"
           }
       },
       "sensors": [
@@ -198,7 +198,7 @@
       "avaible_units": {
           "%": {
               "title": "percent",
-              "fnFromMetric": "(h) => h"
+              "fnFromMetric": "(h) => Number(h.toFixed(1))"
           }
       },
       "sensors": [
@@ -220,11 +220,11 @@
       "avaible_units": {
           "%": {
               "title": "percent",
-              "fnFromMetric": "(v) => v*100/4.56"
+              "fnFromMetric": "(v) => Number((v*100/4.56).toFixed(0))"
           },
           "V": {
               "title": "volts",
-              "fnFromMetric": "(v) => v"
+              "fnFromMetric": "(v) => Number(v.toFixed(2))"
           }
       },
       "sensors": [

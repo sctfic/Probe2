@@ -7,6 +7,7 @@
             return date.toISOString().split('T')[0];
         }
         function transformDataForPlot(apiData, metadata) {
+            console.log(metadata);
             const fn = eval(metadata.toUserUnit);
             return apiData.map(item => ({
                 Date: new Date(item.d),
