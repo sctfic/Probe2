@@ -28,8 +28,8 @@
             "Unit": "km/h"
         },
         "windDir": {
-            "Value": "S",
-            "Unit": "cardinal"
+            "Value": 112.5,
+            "Unit": "°"
         },
         "outHumidity": {
             "Value": 81,
@@ -96,8 +96,8 @@
             "Unit": "km/h"
         },
         "windGustDir10Min": {
-            "Value": "SSW",
-            "Unit": "cardinal"
+            "Value": 292.5,
+            "Unit": "°"
         },
         "dewPoint": {
             "Value": 12.78,

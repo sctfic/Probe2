@@ -7,8 +7,9 @@
             return date.toISOString().split('T')[0];
         }
         function transformDataForPlot(apiData, metadata) {
-            console.log(metadata);
+            // console.log(metadata);
             const fn = eval(metadata.toUserUnit);
+            console.log(fn);
             return apiData.map(item => ({
                 Date: new Date(item.d),
                 Value: fn(item.v)
@@ -21,21 +22,31 @@
                 chartDiv.innerHTML = `<div class="error-message">No data!</div>`;
                 return;
             }
+            
             try {
                 const plot = Plot.plot({
                     width: 240,
                     height: 100,
-                    marginLeft: 0,
+                    marginLeft: 0, // Augmenté pour les barres
                     marginTop: 16,
                     marginBottom: 17,
-                    x: {type: "time",tickFormat: "%d/%m %H:%M"},
-                    y: {label: null, type: "linear",axis: "right", grid: true, nice: true},
+                    x: {
+                        type: "time",
+                        tickFormat: "%d/%m %H:%M"
+                    },
+                    y: {
+                        label: null, 
+                        type: "linear",
+                        axis: "right", 
+                        grid: true, 
+                        nice: true,
+                        domain: metadata.measurement === 'rain' ? [0, Math.max(...data.map(d => d.Value))] : [Math.min(...data.map(d => d.Value)), Math.max(...data.map(d => d.Value))]
+                    },
                     marks: [
-                        Plot.lineY(data, {x: "Date", y: "Value", stroke: "#4dc0e0"}),
-                        // Plot.ruleX(data, Plot.pointerX({x: "Date", py: "Value", stroke: "red"})),
+                        Plot.lineY(data, {x: "Date", y: "Value", stroke: "#4dc0e0", curve: metadata.measurement === 'rain' ? "step" : "monotone-x"}),
                         Plot.dot(data, Plot.pointerX({x: "Date", y: "Value", stroke: "red"})),
                         Plot.text(data, Plot.pointerX({
-                            px: "Date", py: "Value", dy: -16,dx: 30,
+                            px: "Date", py: "Value", dy: -16, dx: 30,
                             frameAnchor: "top-right",
                             fontVariant: "tabular-nums",
                             text: (d) => ` ${d.Value} ${metadata.userUnit}`
@@ -47,7 +58,8 @@
                             text: (d) => `${Plot.formatIsoDate(d.Date)} `
                         }))
                     ]
-                    });
+                });
+                
                 // Insertion du graphique
                 chartDiv.innerHTML = '';
                 chartDiv.appendChild(plot);
@@ -61,16 +73,16 @@
         /**
          * Charge les données depuis l'API
          */
-        async function loadData(station, sensor, id, param) {
+        async function loadData( id, url) {
             const loadingText = document.getElementById('loadingText');
             try {
-                const url = `${API_BASE_URL}/${station}/Raw/${sensor}?${param}`;
+                console.log(url);
                 const response = await fetch(url);
                 if (!response.ok) {
                     throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
                 }
                 const apiResponse = await response.json();
-                console.log('URL de l\'API:', url, apiResponse);
+                // console.log('URL de l\'API:', url, apiResponse);
                 if (!apiResponse.success) {
                     throw new Error(apiResponse.message || 'Erreur inconnue de l\'API');
                 }
@@ -80,6 +92,8 @@
                 const plotData = transformDataForPlot(apiResponse.data, apiResponse.metadata);
                 createPlot(plotData, apiResponse.metadata, id);
             } catch (error) {
+                console.log(url);
+                console.log(apiResponse);
                 console.error('Erreur lors du chargement:', error);
             }
         }

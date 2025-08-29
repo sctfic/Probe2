@@ -146,6 +146,7 @@ exports.getQueryRaw = async (req, res) => {
         } else if (Data.length < stepCount) {
             msg = '<!> Data missing suspected !';
         }
+        console.log(`${V.Gyro}`, data[0].unit, sensorTypeMap[sensorRef], units?.[sensorTypeMap[sensorRef]]?.user);
         res.json({
             success: true,
             message: msg,

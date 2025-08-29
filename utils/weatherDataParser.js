@@ -182,6 +182,8 @@ const sensorTypeMap = {
     inTemp: 'temperature',
     inHumidity: 'humidity',
     outTemp: 'temperature',
+    speed: 'speed',
+    gust: 'speed',
     windSpeed: 'speed',
     windSpeedMax: 'speed',
     windDir: 'direction',

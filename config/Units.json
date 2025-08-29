@@ -56,6 +56,8 @@
           }
       },
       "sensors": [
+          "speed",
+          "gust",
           "windSpeed",
           "windSpeedMax",
           "avgWindSpeed10Min",
@@ -170,7 +172,7 @@
           },
           "min": {
               "title": "temps d'exposition avant un coup de soleil = 210/(UVIndex*exp(uvindex/32))",
-              "fnFromMetric": "(uv) => Number((210/(uv*Math.exp(uv/32))).toFixed(0))"
+              "fnFromMetric": "(uv) => Number(Math.min(180, 210/((uv*Math.exp(uv/32)))).toFixed(0))"
           }
       },
       "sensors": [

@@ -112,7 +112,7 @@ body {
 .content-section {
     min-width: 100vw;
     box-sizing: border-box;
-    padding: 20px;
+    padding: 2px 12px;
     overflow-y: auto;
 }
 
@@ -132,6 +132,7 @@ h1 {
     gap: 20px;
     align-items: center;
     flex-wrap: wrap;
+    justify-content: space-between;
 }
 
 .conditions-controls .filter-group,
@@ -161,7 +162,7 @@ h1 {
 .conditions-container {
     background: white;
     border-radius: 8px;
-    padding: 20px;
+    padding: 5px 10px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
@@ -715,6 +716,9 @@ label {
     transform: translate(-50%, -50%) scale(1.2);
 }
 
+
+
+
 /* Responsive pour les petits écrans */
 @media (max-width: 768px) {
     .weather-icon {
@@ -726,6 +730,7 @@ label {
         font-size: 0.7em;
     }
 }
+
 /* Conteneur pour la boussole du vent */
 .wind-compass {
     position: relative;
@@ -734,7 +739,8 @@ label {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 120px;
+    /* min-height: 260px; Réduit pour remonter */
+    /* margin-top: -20px; Remonte l'ensemble */
 }
 
 /* Rose des vents en arrière-plan */
@@ -742,45 +748,46 @@ label {
     position: absolute;
     width: 200px;
     height: 200px;
-    top:50%;
-    left:50%;
-    transform: translate(-50%, -60%);
+    top: 16%;
+    left: 69%;
+    transform: translate(-50%, -50%);
     opacity: 0.7;
     z-index: 1;
 }
 
-/* Flèche du vent qui tourne */
+/* Flèche du vent qui tourne autour du cercle */
 .wind-arrow {
     position: absolute;
-    width: 50px;
-    height: 50px;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -60%), rotate(180deg);
+    width: 30px;
+    height: 30px;
+    top: 15%;
+    left: 70%;
     z-index: 2;
     transform-origin: center center;
     transition: transform 0.5s ease-in-out;
     filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
 }
 
-/* Animation pour les changements de direction */
-.wind-arrow {
-    animation: none;
-}
-
 /* Style responsive pour les petits écrans */
 @media (max-width: 768px) {
     .wind-rose {
-        width: 80px;
-        height: 80px;
+        width: 150px;
+        height: 150px;
+        top: 40%;
     }
     
     .wind-arrow {
-        width: 60px;
-        height: 60px;
+        width: 25px;
+        height: 25px;
+        top: 40%;
     }
     
     .wind-compass {
-        min-height: 100px;
+        min-height: 200px;
+        margin-top: -15px;
+    }
+    
+    .wind-test-control {
+        font-size: 0.7em;
     }
 }

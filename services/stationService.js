@@ -538,7 +538,7 @@ async function getCurrentWeatherData(stationConfig) {
 
     const aggregatedData = { ...loop1Data, ...loop2Data };
     console.log(`${V.thermometer} Données LOOP1 & LOOP2 récupérées pour ${stationConfig.id}:`, aggregatedData);
-    const processedData = processWeatherData(aggregatedData, stationConfig, 'user');
+    const processedData = processWeatherData(aggregatedData, stationConfig, 'metric');
 
     return processedData;
 }

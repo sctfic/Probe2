@@ -10,11 +10,6 @@
 <link rel="stylesheet" href="css/style.css">
 <script src="js/miniPlot.js"></script>
 <script src="js/sensorsMap.js"></script>
-<style>
-<style>
-    /* Custom overrides if needed */
-</style>
-</style>
 </head>
 <body>
 <header class="navbar">
@@ -46,18 +41,16 @@
         <!-- Contrôles de filtre réorganisés -->
         <div class="conditions-controls">
             <div class="filter-group">
-                <label for="conditions-filter">Recherche</label>
-                <input type="text" id="conditions-filter" placeholder="Rechercher une mesure...">
+                <input type="text" id="conditions-filter" placeholder="Rechercher une mesure..." value="">
             </div>
             <div class="conditions-stats" id="conditions-stats-display" style="display: none;"></div>
             <div class="view-group">
-                <label for="conditions-group">Grouper par</label>
                 <select id="conditions-group">
-                    <option value="groupUsage" selected>Fonctionnel</option>
-                    <option value="measurement">Type de mesure</option>
-                    <option value="groupCustom">Personnel</option>
-                    <option value="sensorDb">Type d'historique</option>
-                    <option value="none">Aucun</option>
+                    <option value="groupUsage" selected>Regroupement Fonctionnel</option>
+                    <option value="measurement">Regroupement par Type de mesure</option>
+                    <option value="groupCustom">Regroupement Personnel</option>
+                    <option value="sensorDb">Regroupement par Type d'historique</option>
+                    <option value="none">Aucun regroupement</option>
                 </select>
             </div>
         </div>
@@ -250,7 +243,7 @@
                 const api1 = await fetch(`/query/${selectedStation.id}`);
                 if (!api1.ok) console.log('Erreur de récupération des _field');
                 dbSensorList = await api1.json();
-                console.log(dbSensorList);
+                console.log('dbSensorList', dbSensorList);
 
                 if (data.success && data.data) {
                     currentConditionsData = data.data;
@@ -290,7 +283,7 @@
                         searchText: `${sensorInfo.label || formatLabel(key)} ${extractValue(data)} ${extractUnit(data)}`.toLowerCase()
                     };
                 });
-
+    console.log('allConditions', allConditions);
             // Afficher les conditions selon le groupement
             displayConditions();
             
@@ -366,7 +359,7 @@
                 });
                 const unitsCount = new Set(visibleConditions.map(item => item.unit)).size;
                 
-                statsEl.innerHTML = `${visibleCount} / ${totalCount} mesures • ${unitsCount} unités`;
+                statsEl.innerHTML = `${visibleCount} / ${totalCount} mesures • ${unitsCount} types`;
                 statsEl.style.display = 'block';
             }
         }
@@ -476,8 +469,8 @@
                                 if (item.sensorDb && dbSensorList && dbSensorList.data && dbSensorList.data._field && 
                                     dbSensorList.data._field.includes(item.sensorDb)) {
                                     const chartId = `chart_${item.key}`;
-                                    const param = `stepCount=240&startDate=${getStartDate(item.period)}`;
-                                    loadData(selectedStation.id, item.sensorDb, chartId, param);
+                                    const param = `stepCount=${item.measurement === 'rain' ? 12 : 240}&startDate=${getStartDate(item.period)}`;
+                                    loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`);
                                 }
                             }, 50);
                         }
@@ -526,8 +519,8 @@
                         if (item.sensorDb && dbSensorList && dbSensorList.data && dbSensorList.data._field && 
                             dbSensorList.data._field.includes(item.sensorDb)) {
                             const chartId = `chart_${item.key}`;
-                            const param = `stepCount=240&startDate=${getStartDate(item.period)}`;
-                            loadData(selectedStation.id, item.sensorDb, chartId, param);
+                            const param = `stepCount=${item.measurement === 'rain' ? 12 : 240}&startDate=${getStartDate(item.period)}`;
+                            loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`);
                         }
                     }, 50);
                 }
@@ -547,11 +540,10 @@
                 }
             }
 
-            let unitDisplay = item.unit ? `<span class="condition-unit">${item.unit}</span>` : '';
+            let unitDisplay = item.unit ? `<span class="condition-unit">${dbSensorList?.metadata?.unit?.[item.measurement]?.unit || item.unit}</span>` : '';
             
-            // Cas spécial pour ForecastIcon - afficher des images météo
             let chartContent = '';
-            if (item.key === 'ForecastNum') {
+            if (item.key === 'ForecastNum') {// Cas spécial pour ForecastIcon - afficher des images météo
                 const weatherImages = displayValue.split(' ');
                 chartContent = `
                     <div class="weather-forecast-container">
@@ -564,28 +556,44 @@
                     </div>
                 `;
                 unitDisplay = '';
-            } else if (item.key === 'windDir'){
-                console.log(displayValue);
-                const windDirection = parseFloat(displayValue) || 0;
+            } else if (item.measurement === 'direction'){ // Cas spécial pour afficher une flèche directionnelle 
+                const windDirection = parseFloat(displayValue) || 135;
+                // Calculer la position sur le cercle (rayon 100px)
+                const angleRad = (windDirection - 90) * Math.PI / 180; // -90 pour que 0° soit en haut
+                const radius = 64;
+                const x = Math.cos(angleRad) * radius;
+                const y = Math.sin(angleRad) * radius;
+                
                 chartContent = `
                     <div class="wind-compass">
                         <img src="img/windRose.png" alt="Rose des vents" class="wind-rose">
-                        <img src="img/windArrow.png" alt="Direction du vent" class="wind-arrow" style="transform: translate(50ps, 50px) rotate(${windDirection}deg)">
+                        <img src="img/windArrow.png" alt="Direction du vent" class="wind-arrow" 
+                            style="transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${windDirection}deg)">
                     </div>
+                    <!-- div class="wind-controls">
+                        <label class="label-input" style="display:flex;">
+                            <span style="display:inline-block;width:7em;">angle:</span>
+                            <input type="range" value="${windDirection}" min="0" max="360" step="22.5" 
+                                onchange="updateWindDirection(this, '${item.key}')">
+                            <span style="font-variant-numeric:tabular-nums;" class="angle-display">${Math.round(windDirection)}°</span>
+                        </label>
+                    </div -->
                 `;
+                unitDisplay = '';
+            } else if (item.unit === 'dateStormRain') {
                 unitDisplay = '';
             } else {
                 chartContent = `<div id="chart_${item.key}" class="plot-container"></div>`;
             }
             
+            const fn = eval(dbSensorList?.metadata?.unit?.[item.measurement]?.avaible_units?.[item.unit]?.fnFromMetric || 'x => x');
             return `
                 <div class="condition-tile" data-key="${item.key}">
                     <div class="condition-content">
                         <div class="condition-info">
                             <div class="condition-name">${item.name}</div>
                             <div class="condition-value">
-                                ${displayValue}
-                                ${unitDisplay}
+                                ${fn(displayValue)} ${unitDisplay}
                             </div>
                             ${metaInfo}
                         </div>
@@ -609,8 +617,8 @@
                 if (item.sensorDb && dbSensorList.data && dbSensorList.data._field && 
                     dbSensorList.data._field.includes(item.sensorDb)) {
                     const chartId = `chart_${item.key}`;
-                    const param = `stepCount=240&startDate=${getStartDate(item.period)}`;
-                    loadData(selectedStation.id, item.sensorDb, chartId, param);
+                    const param = `stepCount=${item.measurement === 'rain' ? 12 : 240}&startDate=${getStartDate(item.period)}`;
+                    loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`);
                 }
             });
         }
