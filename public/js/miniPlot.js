@@ -1,15 +1,16 @@
 
         // Configuration globale
         const API_BASE_URL = 'http://probe2.lpz.ovh/query';
-        let currentData = null;
-        let currentMetadata = null;
+        // let currentData = null;
+        // let currentMetadata = null;
         function formatIsoDate(date) {
             return date.toISOString().split('T')[0];
         }
         function transformDataForPlot(apiData, metadata) {
+            const fn = eval(metadata.toUserUnit);
             return apiData.map(item => ({
                 Date: new Date(item.d),
-                Value: item.v
+                Value: fn(item.v)
             })).filter(item => !isNaN(item.Value) && item.Value !== null);
         }
         function createPlot(data, metadata, id) {
@@ -36,7 +37,7 @@
                             px: "Date", py: "Value", dy: -16,dx: 30,
                             frameAnchor: "top-right",
                             fontVariant: "tabular-nums",
-                            text: (d) => ` ${d.Value} ${metadata.unit}`
+                            text: (d) => ` ${d.Value} ${metadata.userUnit}`
                         })),
                         Plot.text(data, Plot.pointerX({
                             px: "Date", py: "Value", dy: -16,
@@ -72,11 +73,11 @@
                 if (!apiResponse.success) {
                     throw new Error(apiResponse.message || 'Erreur inconnue de l\'API');
                 }
-                currentData = apiResponse.data;
-                currentMetadata = apiResponse.metadata;
+                // currentData = apiResponse.data;
+                // currentMetadata = apiResponse.metadata;
                 // Transformation et affichage
-                const plotData = transformDataForPlot(currentData, currentMetadata);
-                createPlot(plotData, currentMetadata, id);
+                const plotData = transformDataForPlot(apiResponse.data, apiResponse.metadata);
+                createPlot(plotData, apiResponse.metadata, id);
             } catch (error) {
                 console.error('Erreur lors du chargement:', error);
             }

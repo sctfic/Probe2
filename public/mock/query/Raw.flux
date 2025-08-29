@@ -1,0 +1,7 @@
+from(bucket: "Probe2")
+   |> range(start: 1755622500, stop: 1756419600)
+   |> filter(fn: (r) => r.station_id == "VP2_Serramoune" and r._field == "barometer")
+   |> group(columns: ["unit"])
+   |> aggregateWindow(every: 199275s, fn: mean, createEmpty: false)
+   |> keep(columns: ["_time", "_field", "_value", "unit"])
+   |> sort(columns: ["_time"])

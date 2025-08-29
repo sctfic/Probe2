@@ -183,8 +183,33 @@ async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSecond
           |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'}) 
           |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "${sensorRef}")
           |> group(columns: ["unit"])
-          |> aggregateWindow(every: ${intervalSeconds}s, fn: ${sensorRef == 'rainFall' ? 'sum' : 'mean'}, createEmpty: false)
+          |> aggregateWindow(every: ${intervalSeconds}s, fn: ${sensorRef == 'rainFall' || sensorRef == 'ET' ? 'sum' : 'mean'}, createEmpty: false)
           |> keep(columns: ["_time", "_field", "_value", "unit"])
+          |> sort(columns: ["_time"])
+    `;
+    return await executeQuery(fluxQuery);
+}
+
+/**
+ * Récupère les données brutes pour une station et plusieurs capteurs spécifiques.
+ * @param {string} stationId - Identifiant de la station.
+ * @param {Array<string>} sensorRefs - Références des capteurs.
+ * @param {string} startDate - Date de début.
+ * @param {string} endDate - Date de fin.
+ * @param {number} intervalSeconds - Intervalle en secondes.
+ * @returns {Promise<Array>} Un tableau des données brutes.
+ */
+async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeconds = 3600) {
+    const sensorFilter = sensorRefs.map(ref => `r._field == "${ref}"`).join(' or ');
+
+    const fluxQuery = `
+        from(bucket: "${bucket}")
+          |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'}) 
+          |> filter(fn: (r) => r.station_id == "${stationId}" and (${sensorFilter}))
+          |> group(columns: ["_field"])
+          |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
+          |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement"])
+          |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
           |> sort(columns: ["_time"])
     `;
     return await executeQuery(fluxQuery);
@@ -265,89 +290,14 @@ function formatWindData(results, intervalSeconds) {
     // Convertir l'objet en array et trier par timestamp
     return Object.values(Data).sort((a, b) => new Date(a.d) - new Date(b.d));
 }
-// function formatWindData(results, intervalSeconds) {
-//     const formattedData = {};
-//     const allDirections = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
 
-    
-//     // Grouper par timestamp
-//     results.forEach(row => {
-//         const timeKey = row._time;
-//         const direction = row.direction;
-//         let globalUnit;        
-//         // Capturer l'unité dès le premier enregistrement
-//         if (!globalUnit && row.unit) {
-//             globalUnit = row.unit;
-//         }
-        
-//         if (!formattedData[timeKey]) {
-//             formattedData[timeKey] = {
-//                 timestamp: timeKey,
-//                 period: intervalSeconds,
-//                 unit: globalUnit || row.unit || '',
-//                 directions: {}
-//             };
-            
-//             // Initialiser toutes les directions avec des valeurs par défaut
-//             allDirections.forEach(dir => {
-//                 formattedData[timeKey].directions[dir] = {
-//                     avgSpeed: 0,
-//                     maxGust: 0
-//                 };
-//             });
-            
-//             // Ajouter N/A avec count
-//             // formattedData[timeKey].directions["N/A"] = {
-//             //     count: 0
-//             // };
-//         }
-        
-//         // Mettre à jour l'unité si elle n'était pas définie
-//         if (!formattedData[timeKey].unit && row.unit) {
-//             formattedData[timeKey].unit = row.unit;
-//         }
-        
-//         // Mettre à jour les valeurs pour la direction courante
-//         if (allDirections.includes(direction)) {
-//             if (row.speed !== null && row.speed !== undefined) {
-//                 formattedData[timeKey].directions[direction].avgSpeed = row.speed;
-//             }
-//             if (row.gust !== null && row.gust !== undefined) {
-//                 formattedData[timeKey].directions[direction].maxGust = row.gust;
-//             }
-//         // } else if (direction === "N/A") {
-//         //     formattedData[timeKey].directions["N/A"].count++;
-//         }
-//     });
-    
-//     // Convertir l'objet en array et trier par timestamp
-//     return Object.values(formattedData)
-//         .map(period => ({
-//             ...period,
-//             unit: period.unit || globalUnit || "unknown"
-//         }))
-//         .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-// }
-
-const dir = {
-    "N": { "angle": 0, "sinus": 0, "cosinus": 1 },
-    "NNE": { "angle": 22.5, "sinus": 0.3826834323650898, "cosinus": 0.9238795325112867 },
-    "NE": { "angle": 45, "sinus": 0.7071067811865475, "cosinus": 0.7071067811865476 },
-    "ENE": { "angle": 67.5, "sinus": 0.9238795325112867, "cosinus": 0.38268343236508984 },
-    "E": { "angle": 90, "sinus": 1, "cosinus": 6.123233995736766e-17 },
-    "ESE": { "angle": 112.5, "sinus": 0.9238795325112867, "cosinus": -0.3826834323650897 },
-    "SE": { "angle": 135, "sinus": 0.7071067811865476, "cosinus": -0.7071067811865475 },
-    "SSE": { "angle": 157.5, "sinus": 0.3826834323650899, "cosinus": -0.9238795325112867 },
-    "S": { "angle": 180, "sinus": 1.2246467991473532e-16, "cosinus": -1 },
-    "SSW": { "angle": 202.5, "sinus": -0.3826834323650892, "cosinus": -0.923879532511287 },
-    "SW": { "angle": 225, "sinus": -0.7071067811865475, "cosinus": -0.7071067811865477 },
-    "WSW": { "angle": 247.5, "sinus": -0.9238795325112868, "cosinus": -0.3826834323650895 },
-    "W": { "angle": 270, "sinus": -1, "cosinus": -1.8369701987210297e-16 },
-    "WNW": { "angle": 292.5, "sinus": -0.9238795325112866, "cosinus": 0.38268343236509 },
-    "NW": { "angle": 315, "sinus": -0.7071067811865477, "cosinus": 0.7071067811865474 },
-    "NNW": { "angle": 337.5, "sinus": -0.38268343236508956, "cosinus": 0.9238795325112868 }
-};
-
+/**
+ * Récupère les données pour le graphique du vent pour une station spécifique.
+ * @param {string} stationId - Identifiant de la station.
+ * @param {string} startDate - Date de début.
+ * @param {string} endDate - Date de fin.
+ * @returns {Promise<Array>} Un tableau des données pour le graphique du vent.
+ */
 async function queryWindVectors(stationId, startDate, endDate, intervalSeconds = 3600) {
     // Requête simple pour récupérer les données avec les tags de direction
     const fluxQuery = `
@@ -544,6 +494,25 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
     return await executeQuery(fluxQuery);
 }
 
+const dir = {
+    "N": { "angle": 0, "sinus": 0, "cosinus": 1 },
+    "NNE": { "angle": 22.5, "sinus": 0.3826834323650898, "cosinus": 0.9238795325112867 },
+    "NE": { "angle": 45, "sinus": 0.7071067811865475, "cosinus": 0.7071067811865476 },
+    "ENE": { "angle": 67.5, "sinus": 0.9238795325112867, "cosinus": 0.38268343236508984 },
+    "E": { "angle": 90, "sinus": 1, "cosinus": 0 },
+    "ESE": { "angle": 112.5, "sinus": 0.9238795325112867, "cosinus": -0.3826834323650897 },
+    "SE": { "angle": 135, "sinus": 0.7071067811865476, "cosinus": -0.7071067811865475 },
+    "SSE": { "angle": 157.5, "sinus": 0.3826834323650899, "cosinus": -0.9238795325112867 },
+    "S": { "angle": 180, "sinus": 0, "cosinus": -1 },
+    "SSW": { "angle": 202.5, "sinus": -0.3826834323650892, "cosinus": -0.923879532511287 },
+    "SW": { "angle": 225, "sinus": -0.7071067811865475, "cosinus": -0.7071067811865477 },
+    "WSW": { "angle": 247.5, "sinus": -0.9238795325112868, "cosinus": -0.3826834323650895 },
+    "W": { "angle": 270, "sinus": -1, "cosinus": 0 },
+    "WNW": { "angle": 292.5, "sinus": -0.9238795325112866, "cosinus": 0.38268343236509 },
+    "NW": { "angle": 315, "sinus": -0.7071067811865477, "cosinus": 0.7071067811865474 },
+    "NNW": { "angle": 337.5, "sinus": -0.38268343236508956, "cosinus": 0.9238795325112868 }
+};
+
 module.exports = {
     writePoints,
     Point,
@@ -551,6 +520,7 @@ module.exports = {
     getMetadata,
     queryDateRange,
     queryRaw,
+    queryRaws,
     queryWindRose,
     queryWindVectors,
     queryCandle,

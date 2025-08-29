@@ -1,0 +1,16 @@
+{
+    "success": true,
+    "stationId": "VP2_Serramoune",
+    "timestamp": "2025-08-28T09:42:49.079Z",
+    "data": {
+        "status": "success",
+        "message": "Connexion établie avec succès à la station VP2_Serramoune",
+        "station": {
+            "id": "VP2_Serramoune",
+            "host": "vp2",
+            "port": 22222,
+            "name": "vp2 Serramoune"
+        },
+        "timestamp": "2025-08-28T09:42:49.079Z"
+    }
+}

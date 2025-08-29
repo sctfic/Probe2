@@ -1,0 +1,21 @@
+{
+    "success": true,
+    "stationId": "VP2_Serramoune",
+    "timestamp": "2025-08-28T09:42:26.617Z",
+    "data": {
+        "stationId": "VP2_Serramoune",
+        "name": "vp2 Serramoune",
+        "location": "Serramoune, 64290 Lasseube, FR",
+        "connection": {
+            "host": "vp2",
+            "port": 22222
+        },
+        "coordinates": {
+            "latitude": 43.2,
+            "longitude": -0.5,
+            "altitude": 242.01
+        },
+        "timezone": "Europe/Paris",
+        "lastArchiveDate": "2025-08-28T11:40:00.000Z"
+    }
+}

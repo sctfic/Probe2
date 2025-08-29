@@ -1,0 +1,7 @@
+from(bucket: "Probe2")
+    |> range(start: 1755957300, stop: 1756244700)
+    |> filter(fn: (r) => r.station_id == "VP2_Serramoune")
+    |> filter(fn: (r) => r._measurement == "wind")
+    |> filter(fn: (r) => r._field == "speed" or r._field == "gust")
+    |> keep(columns: ["_time", "_field", "_value", "direction", "unit"])
+    |> yield()

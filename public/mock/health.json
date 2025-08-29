@@ -1,0 +1,29 @@
+{
+    "status": "healthy",
+    "timestamp": "2025-08-27T22:36:29.599Z",
+    "uptime": 2040.9993248,
+    "version": "0.0.31",
+    "system": {
+        "nodeVersion": "v24.5.0",
+        "platform": "win32",
+        "arch": "x64"
+    },
+    "stations": {
+        "total": 1,
+        "configured": [
+            "VP2_Serramoune"
+        ]
+    },
+    "memory": {
+        "used": 18,
+        "total": 19,
+        "external": 4,
+        "rss": 60
+    },
+    "cpu": {
+        "usage": {
+            "user": 3734000,
+            "system": 750000
+        }
+    }
+}

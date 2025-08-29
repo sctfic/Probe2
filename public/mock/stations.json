@@ -1,0 +1,13 @@
+{
+    "success": true,
+    "timestamp": "2025-08-27T22:37:15.609Z",
+    "stations": [
+        {
+            "id": "VP2_Serramoune",
+            "name": "vp2 Serramoune",
+            "location": "Serramoune, 64290 Lasseube, FR",
+            "host": "vp2",
+            "port": 22222
+        }
+    ]
+}

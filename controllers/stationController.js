@@ -2,6 +2,7 @@
 const stationService = require('../services/stationService');
 const influxdbService = require('../services/influxdbService');
 const configManager = require('../services/configManager');
+const path = require('path');
 const { V } = require('../utils/icons');
 
 exports.getStationInfo = async (req, res) => {
@@ -27,10 +28,8 @@ exports.getStationInfo = async (req, res) => {
     }
 };
 exports.getCurrentWeather = async (req, res) => {
+    const stationConfig = req.stationConfig;
     try {
-        const stationConfig = req.stationConfig;
-        console.log(`${V.thermometer} Demande de données météo pour la station ${stationConfig.id}`);
-        
         const weatherData = await stationService.getCurrentWeatherData(stationConfig);
         
         res.json({

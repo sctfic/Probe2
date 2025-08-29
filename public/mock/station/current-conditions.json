@@ -1,0 +1,139 @@
+{
+    "success": true,
+    "stationId": "VP2_Serramoune",
+    "timestamp": "2025-08-28T09:37:59.185Z",
+    "data": {
+        "barometer": {
+            "Value": 1.0134,
+            "Unit": "Bar"
+        },
+        "inTemp": {
+            "Value": 18.28,
+            "Unit": "°C"
+        },
+        "inHumidity": {
+            "Value": 70,
+            "Unit": "%"
+        },
+        "outTemp": {
+            "Value": 15.94,
+            "Unit": "°C"
+        },
+        "windSpeed": {
+            "Value": 0,
+            "Unit": "km/h"
+        },
+        "avgWindSpeed10Min": {
+            "Value": 0,
+            "Unit": "km/h"
+        },
+        "windDir": {
+            "Value": "S",
+            "Unit": "cardinal"
+        },
+        "outHumidity": {
+            "Value": 81,
+            "Unit": "%"
+        },
+        "rainRate": {
+            "Value": 0,
+            "Unit": "l/m²/h"
+        },
+        "UV": {
+            "Value": 98.64,
+            "Unit": "min"
+        },
+        "solarRadiation": {
+            "Value": 336,
+            "Unit": "w/m²"
+        },
+        "dayRain": {
+            "Value": 0,
+            "Unit": "l/m²"
+        },
+        "monthRain": {
+            "Value": 7.6,
+            "Unit": "l/m²"
+        },
+        "yearRain": {
+            "Value": 1133.8,
+            "Unit": "l/m²"
+        },
+        "dayET": {
+            "Value": 0.013,
+            "Unit": "l/m²"
+        },
+        "monthET": {
+            "Value": 2.47,
+            "Unit": "l/m²"
+        },
+        "yearET": {
+            "Value": 34.73,
+            "Unit": "l/m²"
+        },
+        "batteryVoltage": {
+            "Value": "BATTERY MISSING",
+            "Unit": "%"
+        },
+        "ForecastNum": {
+            "Value": "Sun Cloud",
+            "Unit": "ForecastClass"
+        },
+        "sunrise": {
+            "Value": "07:22",
+            "Unit": "hh:mm"
+        },
+        "sunset": {
+            "Value": "20:44",
+            "Unit": "hh:mm"
+        },
+        "avgWindSpeed2Min": {
+            "Value": 0.3219,
+            "Unit": "km/h"
+        },
+        "windGust10Min": {
+            "Value": 0.3219,
+            "Unit": "km/h"
+        },
+        "windGustDir10Min": {
+            "Value": "SSW",
+            "Unit": "cardinal"
+        },
+        "dewPoint": {
+            "Value": 12.78,
+            "Unit": "°C"
+        },
+        "heatIndex": {
+            "Value": 16.11,
+            "Unit": "°C"
+        },
+        "windChill": {
+            "Value": 16.11,
+            "Unit": "°C"
+        },
+        "THSW": {
+            "Value": 18.89,
+            "Unit": "°C"
+        },
+        "stormRain": {
+            "Value": 6.8,
+            "Unit": "l/m²"
+        },
+        "dateStormRain": {
+            "Value": "2070-00-25",
+            "Unit": "yyyy-mm-dd"
+        },
+        "last15MinRain": {
+            "Value": 0,
+            "Unit": "l/m²"
+        },
+        "lastHourRain": {
+            "Value": 0,
+            "Unit": "l/m²"
+        },
+        "last24HourRain": {
+            "Value": 0.4,
+            "Unit": "l/m²"
+        }
+    }
+}

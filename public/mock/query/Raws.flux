@@ -1,0 +1,8 @@
+ from(bucket: "Probe2")
+   |> range(start: 1755622500, stop: 1756419600)
+   |> filter(fn: (r) => r.station_id == "VP2_Serramoune" and (r._field == "barometer" or r._field == "inTemp" or r._field == "inHumidity" or r._field == "outTemp" or r._field == "outHumidity"))
+   |> group(columns: ["_field"])
+   |> aggregateWindow(every: 199275s, fn: mean, createEmpty: false)
+   |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement"])
+   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+   |> sort(columns: ["_time"])

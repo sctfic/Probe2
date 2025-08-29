@@ -1,6 +1,7 @@
 // services/stationService.js
 const fs = require('fs');
 const path = require('path');
+const net = require('net');
 const { writeRaw, sendCommand, wakeUpConsole } = require('../config/vp2NetClient');
 const { calculateCRC } = require('../utils/crc');
 const { sensorTypeMap, mapDegreesToCardinal, mapCardinalToDegrees, parseLOOP1Data, parseLOOP2Data, parseDMPRecord, processWeatherData, convertRawValue2NativeValue, conversionTable, readSignedInt16LE, readUInt16LE, readInt8, readUInt8  } = require('../utils/weatherDataParser');
@@ -752,15 +753,45 @@ async function downloadArchiveData(stationConfig, startDate, res) {
     return { status: 'success', message: `${Object.keys(allRecords).length} pages sur ${numberOfPages} archive téléchargées.`, data: allRecords };
 }
 
+async function testTCPIP(stationConfig) {
+    return new Promise((resolve, reject) => {
+        const { host, port } = stationConfig;
+        const socket = new net.Socket();
+        const timeout = 5000; // 5 secondes de timeout
+
+        socket.setTimeout(timeout);
+
+        socket.on('connect', () => {
+            console.log(`${V.network} TCP/IP connection to ${host}:${port} successful.`);
+            socket.destroy();
+            resolve();
+        });
+
+        socket.on('timeout', () => {
+            socket.destroy();
+            console.error(`${V.error} TCP/IP connection to ${host}:${port} timed out.`);
+            reject(new Error(`Connection to ${host}:${port} timed out.`));
+        });
+
+        socket.on('error', (err) => {
+            socket.destroy();
+            console.error(`${V.error} TCP/IP connection error to ${host}:${port}: ${err.message}`);
+            reject(new Error(`Failed to connect to ${host}:${port}: ${err.message}`));
+        });
+
+        console.log(`${V.network} Testing TCP/IP connection to ${host}:${port}...`);
+        socket.connect(port, host);
+    });
+}
+
 module.exports = {
     getVp2DateTime,
+    updateStationTime,
+    syncStationSettings,
+    updateArchiveConfiguration,
     getCurrentWeatherData,
     getStationInfo,
-    updateStationTime,
+    writeArchiveToInfluxDB,
     downloadArchiveData,
-    updateArchiveConfiguration,
-    syncStationSettings,
-    parseEEPROMSettingsData,
-    identifyRequiredChanges,
-    EEPROM_SETTINGS_MAP
+    testTCPIP
 };

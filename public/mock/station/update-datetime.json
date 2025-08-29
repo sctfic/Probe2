@@ -1,0 +1,12 @@
+{
+    "success": true,
+    "stationId": "VP2_Serramoune",
+    "timestamp": "2025-08-28T09:43:20.345Z",
+    "data": {
+        "status": "unchanged",
+        "message": "Décalage de 0.33 sec. OK",
+        "DateTime": "2025-08-28T11:43:20.000Z",
+        "deltaTimeSeconds": "0.33",
+        "timeZone": "Europe/Paris (Preset Index 21)"
+    }
+}

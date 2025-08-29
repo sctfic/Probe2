@@ -1,0 +1,103 @@
+{
+    "success": true,
+    "message": "(!) Last value is current !",
+    "metadata": {
+        "stationId": "VP2_Serramoune",
+        "measurement": {
+            "pressure": [
+                "barometer"
+            ],
+            "temperature": [
+                "inTemp",
+                "outTemp"
+            ],
+            "humidity": [
+                "inHumidity",
+                "outHumidity"
+            ]
+        },
+        "sensor": [
+            "barometer",
+            "inTemp",
+            "inHumidity",
+            "outTemp",
+            "outHumidity"
+        ],
+        "queryTime": "2025-08-29T00:24:17.968Z",
+        "first": "2025-08-19T16:55:00.000Z",
+        "last": "2025-08-28T22:20:00.000Z",
+        "intervalSeconds": 199275,
+        "count": 5,
+        "unit": null,
+        "userUnit": null,
+        "toUserUnit": {
+            "barometer": {
+                "fnFromMetric": "(hpa) => hpa/1000",
+                "userUnit": "Bar",
+                "metricUnit": "hpa"
+            },
+            "inTemp": {
+                "fnFromMetric": "(k) => k-273.15",
+                "userUnit": "°C",
+                "metricUnit": "K"
+            },
+            "inHumidity": {
+                "fnFromMetric": "(h) => h",
+                "userUnit": "%",
+                "metricUnit": "%"
+            },
+            "outTemp": {
+                "fnFromMetric": "(k) => k-273.15",
+                "userUnit": "°C",
+                "metricUnit": "K"
+            },
+            "outHumidity": {
+                "fnFromMetric": "(h) => h",
+                "userUnit": "%",
+                "metricUnit": "%"
+            }
+        }
+    },
+    "data": [
+        {
+            "d": "2025-08-21T21:33:45Z",
+            "barometer": 1021.58,
+            "inTemp": 296.35,
+            "inHumidity": 62.82,
+            "outTemp": 0,
+            "outHumidity": 0
+        },
+        {
+            "d": "2025-08-24T04:55:00Z",
+            "barometer": 1023.27,
+            "inTemp": 294.72,
+            "inHumidity": 62.73,
+            "outTemp": 293.83,
+            "outHumidity": 70.91
+        },
+        {
+            "d": "2025-08-26T12:16:15Z",
+            "barometer": 1013.62,
+            "inTemp": 296.29,
+            "inHumidity": 64.68,
+            "outTemp": 296.03,
+            "outHumidity": 72.92
+        },
+        {
+            "d": "2025-08-28T19:37:30Z",
+            "barometer": 1011.92,
+            "inTemp": 293.91,
+            "inHumidity": 71.97,
+            "outTemp": 292.16,
+            "outHumidity": 80.56
+        },
+        {
+            "d": "2025-08-28T22:20:00Z",
+            "barometer": 1014.48,
+            "inTemp": 290.99,
+            "inHumidity": 69.66,
+            "outTemp": 288.49,
+            "outHumidity": 81.88
+        }
+    ]
+}

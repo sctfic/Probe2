@@ -1,0 +1,303 @@
+{
+    "success": true,
+    "message": "Full data loadded !",
+    "metadata": {
+        "stationId": "VP2_Serramoune",
+        "sensor": [
+            "speed",
+            "gust"
+        ],
+        "queryTime": "2025-08-27T22:50:24.065Z",
+        "first": "2025-08-23T13:55:00.000Z",
+        "last": "2025-08-26T23:05:00.000Z",
+        "intervalSeconds": 97400,
+        "count": 4,
+        "unit": "m/s"
+    },
+    "data": [
+        {
+            "d": "2025-08-24T08:36:40Z",
+            "period": 97400,
+            "unit": "m/s",
+            "petals": {
+                "N": {
+                    "avg": 0.3,
+                    "gust": 0.4
+                },
+                "NNE": {
+                    "avg": 0,
+                    "gust": 0
+                },
+                "NE": {
+                    "avg": 0.6,
+                    "gust": 0.27
+                },
+                "ENE": {
+                    "avg": 0.2,
+                    "gust": 0.18
+                },
+                "E": {
+                    "avg": 0.4,
+                    "gust": 0.22
+                },
+                "ESE": {
+                    "avg": 0.3,
+                    "gust": 0.22
+                },
+                "SE": {
+                    "avg": 0.4,
+                    "gust": 0.22
+                },
+                "SSE": {
+                    "avg": 0.2,
+                    "gust": 0.31
+                },
+                "S": {
+                    "avg": 0.4,
+                    "gust": 0.22
+                },
+                "SSW": {
+                    "avg": 0.4,
+                    "gust": 0
+                },
+                "SW": {
+                    "avg": 0,
+                    "gust": 0
+                },
+                "WSW": {
+                    "avg": 0,
+                    "gust": 0.31
+                },
+                "W": {
+                    "avg": 0,
+                    "gust": 0
+                },
+                "WNW": {
+                    "avg": 0.4,
+                    "gust": 0.13
+                },
+                "NW": {
+                    "avg": 0.4,
+                    "gust": 0.18
+                },
+                "NNW": {
+                    "avg": 0.4,
+                    "gust": 0.27
+                }
+            }
+        },
+        {
+            "d": "2025-08-25T11:40:00Z",
+            "period": 97400,
+            "unit": "m/s",
+            "petals": {
+                "N": {
+                    "avg": 0.2,
+                    "gust": 0.27
+                },
+                "NNE": {
+                    "avg": 0.1,
+                    "gust": 0.13
+                },
+                "NE": {
+                    "avg": 0.1,
+                    "gust": 0.13
+                },
+                "ENE": {
+                    "avg": 0,
+                    "gust": 0.22
+                },
+                "E": {
+                    "avg": 0.2,
+                    "gust": 0.22
+                },
+                "ESE": {
+                    "avg": 0.3,
+                    "gust": 0.22
+                },
+                "SE": {
+                    "avg": 0.3,
+                    "gust": 0.22
+                },
+                "SSE": {
+                    "avg": 0.1,
+                    "gust": 0.31
+                },
+                "S": {
+                    "avg": 0,
+                    "gust": 0.18
+                },
+                "SSW": {
+                    "avg": 0,
+                    "gust": 0.04
+                },
+                "SW": {
+                    "avg": 0,
+                    "gust": 0.13
+                },
+                "WSW": {
+                    "avg": 0.1,
+                    "gust": 0.22
+                },
+                "W": {
+                    "avg": 0,
+                    "gust": 0.22
+                },
+                "WNW": {
+                    "avg": 0.2,
+                    "gust": 0.18
+                },
+                "NW": {
+                    "avg": 0.3,
+                    "gust": 0.27
+                },
+                "NNW": {
+                    "avg": 0.5,
+                    "gust": 0.18
+                }
+            }
+        },
+        {
+            "d": "2025-08-26T14:43:20Z",
+            "period": 97400,
+            "unit": "m/s",
+            "petals": {
+                "N": {
+                    "avg": 0.1,
+                    "gust": 0.22
+                },
+                "NNE": {
+                    "avg": 0.1,
+                    "gust": 0.09
+                },
+                "NE": {
+                    "avg": 0,
+                    "gust": 0.18
+                },
+                "ENE": {
+                    "avg": 0.1,
+                    "gust": 0.13
+                },
+                "E": {
+                    "avg": 0,
+                    "gust": 0.13
+                },
+                "ESE": {
+                    "avg": 0,
+                    "gust": 0.13
+                },
+                "SE": {
+                    "avg": 0.1,
+                    "gust": 0.09
+                },
+                "SSE": {
+                    "avg": 0,
+                    "gust": 0.18
+                },
+                "S": {
+                    "avg": 0,
+                    "gust": 0.04
+                },
+                "SSW": {
+                    "avg": 0,
+                    "gust": 0.04
+                },
+                "SW": {
+                    "avg": 0,
+                    "gust": 0.09
+                },
+                "WSW": {
+                    "avg": 0.1,
+                    "gust": 0.18
+                },
+                "W": {
+                    "avg": 0,
+                    "gust": 0.13
+                },
+                "WNW": {
+                    "avg": 0.1,
+                    "gust": 0.04
+                },
+                "NW": {
+                    "avg": 0.2,
+                    "gust": 0.18
+                },
+                "NNW": {
+                    "avg": 0.2,
+                    "gust": 0.09
+                }
+            }
+        },
+        {
+            "d": "2025-08-26T23:05:00Z",
+            "period": 97400,
+            "unit": "m/s",
+            "petals": {
+                "N": {
+                    "avg": 0,
+                    "gust": 0.04
+                },
+                "NNE": {
+                    "avg": 0,
+                    "gust": 0
+                },
+                "NE": {
+                    "avg": 0,
+                    "gust": 0
+                },
+                "ENE": {
+                    "avg": 0,
+                    "gust": 0
+                },
+                "E": {
+                    "avg": 0,
+                    "gust": 0
+                },
+                "ESE": {
+                    "avg": 0,
+                    "gust": 0
+                },
+                "SE": {
+                    "avg": 0,
+                    "gust": 0.04
+                },
+                "SSE": {
+                    "avg": 0,
+                    "gust": 0.09
+                },
+                "S": {
+                    "avg": 0,
+                    "gust": 0.04
+                },
+                "SSW": {
+                    "avg": 0,
+                    "gust": 0.09
+                },
+                "SW": {
+                    "avg": 0,
+                    "gust": 0
+                },
+                "WSW": {
+                    "avg": 0,
+                    "gust": 0.13
+                },
+                "W": {
+                    "avg": 0.4,
+                    "gust": 0.22
+                },
+                "WNW": {
+                    "avg": 0,
+                    "gust": 0
+                },
+                "NW": {
+                    "avg": 0,
+                    "gust": 0
+                },
+                "NNW": {
+                    "avg": 0,
+                    "gust": 0
+                }
+            }
+        }
+    ]
+}

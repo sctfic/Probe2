@@ -1,0 +1,67 @@
+{
+    "success": true,
+    "message": "Full data loadded !",
+    "metadata": {
+        "stationId": "VP2_Serramoune",
+        "sensor": [
+            "speed",
+            "gust"
+        ],
+        "queryTime": "2025-08-27T22:51:00.722Z",
+        "first": "2025-08-23T13:55:00.000Z",
+        "last": "2025-08-26T23:05:00.000Z",
+        "intervalSeconds": 97400,
+        "count": 4,
+        "unit": "m/s"
+    },
+    "data": [
+        {
+            "time": "2025-08-23T05:33:20.000Z",
+            "unit": "m/s",
+            "avgVector": {
+                "speed": 0.178,
+                "direction": 6.698
+            },
+            "gustVector": {
+                "speed": 4.023,
+                "direction": 0
+            }
+        },
+        {
+            "time": "2025-08-24T08:36:40.000Z",
+            "unit": "m/s",
+            "avgVector": {
+                "speed": 0.189,
+                "direction": 12.106
+            },
+            "gustVector": {
+                "speed": 3.129,
+                "direction": 157.5
+            }
+        },
+        {
+            "time": "2025-08-25T11:40:00.000Z",
+            "unit": "m/s",
+            "avgVector": {
+                "speed": 0.361,
+                "direction": 345.274
+            },
+            "gustVector": {
+                "speed": 2.235,
+                "direction": 0
+            }
+        },
+        {
+            "time": "2025-08-26T14:43:20.000Z",
+            "unit": "m/s",
+            "avgVector": {
+                "speed": 0.447,
+                "direction": 270
+            },
+            "gustVector": {
+                "speed": 2.235,
+                "direction": 270
+            }
+        }
+    ]
+}

@@ -1,0 +1,103 @@
+{
+    "success": true,
+    "stationId": "VP2_Serramoune",
+    "timestamp": "2025-08-28T09:50:12.114Z",
+    "data": {
+        "status": "success",
+        "message": "2 pages sur 1 archive téléchargées.",
+        "data": {
+            "2025-08-28T11:45:00.000Z": {
+                "inTemp": {
+                    "Value": 291.6,
+                    "Unit": "K"
+                },
+                "outTemp": {
+                    "Value": 289,
+                    "Unit": "K"
+                },
+                "barometer": {
+                    "Value": 1013.5,
+                    "Unit": "hpa"
+                },
+                "inHumidity": {
+                    "Value": 70,
+                    "Unit": "%"
+                },
+                "outHumidity": {
+                    "Value": 81,
+                    "Unit": "%"
+                },
+                "rainFall": {
+                    "Value": 0,
+                    "Unit": "mm"
+                },
+                "UV": {
+                    "Value": 1.6,
+                    "Unit": "index"
+                },
+                "UVMax": {
+                    "Value": 1.9,
+                    "Unit": "index"
+                },
+                "solarRadiation": {
+                    "Value": 276,
+                    "Unit": "w/m²"
+                },
+                "solarRadiationMax": {
+                    "Value": 327,
+                    "Unit": "w/m²"
+                },
+                "ForecastNum": {
+                    "Value": 75,
+                    "Unit": "ForecastClass"
+                }
+            },
+            "2025-08-28T11:50:00.000Z": {
+                "inTemp": {
+                    "Value": 291.6,
+                    "Unit": "K"
+                },
+                "outTemp": {
+                    "Value": 288.9,
+                    "Unit": "K"
+                },
+                "barometer": {
+                    "Value": 1013.5,
+                    "Unit": "hpa"
+                },
+                "inHumidity": {
+                    "Value": 70,
+                    "Unit": "%"
+                },
+                "outHumidity": {
+                    "Value": 81,
+                    "Unit": "%"
+                },
+                "rainFall": {
+                    "Value": 0,
+                    "Unit": "mm"
+                },
+                "UV": {
+                    "Value": 1.5,
+                    "Unit": "index"
+                },
+                "UVMax": {
+                    "Value": 1.5,
+                    "Unit": "index"
+                },
+                "solarRadiation": {
+                    "Value": 235,
+                    "Unit": "w/m²"
+                },
+                "solarRadiationMax": {
+                    "Value": 243,
+                    "Unit": "w/m²"
+                },
+                "ForecastNum": {
+                    "Value": 75,
+                    "Unit": "ForecastClass"
+                }
+            }
+        }
+    }
+}

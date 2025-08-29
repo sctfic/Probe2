@@ -1,0 +1,76 @@
+{
+    "success": true,
+    "timestamp": "2025-08-28T09:37:59.202Z",
+    "stationId": "VP2_Serramoune",
+    "settings": {
+        "id": "VP2_Serramoune",
+        "name": "vp2 Serramoune",
+        "comment": "Cabled Plus, alban",
+        "host": "vp2",
+        "port": 22222,
+        "location": "Serramoune, 64290 Lasseube, FR",
+        "longitude": {
+            "desired": -0.479921,
+            "lastReadValue": -0.5
+        },
+        "latitude": {
+            "desired": 43.20759,
+            "lastReadValue": 43.2
+        },
+        "altitude": {
+            "comment": "in meters",
+            "desired": 242,
+            "lastReadValue": 242.01
+        },
+        "timezone": {
+            "comment": "Time zone detected by GPS position",
+            "value": "Europe/Paris",
+            "desired": 21,
+            "lastReadValue": 21,
+            "method": "GPS"
+        },
+        "AMPMMode": {
+            "comment": "0=AM/PM, 1=24h",
+            "desired": 1,
+            "lastReadValue": 1
+        },
+        "dateFormat": {
+            "comment": "0=Month/Day, 1=Day/Month",
+            "desired": 1,
+            "lastReadValue": 1
+        },
+        "windCupSize": {
+            "comment": "0=Small, 1=Large",
+            "desired": 1,
+            "lastReadValue": 1
+        },
+        "rainCollectorSize": {
+            "comment": "0=0.01in, 1=0.2mm, 2=0.1mm",
+            "desired": 1,
+            "lastReadValue": 1
+        },
+        "rainSaisonStart": {
+            "comment": "Month for yearly rain reset",
+            "desired": 1,
+            "lastReadValue": 1
+        },
+        "latitudeNorthSouth": {
+            "comment": "0=South, 1=North",
+            "desired": 1,
+            "lastReadValue": 1
+        },
+        "longitudeEastWest": {
+            "comment": "0=East, 1=West",
+            "desired": 0,
+            "lastReadValue": 0
+        },
+        "archiveInterval": {
+            "comment": "Archive period in minutes",
+            "desired": 5,
+            "lastReadValue": 5
+        },
+        "lastArchiveDate": "2025-08-28T11:35:00.000Z",
+        "deltaTimeSeconds": 1.142,
+        "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\VP2_Serramoune.json"
+    }
+}

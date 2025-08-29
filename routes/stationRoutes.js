@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { loadStationConfig, withStationLamps } = require('../middleware/stationMiddleware');
 const stationController = require('../controllers/stationController');
+const stationService = require('../services/stationService');
 const { V } = require('../utils/icons');
 
 // Middleware pour toutes les routes de stations
@@ -32,31 +33,7 @@ router.get('/:stationId/sync-settings', withStationLamps(async (req, res) => { /
 }));
 
 // Route pour tester la connexion à une station
-router.get('/:stationId/test', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/test
-    const stationConfig = req.stationConfig;
-    const { wakeUpConsole } = require('../config/vp2NetClient');
-    
-    try {
-        console.log(`${V.satellite} Test de connexion à la station ${stationConfig.id}`);
-        await wakeUpConsole(stationConfig);
-        
-        return {
-            status: 'success',
-            message: `Connexion établie avec succès à la station ${stationConfig.id}`,
-            station: {
-                id: stationConfig.id,
-                host: stationConfig.host,
-                port: stationConfig.port,
-                name: stationConfig.name || stationConfig.id
-                
-            },
-            timestamp: new Date().toISOString()
-        };
-    } catch (error) {
-        console.error(`${V.error} Erreur de connexion à la station ${stationConfig.id}:`, error);
-        throw new Error(`Impossible de se connecter à la station: ${error.message}`);
-    }
-}));
+router.get('/:stationId/test', (async (req, res) => { return await stationService.testTCPIP(req.stationConfig); })); // http://probe2.lpz.ovh/api/station/VP2_Serramoune/test
 
 // Route pour obtenir la configuration d'une station
 router.get('/:stationId', (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/config

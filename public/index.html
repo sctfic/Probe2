@@ -234,11 +234,19 @@
 
             showConditionsStatus('Chargement des données météo...', 'loading');
 
+            let data, api0;
             try {
-                const api0 = await fetch(`/api/station/${selectedStation.id}/current-conditions`);
+                try {
+                    // en cas de status code erreur, on essaie de charger les données mockées
+                    api0 = await fetch(`/api/station/${selectedStation.id}/current-conditions`, { cache: 'no-cache' });
+                } catch (error) {
+                    console.warn('Données mock chargées', error.message);
+                    api0 = await fetch(`/mock/station/current-conditions.json`);
+                }
+                console.log(api0.url);
+
                 if (!api0.ok) throw new Error('Erreur de récupération des données');
-                const data = await api0.json();
-                
+                data = await api0.json();                
                 const api1 = await fetch(`/query/${selectedStation.id}`);
                 if (!api1.ok) console.log('Erreur de récupération des _field');
                 dbSensorList = await api1.json();

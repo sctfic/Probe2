@@ -2,6 +2,7 @@
 const influxdbService = require('../services/influxdbService');
 const { V } = require('../utils/icons');
 const units = require('../config/Units.json');
+const { sensorTypeMap } = require('../utils/weatherDataParser');
 
 // Generic function to handle responses
 // const handleResponse = (res, stationId, data, format = 'json', unit = null, message = null) => {
@@ -71,6 +72,8 @@ exports.getQueryMetadata = async (req, res) => {
                 intervalSeconds: null,
                 count: null,
                 unit: units,
+                userUnit: null,
+                toUserUnit: null
             },
             data: data
         });
@@ -101,7 +104,9 @@ exports.getQueryRange = async (req, res) => {
                 last: data.lastUtc ? new Date(data.lastUtc).toISOString() : null,
                 intervalSeconds: data.count > 0 ? Math.round((new Date(data.lastUtc).getTime() - new Date(data.firstUtc).getTime()) / data.count)/1000 : null,
                 count: data.count,
-                unit: data.unit || ''
+                unit: data.unit || '',
+                userUnit: units?.[sensorTypeMap[sensorRef]]?.user || '',
+                toUserUnit: units?.[sensorTypeMap[sensorRef]]?.avaible_units?.[units?.[sensorTypeMap[sensorRef]]?.user]?.fnFromMetric || null
             },
             data: []
         });
@@ -146,6 +151,7 @@ exports.getQueryRaw = async (req, res) => {
             message: msg,
             metadata: {
                 stationId: stationId,
+                measurement: sensorTypeMap[sensorRef],
                 sensor: sensorRef,
                 queryTime: new Date().toISOString(),
                 first: new Date(start).toISOString(),
@@ -153,6 +159,89 @@ exports.getQueryRaw = async (req, res) => {
                 intervalSeconds: intervalSeconds,
                 count: Data.length,
                 unit: data[0]?.unit || '',
+                userUnit: units?.[sensorTypeMap[sensorRef]]?.user || '',
+                toUserUnit: units?.[sensorTypeMap[sensorRef]]?.avaible_units?.[units?.[sensorTypeMap[sensorRef]]?.user]?.fnFromMetric || null
+            },
+            data: Data
+        });
+    } catch (error) {
+        handleError(res, stationId, error, 'getQueryRaw');
+    }
+};
+
+exports.getQueryRaws = async (req, res) => {
+    const { stationId, sensorRefs: sensorRefsStr } = req.params;
+    const { startDate, endDate, stepCount: stepCountStr } = req.query;
+    const stepCount = stepCountStr ? parseInt(stepCountStr, 10) : 100000;
+
+    if (!stationId || !sensorRefsStr) {
+        return res.status(400).json({ success: false, error: 'Les paramètres stationId et sensorRefs sont requis.' });
+    }
+
+    let sensorRefs = sensorRefsStr.split(',');
+    // on retire les doublons, les vides, 'ET' et 'rain'
+    sensorRefs = sensorRefs.filter((ref, index) => ref && ref !== 'ET' && ref !== 'rain' && sensorRefs.indexOf(ref) === index);
+
+    if (sensorRefs.length === 0) {
+        return res.status(400).json({ success: false, error: 'Aucun capteur valide dans sensorRefs.' });
+    }
+
+    try {
+        // Use the first sensor to determine the overall time range and interval
+        const { start, end, intervalSeconds } = await getIntervalSeconds(stationId, sensorRefs[0], startDate, endDate, stepCount);
+
+        const data = await influxdbService.queryRaws(stationId, sensorRefs, start / 1000, end / 1000, intervalSeconds);
+        const Data = data.map(row => {
+            let result = {
+                d: row._time
+            };
+            sensorRefs.forEach(ref => {
+                result[ref] = Math.round(row[ref] * 100) / 100;
+            });
+            return result;
+        });
+        let msg = 'Full data loadded !';
+        if (Data.length==stepCount+1 && new Date(Data[Data.length-1].d).getTime()==end) {
+            // Data.pop(); // supprimer la derniere valeur, qui est la derniere valeur de la plage avant agregation
+            msg = '(!) Last value is current !';
+        } else if (Data.length < stepCount) {
+            msg = '<!> Data missing suspected !';
+        }
+        // object avec une propriete au nom de chaque sensorTypeMap[ref] contenant l'unité user, metric et fnFromMetric
+        const measurementUnits = sensorRefs.reduce((acc, ref) => {
+            // si acc[sensorTypeMap[ref]] n'existe pas, l'initialiser
+            if (!acc[sensorTypeMap[ref]]) {
+                acc[sensorTypeMap[ref]] = [ref];
+            } else {
+                acc[sensorTypeMap[ref]].push(ref);
+            }
+            return acc;
+        }, {});
+        const sensorsFnFromMetric = sensorRefs.reduce((acc, ref) => {
+            // si acc[sensorTypeMap[ref]] n'existe pas, l'initialiser
+            acc[ref] = {
+                fnFromMetric: units?.[sensorTypeMap[ref]]?.avaible_units?.[units?.[sensorTypeMap[ref]]?.user]?.fnFromMetric,
+                userUnit: units?.[sensorTypeMap[ref]]?.user,
+                metricUnit: units?.[sensorTypeMap[ref]]?.metric
+            };
+            return acc;
+        }, {});
+
+        res.json({
+            success: true,
+            message: msg,
+            metadata: {
+                stationId: stationId,
+                measurement: measurementUnits,
+                sensor: sensorRefs,
+                queryTime: new Date().toISOString(),
+                first: new Date(start).toISOString(),
+                last: new Date(end).toISOString(),
+                intervalSeconds: intervalSeconds,
+                count: Data.length,
+                unit: null,
+                userUnit: null,
+                toUserUnit: sensorsFnFromMetric
             },
             data: Data
         });
@@ -205,7 +294,9 @@ exports.getQueryCandle = async (req, res) => {
                 last: new Date(end).toISOString(),
                 intervalSeconds: intervalSeconds,
                 count: Data.length,
-                unit: data[0]?.unit || ''
+                unit: data[0]?.unit || '',
+                userUnit: units?.[sensorTypeMap[sensorRef]]?.user || '',
+                toUserUnit: units?.[sensorTypeMap[sensorRef]]?.avaible_units?.[units?.[sensorTypeMap[sensorRef]]?.user]?.fnFromMetric || null
             },
             data: Data
         });
@@ -245,7 +336,9 @@ exports.getQueryWindRose = async (req, res) => {
                 last: new Date(end).toISOString(),
                 intervalSeconds: intervalSeconds,
                 count: data.length,
-                unit: data[0]?.unit || ''
+                unit: data[0]?.unit || '',
+                userUnit: units?.['speed']?.user || '',
+                toUserUnit: units?.['speed']?.avaible_units?.[units?.['speed']?.user]?.fnFromMetric || null
             },
             data: data
         });
@@ -284,7 +377,9 @@ exports.getQueryWindVectors = async (req, res) => {
                 last: new Date(end).toISOString(),
                 intervalSeconds: intervalSeconds,
                 count: data.length,
-                unit: data[0]?.unit || ''
+                unit: data[0]?.unit || '',
+                userUnit: units?.['speed']?.user || '',
+                toUserUnit: units?.['speed']?.avaible_units?.[units?.['speed']?.user]?.fnFromMetric || null
             },
             data: data
         });

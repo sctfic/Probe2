@@ -1,0 +1,30 @@
+{
+    "name": "Probe2 API",
+    "version": "0.0.31",
+    "description": "API pour la surveillance de stations météorologiques Davis Vantage Pro 2",
+    "status": "running",
+    "timestamp": "2025-08-27T22:36:56.213Z",
+    "uptime": 2067.6140736,
+    "nodeVersion": "v24.5.0",
+    "platform": "win32",
+    "arch": "x64",
+    "stations": {
+        "count": 1,
+        "configured": [
+            {
+                "id": "VP2_Serramoune",
+                "host": "vp2",
+                "port": 22222,
+                "name": "vp2 Serramoune",
+                "location": "Serramoune, 64290 Lasseube, FR"
+            }
+        ]
+    },
+    "endpoints": {
+        "info": "/api/info",
+        "health": "/api/health",
+        "stations": "/api/stations",
+        "station": "/api/station/:stationId/*",
+        "config": "/api/station/:stationId/config"
+    }
+}
