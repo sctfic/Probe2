@@ -622,6 +622,12 @@ label {
     padding: 20px;
 }
 
+
+
+
+
+
+
 /* Styles pour la tuile de prévision météo ForecastIcon */
 
 .weather-forecast-container {
@@ -641,7 +647,7 @@ label {
     top: 33%;
     left: 50%;
     transform: translate(-50%, -50%);
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    transition: opacity 0.5s ease, transform 1s ease;
 }
 
 .weather-icon.active {
@@ -654,7 +660,8 @@ label {
 .weather-sun {
     top: 20%;
     left: 40%;
-    opacity: 1;}
+    opacity: 1;
+}
 
 .weather-sun.active {
     filter: drop-shadow(0 0 10px #FFD700);
@@ -689,7 +696,49 @@ label {
 .weather-snow.active {
     filter: drop-shadow(0 0 10px #F0F8FF);
 }
+/* Définition des animations */
+@keyframes sunPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.1); }
+}
 
+@keyframes cloudFloat {
+    0%, 100% { 
+        transform: translate(-50%, -50%); 
+        opacity: 0.8; 
+    }
+    50% { 
+        transform: translate(calc(-50% + 10%), -50%); 
+        opacity: 0.5; 
+    }
+}
+
+@keyframes rainSway {
+    0%, 100% { transform: translate(-50%, -50%); }
+    50% { transform: translate(calc(-50% - 10%), -50%); }
+}
+
+@keyframes snowDrift {
+    0%, 100% { transform: translate(-50%, -50%); }
+    50% { transform: translate(calc(-50% + 10%), -50%); }
+}
+
+/* Animations au survol du conteneur */
+.weather-forecast-container:hover .weather-sun {
+    animation: sunPulse 2s ease-in-out;
+}
+
+.weather-forecast-container:hover .weather-cloud {
+    animation: cloudFloat 3s ease-in-out;
+}
+
+.weather-forecast-container:hover .weather-rain {
+    animation: rainSway 2.5s ease-in-out;
+}
+
+.weather-forecast-container:hover .weather-snow {
+    animation: snowDrift 3.5s ease-in-out;
+}
 /* Nom de la météo affiché en bas */
 .weather-name {
     position: absolute;
@@ -715,6 +764,9 @@ label {
 .condition-tile[data-key="ForecastIcon"]:hover .weather-icon.active {
     transform: translate(-50%, -50%) scale(1.2);
 }
+
+
+
 
 
 

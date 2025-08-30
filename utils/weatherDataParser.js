@@ -129,7 +129,6 @@ function parseDMPRecord(recordBuffer) {
     record.extraSoilMoisture2 = { value: readUInt8(recordBuffer, 49), native_unit: "percent" };
     record.extraSoilMoisture3 = { value: readUInt8(recordBuffer, 50), native_unit: "percent" };
     record.extraSoilMoisture4 = { value: readUInt8(recordBuffer, 51), native_unit: "percent" };
-
     return record;
 }
 
@@ -369,9 +368,12 @@ function processWeatherData(weatherData, stationConfig, UnitsType='metric') {
     for (const [key, data] of Object.entries(weatherData)) {
         if (!isNaN(data.value)) { // on illimine les capteurs sans valeur !
             const nativeValue = convertRawValue2NativeValue(data.value, data.native_unit, stationConfig);
+            const userUnit = units[sensorTypeMap[key]]?.["user"];
             processed[key] = {
                 Value: convertToUnit(nativeValue, key, UnitsType),
-                Unit: units[sensorTypeMap[key]]?.[UnitsType] || data.native_unit
+                Unit: units[sensorTypeMap[key]]?.[UnitsType] || data.native_unit,
+                userUnit: userUnit,
+                toUserUnit: units[sensorTypeMap[key]]?.avaible_units?.[userUnit]?.["fnFromMetric"]
             };
         }
     }

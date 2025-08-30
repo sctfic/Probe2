@@ -586,6 +586,7 @@
                 chartContent = `<div id="chart_${item.key}" class="plot-container"></div>`;
             }
             
+            console.log(item.unit, dbSensorList?.metadata?.unit?.[item.measurement]);
             const fn = eval(dbSensorList?.metadata?.unit?.[item.measurement]?.avaible_units?.[item.unit]?.fnFromMetric || 'x => x');
             return `
                 <div class="condition-tile" data-key="${item.key}">

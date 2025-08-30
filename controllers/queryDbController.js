@@ -181,7 +181,7 @@ exports.getQueryRaws = async (req, res) => {
 
     let sensorRefs = sensorRefsStr.split(',');
     // on retire les doublons, les vides, 'ET' et 'rain'
-    sensorRefs = sensorRefs.filter((ref, index) => ref && ref !== 'ET' && ref !== 'rain' && sensorRefs.indexOf(ref) === index);
+    // sensorRefs = sensorRefs.filter((ref, index) => ref && ref !== 'ET' && ref !== 'rain' && sensorRefs.indexOf(ref) === index);
 
     if (sensorRefs.length === 0) {
         return res.status(400).json({ success: false, error: 'Aucun capteur valide dans sensorRefs.' });
@@ -221,9 +221,9 @@ exports.getQueryRaws = async (req, res) => {
         const sensorsFnFromMetric = sensorRefs.reduce((acc, ref) => {
             // si acc[sensorTypeMap[ref]] n'existe pas, l'initialiser
             acc[ref] = {
-                fnFromMetric: units?.[sensorTypeMap[ref]]?.avaible_units?.[units?.[sensorTypeMap[ref]]?.user]?.fnFromMetric,
+                unit: units?.[sensorTypeMap[ref]]?.metric,
                 userUnit: units?.[sensorTypeMap[ref]]?.user,
-                metricUnit: units?.[sensorTypeMap[ref]]?.metric
+                toUserUnit: units?.[sensorTypeMap[ref]]?.avaible_units?.[units?.[sensorTypeMap[ref]]?.user]?.fnFromMetric,
             };
             return acc;
         }, {});
@@ -337,7 +337,7 @@ exports.getQueryWindRose = async (req, res) => {
                 last: new Date(end).toISOString(),
                 intervalSeconds: intervalSeconds,
                 count: data.length,
-                unit: data[0]?.unit || '',
+                unit: units?.['speed']?.metric || '',
                 userUnit: units?.['speed']?.user || '',
                 toUserUnit: units?.['speed']?.avaible_units?.[units?.['speed']?.user]?.fnFromMetric || null
             },
@@ -378,7 +378,7 @@ exports.getQueryWindVectors = async (req, res) => {
                 last: new Date(end).toISOString(),
                 intervalSeconds: intervalSeconds,
                 count: data.length,
-                unit: data[0]?.unit || '',
+                unit: units?.['speed']?.metric || '',
                 userUnit: units?.['speed']?.user || '',
                 toUserUnit: units?.['speed']?.avaible_units?.[units?.['speed']?.user]?.fnFromMetric || null
             },

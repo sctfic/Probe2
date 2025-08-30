@@ -18,7 +18,7 @@ router.get('/:stationId/Range/:sensorRef', queryDbController.getQueryRange); // 
 router.get('/:stationId/Raw/:sensorRef', queryDbController.getQueryRaw); // http://probe2.lpz.ovh/query/VP2_Serramoune/Raw/barometer?startDate=2025-08-21T00:00:00.000Z&endDate=2025-08-21T23:00:00.000Z
 
 // Route to get raw data for many sensors (startDate and endDate are optional)
-router.get('/:stationId/Raws/:sensorRefs', queryDbController.getQueryRaws); // http://probe2.lpz.ovh/query/VP2_Serramoune/Raws/barometer,inTemp?stepCount=12&startDate=2025-08-21T00:00:00.000Z&endDate=2025-08-21T23:00:00.000Z
+router.get('/:stationId/Raws/:sensorRefs', queryDbController.getQueryRaws); // http://probe2.lpz.ovh/query/VP2_Serramoune/Raws/barometer,inTemp,UV?stepCount=12&startDate=2025-08-21T00:00:00.000Z&endDate=2025-08-21T23:00:00.000Z
 
 // Route to get wind data (startDate and endDate are optional)
 router.get('/:stationId/WindRose', queryDbController.getQueryWindRose); // http://probe2.lpz.ovh/query/VP2_Serramoune/WindRose?startDate=2025-08-21T00:00:00.000Z&endDate=2025-08-21T23:00:00.000Z

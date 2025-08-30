@@ -200,18 +200,78 @@ async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSecond
  * @returns {Promise<Array>} Un tableau des données brutes.
  */
 async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeconds = 3600) {
-    const sensorFilter = sensorRefs.map(ref => `r._field == "${ref}"`).join(' or ');
-
-    const fluxQuery = `
-        from(bucket: "${bucket}")
-          |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'}) 
-          |> filter(fn: (r) => r.station_id == "${stationId}" and (${sensorFilter}))
-          |> group(columns: ["_field"])
-          |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
-          |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement"])
-          |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
-          |> sort(columns: ["_time"])
-    `;
+    // Définir les champs qui doivent être sommés (mesures de pluie/évapotranspiration)
+    const rainFields = ['rainFall', 'ET'];
+    
+    // Séparer les champs en deux groupes
+    const rainSensors = sensorRefs.filter(ref => rainFields.includes(ref));
+    const otherSensors = sensorRefs.filter(ref => !rainFields.includes(ref));
+    
+    // Construire les filtres
+    const rainFilter = rainSensors.length > 0 
+        ? rainSensors.map(ref => `r._field == "${ref}"`).join(' or ')
+        : null;
+    const otherFilter = otherSensors.length > 0
+        ? otherSensors.map(ref => `r._field == "${ref}"`).join(' or ')
+        : null;
+    
+    // Construire la requête Flux
+    let fluxQuery = '';
+    
+    // Requête pour les champs à sommer (rain)
+    if (rainFilter) {
+        fluxQuery += `
+        rainData = from(bucket: "${bucket}")
+            |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
+            |> filter(fn: (r) => r.station_id == "${stationId}" and (${rainFilter}))
+            |> group(columns: ["_field"])
+            |> aggregateWindow(every: ${intervalSeconds}s, fn: sum, createEmpty: false)
+            |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement"])
+        `;
+    }
+    
+    // Requête pour les champs à moyenner
+    if (otherFilter) {
+        if (rainFilter) {
+            fluxQuery += '\n';
+        }
+        fluxQuery += `
+        otherData = from(bucket: "${bucket}")
+            |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
+            |> filter(fn: (r) => r.station_id == "${stationId}" and (${otherFilter}))
+            |> group(columns: ["_field"])
+            |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
+            |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement"])
+        `;
+    }
+    
+    // Combiner les résultats si nécessaire
+    if (rainFilter && otherFilter) {
+        fluxQuery += `
+        
+        union(tables: [rainData, otherData])
+            |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+            |> sort(columns: ["_time"])
+            |> yield()
+        `;
+    } else if (rainFilter) {
+        fluxQuery += `
+        
+        rainData
+            |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+            |> sort(columns: ["_time"])
+            |> yield()
+        `;
+    } else if (otherFilter) {
+        fluxQuery += `
+        
+        otherData
+            |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+            |> sort(columns: ["_time"])
+            |> yield()
+        `;
+    }
+    
     return await executeQuery(fluxQuery);
 }
 
@@ -306,7 +366,7 @@ async function queryWindVectors(stationId, startDate, endDate, intervalSeconds =
             |> filter(fn: (r) => r.station_id == "${stationId}")
             |> filter(fn: (r) => r._measurement == "wind")
             |> filter(fn: (r) => r._field == "speed" or r._field == "gust")
-            |> keep(columns: ["_time", "_field", "_value", "direction", "unit"])
+            |> keep(columns: ["_time", "_field", "_value", "direction"])
             |> yield()
     `;
     
@@ -319,6 +379,24 @@ async function queryWindVectors(stationId, startDate, endDate, intervalSeconds =
     }
 }
 
+const dir = {
+    "N": { "angle": 0, "sinus": 0, "cosinus": 1 },
+    "NNE": { "angle": 22.5, "sinus": 0.3826834323650898, "cosinus": 0.9238795325112867 },
+    "NE": { "angle": 45, "sinus": 0.7071067811865475, "cosinus": 0.7071067811865476 },
+    "ENE": { "angle": 67.5, "sinus": 0.9238795325112867, "cosinus": 0.38268343236508984 },
+    "E": { "angle": 90, "sinus": 1, "cosinus": 0 },
+    "ESE": { "angle": 112.5, "sinus": 0.9238795325112867, "cosinus": -0.3826834323650897 },
+    "SE": { "angle": 135, "sinus": 0.7071067811865476, "cosinus": -0.7071067811865475 },
+    "SSE": { "angle": 157.5, "sinus": 0.3826834323650899, "cosinus": -0.9238795325112867 },
+    "S": { "angle": 180, "sinus": 0, "cosinus": -1 },
+    "SSW": { "angle": 202.5, "sinus": -0.3826834323650892, "cosinus": -0.923879532511287 },
+    "SW": { "angle": 225, "sinus": -0.7071067811865475, "cosinus": -0.7071067811865477 },
+    "WSW": { "angle": 247.5, "sinus": -0.9238795325112868, "cosinus": -0.3826834323650895 },
+    "W": { "angle": 270, "sinus": -1, "cosinus": 0 },
+    "WNW": { "angle": 292.5, "sinus": -0.9238795325112866, "cosinus": 0.38268343236509 },
+    "NW": { "angle": 315, "sinus": -0.7071067811865477, "cosinus": 0.7071067811865474 },
+    "NNW": { "angle": 337.5, "sinus": -0.38268343236508956, "cosinus": 0.9238795325112868 }
+};
 function processWindVectorsWithTags(data, intervalSeconds) {
     if (!data || data.length === 0) {
         return [];
@@ -348,10 +426,6 @@ function processWindVectorsWithTags(data, intervalSeconds) {
             };
         }
         
-        if (row.unit) {
-            unit = row.unit;
-        }
-        
         const directionData = dir[row.direction];
         
         if (row._field === 'speed' && row._value > 0) {
@@ -375,7 +449,6 @@ function processWindVectorsWithTags(data, intervalSeconds) {
     const results = Object.values(intervals).map(interval => {
         const result = {
             time: interval.timestamp,
-            unit: unit
         };
         
         // Calcul de la moyenne vectorielle pour le vent
@@ -422,22 +495,6 @@ function processWindVectorsWithTags(data, intervalSeconds) {
     return results.sort((a, b) => a.time - b.time);
 }
 
-// Fonction utilitaire pour déboguer et vérifier les données
-async function debugWindData(stationId, startDate, endDate) {
-    const fluxQuery = `
-        from(bucket: "${bucket}")
-            |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
-            |> filter(fn: (r) => r.station_id == "${stationId}")
-            |> filter(fn: (r) => r._measurement == "wind")
-            |> filter(fn: (r) => r._field == "speed" or r._field == "gust")
-            |> limit(n: 10)
-            |> yield()
-    `;
-    
-    const results = await executeQuery(fluxQuery);
-    console.log("Échantillon de données wind:", results);
-    return results;
-}
 
 /**
  * Récupère les données candle pour une station et un capteur spécifiques
@@ -494,24 +551,6 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
     return await executeQuery(fluxQuery);
 }
 
-const dir = {
-    "N": { "angle": 0, "sinus": 0, "cosinus": 1 },
-    "NNE": { "angle": 22.5, "sinus": 0.3826834323650898, "cosinus": 0.9238795325112867 },
-    "NE": { "angle": 45, "sinus": 0.7071067811865475, "cosinus": 0.7071067811865476 },
-    "ENE": { "angle": 67.5, "sinus": 0.9238795325112867, "cosinus": 0.38268343236508984 },
-    "E": { "angle": 90, "sinus": 1, "cosinus": 0 },
-    "ESE": { "angle": 112.5, "sinus": 0.9238795325112867, "cosinus": -0.3826834323650897 },
-    "SE": { "angle": 135, "sinus": 0.7071067811865476, "cosinus": -0.7071067811865475 },
-    "SSE": { "angle": 157.5, "sinus": 0.3826834323650899, "cosinus": -0.9238795325112867 },
-    "S": { "angle": 180, "sinus": 0, "cosinus": -1 },
-    "SSW": { "angle": 202.5, "sinus": -0.3826834323650892, "cosinus": -0.923879532511287 },
-    "SW": { "angle": 225, "sinus": -0.7071067811865475, "cosinus": -0.7071067811865477 },
-    "WSW": { "angle": 247.5, "sinus": -0.9238795325112868, "cosinus": -0.3826834323650895 },
-    "W": { "angle": 270, "sinus": -1, "cosinus": 0 },
-    "WNW": { "angle": 292.5, "sinus": -0.9238795325112866, "cosinus": 0.38268343236509 },
-    "NW": { "angle": 315, "sinus": -0.7071067811865477, "cosinus": 0.7071067811865474 },
-    "NNW": { "angle": 337.5, "sinus": -0.38268343236508956, "cosinus": 0.9238795325112868 }
-};
 
 module.exports = {
     writePoints,

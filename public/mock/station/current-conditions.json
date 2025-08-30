@@ -1,139 +1,199 @@
 {
     "success": true,
     "stationId": "VP2_Serramoune",
-    "timestamp": "2025-08-28T09:37:59.185Z",
+    "timestamp": "2025-08-30T09:32:55.726Z",
     "data": {
-        "barometer": {
-            "Value": 1.0134,
-            "Unit": "Bar"
-        },
-        "inTemp": {
-            "Value": 18.28,
-            "Unit": "°C"
-        },
-        "inHumidity": {
-            "Value": 70,
-            "Unit": "%"
-        },
-        "outTemp": {
-            "Value": 15.94,
-            "Unit": "°C"
-        },
-        "windSpeed": {
-            "Value": 0,
-            "Unit": "km/h"
-        },
-        "avgWindSpeed10Min": {
-            "Value": 0,
-            "Unit": "km/h"
-        },
-        "windDir": {
-            "Value": 112.5,
-            "Unit": "°"
-        },
-        "outHumidity": {
-            "Value": 81,
-            "Unit": "%"
-        },
-        "rainRate": {
-            "Value": 0,
-            "Unit": "l/m²/h"
-        },
-        "UV": {
-            "Value": 98.64,
-            "Unit": "min"
-        },
-        "solarRadiation": {
-            "Value": 336,
-            "Unit": "w/m²"
-        },
-        "dayRain": {
-            "Value": 0,
-            "Unit": "l/m²"
-        },
         "monthRain": {
-            "Value": 7.6,
-            "Unit": "l/m²"
+            "Value": 8.8,
+            "Unit": "mm",
+            "userUnit": "l/m²",
+            "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
         },
         "yearRain": {
-            "Value": 1133.8,
-            "Unit": "l/m²"
-        },
-        "dayET": {
-            "Value": 0.013,
-            "Unit": "l/m²"
+            "Value": 1135,
+            "Unit": "mm",
+            "userUnit": "l/m²",
+            "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
         },
         "monthET": {
-            "Value": 2.47,
-            "Unit": "l/m²"
+            "Value": 2.59,
+            "Unit": "mm",
+            "userUnit": "l/m²",
+            "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
         },
         "yearET": {
-            "Value": 34.73,
-            "Unit": "l/m²"
+            "Value": 34.85,
+            "Unit": "mm",
+            "userUnit": "l/m²",
+            "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
         },
         "batteryVoltage": {
-            "Value": "BATTERY MISSING",
-            "Unit": "%"
+            "Value": 4.775,
+            "Unit": "V",
+            "userUnit": "%",
+            "toUserUnit": "(v) => Number((v*100/4.56).toFixed(0))"
         },
         "ForecastNum": {
             "Value": "Sun Cloud",
-            "Unit": "ForecastClass"
+            "Unit": "ForecastClass",
+            "userUnit": "ForecastClass",
+            "toUserUnit": "(f) => f"
         },
         "sunrise": {
-            "Value": "07:22",
-            "Unit": "hh:mm"
+            "Value": "07:24:00.000Z",
+            "Unit": "iso8601",
+            "userUnit": "hh:mm",
+            "toUserUnit": "(t) => t.slice(11, 19)"
         },
         "sunset": {
-            "Value": "20:44",
-            "Unit": "hh:mm"
+            "Value": "20:40:00.000Z",
+            "Unit": "iso8601",
+            "userUnit": "hh:mm",
+            "toUserUnit": "(t) => t.slice(11, 19)"
+        },
+        "barometer": {
+            "Value": 1015.8,
+            "Unit": "hpa",
+            "userUnit": "Bar",
+            "toUserUnit": "(hpa) => Number((hpa/1000).toFixed(3))"
+        },
+        "inTemp": {
+            "Value": 293.2,
+            "Unit": "K",
+            "userUnit": "°C",
+            "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
+        },
+        "inHumidity": {
+            "Value": 71,
+            "Unit": "%",
+            "userUnit": "%",
+            "toUserUnit": "(h) => Number(h.toFixed(1))"
+        },
+        "outTemp": {
+            "Value": 295.7,
+            "Unit": "K",
+            "userUnit": "°C",
+            "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
+        },
+        "windSpeed": {
+            "Value": 0,
+            "Unit": "m/s",
+            "userUnit": "km/h",
+            "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
+        },
+        "windDir": {
+            "Value": 192,
+            "Unit": "°",
+            "userUnit": "cardinal",
+            "toUserUnit": "(deg) => ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][Math.round(deg / 22.5) % 16]"
+        },
+        "avgWindSpeed10Min": {
+            "Value": 0,
+            "Unit": "m/s",
+            "userUnit": "km/h",
+            "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
         },
         "avgWindSpeed2Min": {
-            "Value": 0.3219,
-            "Unit": "km/h"
+            "Value": 0,
+            "Unit": "m/s",
+            "userUnit": "km/h",
+            "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
         },
         "windGust10Min": {
-            "Value": 0.3219,
-            "Unit": "km/h"
+            "Value": 0,
+            "Unit": "m/s",
+            "userUnit": "km/h",
+            "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
         },
         "windGustDir10Min": {
-            "Value": 292.5,
-            "Unit": "°"
+            "Value": 201,
+            "Unit": "°",
+            "userUnit": "cardinal",
+            "toUserUnit": "(deg) => ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][Math.round(deg / 22.5) % 16]"
         },
         "dewPoint": {
-            "Value": 12.78,
-            "Unit": "°C"
+            "Value": 291.5,
+            "Unit": "K",
+            "userUnit": "°C",
+            "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
+        },
+        "outHumidity": {
+            "Value": 77,
+            "Unit": "%",
+            "userUnit": "%",
+            "toUserUnit": "(h) => Number(h.toFixed(1))"
         },
         "heatIndex": {
-            "Value": 16.11,
-            "Unit": "°C"
+            "Value": 296.5,
+            "Unit": "K",
+            "userUnit": "°C",
+            "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
         },
         "windChill": {
-            "Value": 16.11,
-            "Unit": "°C"
+            "Value": 295.9,
+            "Unit": "K",
+            "userUnit": "°C",
+            "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
         },
         "THSW": {
-            "Value": 18.89,
-            "Unit": "°C"
+            "Value": 301.5,
+            "Unit": "K",
+            "userUnit": "°C",
+            "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
+        },
+        "rainRate": {
+            "Value": 0,
+            "Unit": "mm/h",
+            "userUnit": "l/m²/h",
+            "toUserUnit": "(mmh) => Number((mmh*10).toFixed(2))"
+        },
+        "UV": {
+            "Value": 3.2,
+            "Unit": "index",
+            "userUnit": "min",
+            "toUserUnit": "(uv) => Number(Math.min(180, 210/((uv*Math.exp(uv/32)))).toFixed(0))"
+        },
+        "solarRadiation": {
+            "Value": 547,
+            "Unit": "w/m²",
+            "userUnit": "w/m²",
+            "toUserUnit": "(w) => Number(w.toFixed(1))"
         },
         "stormRain": {
-            "Value": 6.8,
-            "Unit": "l/m²"
+            "Value": 0,
+            "Unit": "mm",
+            "userUnit": "l/m²",
+            "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
         },
-        "dateStormRain": {
-            "Value": "2025-08-28",
-            "Unit": "yyyy-mm-dd"
+        "dayRain": {
+            "Value": 0.4,
+            "Unit": "mm",
+            "userUnit": "l/m²",
+            "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
         },
         "last15MinRain": {
             "Value": 0,
-            "Unit": "l/m²"
+            "Unit": "mm",
+            "userUnit": "l/m²",
+            "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
         },
         "lastHourRain": {
             "Value": 0,
-            "Unit": "l/m²"
+            "Unit": "mm",
+            "userUnit": "l/m²",
+            "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
+        },
+        "dayET": {
+            "Value": 0.017,
+            "Unit": "mm",
+            "userUnit": "l/m²",
+            "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
         },
         "last24HourRain": {
-            "Value": 0.4,
-            "Unit": "l/m²"
+            "Value": 0.6,
+            "Unit": "mm",
+            "userUnit": "l/m²",
+            "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
         }
     }
 }

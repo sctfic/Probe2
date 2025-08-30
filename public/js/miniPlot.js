@@ -9,7 +9,7 @@
         function transformDataForPlot(apiData, metadata) {
             // console.log(metadata);
             const fn = eval(metadata.toUserUnit);
-            console.log(fn);
+            // console.log(fn);
             return apiData.map(item => ({
                 Date: new Date(item.d),
                 Value: fn(item.v)
@@ -76,7 +76,7 @@
         async function loadData( id, url) {
             const loadingText = document.getElementById('loadingText');
             try {
-                console.log(url);
+                // console.log(url);
                 const response = await fetch(url);
                 if (!response.ok) {
                     throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
