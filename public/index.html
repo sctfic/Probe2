@@ -272,28 +272,26 @@
                     return {
                         key,
                         name: sensorInfo.label || formatLabel(key),
-                        rawData: data,
-                        value: extractValue(data),
-                        unit: extractUnit(data),
+                        unit: data.Unit,
+                        value: data.Value,
+                        fnToUserUnit: data.toUserUnit,
+                        userUnit: data.userUnit,
                         measurement: sensorInfo.measurement || 'unknown',
                         groupUsage: sensorInfo.groupUsage || '0',
                         groupCustom: sensorInfo.groupCustom || 0,
                         period: sensorInfo.period || '3d',
                         sensorDb: sensorInfo.sensorDb,
-                        searchText: `${sensorInfo.label || formatLabel(key)} ${extractValue(data)} ${extractUnit(data)}`.toLowerCase()
+                        searchText: [sensorInfo.label, key, formatLabel(key), String(data.Value), data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
                     };
                 });
-    console.log('allConditions', allConditions);
+
+            console.log('allConditions', allConditions);
             // Afficher les conditions selon le groupement
             displayConditions();
             
             // Appliquer le filtre en cours
             applyCurrentFilter();
 
-            // Charger les graphiques après affichage
-            setTimeout(() => {
-                loadAllCharts();
-            }, 100);
         }
 
         // Nouvelle fonction pour appliquer le filtre sans recharger
@@ -319,7 +317,7 @@
                 }
             });
 
-            // Mise à jour des stats avec le nouveau système
+            // Mise à jour de la bare de stats
             updateConditionsStats(visibleCount);
             
             // Gestion des groupes vides
@@ -364,21 +362,6 @@
             }
         }
 
-        function extractValue(data) {
-            if (!data) return 'N/A';
-            if (typeof data === 'object' && data.Value !== undefined) {
-                return data.Value;
-            }
-            return data.toString();
-        }
-
-        function extractUnit(data) {
-            if (!data) return '';
-            if (typeof data === 'object' && data.Unit !== undefined) {
-                return data.Unit;
-            }
-            return '';
-        }
 
         function displayConditions() {
             const groupBy = document.getElementById('conditions-group')?.value || 'unit';
@@ -531,19 +514,11 @@
             let displayValue = item.value;
             let metaInfo = '';
 
-            // Gérer les cas spéciaux
-            if (item.rawData && typeof item.rawData === 'object') {
-                if (item.rawData.Value !== undefined) {
-                    if (item.rawData.message && item.rawData.Type) {
-                        metaInfo = `<div class="condition-meta">${item.rawData.Type}: ${item.rawData.message}</div>`;
-                    }
-                }
-            }
-
-            let unitDisplay = item.unit ? `<span class="condition-unit">${dbSensorList?.metadata?.unit?.[item.measurement]?.unit || item.unit}</span>` : '';
+            let unitDisplay = item.userUnit ? `<span class="condition-unit">${item.userUnit}</span>` : '';
             
             let chartContent = '';
-            if (item.key === 'ForecastNum') {// Cas spécial pour ForecastIcon - afficher des images météo
+            if (item.key === 'ForecastNum') {
+                // Cas spécial pour ForecastIcon - afficher des images météo
                 const weatherImages = displayValue.split(' ');
                 chartContent = `
                     <div class="weather-forecast-container">
@@ -556,7 +531,8 @@
                     </div>
                 `;
                 unitDisplay = '';
-            } else if (item.measurement === 'direction'){ // Cas spécial pour afficher une flèche directionnelle 
+            } else if (item.measurement === 'direction'){
+                // Cas spécial pour afficher une flèche directionnelle 
                 const windDirection = parseFloat(displayValue) || 135;
                 // Calculer la position sur le cercle (rayon 100px)
                 const angleRad = (windDirection - 90) * Math.PI / 180; // -90 pour que 0° soit en haut
@@ -580,14 +556,14 @@
                     </div -->
                 `;
                 unitDisplay = '';
-            } else if (item.unit === 'dateStormRain') {
+            } else if (item.unit === 'dateStormRain' || item.unit === 'iso8601' || item.userUnit === 'cardinal'){
                 unitDisplay = '';
-            } else {
+            } else  {
                 chartContent = `<div id="chart_${item.key}" class="plot-container"></div>`;
             }
             
-            console.log(item.unit, dbSensorList?.metadata?.unit?.[item.measurement]);
-            const fn = eval(dbSensorList?.metadata?.unit?.[item.measurement]?.avaible_units?.[item.unit]?.fnFromMetric || 'x => x');
+            
+            const fn = eval(item.fnToUserUnit || 'x => x');
             return `
                 <div class="condition-tile" data-key="${item.key}">
                     <div class="condition-content">
@@ -607,13 +583,15 @@
         }
 
         function getStartDate (period){
-            if (period === 'dateStormRain') return currentConditionsData.dateStormRain.Value;
+            if (period === 'dateStormRain') {
+                const str = currentConditionsData.dateStormRain?.Value;
+                return (str?.endsWith('T') ? str.slice(0, -1) : str) || Math.round((new Date()).getTime()/1000) - 60*60*24*7;
+            }
             return Math.round((new Date()).getTime()/1000) - period;
         }
 
         function loadAllCharts() {
             if (!selectedStation || !dbSensorList) return;
-
             allConditions.forEach(item => {
                 if (item.sensorDb && dbSensorList.data && dbSensorList.data._field && 
                     dbSensorList.data._field.includes(item.sensorDb)) {
@@ -622,6 +600,7 @@
                     loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`);
                 }
             });
+            console.log(requestCache);
         }
 
         function formatLabel(key) {

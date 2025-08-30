@@ -239,7 +239,7 @@
       "avaible_units": {
         "yyyy-mm-dd": {
             "title": "date",
-            "fnFromMetric": "(d) => d.slice(0, 10)"
+            "fnFromMetric": "(d) => (d.includes('T') ? d.split('T')[0] : d).substring(0, 10)"
         },
         "iso8601": {
             "title": "iso8601",
@@ -257,7 +257,7 @@
       "avaible_units": {
           "hh:mm": {
               "title": "heure minute",
-              "fnFromMetric": "(t) => t.slice(11, 19)"
+              "fnFromMetric": "(t) => (t.includes('T') ? t.split('T')[1] : t).substring(0, 5)"
           },
           "iso8601": {
               "title": "iso8601",

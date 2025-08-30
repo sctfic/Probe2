@@ -61,15 +61,7 @@ const sensorMap = {
         period: 60*60*24*7,
         groupUsage: '1/ Outdoor',
         groupCustom: 1,
-        sensorDb: 'speed'
-    },
-    'windDirMax': {
-        label: 'Direction du vent max',
-        measurement: 'direction',
-        period: 60*60*24*7,
-        groupUsage: '5/ other_wind',
-        groupCustom: 1,
-        sensorDb: 'gust'
+        sensorDb: null
     },
     'outHumidity': {
         label: 'Humidité extérieure',
@@ -104,7 +96,7 @@ const sensorMap = {
         sensorDb: 'solarRadiationMax'
     },
     'stormRain': {
-        label: "Dernieres preciperiode d'averces",
+        label: "Preciperiode d'averces actuelle",
         measurement: 'rain',
         period: 'dateStormRain',
         groupUsage: '1/ Outdoor',
@@ -213,7 +205,7 @@ const sensorMap = {
         period: 60*60*1,
         groupUsage: '5/ other_wind',
         groupCustom: 1,
-        sensorDb: 'gust'
+        sensorDb: null
     },
     'dewPoint': {
         label: 'Point de rosée',

@@ -27,6 +27,7 @@ function readInt8(buffer, offset, badValue = -128) {
 
 function readUInt16LE(buffer, offset, badValue = 65535) {
     const val = buffer.readUInt16LE(offset);
+    if (val === badValue) {console.error( "Bad value", val, "at offset", offset);}
     return val === badValue ? NaN : val;
 }
 
