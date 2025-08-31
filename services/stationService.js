@@ -719,7 +719,6 @@ async function downloadArchiveData(stationConfig, startDate, res) {
                     if (WriteToDB){
                         console.log(`${V.package} Pages ${pageNumber+1}.${j+1}/${numberOfPages} Archives / Write ${WriteToDB} points influxDb for [${datetime}] ✅`);
                         stationConfig.lastArchiveDate = datetime;
-                        configManager.autoSaveConfig(stationConfig);
                     } else {
                         console.warn(`${V.package} Pages ${pageNumber+1}.${j+1}/${numberOfPages} Archives / Error writing points influxDb for [${datetime}] ${V.error}`);
                     }
@@ -732,6 +731,7 @@ async function downloadArchiveData(stationConfig, startDate, res) {
         firstReccord = 0;
         sendProgress(i+1, numberOfPages);
     }
+    configManager.autoSaveConfig(stationConfig);
     // await wakeUpConsole(stationConfig);
     return { status: 'success', message: `${Object.keys(allRecords).length} pages sur ${numberOfPages} archive téléchargées.`, data: allRecords };
 }
