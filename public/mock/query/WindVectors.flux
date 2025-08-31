@@ -1,4 +1,4 @@
-from(bucket: "Probe2")
+from(bucket: "Probe")
     |> range(start: 1755957300, stop: 1756244700)
     |> filter(fn: (r) => r.station_id == "VP2_Serramoune")
     |> filter(fn: (r) => r._measurement == "wind")

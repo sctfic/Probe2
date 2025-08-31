@@ -30,7 +30,7 @@ function createPlot(data, metadata, id) {
     
     try {
         const plot = Plot.plot({
-            width: 240,
+            width: 286,
             height: 100,
             marginLeft: 0,
             marginTop: 16,
@@ -50,12 +50,21 @@ function createPlot(data, metadata, id) {
                     : [Math.min(...data.map(d => d.Value)), Math.max(...data.map(d => d.Value))]
             },
             marks: [
-                Plot.lineY(data, {
-                    x: "Date", 
-                    y: "Value", 
-                    stroke: "#4dc0e0", 
-                    curve: metadata.measurement === 'rain' ? "step" : "monotone-x"
-                }),
+                // Plot.lineY(data, {
+                //     x: "Date", 
+                //     y: "Value", 
+                //     stroke: "#4dc0e0", 
+                //     curve: metadata.measurement === 'rain' ? "step" : "monotone-x"
+                // }),
+                Plot.differenceY(data, Plot.shiftX("+1 day", {
+                    x: "Date",
+                    y: "Value",
+                    stroke: "#4dc0e0",
+                    positiveFill : "#FF6B6B",
+                    negativeFill : "#98FB98",
+                    fillOpacity: 0.6,
+                    curve: metadata.measurement === 'rain' ? "step" : "monotone-x",
+                })),
                 Plot.dot(data, Plot.pointerX({x: "Date", y: "Value", stroke: "red"})),
                 Plot.text(data, Plot.pointerX({
                     px: "Date", py: "Value", dy: -16, dx: 30,

@@ -843,3 +843,142 @@ label {
         font-size: 0.7em;
     }
 }
+
+
+
+
+
+.condition-tile {
+    transition: transform 1.3s ease, box-shadow 1.3s ease;
+}
+
+.condition-tile.value-changed {
+    animation: tileUpdate 1.6s ease-out;
+    border: 2px solid #4CAF50;
+    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+}
+
+@keyframes tileUpdate {
+    0% {
+        transform: scale(1);
+        background-color: inherit;
+    }
+    25% {
+        transform: scale(1.05);
+        background-color: rgba(76, 175, 80, 0.1);
+    }
+    50% {
+        transform: scale(1.02);
+        background-color: rgba(76, 175, 80, 0.05);
+    }
+    100% {
+        transform: scale(1);
+        background-color: inherit;
+    }
+}
+
+.condition-value {
+    transition: color 1.3s ease;
+}
+
+.condition-tile.value-changed .condition-value {
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+/* Animation de rebond plus prononcée pour les changements importants */
+.condition-tile.major-change {
+    animation: majorUpdate 1.8s ease-out;
+    border: 2px solid #FF9800;
+    box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+}
+
+@keyframes majorUpdate {
+    0% {
+        transform: scale(1) rotate(0deg);
+        background-color: inherit;
+    }
+    15% {
+        transform: scale(1.08) rotate(-1deg);
+        background-color: rgba(255, 152, 0, 0.15);
+    }
+    30% {
+        transform: scale(1.05) rotate(1deg);
+        background-color: rgba(255, 152, 0, 0.1);
+    }
+    45% {
+        transform: scale(1.03) rotate(-0.5deg);
+        background-color: rgba(255, 152, 0, 0.05);
+    }
+    60% {
+        transform: scale(1.01) rotate(0.5deg);
+    }
+    100% {
+        transform: scale(1) rotate(0deg);
+        background-color: inherit;
+    }
+}
+
+.condition-tile.major-change .condition-value {
+    color: #FF9800;
+    font-weight: bold;
+}
+
+
+.sun-icon {
+    width: 100px;
+    height: 100px;
+    transition: transform 0.3s ease, filter 0.3s ease;
+    filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+}
+
+.condition-tile:hover .sun-icon {
+    transform: scale(1.15) rotate(5deg);
+    filter: drop-shadow(3px 3px 8px rgba(255,165,0,0.5)) brightness(1.2);
+}
+
+.sun-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    padding: 8px;
+}
+
+.sun-container.sunrise {
+    justify-content: flex-start;
+}
+
+.sun-container.sunset {
+    justify-content: flex-end;
+}
+
+/* Animation pour l'icône de batterie */
+.battery-icon {
+    width: 40px;
+    height: 40px;
+    transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.condition-tile:hover .battery-icon {
+    transform: scale(1.1);
+}
+
+.battery-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 8px;
+}
+
+/* Animation supplémentaire pour batterie faible */
+.battery-icon.low-battery {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}

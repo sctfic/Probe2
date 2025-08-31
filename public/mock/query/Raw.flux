@@ -1,4 +1,4 @@
-from(bucket: "Probe2")
+from(bucket: "Probe")
    |> range(start: 1755622500, stop: 1756419600)
    |> filter(fn: (r) => r.station_id == "VP2_Serramoune" and r._field == "barometer")
    |> group(columns: ["unit"])

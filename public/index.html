@@ -2,10 +2,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Probe2 Météo</title>
+<title>Probe Météo</title>
 <!-- Observable Plot -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.11/dist/plot.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.17/dist/plot.umd.js"></script>
 <!-- External CSS and JS -->
 <link rel="stylesheet" href="css/style.css">
 <script src="js/miniPlot.js"></script>
@@ -372,216 +372,437 @@
                 reorganizeConditionsGrouped(groupBy);
             }
         }
+// Ajoutez cette fonction pour mettre à jour une tuile existante
 
-        function reorganizeConditionsGrouped(groupBy) {
-            const conditionsContainer = document.getElementById('conditions-container');
-            if (!conditionsContainer) return;
+// Variable globale pour stocker les valeurs précédentes
+let previousValues = {};
 
-            if (allConditions.length === 0) {
-                conditionsContainer.innerHTML = '<div class="conditions-grid"><div class="no-results">Aucune donnée ne correspond à votre recherche.</div></div>';
-                return;
-            }
+// Fonction pour détecter si le changement est majeur
+function isMajorChange(oldValue, newValue, unit) {
+    if (oldValue === undefined || oldValue === null) return false;
+    
+    const old = parseFloat(oldValue);
+    const current = parseFloat(newValue);
+    
+    if (isNaN(old) || isNaN(current)) return false;
+    
+    const percentChange = Math.abs((current - old) / old) * 100;
+    
+    // Seuils pour considérer un changement comme majeur selon le type de mesure
+    const majorThresholds = {
+        'temperature': 2,     // 2°C
+        'pressure': 1,        // 1% 
+        'humidity': 5,        // 5%
+        'wind': 10,          // 10 km/h ou 10%
+        'rain': 0.1,         // 0.1mm
+        'default': 5         // 5% par défaut
+    };
+    
+    // Déterminer le seuil selon l'unité
+    let threshold = majorThresholds.default;
+    if (unit && (unit.includes('°C') || unit.includes('°F'))) threshold = majorThresholds.temperature;
+    else if (unit && (unit.includes('hPa') || unit.includes('mb'))) threshold = majorThresholds.pressure;
+    else if (unit && unit.includes('%')) threshold = majorThresholds.humidity;
+    else if (unit && (unit.includes('km/h') || unit.includes('m/s'))) threshold = majorThresholds.wind;
+    else if (unit && unit.includes('mm')) threshold = majorThresholds.rain;
+    
+    return percentChange > threshold;
+}
 
-            // Détacher les tuiles existantes du DOM pour les préserver
-            const existingTiles = {};
-            document.querySelectorAll('.condition-tile').forEach(tile => {
-                const key = tile.dataset.key;
-                if (key) {
-                    tile.remove(); // Retirer du DOM mais garder la référence
-                    existingTiles[key] = tile;
-                }
-            });
-
-            // Grouper selon le critère
-            const groupedData = allConditions.reduce((groups, item) => {
-                let groupKey;
-                switch (groupBy) {
-                    case 'measurement':
-                        groupKey = item.measurement || 'Sans type';
-                        break;
-                    case 'groupUsage':
-                        groupKey = item.groupUsage;
-                        break;
-                    case 'groupCustom':
-                        groupKey = item.groupCustom;
-                        break;
-                    default:
-                        groupKey = item.sensorDb || 'Sans historique!';
-                        break;
-                }
-                
-                if (!groups[groupKey]) {
-                    groups[groupKey] = [];
-                }
-                groups[groupKey].push(item);
-                return groups;
-            }, {});
-
-            // Créer la nouvelle structure
-            let newHTML = '';
-            Object.entries(groupedData).sort((a, b) => a[0].localeCompare(b[0])).forEach(([groupName, items]) => {
-                newHTML += `
-                    <div class="unit-group">
-                        <h3>
-                            ${groupName}
-                            <span class="unit-count">${items.length}</span>
-                        </h3>
-                        <div class="conditions-grid" data-group="${groupName}">
-                        </div>
-                    </div>
-                `;
-            });
-
-            conditionsContainer.innerHTML = newHTML;
-
-            // Réinsérer les tuiles existantes dans les bons groupes
-            Object.entries(groupedData).forEach(([groupName, items]) => {
-                const groupGrid = conditionsContainer.querySelector(`[data-group="${groupName}"]`);
-                if (groupGrid) {
-                    items.forEach(item => {
-                        if (existingTiles[item.key]) {
-                            // Réinsérer la tuile existante avec ses graphiques
-                            groupGrid.appendChild(existingTiles[item.key]);
-                        } else {
-                            // Créer une nouvelle tuile seulement si elle n'existe pas
-                            const tileElement = document.createElement('div');
-                            tileElement.innerHTML = createConditionTileHTML(item);
-                            groupGrid.appendChild(tileElement.firstElementChild);
-                            // Charger le graphique pour cette nouvelle tuile
-                            setTimeout(() => {
-                                if (item.sensorDb && dbSensorList && dbSensorList.data && dbSensorList.data._field && 
-                                    dbSensorList.data._field.includes(item.sensorDb)) {
-                                    const chartId = `chart_${item.key}`;
-                                    const param = `stepCount=${item.measurement === 'rain' ? 12 : 240}&startDate=${getStartDate(item.period)}`;
-                                    loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`);
-                                }
-                            }, 50);
-                        }
-                    });
-                }
-            });
+// Fonction modifiée pour mettre à jour une tuile existante avec animation
+function updateExistingTile(tileElement, item) {
+    const fn = eval(item.fnToUserUnit || 'x => x');
+    const valueElement = tileElement.querySelector('.condition-value');
+    
+    if (valueElement) {
+        // Récupérer l'ancienne valeur pour comparaison
+        const previousValue = previousValues[item.key];
+        const currentValue = item.value;
+        
+        // Vérifier si la valeur a changé
+        const hasChanged = previousValue !== undefined && previousValue !== currentValue;
+        const isMajor = hasChanged && isMajorChange(previousValue, currentValue, item.userUnit);
+        
+        let unitDisplay = item.userUnit ? `<span class="condition-unit">${item.userUnit}</span>` : '';
+        
+        // Cas spéciaux pour certains types de données
+        if (item.unit === 'dateStormRain' || item.unit === 'iso8601' || item.userUnit === 'cardinal') {
+            unitDisplay = '';
         }
-
-        function reorganizeConditionsList() {
-            const conditionsContainer = document.getElementById('conditions-container');
-            if (!conditionsContainer) return;
-
-            if (allConditions.length === 0) {
-                conditionsContainer.innerHTML = '<div class="conditions-grid"><div class="no-results">Aucune donnée ne correspond à votre recherche.</div></div>';
-                return;
+        
+        // Mettre à jour le contenu
+        valueElement.innerHTML = `${fn(currentValue)} ${unitDisplay}`;
+        
+        // Appliquer l'animation si la valeur a changé
+        if (hasChanged) {
+            // Retirer les classes d'animation précédentes
+            tileElement.classList.remove('value-changed', 'major-change');
+            
+            // Forcer un reflow pour s'assurer que les classes sont bien retirées
+            tileElement.offsetHeight;
+            
+            // Ajouter la classe appropriée selon l'ampleur du changement
+            if (isMajor) {
+                tileElement.classList.add('major-change');
+            } else {
+                tileElement.classList.add('value-changed');
             }
+            
+            // Retirer la classe après l'animation pour permettre les futures animations
+            setTimeout(() => {
+                tileElement.classList.remove('value-changed', 'major-change');
+            }, isMajor ? 800 : 600);
+        }
+        
+        // Mettre à jour la valeur précédente
+        previousValues[item.key] = currentValue;
+    }
+    
+    // Mettre à jour les cas spéciaux avec animation si nécessaire
+    if (item.key === 'ForecastNum') {
+        const chartElement = tileElement.querySelector('.condition-chart');
+        if (chartElement) {
+            const weatherImages = item.value.split(' ');
+            chartElement.innerHTML = `
+                <div class="weather-forecast-container">
+                    ${weatherImages.map(weather => `
+                        <img src="img/${weather}.png" 
+                             alt="${weather}" 
+                             class="weather-icon weather-${weather.toLowerCase()} ${item.value === weather ? 'active' : ''}"
+                             style="z-index: ${weather === 'Cloud' ? 3 : weather === 'Rain' ? 4 : weather === 'Snow' ? 5 : 2}">
+                    `).join('')}
+                </div>
+            `;
+        }
+    } else if (item.measurement === 'direction') {
+        const chartElement = tileElement.querySelector('.condition-chart');
+        if (chartElement) {
+            const windDirection = parseFloat(item.value) || 135;
+            const angleRad = (windDirection - 90) * Math.PI / 180;
+            const radius = 64;
+            const x = Math.cos(angleRad) * radius;
+            const y = Math.sin(angleRad) * radius;
+            
+            chartElement.innerHTML = `
+                <div class="wind-compass">
+                    <img src="img/windRose.png" alt="Rose des vents" class="wind-rose">
+                    <img src="img/windArrow.png" alt="Direction du vent" class="wind-arrow" 
+                        style="transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${windDirection}deg)">
+                </div>
+            `;
+        }
+    }
+}
 
-            // Détacher les tuiles existantes du DOM pour les préserver
-            const existingTiles = {};
-            document.querySelectorAll('.condition-tile').forEach(tile => {
-                const key = tile.dataset.key;
-                if (key) {
-                    tile.remove(); // Retirer du DOM mais garder la référence
-                    existingTiles[key] = tile;
+// Fonction pour initialiser les valeurs précédentes lors du premier chargement
+function initializePreviousValues() {
+    if (currentConditionsData) {
+        const excludeKeys = ['datagramme', 'timestamp'];
+        Object.entries(currentConditionsData)
+            .filter(([key]) => !excludeKeys.includes(key))
+            .forEach(([key, data]) => {
+                if (previousValues[key] === undefined) {
+                    previousValues[key] = data.Value;
                 }
             });
+    }
+}
 
-            // Créer la nouvelle structure
-            const newHTML = '<div class="conditions-grid" data-ungrouped="true"></div>';
-            conditionsContainer.innerHTML = newHTML;
+// Modifier la fonction processAndDisplayConditions pour initialiser les valeurs
+function processAndDisplayConditions() {
+    if (!currentConditionsData) return;
 
-            const grid = conditionsContainer.querySelector('[data-ungrouped="true"]');
-            
-            // Réinsérer les tuiles existantes
-            allConditions.forEach(item => {
+    // Initialiser les valeurs précédentes si c'est le premier chargement
+    if (Object.keys(previousValues).length === 0) {
+        initializePreviousValues();
+    }
+
+    // Convertir les données en tableau et exclure certains champs
+    const excludeKeys = ['datagramme', 'timestamp'];
+    allConditions = Object.entries(currentConditionsData)
+        .filter(([key]) => !excludeKeys.includes(key))
+        .map(([key, data]) => {
+            const sensorInfo = sensorMap[key] || {};
+            return {
+                key,
+                name: sensorInfo.label || formatLabel(key),
+                unit: data.Unit,
+                value: data.Value,
+                fnToUserUnit: data.toUserUnit,
+                userUnit: data.userUnit,
+                measurement: sensorInfo.measurement || 'unknown',
+                groupUsage: sensorInfo.groupUsage || '0',
+                groupCustom: sensorInfo.groupCustom || 0,
+                period: sensorInfo.period || '3d',
+                sensorDb: sensorInfo.sensorDb,
+                searchText: [sensorInfo.label, key, formatLabel(key), String(data.Value), data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
+            };
+        });
+
+    console.log('allConditions', allConditions);
+    // Afficher les conditions selon le groupement
+    displayConditions();
+    
+    // Appliquer le filtre en cours
+    applyCurrentFilter();
+}
+// Modifiez la fonction reorganizeConditionsGrouped()
+function reorganizeConditionsGrouped(groupBy) {
+    const conditionsContainer = document.getElementById('conditions-container');
+    if (!conditionsContainer) return;
+
+    if (allConditions.length === 0) {
+        conditionsContainer.innerHTML = '<div class="conditions-grid"><div class="no-results">Aucune donnée ne correspond à votre recherche.</div></div>';
+        return;
+    }
+
+    // Détacher les tuiles existantes du DOM pour les préserver
+    const existingTiles = {};
+    document.querySelectorAll('.condition-tile').forEach(tile => {
+        const key = tile.dataset.key;
+        if (key) {
+            tile.remove();
+            existingTiles[key] = tile;
+        }
+    });
+
+    // Grouper selon le critère
+    const groupedData = allConditions.reduce((groups, item) => {
+        let groupKey;
+        switch (groupBy) {
+            case 'measurement':
+                groupKey = item.measurement || 'Sans type';
+                break;
+            case 'groupUsage':
+                groupKey = item.groupUsage;
+                break;
+            case 'groupCustom':
+                groupKey = item.groupCustom;
+                break;
+            default:
+                groupKey = item.sensorDb || 'Sans historique!';
+                break;
+        }
+        
+        if (!groups[groupKey]) {
+            groups[groupKey] = [];
+        }
+        groups[groupKey].push(item);
+        return groups;
+    }, {});
+
+    // Créer la nouvelle structure
+    let newHTML = '';
+    Object.entries(groupedData).sort((a, b) => a[0].localeCompare(b[0])).forEach(([groupName, items]) => {
+        newHTML += `
+            <div class="unit-group">
+                <h3>
+                    ${groupName}
+                    <span class="unit-count">${items.length}</span>
+                </h3>
+                <div class="conditions-grid" data-group="${groupName}">
+                </div>
+            </div>
+        `;
+    });
+
+    conditionsContainer.innerHTML = newHTML;
+
+    // Réinsérer les tuiles dans les bons groupes
+    Object.entries(groupedData).forEach(([groupName, items]) => {
+        const groupGrid = conditionsContainer.querySelector(`[data-group="${groupName}"]`);
+        if (groupGrid) {
+            items.forEach(item => {
                 if (existingTiles[item.key]) {
-                    // Réinsérer la tuile existante avec ses graphiques
-                    grid.appendChild(existingTiles[item.key]);
+                    // MODIFICATION ICI: Mettre à jour la tuile existante avant de la réinsérer
+                    updateExistingTile(existingTiles[item.key], item);
+                    groupGrid.appendChild(existingTiles[item.key]);
                 } else {
-                    // Créer une nouvelle tuile seulement si elle n'existe pas
+                    // Créer une nouvelle tuile
                     const tileElement = document.createElement('div');
                     tileElement.innerHTML = createConditionTileHTML(item);
-                    grid.appendChild(tileElement.firstElementChild);
+                    groupGrid.appendChild(tileElement.firstElementChild);
                     // Charger le graphique pour cette nouvelle tuile
                     setTimeout(() => {
                         if (item.sensorDb && dbSensorList && dbSensorList.data && dbSensorList.data._field && 
                             dbSensorList.data._field.includes(item.sensorDb)) {
                             const chartId = `chart_${item.key}`;
-                            const param = `stepCount=${item.measurement === 'rain' ? 12 : 240}&startDate=${getStartDate(item.period)}`;
+                            const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
                             loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`);
                         }
                     }, 50);
                 }
             });
         }
+    });
+}
 
-        function createConditionTileHTML(item) {
-            let displayValue = item.value;
-            let metaInfo = '';
+// Modifiez aussi la fonction reorganizeConditionsList()
+function reorganizeConditionsList() {
+    const conditionsContainer = document.getElementById('conditions-container');
+    if (!conditionsContainer) return;
 
-            let unitDisplay = item.userUnit ? `<span class="condition-unit">${item.userUnit}</span>` : '';
-            
-            let chartContent = '';
-            if (item.key === 'ForecastNum') {
-                // Cas spécial pour ForecastIcon - afficher des images météo
-                const weatherImages = displayValue.split(' ');
-                chartContent = `
-                    <div class="weather-forecast-container">
-                        ${weatherImages.map(weather => `
-                            <img src="img/${weather}.png" 
-                                 alt="${weather}" 
-                                 class="weather-icon weather-${weather.toLowerCase()} ${displayValue === weather ? 'active' : ''}"
-                                 style="z-index: ${weather === 'Cloud' ? 3 : weather === 'Rain' ? 4 : weather === 'Snow' ? 5 : 2}">
-                        `).join('')}
-                    </div>
-                `;
-                unitDisplay = '';
-            } else if (item.measurement === 'direction'){
-                // Cas spécial pour afficher une flèche directionnelle 
-                const windDirection = parseFloat(displayValue) || 135;
-                // Calculer la position sur le cercle (rayon 100px)
-                const angleRad = (windDirection - 90) * Math.PI / 180; // -90 pour que 0° soit en haut
-                const radius = 64;
-                const x = Math.cos(angleRad) * radius;
-                const y = Math.sin(angleRad) * radius;
-                
-                chartContent = `
-                    <div class="wind-compass">
-                        <img src="img/windRose.png" alt="Rose des vents" class="wind-rose">
-                        <img src="img/windArrow.png" alt="Direction du vent" class="wind-arrow" 
-                            style="transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${windDirection}deg)">
-                    </div>
-                    <!-- div class="wind-controls">
-                        <label class="label-input" style="display:flex;">
-                            <span style="display:inline-block;width:7em;">angle:</span>
-                            <input type="range" value="${windDirection}" min="0" max="360" step="22.5" 
-                                onchange="updateWindDirection(this, '${item.key}')">
-                            <span style="font-variant-numeric:tabular-nums;" class="angle-display">${Math.round(windDirection)}°</span>
-                        </label>
-                    </div -->
-                `;
-                unitDisplay = '';
-            } else if (item.unit === 'dateStormRain' || item.unit === 'iso8601' || item.userUnit === 'cardinal'){
-                unitDisplay = '';
-            } else  {
-                chartContent = `<div id="chart_${item.key}" class="plot-container"></div>`;
-            }
-            
-            
-            const fn = eval(item.fnToUserUnit || 'x => x');
-            return `
-                <div class="condition-tile" data-key="${item.key}">
-                    <div class="condition-content">
-                        <div class="condition-info">
-                            <div class="condition-name">${item.name}</div>
-                            <div class="condition-value">
-                                ${fn(displayValue)} ${unitDisplay}
-                            </div>
-                            ${metaInfo}
-                        </div>
-                        <div class="condition-chart">
-                            ${chartContent}
-                        </div>
-                    </div>
-                </div>
-            `;
+    if (allConditions.length === 0) {
+        conditionsContainer.innerHTML = '<div class="conditions-grid"><div class="no-results">Aucune donnée ne correspond à votre recherche.</div></div>';
+        return;
+    }
+
+    // Détacher les tuiles existantes du DOM pour les préserver
+    const existingTiles = {};
+    document.querySelectorAll('.condition-tile').forEach(tile => {
+        const key = tile.dataset.key;
+        if (key) {
+            tile.remove();
+            existingTiles[key] = tile;
         }
+    });
 
+    // Créer la nouvelle structure
+    const newHTML = '<div class="conditions-grid" data-ungrouped="true"></div>';
+    conditionsContainer.innerHTML = newHTML;
+
+    const grid = conditionsContainer.querySelector('[data-ungrouped="true"]');
+    
+    // Réinsérer les tuiles
+    allConditions.forEach(item => {
+        if (existingTiles[item.key]) {
+            // MODIFICATION ICI: Mettre à jour la tuile existante avant de la réinsérer
+            updateExistingTile(existingTiles[item.key], item);
+            grid.appendChild(existingTiles[item.key]);
+        } else {
+            // Créer une nouvelle tuile
+            const tileElement = document.createElement('div');
+            tileElement.innerHTML = createConditionTileHTML(item);
+            grid.appendChild(tileElement.firstElementChild);
+            // Charger le graphique pour cette nouvelle tuile
+            setTimeout(() => {
+                if (item.sensorDb && dbSensorList && dbSensorList.data && dbSensorList.data._field && 
+                    dbSensorList.data._field.includes(item.sensorDb)) {
+                    const chartId = `chart_${item.key}`;
+                    const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
+                    loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`);
+                }
+            }, 50);
+        }
+    });
+}
+// Fonction pour déterminer le niveau de batterie et l'image correspondante
+function getBatteryImageAndClass(batteryValue) {
+   
+    const value = parseFloat(batteryValue);
+    let level, className = '';
+    if (value > 102) {
+        level = 'missing';
+        className= 'missing-battery';
+    } else if (value >= 87.5) {
+        level = 100;
+    } else if (value >= 62.5) {
+        level = 75;
+    } else if (value >= 37.5) {
+        level = 50;
+    } else if (value >= 12.5) {
+        level = 25;
+        className = 'low-battery';
+    } else {
+        level = 0;
+        className = 'low-battery';
+    }
+    
+    return { image: `batterie-${level}.png`, className };
+}
+
+function createConditionTileHTML(item) {
+    let displayValue = item.value;
+    let metaInfo = '';
+
+    let unitDisplay = item.userUnit ? `<span class="condition-unit">${item.userUnit}</span>` : '';
+    
+    let chartContent = '';
+    if (item.key === 'ForecastNum') {
+        // Cas spécial pour ForecastIcon - afficher des images météo
+        const weatherImages = displayValue.split(' ');
+        chartContent = `
+            <div class="weather-forecast-container">
+                ${weatherImages.map(weather => `
+                    <img src="img/${weather}.png" 
+                         alt="${weather}" 
+                         class="weather-icon weather-${weather.toLowerCase()} ${displayValue === weather ? 'active' : ''}"
+                         style="z-index: ${weather === 'Cloud' ? 3 : weather === 'Rain' ? 4 : weather === 'Snow' ? 5 : 2}">
+                `).join('')}
+            </div>
+        `;
+        unitDisplay = '';
+    } else if (item.measurement === 'direction') {
+        // Cas spécial pour afficher une flèche directionnelle 
+        const windDirection = parseFloat(displayValue) || 135;
+        // Calculer la position sur le cercle (rayon 100px)
+        const angleRad = (windDirection - 90) * Math.PI / 180; // -90 pour que 0° soit en haut
+        const radius = 64;
+        const x = Math.cos(angleRad) * radius;
+        const y = Math.sin(angleRad) * radius;
+        
+        chartContent = `
+            <div class="wind-compass">
+                <img src="img/windRose.png" alt="Rose des vents" class="wind-rose">
+                <img src="img/windArrow.png" alt="Direction du vent" class="wind-arrow" 
+                    style="transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${windDirection}deg)">
+            </div>
+        `;
+        unitDisplay = '';
+    } else if (item.key === 'sunrise') {
+        // Cas spécial pour le lever de soleil - image à gauche
+        chartContent = `
+        <div class="sun-container sunrise">
+            <img src="img/sunset.png" alt="Lever du soleil" class="sun-icon">
+            </div>
+            `;
+        console.log('sunrise', displayValue, chartContent);
+        unitDisplay = '';
+    } else if (item.key === 'sunset') {
+        // Cas spécial pour le coucher de soleil - image à droite
+        chartContent = `
+        <div class="sun-container sunset">
+            <img src="img/sunset.png" alt="Coucher du soleil" class="sun-icon">
+            </div>
+            `;
+        console.log('sunrise', displayValue, chartContent);
+        unitDisplay = '';
+    } else if (item.unit === 'dateStormRain' || item.unit === 'iso8601' || item.userUnit === 'cardinal'){
+        unitDisplay = '';
+    } else if (item.key === 'batteryVoltage') {
+        // Cas spécial pour la batterie avec niveau
+        const batteryInfo = getBatteryImageAndClass(displayValue);
+        chartContent = `
+            <div class="battery-container">
+                <img src="img/${batteryInfo.image}" 
+                     alt="Niveau de batterie" 
+                     class="battery-icon ${batteryInfo.className}">
+            </div>
+        `;
+        // Pour la batterie, on peut garder l'unité si elle existe
+    } else {
+        chartContent = `<div id="chart_${item.key}" class="plot-container"></div>`;
+    }
+    console.log(item);
+    
+    const fn = eval(item.fnToUserUnit || 'x => x');
+    return `
+        <div class="condition-tile" data-key="${item.key}">
+            <div class="condition-content">
+                <div class="condition-info">
+                    <div class="condition-name">${item.name}</div>
+                    <div class="condition-value">
+                        ${fn(displayValue)} ${unitDisplay}
+                    </div>
+                    ${metaInfo}
+                </div>
+                <div class="condition-chart">
+                    ${chartContent}
+                </div>
+            </div>
+        </div>
+    `;
+}
         function getStartDate (period){
             if (period === 'dateStormRain') {
                 const str = currentConditionsData.dateStormRain?.Value;
@@ -596,7 +817,7 @@
                 if (item.sensorDb && dbSensorList.data && dbSensorList.data._field && 
                     dbSensorList.data._field.includes(item.sensorDb)) {
                     const chartId = `chart_${item.key}`;
-                    const param = `stepCount=${item.measurement === 'rain' ? 12 : 240}&startDate=${getStartDate(item.period)}`;
+                    const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
                     loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`);
                 }
             });
@@ -626,7 +847,7 @@
                 'monthET': 'Évapotranspiration du mois',
                 'yearET': 'Évapotranspiration de l\'année',
                 'batteryVoltage': 'Voltage batterie',
-                'ForecastIcon': 'Prévision météo',
+                'ForecastIcon': 'Prévision météo 24h',
                 'sunrise': 'Lever du soleil',
                 'sunset': 'Coucher du soleil',
                 'avgWindSpeed2Min': 'Vitesse vent moyenne (2min)',

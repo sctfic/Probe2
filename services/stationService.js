@@ -592,39 +592,22 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
         const wind = new Point('wind')
             .tag('station_id', stationId)
             .floatField('speed', windSpeed)
+            .floatField('direction', windDir)
             .tag('unit', processedData.windSpeed.Unit)
-            .tag('direction', mapDegreesToCardinal(windDir))
+            // .tag('direction', mapDegreesToCardinal(windDir))
             .timestamp(datetime);
-        // N'ajouter l'angle que si on a du vent ET une direction valide
-        // if (windSpeed > 0 && windDir !== null) {
-        //     wind.floatField('angle', windDir);
-        // }
         points.push(wind);
     
-        // if (windDir === 0) {
-        //     console.log('processedData', processedData);
-        //     console.warn('wind', wind);
-        // }
-    
-        if (processedData.windSpeedMax) {
+        if (processedData.windSpeedMax) { // si il y a des données de vent max
             const windSpeedMax = processedData.windSpeedMax.Value;
             const windDirMax = processedData.windDirMax?.Value !== undefined ? processedData.windDirMax.Value : null;
             const gust = new Point('wind')
                 .tag('station_id', stationId)
                 .floatField('gust', windSpeedMax)
                 .tag('unit', processedData.windSpeedMax.Unit)
-                .tag('direction', mapDegreesToCardinal(windDirMax))
+                .floatField('direction', windDirMax)
                 .timestamp(datetime);
-            // N'ajouter l'angle que si on a des rafales ET une direction valide
-            // if (windSpeedMax > 0 && windDirMax !== null) {
-            //     gust.floatField('angle', windDirMax);
-            // }
             points.push(gust);
-    
-            // if (windDirMax === 0) {
-            //     console.log('processedData', processedData);
-            //     console.warn('gust', gust);
-            // }
         }
     }
     delete processedData.windDir;

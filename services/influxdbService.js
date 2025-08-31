@@ -119,7 +119,7 @@ async function getMetadata(stationId) {
     //     import "influxdata/influxdb/schema"
 
     //     schema.tagKeys(
-    //         bucket: "Probe2",
+    //         bucket: "Probe",
     //         predicate: (r) => r._measurement == "wind"
     //     )
     // `;

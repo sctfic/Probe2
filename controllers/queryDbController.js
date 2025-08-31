@@ -3,6 +3,9 @@ const influxdbService = require('../services/influxdbService');
 const { V } = require('../utils/icons');
 const units = require('../config/Units.json');
 const { sensorTypeMap } = require('../utils/weatherDataParser');
+const configManager = require('../services/configManager');
+const stationMiddleware = require('../middleware/stationMiddleware');
+//
 
 // Generic function to handle responses
 // const handleResponse = (res, stationId, data, format = 'json', unit = null, message = null) => {
@@ -393,6 +396,13 @@ exports.clearAllData = async (req, res) => {
     try {
         console.log(`${V.Warn} Demande de suppression de toutes les données du bucket`);
         const success = await influxdbService.clearBucket();
+        // force lastArchiveDate au 01/08/2025 et enregistre la conig
+        req.params.stationId = 'VP2_Serramoune';
+        stationMiddleware.loadStationConfig(req, res, () => {});
+        console.log(req.stationConfig);
+        req.stationConfig.lastArchiveDate = '2025-08-01T00:00:00.000Z';
+        configManager.autoSaveConfig(req.stationConfig);
+
         if (success) {
             res.json({
                 success: true,
