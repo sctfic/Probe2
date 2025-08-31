@@ -60,6 +60,7 @@ const V = {
     network:            '🌐',
     memory:             '💾',
     cpu:                '⚡',
+    disk:               '💾',
     fail:               '❌',
     trash:              '🗑️',
     loading:            '⏳',

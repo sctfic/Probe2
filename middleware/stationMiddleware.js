@@ -1,6 +1,6 @@
 // middleware/stationMiddleware.js
 const configManager = require('../services/configManager');
-const { sendCommand, wakeUpConsole } = require('../config/vp2NetClient');
+const { sendCommand, wakeUpConsole, acquireConnectionLock, releaseConnectionLock } = require('../services/vp2NetClient');
 const { O, V } = require('../utils/icons');
 
 const loadStationConfig = (req, res, next) => {
@@ -48,6 +48,10 @@ const loadStationConfig = (req, res, next) => {
 const withStationLamps = (handler) => {
     return async (req, res) => {
         const stationConfig = req.stationConfig;
+        
+        // Utilise maintenant les nouveaux paramètres par défaut (5 retries, 1000ms delay)
+        await acquireConnectionLock(stationConfig);
+
         try {
             await wakeUpConsole(stationConfig, true);
             const result = await handler(req, res);
@@ -70,8 +74,9 @@ const withStationLamps = (handler) => {
             try {
                 await wakeUpConsole(stationConfig, false);
             } catch (error) {
-                console.error(`${V.error} ${stationConfig.id} - Erreur lors de la commande LAMPS OFF: ${error.message}`);
+                console.error(`${V.error} ${stationConfig.id} - Erreur LAMPS OFF: ${error.message}`);
             }
+            releaseConnectionLock(stationConfig);
         }
     };
 };

@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const net = require('net');
-const { writeRaw, sendCommand, wakeUpConsole } = require('../config/vp2NetClient');
+const { sendCommand, wakeUpConsole } = require('./vp2NetClient');
 const { calculateCRC } = require('../utils/crc');
 const { sensorTypeMap, mapDegreesToCardinal, mapCardinalToDegrees, parseLOOP1Data, parseLOOP2Data, parseDMPRecord, processWeatherData, convertRawValue2NativeValue, conversionTable, readSignedInt16LE, readUInt16LE, readInt8, readUInt8  } = require('../utils/weatherDataParser');
 const { getLocalTimeFromCoordinates, getTimeZoneFromCoordinates } = require('../utils/timeHelper');
@@ -732,7 +732,7 @@ async function downloadArchiveData(stationConfig, startDate, res) {
         firstReccord = 0;
         sendProgress(i+1, numberOfPages);
     }
-    await wakeUpConsole(stationConfig);
+    // await wakeUpConsole(stationConfig);
     return { status: 'success', message: `${Object.keys(allRecords).length} pages sur ${numberOfPages} archive téléchargées.`, data: allRecords };
 }
 

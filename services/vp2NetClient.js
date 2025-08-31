@@ -4,7 +4,56 @@ const path = require('path');
 const { calculateCRC } = require('../utils/crc');
 const connectionPool = {};
 const { O, V } = require('../utils/icons');
+const configManager = require('./configManager');
 
+/**
+ * Acquiert un verrou pour une station donnée avec retry
+ * @param {object} stationConfig Configuration de la station
+ * @param {number} maxRetries Nombre maximum de tentatives
+ * @param {number} retryDelay Délai entre les tentatives en ms
+ * @returns {Promise<void>} Résout quand le verrou est acquis
+ */
+async function acquireConnectionLock(stationConfig, maxRetries = 5, retryDelay = 1000) {
+    let attempts = 0;
+
+    while (attempts < maxRetries) {
+        const now = new Date();
+        
+        // IMPORTANT: Recharger la configuration depuis le fichier pour avoir les dernières valeurs
+        const freshConfig = configManager.loadConfig(stationConfig.id);
+        
+        // Vérifier si la connexion est libre ou expirée (timeout plus long pour sécurité)
+        if (!freshConfig.connectionInUse || (now.getTime() - new Date(freshConfig.lastTcpConnection).getTime()) > 10000) {
+            // Connexion libre ou expirée, on peut acquérir le verrou
+            // Mettre à jour l'objet stationConfig passé en paramètre
+            stationConfig.lastTcpConnection = now;
+            stationConfig.connectionInUse = true;
+            configManager.autoSaveConfig(stationConfig);
+            console.log(`${O.orange} Connection lock acquired for ${stationConfig.id}`);
+            return;
+        }
+        
+        attempts++;
+        console.warn(`${V.timeout} Connection busy for ${stationConfig.id} (locked since ${freshConfig.lastTcpConnection}), attempt ${attempts}/${maxRetries}`);
+        
+        if (attempts < maxRetries) {
+            console.log(`${V.sleep} Waiting ${retryDelay}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
+    }
+    
+    throw new Error(`Cannot acquire connection lock for ${stationConfig.id} after ${maxRetries} attempts - station is busy`);
+}
+
+/**
+ * Libère le verrou de connexion
+ * @param {object} stationConfig Configuration de la station
+ */
+function releaseConnectionLock(stationConfig) {
+    stationConfig.connectionInUse = false;
+    configManager.autoSaveConfig(stationConfig);
+    console.log(`${O.blue} Connection lock released for ${stationConfig.id}`);
+}
 
 /**
  * Crée et initialise l'état pour une nouvelle connexion de station.
@@ -34,6 +83,9 @@ function _createConnectionState(stationConfig) {
         console.log(`${V.connect} Connected to station ${key}`);
         state.isConnected = true;
         state.isConnecting = false;
+        // Mettre à jour lastTcpConnection lors de la connexion
+        stationConfig.lastTcpConnection = new Date();
+        configManager.autoSaveConfig(stationConfig);
     });
 
     state.client.on('close', () => {
@@ -46,6 +98,8 @@ function _createConnectionState(stationConfig) {
             state.currentResponsePromiseResolve = null;
             state.currentResponsePromiseReject = null;
         }
+        // Libérer le verrou lors de la fermeture
+        releaseConnectionLock(stationConfig);
         delete connectionPool[key];
     });
 
@@ -60,6 +114,8 @@ function _createConnectionState(stationConfig) {
             state.currentResponsePromiseReject = null;
         }
         state.client.destroy();
+        // Libérer le verrou en cas d'erreur
+        releaseConnectionLock(stationConfig);
     });
 
     connectionPool[key] = state;
@@ -116,13 +172,6 @@ function parseAnswerFormatString(formatString) {
                 const dataLength = parseInt(dataMatch[1], 10);
                 segments.push({ type: 'DATA', length: dataLength });
                 totalExpectedLength += dataLength;
-                // Only accumulate dataLengthForCrc if CRC is expected later in the format string.
-                // This is handled by checking expectsCrc flag in sendCommand.
-                // For now, we just add it to the segment. The sum will be done in sendCommand.
-                // Or, we can sum it here if we know CRC will always follow DATA.
-                // Given the new flexible format, it's better to sum in sendCommand or pass segments.
-                // Let's remove dataLengthForCrc from here and calculate it in sendCommand if needed.
-                // No, dataLengthForCrc is used for slicing in sendCommand, so it needs to be the sum of all DATA segments.
                 dataLengthForCrc += dataLength; // Accumulate for CRC calculation later
                 tempString = tempString.substring(dataMatch[0].length);
             } else {
@@ -155,10 +204,16 @@ async function ensureConnection(state) {
                     reject(new Error(`Échec de la connexion TCP à ${key}.`));
                 }
             }, 100);
+            
+            // Timeout pour éviter d'attendre indéfiniment
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                reject(new Error('Timeout lors de l\'attente de la connexion TCP.'));
+            }, 10000);
         });
     }
 
-    isConnecting = true;
+    state.isConnecting = true;
     return new Promise((resolve, reject) => {
         const connectTimeout = setTimeout(() => {
             state.client.destroy(new Error('Timeout de connexion TCP.')); // Force l'erreur pour le client
@@ -169,10 +224,14 @@ async function ensureConnection(state) {
             clearTimeout(connectTimeout);
             resolve();
         });
-        state.client.once('error', (err) => { // Écoute l'erreur juste pour cette tentative de connexion
+        
+        const errorHandler = (err) => {
             clearTimeout(connectTimeout);
+            state.client.removeListener('error', errorHandler);
             reject(err);
-        });
+        };
+        
+        state.client.once('error', errorHandler);
     }).finally(() => {
         state.isConnecting = false;
     });
@@ -188,7 +247,7 @@ async function wakeUpConsole(stationConfig, screen = null) {
     await ensureConnection(state); // S'assurer que la connexion TCP est active avant le réveil
 
     let attempts = 0;
-    const maxAttempts = 3; //
+    const maxAttempts = 3;
     const wakeupTimeout = 1200; // 1.2 seconds
 
     while (attempts < maxAttempts) {
@@ -232,15 +291,14 @@ async function wakeUpConsole(stationConfig, screen = null) {
                 }
                 return; // Console est réveillée
             } else {
-                console.warn(`${V.sleep} Unexpected wakeup response (no \\n\\r): ${response.toString('hex')}`); //
+                console.warn(`${V.sleep} Unexpected wakeup response (no \\n\\r): ${response.toString('hex')}`);
             }
         } catch (error) {
-            console.error(`${V.error} Wakeup attempt failed: ${error.message}, attempt ${attempts + 1}/${maxAttempts}`); //
+            console.error(`${V.error} Wakeup attempt failed: ${error.message}, attempt ${attempts + 1}/${maxAttempts}`);
         }
         attempts++;
         await new Promise(resolve => setTimeout(resolve, 500)); // Petite pause avant de réessayer
     }
-    throw new Error('Console could not be woken up after 3 attempts.'); //
 }
 
 /**
@@ -277,7 +335,7 @@ function _internalSendAndReceive(state, command, timeout, parsedFormat) {
             // state.currentResponseBuffer est mis à jour par l'écouteur global du client
 
             // Vérifier la complétude basée sur la longueur totale attendue
-            if (state.currentResponseBuffer.length < parsedFormat.totalExpectedLength) { // [cite: vp2NetClient.js]
+            if (state.currentResponseBuffer.length < parsedFormat.totalExpectedLength) {
                 console.log(`${V.cut} Response Listener - Not enough data yet. Returning.`);
                 return; // Pas assez de données encore
             }
@@ -292,16 +350,16 @@ function _internalSendAndReceive(state, command, timeout, parsedFormat) {
 
                 switch (segment.type) {
                     case 'ACK':
-                        if (segmentData[0] !== segment.value) { //
+                        if (segmentData[0] !== segment.value) {
                             cleanup('VALIDATION_ERROR', `ACK attendu (0x${segment.value.toString(16)}), mais reçu 0x${segmentData[0].toString(16)} à l'offset ${currentOffset}.`, state.currentResponseBuffer);
-                            return reject(new Error(`Octet ACK invalide.`)); //
-                        } //
+                            return reject(new Error(`Octet ACK invalide.`));
+                        }
                         break;
                     case 'LITERAL':
-                        if (!segmentData.equals(segment.value)) { //
+                        if (!segmentData.equals(segment.value)) {
                             cleanup('VALIDATION_ERROR', `Littéral attendu (${segment.value.toString('hex')}), mais reçu ${segmentData.toString('hex')} à l'offset ${currentOffset}.`, state.currentResponseBuffer);
-                            return reject(new Error(`Réponse littérale invalide.`)); //
-                        } //
+                            return reject(new Error(`Réponse littérale invalide.`));
+                        }
                         break;
                     case 'DATA':
                         dataSegments.push(segmentData);
@@ -364,9 +422,13 @@ async function sendCommand(stationConfig, command, timeout = 2000, answerFormat 
         console.log(`${V.send} Sending to ${stationConfig.id} [${stationConfig.host}:${stationConfig.port}] (${attempts}/${maxAttempts}): '${commandText}', AnswerFormat: ${answerFormat}`);
 
         try {
+            // S'assurer que la connexion est active
+            await ensureConnection(state);
+            
             // _internalSendAndReceive retourne maintenant la charge utile directement (ou lève une erreur)
             const payload = await _internalSendAndReceive(state, command, timeout, parsedFormat);
-
+            stationConfig.lastTcpConnection = new Date();
+            configManager.autoSaveConfig(stationConfig);
             // Effectuer la validation CRC si applicable
             if (parsedFormat.expectsCrc) {
                 const data = payload.slice(0, parsedFormat.dataLengthForCrc); // decoupe les data
@@ -394,24 +456,9 @@ async function sendCommand(stationConfig, command, timeout = 2000, answerFormat 
     throw new Error('Logique sendCommand: sortie de la boucle de tentatives.');
 }
 
-/**
- * Fonction pour allumer ou éteindre les lampes de la console.
- * @param {number} state 1 pour allumer, 0 pour éteindre.
- */
-async function toggleLamps(stationConfig, state) {
-    try {
-        // sendCommand avec expectOkCRLF:true garantit que la réponse est "OK" ou lève une erreur.
-        await sendCommand(stationConfig, `LAMPS ${state}`, 3000, "<LF><CR>OK<LF><CR>");
-        console.log(`${V.Ampoule} Screen ${stationConfig.id} ${state === 1 ? `ON ${O.orange}` : `OFF ${O.black}`}`);
-    } catch (error) {
-        console.error(`${O.red} Erreur lors de la commande LAMPS ${state}:`, error.message);
-        throw error;
-    }
-}
-
-
 module.exports = {
     sendCommand, // Keep sendCommand for general use
     wakeUpConsole,
-    toggleLamps
+    acquireConnectionLock,
+    releaseConnectionLock
 };
