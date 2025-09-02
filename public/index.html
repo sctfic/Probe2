@@ -749,22 +749,7 @@ function createConditionTileHTML(item) {
             </div>
         `;
         unitDisplay = '';
-    } else if (item.key === 'sunrise') {
-        // Cas spécial pour le lever de soleil - image à gauche
-        chartContent = `
-        <div class="sun-container sunrise">
-            <img src="img/sunset.png" alt="Lever du soleil" class="sun-icon">
-            </div>
-            `;
-        console.log('sunrise', displayValue, chartContent);
-        unitDisplay = '';
-    } else if (item.key === 'sunset') {
-        // Cas spécial pour le coucher de soleil - image à droite
-        chartContent = `
-        <div class="sun-container sunset">
-            <img src="img/sunset.png" alt="Coucher du soleil" class="sun-icon">
-            </div>
-            `;
+    } else if (item.key === 'sunrise' || item.key === 'sunset') {
         console.log('sunrise', displayValue, chartContent);
         unitDisplay = '';
     } else if (item.unit === 'dateStormRain' || item.unit === 'iso8601' || item.userUnit === 'cardinal'){

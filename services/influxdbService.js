@@ -430,27 +430,16 @@ async function queryWindVectors(stationId, startDate, endDate, intervalSeconds =
         throw error;
     }
 }
-
-// const dir = {
-//     "N": { "angle": 0, "sinus": 0, "cosinus": 1 },
-//     "NNE": { "angle": 22.5, "sinus": 0.3826834323650898, "cosinus": 0.9238795325112867 },
-//     "NE": { "angle": 45, "sinus": 0.7071067811865475, "cosinus": 0.7071067811865476 },
-//     "ENE": { "angle": 67.5, "sinus": 0.9238795325112867, "cosinus": 0.38268343236508984 },
-//     "E": { "angle": 90, "sinus": 1, "cosinus": 0 },
-//     "ESE": { "angle": 112.5, "sinus": 0.9238795325112867, "cosinus": -0.3826834323650897 },
-//     "SE": { "angle": 135, "sinus": 0.7071067811865476, "cosinus": -0.7071067811865475 },
-//     "SSE": { "angle": 157.5, "sinus": 0.3826834323650899, "cosinus": -0.9238795325112867 },
-//     "S": { "angle": 180, "sinus": 0, "cosinus": -1 },
-//     "SSW": { "angle": 202.5, "sinus": -0.3826834323650892, "cosinus": -0.923879532511287 },
-//     "SW": { "angle": 225, "sinus": -0.7071067811865475, "cosinus": -0.7071067811865477 },
-//     "WSW": { "angle": 247.5, "sinus": -0.9238795325112868, "cosinus": -0.3826834323650895 },
-//     "W": { "angle": 270, "sinus": -1, "cosinus": 0 },
-//     "WNW": { "angle": 292.5, "sinus": -0.9238795325112866, "cosinus": 0.38268343236509 },
-//     "NW": { "angle": 315, "sinus": -0.7071067811865477, "cosinus": 0.7071067811865474 },
-//     "NNW": { "angle": 337.5, "sinus": -0.38268343236508956, "cosinus": 0.9238795325112868 }
-// };
 function processWindVectorsWithTags(data, intervalSeconds) {
-    return data;
+    return data.map(item => {
+        return {
+            d: item._time,
+            speed: Math.round(item.Vmean * 100) / 100,
+            dir: Math.round(item.Dmean ),
+            y: Math.round(item.Y * 10) / 10,
+            x: Math.round(item.X * 10) / 10
+        };
+    });
 }
 
 

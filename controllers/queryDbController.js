@@ -398,7 +398,7 @@ exports.clearAllData = async (req, res) => {
         // force lastArchiveDate au 01/08/2025 et enregistre la conig
         req.params.stationId = 'VP2_Serramoune';
         stationMiddleware.loadStationConfig(req, res, () => {});
-        req.stationConfig.lastArchiveDate = '2025-08-01T00:00:00.000Z';
+        req.stationConfig.lastArchiveDate = '2025-08-25T00:00:00.000Z';
         configManager.autoSaveConfig(req.stationConfig);
 
         if (success) {

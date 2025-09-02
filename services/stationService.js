@@ -534,62 +534,24 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
     delete processedData.date;
     delete processedData.time;
     
-    if (processedData.windSpeed) {
-        const windSpeed = processedData.windSpeed.Value;
-        const windDir = processedData.windDir?.Value !== undefined ? processedData.windDir.Value : null;
-        
-        const wind = new Point('wind')
-            .tag('station_id', stationId)
-            .floatField('speed', windSpeed)
-            .floatField('direction', windDir)
-            .tag('unit', processedData.windSpeed.Unit)
-            .timestamp(datetime);
-        points.push(wind);
-    
-        if (processedData.windSpeedMax) {
-            const windSpeedMax = processedData.windSpeedMax.Value;
-            const windDirMax = processedData.windDirMax?.Value !== undefined ? processedData.windDirMax.Value : null;
-            const gust = new Point('wind')
-                .tag('station_id', stationId)
-                .floatField('gust', windSpeedMax)
-                .floatField('direction', windDirMax)
-                .tag('unit', processedData.windSpeedMax.Unit)
-                .timestamp(datetime);
-            points.push(gust);
-        }
-    }
-    
-    delete processedData.windDir;
-    delete processedData.windSpeed;
-    delete processedData.windSpeedMax;
-    delete processedData.windDirMax;
-
-    const groupedData = {};
     for (const [key, data] of Object.entries(processedData)) {
-        const measurement = sensorTypeMap[key];
-        if (measurement && typeof data.Value === 'number' && isFinite(data.Value)) {
-            if (!groupedData[measurement]) {
-                groupedData[measurement] = {
-                    fields: {},
-                    unit: data.Unit
-                };
-            }
-            groupedData[measurement].fields[key] = data.Value;
-        }
-    }
-    
-    for (const [measurement, data] of Object.entries(groupedData)) {
-        const newPoint = new Point(measurement)
+        let tag;
+        if (key === 'windDirMax' || key === 'windSpeedMax') {
+            tag = 'Gust';
+        } else if (key === 'windDir' || key === 'windSpeed') {
+            tag = 'Speed';
+        } else {tag = key;}
+        const point = new Point(sensorTypeMap[key])
             .tag('station_id', stationId)
-            .tag('unit', data.unit)
+            .floatField('value', data.Value)
+            .tag('unit', data.Unit)
+            .tag('sensor', tag)
             .timestamp(datetime);
-        for (const [fieldName, fieldValue] of Object.entries(data.fields)) {
-            newPoint.floatField(fieldName, fieldValue);
-        }
-        points.push(newPoint);
-    }
-
+        points.push(point);
+    };
+    
     if (points.length > 0) {
+        // console.log(`${V.thermometer} :`, points);
         return await writePoints(points);
     }
 

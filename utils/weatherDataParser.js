@@ -12,6 +12,24 @@ function mapCardinalToDegrees(cardinal) {
     const index = directions.indexOf(cardinal);
     return index * 22.5;
 }
+const dir = {
+    "N": { "angle": 0, "sinus": 0, "cosinus": 1 },
+    "NNE": { "angle": 22.5, "sinus": 0.3826834323650898, "cosinus": 0.9238795325112867 },
+    "NE": { "angle": 45, "sinus": 0.7071067811865475, "cosinus": 0.7071067811865476 },
+    "ENE": { "angle": 67.5, "sinus": 0.9238795325112867, "cosinus": 0.38268343236508984 },
+    "E": { "angle": 90, "sinus": 1, "cosinus": 0 },
+    "ESE": { "angle": 112.5, "sinus": 0.9238795325112867, "cosinus": -0.3826834323650897 },
+    "SE": { "angle": 135, "sinus": 0.7071067811865476, "cosinus": -0.7071067811865475 },
+    "SSE": { "angle": 157.5, "sinus": 0.3826834323650899, "cosinus": -0.9238795325112867 },
+    "S": { "angle": 180, "sinus": 0, "cosinus": -1 },
+    "SSW": { "angle": 202.5, "sinus": -0.3826834323650892, "cosinus": -0.923879532511287 },
+    "SW": { "angle": 225, "sinus": -0.7071067811865475, "cosinus": -0.7071067811865477 },
+    "WSW": { "angle": 247.5, "sinus": -0.9238795325112868, "cosinus": -0.3826834323650895 },
+    "W": { "angle": 270, "sinus": -1, "cosinus": 0 },
+    "WNW": { "angle": 292.5, "sinus": -0.9238795325112866, "cosinus": 0.38268343236509 },
+    "NW": { "angle": 315, "sinus": -0.7071067811865477, "cosinus": 0.7071067811865474 },
+    "NNW": { "angle": 337.5, "sinus": -0.38268343236508956, "cosinus": 0.9238795325112868 }
+};
 // conversion des valeur binaire avec gestion des valeurs aberantes
 
 function readSignedInt16LE(buffer, offset, badValue = -32768) {
@@ -70,7 +88,7 @@ function parseLOOP2Data(data) {
     weatherData.inHumidity = { value: readUInt8(data, 11), native_unit: "percent" };
     weatherData.outTemp = { value: readSignedInt16LE(data, 12), native_unit: "F_tenths" };
     weatherData.windSpeed = { value: readUInt8(data, 14), native_unit: "mph_whole" };
-    weatherData.windDir = { value: readUInt16LE(data, 16), native_unit: "degrees" };
+    weatherData.windDir = { value: readUInt16LE(data, 16, 5738), native_unit: "degrees" };
     weatherData.avgWindSpeed10Min = { value: readUInt16LE(data, 18), native_unit: "mph_tenths" };
     weatherData.avgWindSpeed2Min = { value: readUInt16LE(data, 20), native_unit: "mph_tenths" };
     weatherData.windGust10Min = { value: readUInt16LE(data, 22), native_unit: "mph_tenths" };
