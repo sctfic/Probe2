@@ -88,7 +88,7 @@ async function executeQuery(fluxQuery) {
                 reject(error);
             },
             complete() {
-                console.log(`${V.Check} Requête Flux terminée avec succès.`);
+                // console.log(`${V.Check} Requête Flux terminée avec succès.`);
                 resolve(results);
             },
         });
@@ -362,27 +362,65 @@ async function queryWindVectors(stationId, startDate, endDate, intervalSeconds =
     // Requête simple pour récupérer les données avec les tags de direction
     const fluxQuery = `
     import "math"
-    from(bucket: "${bucket}")
-    |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
-            |> filter(fn: (r) => r.station_id == "${stationId}")
-            |> filter(fn: (r) => r["_measurement"] == "wind")
-            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value") 
-            // => colonnes speed + direction
-            |> map(fn: (r) => ({
-                            r with
-                X: float(v: r.speed) * math.cos(x: math.pi * float(v: r.direction) / 180.0),
-                Y: float(v: r.speed) * math.sin(x: math.pi * float(v: r.direction) / 180.0)
-            }))
-            |> group(columns: ["weather", "sensor"])  // <-- séparation par station ET capteur
-            |> aggregateWindow(every: 10m, fn: mean, createEmpty: false) 
-            |> map(fn: (r) => ({
-                r with
-                Vmean: math.sqrt(x: r.X*r.X + r.Y*r.Y),
-                Dmean: if math.atan2(y: r.Y, x: r.X) < 0.0 
-                        then 180.0/math.pi * math.atan2(y: r.Y, x: r.X) + 360.0 
-                        else 180.0/math.pi * math.atan2(y: r.Y, x: r.X)
-            }))
-            |> keep(columns: ["_time", "weather", "sensor", "Vmean", "Dmean", "X", "Y"])
+    // 1) Données + calcul X/Y
+    data =
+        from(bucket: "${bucket}")
+        |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
+                |> filter(fn: (r) => r.station_id == "${stationId}")
+        |> filter(fn: (r) => r["_measurement"] == "wind")
+        |> pivot(
+            rowKey: ["_time","station_id"],
+            columnKey: ["_field"],
+            valueColumn: "_value"
+        )
+        |> map(fn: (r) => ({
+            r with
+            X: float(v: r.speed) * math.cos(x: math.pi * float(v: r.direction) / 180.0),
+            Y: float(v: r.speed) * math.sin(x: math.pi * float(v: r.direction) / 180.0)
+        }))
+
+    // 2) Repasser en long (_field/_value) pour X
+    x =
+    data
+        |> map(fn: (r) => ({
+            _time: r._time,
+            _measurement: "wind_vec",
+            station_id: r.station_id,
+            _field: "X",
+            _value: r.X
+        }))
+
+    // 2) Repasser en long (_field/_value) pour Y
+    y =
+    data
+        |> map(fn: (r) => ({
+            _time: r._time,
+            _measurement: "wind_vec",
+            station_id: r.station_id,
+            _field: "Y",
+            _value: r.Y
+        }))
+
+    // 3) Moyenne par fenêtre, 4) pivot pour récupérer X et Y,
+    // 5) recalcul Vmean/Dmean
+    union(tables: [x, y])
+    |> group(columns: ["station_id","_field"])
+    |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
+    |> pivot(
+        rowKey: ["_time","station_id"],
+        columnKey: ["_field"],
+        valueColumn: "_value"
+    )
+    |> map(fn: (r) => ({
+        r with
+        Vmean: math.sqrt(x: r.X*r.X + r.Y*r.Y),
+        Dmean: 180.0/math.pi * math.atan2(y: r.Y, x: r.X)
+    }))
+    |> map(fn: (r) => ({
+        r with
+        Dmean: if r.Dmean < 0.0 then r.Dmean + 360.0 else r.Dmean
+    }))
+    |> keep(columns: ["_time","station_id","Vmean","Dmean","X","Y"])
 `
     try {
         const results = await executeQuery(fluxQuery);
@@ -393,120 +431,26 @@ async function queryWindVectors(stationId, startDate, endDate, intervalSeconds =
     }
 }
 
-const dir = {
-    "N": { "angle": 0, "sinus": 0, "cosinus": 1 },
-    "NNE": { "angle": 22.5, "sinus": 0.3826834323650898, "cosinus": 0.9238795325112867 },
-    "NE": { "angle": 45, "sinus": 0.7071067811865475, "cosinus": 0.7071067811865476 },
-    "ENE": { "angle": 67.5, "sinus": 0.9238795325112867, "cosinus": 0.38268343236508984 },
-    "E": { "angle": 90, "sinus": 1, "cosinus": 0 },
-    "ESE": { "angle": 112.5, "sinus": 0.9238795325112867, "cosinus": -0.3826834323650897 },
-    "SE": { "angle": 135, "sinus": 0.7071067811865476, "cosinus": -0.7071067811865475 },
-    "SSE": { "angle": 157.5, "sinus": 0.3826834323650899, "cosinus": -0.9238795325112867 },
-    "S": { "angle": 180, "sinus": 0, "cosinus": -1 },
-    "SSW": { "angle": 202.5, "sinus": -0.3826834323650892, "cosinus": -0.923879532511287 },
-    "SW": { "angle": 225, "sinus": -0.7071067811865475, "cosinus": -0.7071067811865477 },
-    "WSW": { "angle": 247.5, "sinus": -0.9238795325112868, "cosinus": -0.3826834323650895 },
-    "W": { "angle": 270, "sinus": -1, "cosinus": 0 },
-    "WNW": { "angle": 292.5, "sinus": -0.9238795325112866, "cosinus": 0.38268343236509 },
-    "NW": { "angle": 315, "sinus": -0.7071067811865477, "cosinus": 0.7071067811865474 },
-    "NNW": { "angle": 337.5, "sinus": -0.38268343236508956, "cosinus": 0.9238795325112868 }
-};
+// const dir = {
+//     "N": { "angle": 0, "sinus": 0, "cosinus": 1 },
+//     "NNE": { "angle": 22.5, "sinus": 0.3826834323650898, "cosinus": 0.9238795325112867 },
+//     "NE": { "angle": 45, "sinus": 0.7071067811865475, "cosinus": 0.7071067811865476 },
+//     "ENE": { "angle": 67.5, "sinus": 0.9238795325112867, "cosinus": 0.38268343236508984 },
+//     "E": { "angle": 90, "sinus": 1, "cosinus": 0 },
+//     "ESE": { "angle": 112.5, "sinus": 0.9238795325112867, "cosinus": -0.3826834323650897 },
+//     "SE": { "angle": 135, "sinus": 0.7071067811865476, "cosinus": -0.7071067811865475 },
+//     "SSE": { "angle": 157.5, "sinus": 0.3826834323650899, "cosinus": -0.9238795325112867 },
+//     "S": { "angle": 180, "sinus": 0, "cosinus": -1 },
+//     "SSW": { "angle": 202.5, "sinus": -0.3826834323650892, "cosinus": -0.923879532511287 },
+//     "SW": { "angle": 225, "sinus": -0.7071067811865475, "cosinus": -0.7071067811865477 },
+//     "WSW": { "angle": 247.5, "sinus": -0.9238795325112868, "cosinus": -0.3826834323650895 },
+//     "W": { "angle": 270, "sinus": -1, "cosinus": 0 },
+//     "WNW": { "angle": 292.5, "sinus": -0.9238795325112866, "cosinus": 0.38268343236509 },
+//     "NW": { "angle": 315, "sinus": -0.7071067811865477, "cosinus": 0.7071067811865474 },
+//     "NNW": { "angle": 337.5, "sinus": -0.38268343236508956, "cosinus": 0.9238795325112868 }
+// };
 function processWindVectorsWithTags(data, intervalSeconds) {
-    if (!data || data.length === 0) {
-        return [];
-    }
-    
-    // Grouper les données par intervalle de temps
-    const intervalMs = intervalSeconds * 1000;
-    const intervals = {};
-    let unit = 'm/s';
-    
-    data.forEach(row => {
-        // Skip si pas de direction ou si direction invalide
-        if (!row.direction || !dir[row.direction]) {
-            return;
-        }
-        
-        // Calculer l'intervalle de temps
-        const timestamp = new Date(row._time);
-        const intervalStart = new Date(Math.floor(timestamp.getTime() / intervalMs) * intervalMs);
-        const key = intervalStart.toISOString();
-        
-        if (!intervals[key]) {
-            intervals[key] = {
-                timestamp: intervalStart,
-                windVectors: [],
-                gustData: []
-            };
-        }
-        
-        const directionData = dir[row.direction];
-        
-        if (row._field === 'speed' && row._value > 0) {
-            // Ajouter le vecteur de vitesse
-            intervals[key].windVectors.push({
-                u: row._value * directionData.cosinus,
-                v: row._value * directionData.sinus,
-                speed: row._value,
-                direction: directionData.angle
-            });
-        } else if (row._field === 'gust' && row._value > 0) {
-            // Ajouter les données de rafale
-            intervals[key].gustData.push({
-                speed: row._value,
-                direction: directionData.angle
-            });
-        }
-    });
-    
-    // Calculer les moyennes vectorielles et les rafales max pour chaque intervalle
-    const results = Object.values(intervals).map(interval => {
-        const result = {
-            time: interval.timestamp,
-        };
-        
-        // Calcul de la moyenne vectorielle pour le vent
-        if (interval.windVectors.length > 0) {
-            // Somme des composantes U et V
-            const sumU = interval.windVectors.reduce((sum, vec) => sum + vec.u, 0);
-            const sumV = interval.windVectors.reduce((sum, vec) => sum + vec.v, 0);
-            
-            // Moyennes des composantes
-            const avgU = sumU / interval.windVectors.length;
-            const avgV = sumV / interval.windVectors.length;
-            
-            // Conversion en vitesse et direction
-            const avgSpeed = Math.sqrt(avgU * avgU + avgV * avgV);
-            let avgDirection = Math.atan2(avgV, avgU) * 180 / Math.PI;
-            
-            // Normaliser la direction entre 0 et 360
-            if (avgDirection < 0) {
-                avgDirection += 360;
-            }
-            
-            result.avgVector = {
-                speed: Math.round(avgSpeed * 1000) / 1000,
-                direction: Math.round(avgDirection * 1000) / 1000
-            };
-        }
-        
-        // Trouver la rafale maximale avec sa direction
-        if (interval.gustData.length > 0) {
-            const maxGust = interval.gustData.reduce((max, current) => 
-                current.speed > max.speed ? current : max
-            );
-            
-            result.gustVector = {
-                speed: Math.round(maxGust.speed * 1000) / 1000,
-                direction: Math.round(maxGust.direction * 1000) / 1000
-            };
-        }
-        
-        return result;
-    }).filter(r => r.avgVector || r.gustVector); // Filtrer les intervalles sans données
-    
-    // Trier par timestamp
-    return results.sort((a, b) => a.time - b.time);
+    return data;
 }
 
 
