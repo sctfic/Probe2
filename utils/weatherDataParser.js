@@ -88,7 +88,7 @@ function parseLOOP2Data(data) {
     weatherData.inHumidity = { value: readUInt8(data, 11), native_unit: "percent" };
     weatherData.outTemp = { value: readSignedInt16LE(data, 12), native_unit: "F_tenths" };
     weatherData.windSpeed = { value: readUInt8(data, 14), native_unit: "mph_whole" };
-    weatherData.windDir = { value: readUInt16LE(data, 16, 5738), native_unit: "degrees" };
+    weatherData.windDir = { value: readUInt16LE(data, 16), native_unit: "degrees" };
     weatherData.avgWindSpeed10Min = { value: readUInt16LE(data, 18), native_unit: "mph_tenths" };
     weatherData.avgWindSpeed2Min = { value: readUInt16LE(data, 20), native_unit: "mph_tenths" };
     weatherData.windGust10Min = { value: readUInt16LE(data, 22), native_unit: "mph_tenths" };
@@ -124,8 +124,8 @@ function parseDMPRecord(recordBuffer) {
     record.rainFall = { value: readUInt16LE(recordBuffer, 10), native_unit: "clicks*cup_size" };
     record.windSpeed = { value: readUInt8(recordBuffer, 24), native_unit: "mph_whole" };
     record.windSpeedMax = { value: readUInt8(recordBuffer, 25), native_unit: "mph_whole" };
-    record.windDir = { value: readUInt8(recordBuffer, 26, 128), native_unit: "cardinalInt" };
-    record.windDirMax = { value: readUInt8(recordBuffer, 27, 128), native_unit: "cardinalInt" };
+    record.windDir = { value: readUInt8(recordBuffer, 26), native_unit: "cardinalInt" };
+    record.windDirMax = { value: readUInt8(recordBuffer, 27), native_unit: "cardinalInt" };
     record.UV = { value: readUInt8(recordBuffer, 28), native_unit: "uvIndex_tenths" };
     record.UVMax = { value: readUInt8(recordBuffer, 32), native_unit: "uvIndex_tenths" };
     record.solarRadiation = { value: readUInt16LE(recordBuffer, 16, 32767), native_unit: "w/m²" };
@@ -396,6 +396,8 @@ function processWeatherData(weatherData, stationConfig, UnitsType='metric') {
             };
         }
     }
+    // console.warn('weatherData', processed.windDir, processed.windDirMax);
+
     return processed;
 }
 

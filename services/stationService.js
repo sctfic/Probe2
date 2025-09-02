@@ -549,7 +549,7 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
             .timestamp(datetime);
         points.push(point);
     };
-    
+
     if (points.length > 0) {
         // console.log(`${V.thermometer} :`, points);
         return await writePoints(points);
@@ -604,7 +604,7 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
 
     const allRecords = {};
     // on se limite a 10 archive a la fois pour laisser la station aquerir les nouvelles données
-    for (let i = 0; i < numberOfPages && i < 20; i++) {
+    for (let i = 0; i < numberOfPages && i < 100; i++) {
         const ACK = Buffer.from([0x06]);
         // on envoit l'ACK, demande de la suivante
         const pageData = await sendCommand(req, stationConfig, ACK, 2000, "265<CRC>");
