@@ -10,7 +10,7 @@ exports.getStationInfo = async (req, res) => {
         const stationConfig = req.stationConfig;
         console.log(`${V.info} Demande d'informations pour la station ${stationConfig.id}`);
         
-        const info = await stationService.getStationInfo(stationConfig);
+        const info = await stationService.getStationInfo(req, stationConfig);
         
         res.json({
             success: true,
@@ -30,7 +30,7 @@ exports.getStationInfo = async (req, res) => {
 exports.getCurrentWeather = async (req, res) => {
     const stationConfig = req.stationConfig;
     try {
-        const weatherData = await stationService.getCurrentWeatherData(stationConfig);
+        const weatherData = await stationService.getCurrentWeatherData(req, stationConfig);
         
         res.json({
             success: true,
@@ -52,7 +52,7 @@ exports.getArchiveData = async (req, res) => {
         const stationConfig = req.stationConfig;
         console.log(`${V.Parabol} Demande de données d'archive pour la station ${stationConfig.id}`);
         
-        const archiveData = await stationService.downloadArchiveData(stationConfig);
+        const archiveData = await stationService.downloadArchiveData(req, stationConfig);
         
         res.json({
             success: true,
@@ -74,7 +74,7 @@ exports.syncSettings = async (req, res) => {
         const stationConfig = req.stationConfig;
         console.log(`${V.gear} Demande de synchronisation des paramètres pour la station ${stationConfig.id}`);
         
-        const result = await stationService.syncStationSettings(stationConfig);
+        const result = await stationService.syncStationSettings(req, stationConfig);
         // autosave config
         configManager.autoSaveConfig(stationConfig);
         
@@ -100,7 +100,7 @@ exports.updateTime = async (req, res) => {
         const stationConfig = req.stationConfig;
         console.log(`${V.clock} Demande de mise à jour de l'heure pour la station ${stationConfig.id}`);
         
-        const result = await stationService.updateStationTime(stationConfig);
+        const result = await stationService.updateStationTime(req, stationConfig);
         
         res.json({
             success: true,
@@ -123,7 +123,7 @@ exports.getDateTime = async (req, res) => {
         const stationConfig = req.stationConfig;
         console.log(`${V.clock} Demande de l'heure de la station ${stationConfig.id}`);
         
-        const stationDateTime = await stationService.getVp2DateTime(stationConfig);
+        const stationDateTime = await stationService.getVp2DateTime(req, stationConfig);
         
         res.json({
             success: true,

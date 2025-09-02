@@ -1,259 +1,187 @@
-// config/vp2NetClient.js
+// services/vp2NetClient.js
 const net = require('net');
+const fs = require('fs');
 const path = require('path');
 const { calculateCRC } = require('../utils/crc');
-const connectionPool = {};
 const { O, V } = require('../utils/icons');
-const configManager = require('./configManager');
+
+const LOCK_DIR = path.resolve(__dirname, '../config');
+const LOCK_TIMEOUT_MS = 5000; // 5 secondes
+const LOCK_CHECK_RETRIES = 3;
+const LOCK_CHECK_INTERVAL_MS = 2000; // 2 secondes
 
 /**
- * Vérifie si nous possédons actuellement le verrou SANS créer de connexion
- * @param {object} stationConfig Configuration de la station
- * @param {object} [freshConfig] Configuration déjà chargée pour éviter une lecture redondante
- * @returns {boolean} True si nous possédons le verrou
+ * Vérifie si un fichier de verrou est expiré
+ * @param {string} lockPath Chemin vers le fichier de verrou
+ * @returns {boolean} True si le verrou est libre (expiré ou inexistant)
  */
-function hasConnectionLock(stationConfig, freshConfig) {
-    const configToCheck = freshConfig || configManager.loadConfig(stationConfig.id);
-    return configToCheck.connectionInUse && configToCheck.lockOwner === process.pid;
+function isLockFree(lockPath) {
+    try {
+        const stats = fs.statSync(lockPath);
+        const age = Date.now() - stats.mtime.getTime();
+        return age > LOCK_TIMEOUT_MS;
+    } catch (error) {
+        // Fichier n'existe pas = verrou libre
+        return true;
+    }
 }
 
 /**
- * Acquiert un verrou pour une station donnée avec retry
- * IMPORTANT: Ne crée AUCUNE connexion TCP avant d'avoir acquis le verrou
- * @param {object} stationConfig Configuration de la station
- * @param {number} maxRetries Nombre maximum de tentatives
- * @param {number} retryDelay Délai entre les tentatives en ms
- * @param {string} operationType Type d'opération (pour déterminer les timeouts)
- * @returns {Promise<void>} Résout quand le verrou est acquis
+ * Crée ou met à jour le fichier de verrou
+ * @param {string} lockPath Chemin vers le fichier de verrou
  */
-async function acquireConnectionLock(stationConfig, maxRetries = 5, retryDelay = 1000, operationType = 'default') {
-    let attempts = 0;
+function touchLockFile(lockPath) {
+    const now = new Date();
+    try {
+        fs.writeFileSync(lockPath, now.toISOString());
+        // fs.utimesSync(lockPath, now, now);
+    } catch (error) {
+        // Si le fichier n'existe pas, le créer
+        fs.writeFileSync(lockPath, now.toString());
+    }
+}
 
-    // Déterminer les timeouts selon le type d'opération
-    const timeouts = {
-        'default': 15000,      // 15 secondes
-        'archive': 1800000,    // 30 minutes pour les archives (peut être très long)
-        'sync': 60000,         // 1 minute pour la synchronisation
-        'collect': 20000       // 20 secondes pour la collecte
-    };
+/**
+ * Supprime le fichier de verrou
+ * @param {string} lockPath Chemin vers le fichier de verrou
+ */
+function releaseLockFile(lockPath) {
+    try {
+        fs.unlinkSync(lockPath);
+    } catch (error) {
+        // Ignore si le fichier n'existe pas déjà
+    }
+}
 
-    const lockTimeout = timeouts[operationType] || timeouts['default'];
-
-    while (attempts < maxRetries) {
-        const now = new Date();
-        
-        // IMPORTANT: Recharger la configuration depuis le fichier pour avoir les dernières valeurs
-        const freshConfig = configManager.loadConfig(stationConfig.id);
-        
-        if (!freshConfig.connectionInUse) {
-            // Connexion libre, on peut acquérir le verrou
-            stationConfig.lastTcpConnection = now;
-            stationConfig.connectionInUse = true;
-            stationConfig.operationType = operationType;
-            stationConfig.lockTimeout = lockTimeout;
-            stationConfig.lockOwner = process.pid; // Identifier le processus propriétaire
-            configManager.autoSaveConfig(stationConfig);
-            console.log(`${O.orange} Connection lock acquired for ${stationConfig.id} (operation: ${operationType}, timeout: ${Math.round(lockTimeout/1000)}s, pid: ${process.pid})`);
-            return;
+/**
+ * Tente d'acquérir le verrou avec retry
+ * @param {string} stationId ID de la station
+ * @returns {Promise<string>} Retourne le chemin du fichier de verrou
+ */
+async function acquireLock(stationId) {
+    const lockPath = path.join(LOCK_DIR, `${stationId}.lock`);
+    
+    for (let attempt = 1; attempt <= LOCK_CHECK_RETRIES; attempt++) {
+        if (isLockFree(lockPath)) {
+            touchLockFile(lockPath);
+            console.log(`${V.Check} Lock acquired for ${stationId} (attempt ${attempt}/${LOCK_CHECK_RETRIES})`);
+            return lockPath;
         }
         
-        // Connexion occupée, vérifier si elle a expiré
-        const lastConnectionTime = new Date(freshConfig.lastTcpConnection).getTime();
-        const timeSinceLastConnection = now.getTime() - lastConnectionTime;
-        const currentLockTimeout = freshConfig.lockTimeout || timeouts['default'];
-        const isLockExpired = timeSinceLastConnection > currentLockTimeout;
+        console.warn(`${V.timeout} Lock busy for ${stationId}, attempt ${attempt}/${LOCK_CHECK_RETRIES}`);
         
-        if (isLockExpired) {
-            console.warn(`${V.timeout} Connection lock expired for ${stationConfig.id} (${freshConfig.operationType || 'unknown'} operation locked for ${Math.round(timeSinceLastConnection/1000)}s, max was: ${Math.round(currentLockTimeout/1000)}s)`);
-            
-            // Nettoyer l'ancien état de connexion avant de forcer l'acquisition
-            const key = `${stationConfig.host}:${stationConfig.port}`;
-            if (connectionPool[key]) {
-                console.warn(`${V.warning} Cleaning up stale connection state for ${key}`);
-                if (connectionPool[key].client && !connectionPool[key].client.destroyed) {
-                    connectionPool[key].client.destroy();
-                }
-                delete connectionPool[key];
-            }
-            
-            // Forcer la libération du verrou expiré
-            stationConfig.lastTcpConnection = now;
-            stationConfig.connectionInUse = true;
-            stationConfig.operationType = operationType;
-            stationConfig.lockTimeout = lockTimeout;
-            stationConfig.lockOwner = process.pid;
-            configManager.autoSaveConfig(stationConfig);
-            console.log(`${O.orange} Connection lock forcibly acquired for ${stationConfig.id} (operation: ${operationType}, pid: ${process.pid})`);
-            return;
-        }
-        
-        attempts++;
-        const lockAge = Math.round(timeSinceLastConnection / 1000);
-        const remainingTimeout = Math.max(0, Math.round((currentLockTimeout - timeSinceLastConnection) / 1000));
-        
-        console.warn(`${V.timeout} Connection busy for ${stationConfig.id} (${freshConfig.operationType || 'unknown'} operation by pid ${freshConfig.lockOwner || 'unknown'}, locked for ${lockAge}s, expires in ${remainingTimeout}s), attempt ${attempts}/${maxRetries}`);
-        
-        if (attempts < maxRetries) {
-            // Si l'opération va bientôt expirer, attendre moins longtemps
-            const waitTime = remainingTimeout > 0 && remainingTimeout < retryDelay/1000 ? 
-                Math.min(remainingTimeout * 1000 + 1000, retryDelay) : retryDelay;
-            console.log(`${V.sleep} Waiting ${waitTime}ms before retry...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
+        if (attempt < LOCK_CHECK_RETRIES) {
+            await new Promise(resolve => setTimeout(resolve, LOCK_CHECK_INTERVAL_MS));
         }
     }
     
-    throw new Error(`Cannot acquire connection lock for ${stationConfig.id} after ${maxRetries} attempts - station is busy with ${stationConfig?.operationType || 'unknown'} operation (pid: ${stationConfig?.lockOwner || 'unknown'})`);
+    throw new Error(`Cannot acquire lock for ${stationId} after ${LOCK_CHECK_RETRIES} attempts`);
 }
 
 /**
- * Libère le verrou de connexion
+ * Crée un nouveau socket pour une station
  * @param {object} stationConfig Configuration de la station
+ * @param {string} lockPath Chemin du fichier de verrou
+ * @returns {Promise<net.Socket>} Socket connecté
  */
-function releaseConnectionLock(stationConfig) {
-    const operationType = stationConfig.operationType || 'unknown';
-    const lockOwner = stationConfig.lockOwner || 'unknown';
-    
-    // Vérifier que nous sommes bien le propriétaire du verrou
-    if (stationConfig.lockOwner && stationConfig.lockOwner !== process.pid) {
-        console.warn(`${V.warning} Attempted to release lock owned by different process (owner: ${stationConfig.lockOwner}, current: ${process.pid})`);
-        return;
-    }
-    
-    stationConfig.connectionInUse = false;
-    stationConfig.operationType = null;
-    stationConfig.lockTimeout = null;
-    stationConfig.lockOwner = null;
-    configManager.autoSaveConfig(stationConfig);
-    console.log(`${O.blue} Connection lock released for ${stationConfig.id} (was: ${operationType}, pid: ${lockOwner})`);
-}
-
-/**
- * Crée et initialise l'état pour une nouvelle connexion de station.
- * @param {object} stationConfig La configuration de la station (host, port, etc.).
- * @returns {object} L'objet d'état de la connexion.
- */
-function _createConnectionState(stationConfig) {
+async function createSocket(stationConfig, lockPath) {
     const key = `${stationConfig.host}:${stationConfig.port}`;
+    console.log(`${V.satellite} Creating new socket for ${key}`);
     
-    // Vérifier qu'on a bien le verrou avant de créer une nouvelle connexion
-    if (!hasConnectionLock(stationConfig)) {
-        throw new Error(`Cannot create connection - lock not owned by this process (pid: ${process.pid})`);
-    }
+    const socket = new net.Socket();
+    socket.setTimeout(10000);
+    socket.setKeepAlive(true, 30000);
     
-    console.log(`${V.satellite} Creating new connection state for ${key} (pid: ${process.pid})`);
-
-    const state = {
-        config: stationConfig,
-        client: new net.Socket(),
-        isConnecting: false,
-        isConnected: false,
-        currentResponseBuffer: Buffer.from([]),
-        currentResponsePromiseResolve: null,
-        currentResponsePromiseReject: null,
-        currentCommandTimeoutId: null,
-        createdBy: process.pid,
-    };
-
-    // Configuration du socket avec des timeouts appropriés
-    state.client.setTimeout(10000); // 10 secondes timeout pour les opérations socket
-    state.client.setKeepAlive(true, 30000); // Keep-alive pour détecter les déconnexions
-
-    state.client.on('data', (data) => {
-        state.currentResponseBuffer = Buffer.concat([state.currentResponseBuffer, data]);
+    // // Override de la méthode write pour toucher le verrou automatiquement
+    // const originalWrite = socket.write.bind(socket);
+    // socket.write = function(data, encoding, callback) {
+    //     console.log(`${O.white} Writing to ${lockPath}`);
+    //     touchLockFile(lockPath);
+    //     return originalWrite(data, encoding, callback);
+    // };
+    
+    // Stockage du lockPath dans le socket pour libération ultérieure
+    socket._lockPath = lockPath;
+    socket._stationId = stationConfig.id;
+    
+    socket.on('close', (hadError) => {
+        console.log(`${V.BlackFlag} Socket closed for ${key} (hadError: ${hadError})`);
+        releaseLockFile(lockPath);
     });
-
-    state.client.on('connect', () => {
-        console.log(`${V.connect} Connected to station ${key} (pid: ${process.pid})`);
-        state.isConnected = true;
-        state.isConnecting = false;
-        // Mettre à jour lastTcpConnection lors de la connexion
-        stationConfig.lastTcpConnection = new Date();
-        configManager.autoSaveConfig(stationConfig);
+    
+    socket.on('error', (err) => {
+        console.error(`${V.error} Socket error for ${key}: ${err.message}`);
+        releaseLockFile(lockPath);
     });
-
-    state.client.on('timeout', () => {
-        console.warn(`${V.timeout} Socket timeout for station ${key}`);
-        state.client.destroy();
+    
+    socket.on('timeout', () => {
+        console.warn(`${V.timeout} Socket timeout for ${key}`);
+        socket.destroy();
     });
-
-    state.client.on('close', (hadError) => {
-        console.log(`${V.BlackFlag} Connection TCP closed to station ${key} (hadError: ${hadError}, pid: ${process.pid})`);
-        state.isConnected = false;
-        state.isConnecting = false;
+    
+    // Connexion avec timeout
+    return new Promise((resolve, reject) => {
+        const connectTimeout = setTimeout(() => {
+            socket.destroy();
+            reject(new Error(`Connection timeout to ${key}`));
+        }, 5000);
         
-        if (state.currentResponsePromiseReject) {
-            clearTimeout(state.currentCommandTimeoutId);
-            state.currentResponsePromiseReject(new Error('Connexion TCP fermée de manière inattendue.'));
-            state.currentResponsePromiseResolve = null;
-            state.currentResponsePromiseReject = null;
-        }
+        socket.connect(stationConfig.port, stationConfig.host, () => {
+            clearTimeout(connectTimeout);
+            // console.log(`${V.connect} Connected to ${key}`);
+            resolve(socket);
+        });
         
-        // Libérer le verrou seulement si nous en sommes propriétaire
-        if (hasConnectionLock(stationConfig)) {
-            releaseConnectionLock(stationConfig);
-        }
-        
-        delete connectionPool[key];
+        socket.once('error', (err) => {
+            clearTimeout(connectTimeout);
+            reject(err);
+        });
     });
-
-    state.client.on('error', (err) => {
-        console.error(`${V.error} TCP connection error to station ${key}: ${err.message} (pid: ${process.pid})`);
-        state.isConnected = false;
-        state.isConnecting = false;
-        
-        if (state.currentResponsePromiseReject) {
-            clearTimeout(state.currentCommandTimeoutId);
-            state.currentResponsePromiseReject(new Error(`Erreur TCP: ${err.message}`));
-            state.currentResponsePromiseResolve = null;
-            state.currentResponsePromiseReject = null;
-        }
-        
-        // Libérer le verrou seulement si nous en sommes propriétaire
-        if (hasConnectionLock(stationConfig)) {
-            releaseConnectionLock(stationConfig);
-        }
-    });
-
-    connectionPool[key] = state;
-    return state;
 }
 
 /**
- * Récupère l'état de connexion pour une station donnée SEULEMENT si nous avons le verrou.
- * CRITIQUE: Ne crée JAMAIS de connexion TCP sans vérifier le verrou d'abord
- * @param {object} stationConfig La configuration de la station.
- * @returns {object} L'objet d'état de la connexion.
- * @throws {Error} Si nous n'avons pas le verrou
+ * Récupère ou crée un socket stocké dans la requête
+ * @param {object} req Objet de requête Express
+ * @param {object} stationConfig Configuration de la station
+ * @returns {Promise<net.Socket>} Socket connecté
  */
-function _getConnectionState(stationConfig) {
-    // VÉRIFICATION CRITIQUE: Ne jamais créer de connexion sans le verrou
-    if (!hasConnectionLock(stationConfig)) {
-        throw new Error(`CRITICAL: Cannot create TCP connection - lock not owned by this process (pid: ${process.pid}). This would cause ECONNRESET on existing connections.`);
+async function getOrCreateSocket(req, stationConfig) {
+    // Vérifier si on a déjà un socket valide dans cette requête
+    if (req.weatherSocket && 
+        !req.weatherSocket.destroyed && 
+        req.weatherSocket.readyState === 'open' &&
+        req.weatherSocket._stationId === stationConfig.id) {
+        
+        // console.log(`${V.connect} Reusing socket for ${stationConfig.id} in this request`);
+        // Toucher le verrou pour le maintenir actif
+        // if (req.weatherSocket._lockPath) {
+            touchLockFile(req.weatherSocket._lockPath);
+        // }
+        return req.weatherSocket;
     }
     
-    const key = `${stationConfig.host}:${stationConfig.port}`;
-    
-    // Vérifier si nous avons déjà une connexion valide
-    const existingState = connectionPool[key];
-    if (existingState) {
-        // Double vérification : la connexion doit appartenir à ce processus
-        if (existingState.createdBy !== process.pid) {
-            console.warn(`${V.warning} Found connection created by different process (${existingState.createdBy} vs ${process.pid}) - cleaning up`);
-            if (!existingState.client.destroyed) {
-                existingState.client.destroy();
-            }
-            delete connectionPool[key];
-        } else {
-            return existingState;
-        }
+    // Nettoyer l'ancien socket s'il existe
+    if (req.weatherSocket && !req.weatherSocket.destroyed) {
+        console.log(`${V.warning} Cleaning up old socket for ${stationConfig.id}`);
+        req.weatherSocket.destroy();
+    } else {
+        // console.log(`${V.Check} No old socket found for ${stationConfig.id}`, V.Check);
     }
     
-    // Créer une nouvelle connexion SEULEMENT si nous avons le verrou
-    return _createConnectionState(stationConfig);
+    // Acquérir le verrou et créer un nouveau socket
+    const lockPath = await acquireLock(stationConfig.id);
+    
+    try {
+        const socket = await createSocket(stationConfig, lockPath);
+        req.weatherSocket = socket; // Stocker dans la requête
+    } catch (error) {
+        releaseLockFile(lockPath);
+        throw error;
+    }
 }
 
 /**
- * Analyse la chaîne de format de réponse pour déterminer la structure attendue.
+ * Parse le format de réponse attendu
  */
 function parseAnswerFormatString(formatString) {
     const segments = [];
@@ -300,270 +228,138 @@ function parseAnswerFormatString(formatString) {
 }
 
 /**
- * Assure que la connexion TCP est établie.
+ * Envoie une commande et attend la réponse
+ * @param {net.Socket} socket Socket connecté
+ * @param {string|Buffer} command Commande à envoyer
+ * @param {number} timeout Timeout en ms
+ * @param {object} parsedFormat Format de réponse parsé
+ * @returns {Promise<Buffer>} Réponse reçue
  */
-async function ensureConnection(state) {
-    if (state.isConnected && !state.client.destroyed) {
-        return;
-    }
-    
-    if (state.isConnecting) {
-        // Attend que la connexion actuelle se termine
-        return new Promise((resolve, reject) => {
-            const checkInterval = setInterval(() => {
-                if (state.isConnected && !state.client.destroyed) {
-                    clearInterval(checkInterval);
-                    resolve();
-                } else if (!state.isConnecting) {
-                    clearInterval(checkInterval);
-                    const key = `${state.config.host}:${state.config.port}`;
-                    reject(new Error(`Échec de la connexion TCP à ${key}.`));
-                }
-            }, 100);
+function sendAndReceive(weatherSocket, command, timeout, parsedFormat) {
+    return new Promise((resolve, reject) => {
+        // Vérifier que le socket est toujours valide
+        if (weatherSocket.destroyed || weatherSocket.readyState !== 'open') {
+            return reject(new Error('Socket is not connected'));
+        }
+        
+        let responseBuffer = Buffer.from([]);
+        let timeoutId;
+        let dataHandler;
+        
+        const cleanup = () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            if (dataHandler) weatherSocket.removeListener('data', dataHandler);
+        };
+        
+        dataHandler = (data) => {
+            responseBuffer = Buffer.concat([responseBuffer, data]);
             
-            setTimeout(() => {
-                clearInterval(checkInterval);
-                reject(new Error('Timeout lors de l\'attente de la connexion TCP.'));
-            }, 10000);
-        });
-    }
-
-    state.isConnecting = true;
-    return new Promise((resolve, reject) => {
-        const connectTimeout = setTimeout(() => {
-            state.client.destroy();
-            reject(new Error('Timeout de connexion TCP.'));
-        }, 5000);
-
-        state.client.connect(state.config.port, state.config.host, () => {
-            clearTimeout(connectTimeout);
-            resolve();
-        });
-        
-        const errorHandler = (err) => {
-            clearTimeout(connectTimeout);
-            state.client.removeListener('error', errorHandler);
-            reject(err);
-        };
-        
-        state.client.once('error', errorHandler);
-    }).finally(() => {
-        state.isConnecting = false;
-    });
-}
-
-/**
- * Fonction pour le réveil de la console.
- * CRITIQUE: Vérifie le verrou AVANT toute tentative de connexion TCP
- */
-async function wakeUpConsole(stationConfig, screen = null) {
-    // VÉRIFICATION CRITIQUE: Arrêter immédiatement si on n'a pas le verrou
-    if (!hasConnectionLock(stationConfig)) {
-        const freshConfig = configManager.loadConfig(stationConfig.id);
-        const errorMsg = `CRITICAL: Cannot wake up console - lock not owned by this process (pid: ${process.pid}). Current owner: ${freshConfig?.lockOwner || 'unknown'} with ${freshConfig?.operationType || 'unknown'} operation. This prevents TCP collisions.`;
-        throw new Error(errorMsg);
-    }
-    
-    // Maintenant on peut créer/récupérer la connexion en toute sécurité
-    let state;
-    try {
-        state = _getConnectionState(stationConfig);
-    } catch (error) {
-        // Si la création de l'état échoue, c'est probablement un problème de verrou
-        throw new Error(`Failed to get connection state: ${error.message}`);
-    }
-    
-    await ensureConnection(state);
-
-    let attempts = 0;
-    const maxAttempts = 3;
-    const wakeupTimeout = 1200;
-
-    while (attempts < maxAttempts) {
-        state.currentResponseBuffer = Buffer.from([]);
-        try {
-            const wakeUpBuffer = Buffer.from([0x1B, 0x0A]);
-            const response = await new Promise((resolve, reject) => {
-                let timeoutId = setTimeout(() => reject(new Error(`${V.timeout} Timeout`)), wakeupTimeout);
-                
-                const onDataTemp = (data) => {
-                    state.currentResponseBuffer = Buffer.concat([state.currentResponseBuffer, data]);
-                    if (state.currentResponseBuffer.includes(0x0A) && state.currentResponseBuffer.includes(0x0D)) {
-                        clearTimeout(timeoutId);
-                        state.client.removeListener('data', onDataTemp);
-                        resolve(state.currentResponseBuffer);
-                    }
-                };
-                state.client.on('data', onDataTemp);
-                
-                state.client.write(wakeUpBuffer, (err) => {
-                    if (err) {
-                        clearTimeout(timeoutId);
-                        state.client.removeListener('data', onDataTemp);
-                        reject(err);
-                    }
-                });
-            });
-
-            if (response.includes(0x0A) && response.includes(0x0D)) {
-                if (screen === true) {
-                    await sendCommand(stationConfig, `LAMPS 1`, 2000, "<LF><CR>OK<LF><CR>");
-                    console.log(`${O.yellow} ${stationConfig.id} - Screen ON`);
-                } else if (screen === false) {
-                    await sendCommand(stationConfig, `LAMPS 0`, 2000, "<LF><CR>OK<LF><CR>");
-                    console.log(`${O.black} ${stationConfig.id} - Screen OFF`);
-                } else {
-                    console.log(`${O.purple} ${stationConfig.id} - WakeUp!`);
-                }
-                return;
-            } else {
-                console.warn(`${V.sleep} Unexpected wakeup response (no \\n\\r): ${response.toString('hex')}`);
+            if (responseBuffer.length < parsedFormat.totalExpectedLength) {
+                return; // Pas assez de données
             }
-        } catch (error) {
-            console.error(`${V.error} Wakeup attempt failed: ${error.message}, attempt ${attempts + 1}/${maxAttempts}`);
-        }
-        attempts++;
-        if (attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-        }
-    }
-    throw new Error(`Failed to wake up console after ${maxAttempts} attempts`);
-}
-
-/**
- * Gère l'envoi brut d'une commande et la réception d'une réponse.
- */
-function _internalSendAndReceive(state, command, timeout, parsedFormat) {
-    return new Promise((resolve, reject) => {
-        if (state.currentResponsePromiseResolve) {
-            return reject(new Error('Une commande est déjà en attente de réponse.'));
-        }
-
-        state.currentResponsePromiseResolve = resolve;
-        state.currentResponsePromiseReject = reject;
-        state.currentResponseBuffer = Buffer.from([]);
-
-        const commandDescription = typeof command === 'string' ? command.trim() : `Binary (${command.length} bytes)`;
-
-        const cleanup = (finalStatus, logMessage) => {
-            clearTimeout(state.currentCommandTimeoutId);
-            state.client.removeListener('data', responseListener);
-            state.currentResponsePromiseResolve = null;
-            state.currentResponsePromiseReject = null;
-            console.log(`${V.receive} Message: ${logMessage}`);
-        };
-
-        state.currentCommandTimeoutId = setTimeout(() => {
-            const errorMessage = `Timeout pour la commande '${commandDescription}'. Données: ${state.currentResponseBuffer.toString('hex')}`;
-            cleanup('TIMEOUT', errorMessage);
-            reject(new Error(errorMessage));
-        }, timeout);
-
-        const responseListener = (dataChunk) => {
-            if (state.currentResponseBuffer.length < parsedFormat.totalExpectedLength) {
-                console.log(`${V.cut} Response Listener - Not enough data yet (${state.currentResponseBuffer.length}/${parsedFormat.totalExpectedLength}). Returning.`);
-                return;
-            }
-
+            
+            // Valider la réponse
             let currentOffset = 0;
             const dataSegments = [];
             const crcSegments = [];
-
-            for (const segment of parsedFormat.segments) {
-                const segmentData = state.currentResponseBuffer.slice(currentOffset, currentOffset + segment.length);
-
-                switch (segment.type) {
-                    case 'ACK':
-                        if (segmentData[0] !== segment.value) {
-                            cleanup('VALIDATION_ERROR', `ACK attendu (0x${segment.value.toString(16)}), mais reçu 0x${segmentData[0].toString(16)} à l'offset ${currentOffset}.`);
-                            return reject(new Error(`Octet ACK invalide.`));
-                        }
-                        break;
-                    case 'LITERAL':
-                        if (!segmentData.equals(segment.value)) {
-                            cleanup('VALIDATION_ERROR', `Littéral attendu (${segment.value.toString('hex')}), mais reçu ${segmentData.toString('hex')} à l'offset ${currentOffset}.`);
-                            return reject(new Error(`Réponse littérale invalide.`));
-                        }
-                        break;
-                    case 'DATA':
-                        dataSegments.push(segmentData);
-                        break;
-                    case 'CRC':
-                        crcSegments.push(segmentData);
-                        break;
+            
+            try {
+                for (const segment of parsedFormat.segments) {
+                    const segmentData = responseBuffer.slice(currentOffset, currentOffset + segment.length);
+                    
+                    switch (segment.type) {
+                        case 'ACK':
+                            if (segmentData[0] !== segment.value) {
+                                throw new Error(`Invalid ACK byte: expected 0x${segment.value.toString(16)}, got 0x${segmentData[0].toString(16)}`);
+                            }
+                            break;
+                        case 'LITERAL':
+                            if (!segmentData.equals(segment.value)) {
+                                throw new Error(`Invalid literal response`);
+                            }
+                            break;
+                        case 'DATA':
+                            dataSegments.push(segmentData);
+                            break;
+                        case 'CRC':
+                            crcSegments.push(segmentData);
+                            break;
+                    }
+                    currentOffset += segment.length;
                 }
-                currentOffset += segment.length;
+                
+                cleanup();
+                resolve(Buffer.concat([...dataSegments, ...crcSegments]));
+            } catch (error) {
+                cleanup();
+                reject(error);
             }
-
-            cleanup('SUCCESS', `Réponse complète et validée, longueur [${state.currentResponseBuffer.length}]`);
-            resolve(Buffer.concat([...dataSegments, ...crcSegments]));
         };
-
-        state.client.on('data', responseListener);
-
+        
+        timeoutId = setTimeout(() => {
+            cleanup();
+            reject(new Error(`Command timeout: ${responseBuffer.toString('hex')}`));
+        }, timeout);
+        
+        weatherSocket.on('data', dataHandler);
+        
         const dataToSend = typeof command === 'string' ? Buffer.from(`${command}\n`) : command;
-        try {
-            state.client.write(dataToSend, (err) => {
-                if (err) {
-                    cleanup('WRITE_ERROR', `Erreur d'écriture sur le socket: ${err.message}`);
-                    reject(err);
-                }
-            });
-        } catch (error) {
-            cleanup('WRITE_ERROR', `Erreur d'écriture sur le socket: ${error.message}`);
-            reject(error);
-        }
+        weatherSocket.write(dataToSend, (err) => {
+            if (err) {
+                cleanup();
+                reject(err);
+            }
+        });
+        touchLockFile(weatherSocket._lockPath);
     });
 }
 
 /**
- * Envoie une commande, valide la réponse, et réessaye en cas d'échec CRC.
- * CRITIQUE: Vérifie le verrou AVANT toute tentative de connexion TCP
+ * Fonction principale pour envoyer une commande
+ * @param {object} req Objet de requête Express (pour stocker le socket)
+ * @param {object} stationConfig Configuration de la station
+ * @param {string|Buffer} command Commande à envoyer
+ * @param {number} timeout Timeout en ms
+ * @param {string} answerFormat Format de réponse attendu
+ * @returns {Promise<Buffer>} Données de réponse
  */
-async function sendCommand(stationConfig, command, timeout = 2000, answerFormat = "") {
-    // VÉRIFICATION CRITIQUE: Arrêter immédiatement si on n'a pas le verrou
-    if (!hasConnectionLock(stationConfig)) {
-        const freshConfig = configManager.loadConfig(stationConfig.id);
-        const errorMsg = `CRITICAL: Cannot send command - lock not owned by this process (pid: ${process.pid}). Current owner: ${freshConfig?.lockOwner || 'unknown'} with ${freshConfig?.operationType || 'unknown'} operation. This prevents TCP collisions.`;
-        throw new Error(errorMsg);
+async function sendCommand(req, stationConfig, command, timeout = 2000, answerFormat = "") {
+    const parsedFormat = parseAnswerFormatString(answerFormat);
+    let commandDescription;
+    const commandText = command.toString()
+            .replace(/\r/g, '<CR>') // Retour chariot, decimal 13, hex \x0D
+            .replace(/\n/g, '<LF>') // Retour ligne, decimal 10, hex \x0A
+            .replace(/\x06/g, '<ACK>') // ACK, decimal 6, hex \x06
+            .replace(/\x21/g, '<NAK>') // NAK, decimal 33, hex \x21
+            .replace(/\x18/g, '<CANCEL>') // CANCEL, decimal 24, hex \x18
+            .replace(/\x1B/g, '<ESC>') // ESC, decimal 27, hex \x1B
+    if (typeof command === 'string') {
+        // command = command // ne fonctionne pas mour ACK
+        //     .replace('<CR>', '\r')
+        //     .replace('<LF>', '\n')
+        //     .replace('<ACK>', '\x06')
+        //     .replace('<NAK>', '\x15')
+        //     .replace('<CANCEL>', '\x18')
+        //     .replace('<ESC>', '\x1B');
+        commandDescription = command.trim();
+    } else {
+        commandDescription = `Binary (${command.length} bytes)`;
     }
-    
-    // Maintenant on peut créer/récupérer la connexion en toute sécurité
-    let state;
-    try {
-        state = _getConnectionState(stationConfig);
-    } catch (error) {
-        // Si la création de l'état échoue, c'est probablement un problème de verrou
-        throw new Error(`Failed to get connection state: ${error.message}`);
-    }
-    
     let attempts = 0;
     const maxAttempts = 2;
-    const commandDescription = typeof command === 'string' ? command.trim() : `Binary (${command.length} bytes)`;
-    const parsedFormat = parseAnswerFormatString(answerFormat);
-
+    
     while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 200));
         attempts++;
+        console.log(`${V.send} Sending to ${stationConfig.id} [${stationConfig.host}:${stationConfig.port}] (${attempts}/${maxAttempts}): '${commandText}', AnswerFormat: ${answerFormat}`);
         
-        const commandText = command.toString()
-            .replace(/\r/g, '<CR>')
-            .replace(/\n/g, '<LF>')
-            .replace(/\x06/g, '<ACK>')
-            .replace(/\x21/g, '<NAK>')
-            .replace(/\x18/g, '<CANCEL>')
-            .replace(/\x1B/g, '<ESC>');
-            
-        console.log(`${V.send} Sending to ${stationConfig.id} [${stationConfig.host}:${stationConfig.port}] (${attempts}/${maxAttempts}): '${commandText}', AnswerFormat: ${answerFormat} (pid: ${process.pid}, lock: ${hasConnectionLock(stationConfig) ? 'OK' : 'MISSING'})`);
-
         try {
-            await ensureConnection(state);
-            const payload = await _internalSendAndReceive(state, command, timeout, parsedFormat);
+            await getOrCreateSocket(req, stationConfig);
+            await new Promise(resolve => setTimeout(resolve, 200)); // Petite pause
             
-            // Mettre à jour le timestamp pour maintenir le verrou
-            stationConfig.lastTcpConnection = new Date();
-            configManager.autoSaveConfig(stationConfig);
+            const payload = await sendAndReceive(req.weatherSocket, command, timeout, parsedFormat);
             
+            console.log(`${V.receive} Received from ${stationConfig.id} [${stationConfig.host}:${stationConfig.port}]: data(${payload.toString('hex').length < 20 ? payload.toString('hex') : payload.toString('hex').slice(0, 20) + '... (' + payload.length + ' bytes)' })`);
+
             if (parsedFormat.expectsCrc) {
                 const data = payload.slice(0, parsedFormat.dataLengthForCrc);
                 const receivedCrcBytes = payload.slice(parsedFormat.dataLengthForCrc, parsedFormat.dataLengthForCrc + 2);
@@ -571,29 +367,88 @@ async function sendCommand(stationConfig, command, timeout = 2000, answerFormat 
                 const calculatedCrc = calculateCRC(data);
                 
                 if (calculatedCrc !== receivedCrc) {
-                    const crcError = new Error(`CRC invalide. Calculé: 0x${calculatedCrc.toString(16)}, Reçu: 0x${receivedCrc.toString(16)}`);
+                    const crcError = new Error(`Invalid CRC. Calculated: 0x${calculatedCrc.toString(16)}, Received: 0x${receivedCrc.toString(16)}`);
                     crcError.name = 'CRCError';
                     throw crcError;
                 }
                 return data;
             }
+            
             return payload;
         } catch (error) {
             if (error.name === 'CRCError' && attempts < maxAttempts) {
-                console.warn(`${V.Radioactive} Erreur CRC pour ${stationConfig.id} (tentative ${attempts}). Nouvel essai...`);
+                console.warn(`${V.Radioactive} CRC error for ${stationConfig.id} (attempt ${attempts}). Retrying...`);
             } else {
-                console.error(`${O.red} La commande '${commandDescription}' pour ${stationConfig.id} a échoué après ${attempts} tentative(s): ${error.message} (pid: ${process.pid})`);
+                console.error(`${O.red} Command '${commandDescription}' failed for ${stationConfig.id} after ${attempts} attempt(s): ${error.message}`);
                 throw error;
             }
         }
     }
-    throw new Error('Logique sendCommand: sortie de la boucle de tentatives.');
+    
+    throw new Error('Logic error: exited retry loop');
 }
+
+/**
+ * Réveille la console avec gestion du verrou intégrée
+ * @param {object} req Objet de requête Express
+ * @param {object} stationConfig Configuration de la station
+ * @param {boolean|null} screen true=allumer écran, false=éteindre, null=juste réveil
+ */
+async function wakeUpConsole(req, stationConfig, screen = null) {
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+        attempts++;
+        
+        try {
+            const ESC_LF = Buffer.from([0x1B, 0x0A]);
+            
+            const response = await sendCommand(req, stationConfig, ESC_LF, 2000, "2");
+            
+            if (response.toString('hex') === '0a0d') {
+                if (screen === true) {
+                    await sendCommand(req, stationConfig, `LAMPS 1`, 2000, "<LF><CR>OK<LF><CR>");
+                    console.log(`${O.yellow} ${stationConfig.id} - Screen ON`);
+                } else if (screen === false) {
+                    await sendCommand(req, stationConfig, `LAMPS 0`, 2000, "<LF><CR>OK<LF><CR>");
+                    console.log(`${O.black} ${stationConfig.id} - Screen OFF`);
+                } else {
+                    console.log(`${O.purple} ${stationConfig.id} - WakeUp!`);
+                }
+                return;
+            } else {
+                console.warn(`${V.sleep} Unexpected wakeup response: ${response.toString('hex')}`);
+            }
+        } catch (error) {
+            console.error(`${V.error} Wakeup attempt failed: ${error.message}, attempt ${attempts}/${maxAttempts}`);
+        }
+        
+        if (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+    }
+    
+    throw new Error(`Failed to wake up console after ${maxAttempts} attempts`);
+}
+
+// Fonctions compatibles avec l'ancien système (pour la transition)
+// async function acquireConnectionLock(stationConfig, maxRetries = 10, retryDelay = 2000, operationType = 'default') {
+//     // Cette fonction est maintenant intégrée dans getOrCreateSocket
+//     console.log(`${O.orange} Lock will be acquired automatically when needed for ${stationConfig.id}`);
+// }
+
+// function releaseConnectionLock(stationConfig) {
+//     console.log(`${O.blue} Socket will be automatically closed at end of request for ${stationConfig.id}`);
+// }
+
+// function hasConnectionLock(stationConfig) {
+//     const lockPath = path.join(LOCK_DIR, `${stationConfig.id}.lock`);
+//     return !isLockFree(lockPath);
+// }
 
 module.exports = {
     sendCommand,
     wakeUpConsole,
-    acquireConnectionLock,
-    releaseConnectionLock,
-    hasConnectionLock
+    getOrCreateSocket
 };

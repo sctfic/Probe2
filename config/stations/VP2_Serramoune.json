@@ -65,12 +65,7 @@
         "desired": 5,
         "lastReadValue": 5
     },
-    "lastArchiveDate": "2025-08-31T22:20:00.000Z",
+    "lastArchiveDate": "2025-08-26T09:15:00.000Z",
     "deltaTimeSeconds": 0.083,
-    "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\VP2_Serramoune.json",
-    "lastTcpConnection": "2025-08-31T20:23:36.826Z",
-    "connectionInUse": false,
-    "operationType": null,
-    "lockTimeout": null,
-    "lockOwner": null
+    "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\VP2_Serramoune.json"
 }

@@ -12,10 +12,8 @@ const configManager = require('./configManager');
 const { writePoints, Point } = require('./influxdbService'); // Ajout pour InfluxDB
 const units = require('../config/Units.json');
 
-// const userUnitsConfig = require(path.resolve(__dirname, '../config/Units.json'));
-
-async function getVp2DateTime(stationConfig) {
-    const stationTimeDataBytes = await sendCommand(stationConfig, 'GETTIME', 2000, "<ACK>6<CRC>");
+async function getVp2DateTime(req, stationConfig) {
+    const stationTimeDataBytes = await sendCommand(req, stationConfig, 'GETTIME', 2000, "<ACK>6<CRC>");
     const stationYear = stationTimeDataBytes[5] + 1900;
     const stationMonth = stationTimeDataBytes[4] - 1;
     const stationDay = stationTimeDataBytes[3];
@@ -34,22 +32,20 @@ async function getVp2DateTime(stationConfig) {
     return currentStationDate;
 }
 
-async function updateStationTime(stationConfig) {
+async function updateStationTime(req, stationConfig) {
     const ianaTimeZone = await getTimeZoneFromCoordinates(
         stationConfig.latitude.lastReadValue,
         stationConfig.longitude.lastReadValue
     );
-    console.log(`${V.network} Fuseau horaire : ${ianaTimeZone} pour les coordonées`, stationConfig.latitude.lastReadValue, stationConfig.longitude.lastReadValue);
+    console.log(`${V.network} Fuseau horaire : ${ianaTimeZone} pour les coordonnées`, stationConfig.latitude.lastReadValue, stationConfig.longitude.lastReadValue);
 
     const davisTimeZoneIndex = findDavisTimeZoneIndex(ianaTimeZone);
     const davisTimeZoneIndexHex = davisTimeZoneIndex.toString(16).padStart(2, '0').toUpperCase();
     stationConfig.timezone.method = 'GPS';
     stationConfig.timezone.value = ianaTimeZone;
     stationConfig.timezone.desired = davisTimeZoneIndex;
-    // console.log(`${V.network} Fuseau horaire : `, stationConfig.timezone);
 
-    const VP2DateTime = await getVp2DateTime(stationConfig);
-
+    const VP2DateTime = await getVp2DateTime(req, stationConfig);
 
     if (stationConfig.deltaTimeSeconds <= 1) {
         console.log(`${V.clock} Décalage de ${stationConfig.deltaTimeSeconds.toFixed(2)} sec. L'heure est déjà synchronisée. ${V.Check}`);
@@ -65,7 +61,6 @@ async function updateStationTime(stationConfig) {
     console.warn(`${V.clock} Décalage de ${stationConfig.deltaTimeSeconds.toFixed(2)} sec. Mise à jour de l'heure et du fuseau horaire...`);
     
     const targetLocalTime = await getLocalTimeFromCoordinates(stationConfig);
-    
     const targetUTCTime = new Date(targetLocalTime.getTime() - (targetLocalTime.getTimezoneOffset() * 60000));
 
     const timeDataForSet = Buffer.from([
@@ -81,16 +76,14 @@ async function updateStationTime(stationConfig) {
     const crcBytesForSetTime = Buffer.from([(crcForSetTime >> 8) & 0xFF, crcForSetTime & 0xFF]);
     const setTimePayload = Buffer.concat([timeDataForSet, crcBytesForSetTime]);
 
-    await sendCommand(stationConfig, 'SETTIME', 1000, "<ACK>");
-    await sendCommand(stationConfig, setTimePayload, 2000, "<ACK>");
+    await sendCommand(req, stationConfig, 'SETTIME', 1000, "<ACK>");
+    await sendCommand(req, stationConfig, setTimePayload, 2000, "<ACK>");
 
     console.log(`${V.eu} Configuration du fuseau horaire sur index ${davisTimeZoneIndex} (${ianaTimeZone}) en hex: ${davisTimeZoneIndexHex}`);
-    await sendCommand(stationConfig, `EEWR 11 ${davisTimeZoneIndexHex}`, 2000, "<LF><CR>OK<LF><CR>");
-    await sendCommand(stationConfig, `EEWR 16 00`, 2000, "<LF><CR>OK<LF><CR>");
-    // await sendCommand(stationConfig, `EEWR 12 00`, 2000, "<LF><CR>OK<LF><CR>");
-    await sendCommand(stationConfig, 'NEWSETUP', 2000, "<ACK>");
+    await sendCommand(req, stationConfig, `EEWR 11 ${davisTimeZoneIndexHex}`, 2000, "<LF><CR>OK<LF><CR>");
+    await sendCommand(req, stationConfig, `EEWR 16 00`, 2000, "<LF><CR>OK<LF><CR>");
+    await sendCommand(req, stationConfig, 'NEWSETUP', 2000, "<ACK>");
     
-    // Sauvegarder la configuration modifiée
     configManager.autoSaveConfig(stationConfig);
     console.log(`${V.eu} Configuration pour ${stationConfig.id} sauvegardée avec succès.`);
     
@@ -102,11 +95,9 @@ async function updateStationTime(stationConfig) {
         timeZone: `${ianaTimeZone} (Preset Index ${davisTimeZoneIndex})`
     };
 }
-// Nouvelle implémentation de syncStationSettings avec lecture globale EEPROM
 
 // Mapping des adresses EEPROM selon la documentation
 const EEPROM_SETTINGS_MAP = {
-    // Address: { offset, length, type, description }
     barGain:           { address: 0x01, length: 2, type: 'uint16', description: 'Factory barometer calibration - DO NOT MODIFY' },
     barOffset:         { address: 0x03, length: 2, type: 'uint16', description: 'Factory barometer calibration - DO NOT MODIFY' },
     barCal:            { address: 0x05, length: 2, type: 'uint16', description: 'Barometer Offset calibration' },
@@ -116,13 +107,8 @@ const EEPROM_SETTINGS_MAP = {
     longitude:         { address: 0x0D, length: 2, type: 'int16', description: 'Station Longitude in tenths of degree' },
     altitude:          { address: 0x0F, length: 2, type: 'uint16', description: 'Station elevation in feet' },
     timezone:          { address: 0x11, length: 1, type: 'uint8', description: 'Time zone string number' },
-    // manualOrAuto:      { address: 0x12, length: 1, type: 'uint8', description: '1=manual daylight savings, 0=automatic' },
-    // daylightSavings:   { address: 0x13, length: 1, type: 'uint8', description: 'Daylight savings bit (manual mode only)' },
     gmtOffset:         { address: 0x14, length: 2, type: 'int16', description: 'GMT offset in hundredths of hours' },
     gmtOrZone:         { address: 0x16, length: 1, type: 'uint8', description: '1=use GMT_OFFSET, 0=use TIME_ZONE' },
-    // useTx:             { address: 0x17, length: 1, type: 'uint8', description: 'Bitmapped transmitters to listen' },
-    // reTransmitTx:      { address: 0x18, length: 1, type: 'uint8', description: 'ID for retransmit' },
-    // stationList (16 bytes) from 0x19 to 0x28 - skip
     unitBits:          { address: 0x29, length: 1, type: 'uint8', description: 'Unit configuration bits' },
     unitBitsComp:      { address: 0x2A, length: 1, type: 'uint8', description: '1s complement of UNIT_BITS' },
     setupBits:         { address: 0x2B, length: 1, type: 'uint8', description: 'Setup configuration bits' },
@@ -130,13 +116,11 @@ const EEPROM_SETTINGS_MAP = {
     archiveInterval:   { address: 0x2D, length: 1, type: 'uint8', description: 'Archive period in minutes' }
 };
 
-// Fonction pour parser les données EEPROM lues
 function parseEEPROMSettingsData(buffer) {
     const settings = {};
     
-    // Fonction utilitaire pour lire différents types de données
     const readValue = (address, length, type) => {
-        const offset = address - 0x01; // L'offset depuis le début du buffer (qui commence à 0x01)
+        const offset = address - 0x01;
         
         switch (type) {
             case 'uint8':
@@ -152,12 +136,10 @@ function parseEEPROMSettingsData(buffer) {
         }
     };
     
-    // Lecture de tous les paramètres définis dans le mapping
     for (const [key, config] of Object.entries(EEPROM_SETTINGS_MAP)) {
         try {
             const rawValue = readValue(config.address, config.length, config.type);
             
-            // Traitement spécial pour certaines valeurs
             switch (key) {
                 case 'latitude':
                     settings.latitude = { 
@@ -185,29 +167,27 @@ function parseEEPROMSettingsData(buffer) {
                     break;
                     
                 case 'setupBits':
-                    // Parse des bits de configuration selon la doc
                     settings.setupBits = {
                         raw: rawValue,
-                        AMPMMode: (rawValue & 0x01) === 0 ? 0 : 1,           // Bit 0: 0=AM/PM, 1=24H
-                        isAMPMMode: (rawValue & 0x02) === 0 ? 0 : 1,         // Bit 1: 0=PM, 1=AM
-                        dateFormat: (rawValue & 0x04) === 0 ? 0 : 1,         // Bit 2: 0=Month/Day, 1=Day/Month
-                        windCupSize: (rawValue & 0x08) === 0 ? 0 : 1,        // Bit 3: 0=Small, 1=Large
-                        rainCollectorSize: (rawValue & 0x30) >> 4,           // Bits 5:4: 0=0.01", 1=0.2mm, 2=0.1mm
-                        latitudeNorthSouth: (rawValue & 0x40) === 0 ? 0 : 1, // Bit 6: 0=South, 1=North
-                        longitudeEastWest: (rawValue & 0x80) === 0 ? 0 : 1,  // Bit 7: 0=West, 1=East
+                        AMPMMode: (rawValue & 0x01) === 0 ? 0 : 1,
+                        isAMPMMode: (rawValue & 0x02) === 0 ? 0 : 1,
+                        dateFormat: (rawValue & 0x04) === 0 ? 0 : 1,
+                        windCupSize: (rawValue & 0x08) === 0 ? 0 : 1,
+                        rainCollectorSize: (rawValue & 0x30) >> 4,
+                        latitudeNorthSouth: (rawValue & 0x40) === 0 ? 0 : 1,
+                        longitudeEastWest: (rawValue & 0x80) === 0 ? 0 : 1,
                         description: config.description
                     };
                     break;
                     
                 case 'unitBits':
-                    // Parse des bits d'unité selon la doc
                     settings.unitBits = {
                         raw: rawValue,
-                        barometerUnit: rawValue & 0x03,           // Bits 1:0
-                        temperatureUnit: (rawValue & 0x0C) >> 2, // Bits 3:2
-                        elevationUnit: (rawValue & 0x10) >> 4,   // Bit 4
-                        rainUnit: (rawValue & 0x20) >> 5,        // Bit 5
-                        windUnit: (rawValue & 0xC0) >> 6,        // Bits 7:6
+                        barometerUnit: rawValue & 0x03,
+                        temperatureUnit: (rawValue & 0x0C) >> 2,
+                        elevationUnit: (rawValue & 0x10) >> 4,
+                        rainUnit: (rawValue & 0x20) >> 5,
+                        windUnit: (rawValue & 0xC0) >> 6,
                         description: config.description
                     };
                     break;
@@ -228,11 +208,9 @@ function parseEEPROMSettingsData(buffer) {
     return settings;
 }
 
-// Fonction pour comparer et identifier les changements nécessaires
 function identifyRequiredChanges(currentSettings, stationConfig) {
     const changes = [];
     
-    // Comparaison de la latitude
     if (stationConfig.latitude?.desired !== undefined) {
         const currentLatDegrees = currentSettings.latitude?.degrees || 0;
         const desiredLatTenths = Math.round(stationConfig.latitude.desired * 10);
@@ -250,7 +228,6 @@ function identifyRequiredChanges(currentSettings, stationConfig) {
         }
     }
     
-    // Comparaison de la longitude
     if (stationConfig.longitude?.desired !== undefined) {
         const currentLonDegrees = currentSettings.longitude?.degrees || 0;
         const desiredLonTenths = Math.round(stationConfig.longitude.desired * 10);
@@ -268,10 +245,9 @@ function identifyRequiredChanges(currentSettings, stationConfig) {
         }
     }
     
-    // Comparaison de l'altitude
     if (stationConfig.altitude?.desired !== undefined) {
         const currentAltMeters = currentSettings.altitude?.meters || 0;
-        const desiredAltFeet = Math.round(stationConfig.altitude.desired * 3.28084); // Conversion m -> ft
+        const desiredAltFeet = Math.round(stationConfig.altitude.desired * 3.28084);
         const currentAltFeet = currentSettings.altitude?.raw || 0;
         
         if (currentAltFeet !== desiredAltFeet) {
@@ -286,7 +262,6 @@ function identifyRequiredChanges(currentSettings, stationConfig) {
         }
     }
     
-    // Comparaison du fuseau horaire
     if (stationConfig.timezone?.desired !== undefined) {
         const currentTz = currentSettings.timezone?.value || 0;
         const desiredTz = stationConfig.timezone.desired;
@@ -303,7 +278,6 @@ function identifyRequiredChanges(currentSettings, stationConfig) {
         }
     }
     
-    // Comparaison de l'intervalle d'archive
     if (stationConfig.archiveInterval?.desired !== undefined) {
         const currentInterval = currentSettings.archiveInterval?.value || 0;
         const desiredInterval = stationConfig.archiveInterval.desired;
@@ -316,12 +290,11 @@ function identifyRequiredChanges(currentSettings, stationConfig) {
                 currentValue: currentInterval,
                 desiredValue: desiredInterval,
                 description: `Archive Interval: ${currentInterval}min -> ${desiredInterval}min`,
-                useSetPer: true // Utiliser la commande SETPER au lieu de EEWR
+                useSetPer: true
             });
         }
     }
     
-    // Comparaison du mois de début de saison de pluie
     if (stationConfig.rainSaisonStart?.desired !== undefined) {
         const currentMonth = currentSettings.rainSaisonStart?.value || 0;
         const desiredMonth = stationConfig.rainSaisonStart.desired;
@@ -338,12 +311,10 @@ function identifyRequiredChanges(currentSettings, stationConfig) {
         }
     }
     
-    // Comparaison des bits de configuration (setupBits)
     if (currentSettings.setupBits) {
         let newSetupBits = currentSettings.setupBits.raw;
         let setupChanged = false;
         
-        // Vérification de chaque bit de configuration
         const setupBitChecks = [
             { configKey: 'AMPMMode', bit: 0, mask: 0x01 },
             { configKey: 'isAMPMMode', bit: 1, mask: 0x02 },
@@ -365,10 +336,8 @@ function identifyRequiredChanges(currentSettings, stationConfig) {
                 if (currentBitValue !== desiredBitValue) {
                     setupChanged = true;
                     if (check.shift) {
-                        // Pour les champs multi-bits comme rainCollectorSize
                         newSetupBits = (newSetupBits & ~check.mask) | ((desiredBitValue << check.shift) & check.mask);
                     } else {
-                        // Pour les bits simples
                         if (desiredBitValue) {
                             newSetupBits |= check.mask;
                         } else {
@@ -394,23 +363,19 @@ function identifyRequiredChanges(currentSettings, stationConfig) {
     return changes;
 }
 
-// Fonction principale syncStationSettings remaniée
-async function syncStationSettings(stationConfig) {
+async function syncStationSettings(req, stationConfig) {
     const stationId = stationConfig.id;
     let changesMade = false;
     
     try {
         console.log(`${V.gear} Synchronisation des paramètres pour la station ${stationId}`);
         
-        // Étape 1: Lecture globale des paramètres EEPROM (46 bytes depuis 0x01)
         console.log(`${V.read} Lecture globale EEPROM depuis 0x01 (46 bytes)`);
-        const eepromData = await sendCommand(stationConfig, 'EEBRD 01 2E', 2000, '<ACK>46<CRC>');
+        const eepromData = await sendCommand(req, stationConfig, 'EEBRD 01 2E', 2000, '<ACK>46<CRC>');
         
-        // Étape 2: Parse des données lues
         const currentSettings = parseEEPROMSettingsData(eepromData);
         console.log(`${V.eye} Paramètres actuels lus avec succès`);
         
-        // Mise à jour de stationConfig avec les valeurs lues
         if (currentSettings.latitude) {
             stationConfig.latitude.lastReadValue = currentSettings.latitude.degrees;
         }
@@ -431,7 +396,6 @@ async function syncStationSettings(stationConfig) {
         }
         if (currentSettings.setupBits) {
             stationConfig.AMPMMode.lastReadValue = currentSettings.setupBits.AMPMMode;
-            // stationConfig.isAMPMMode.lastReadValue = currentSettings.setupBits.isAMPMMode;
             stationConfig.dateFormat.lastReadValue = currentSettings.setupBits.dateFormat;
             stationConfig.windCupSize.lastReadValue = currentSettings.setupBits.windCupSize;
             stationConfig.rainCollectorSize.lastReadValue = currentSettings.setupBits.rainCollectorSize;
@@ -439,7 +403,6 @@ async function syncStationSettings(stationConfig) {
             stationConfig.longitudeEastWest.lastReadValue = currentSettings.setupBits.longitudeEastWest;
         }
         
-        // Étape 3: Identification des changements nécessaires
         const requiredChanges = identifyRequiredChanges(currentSettings, stationConfig);
         
         if (requiredChanges.length === 0) {
@@ -451,7 +414,6 @@ async function syncStationSettings(stationConfig) {
             };
         }
         
-        // Étape 4: Application des changements
         console.log(`${V.write} ${requiredChanges.length} changement(s) nécessaire(s)`);
         
         for (const change of requiredChanges) {
@@ -460,33 +422,28 @@ async function syncStationSettings(stationConfig) {
             if (change.useSetPer) {
                 const validIntervals = [1, 5, 10, 15, 30, 60, 120];
                 if (validIntervals.includes(change.desiredValue)) {
-                    // Cas spécial pour l'intervalle d'archive
-                    await sendCommand(stationConfig, `SETPER ${change.desiredValue}`, 2000, "<LF><CR>");
-                    await sendCommand(stationConfig, 'START', 2000, "<LF><CR>OK<LF><CR>");
+                    await sendCommand(req, stationConfig, `SETPER ${change.desiredValue}`, 2000, "<LF><CR>");
+                    await sendCommand(req, stationConfig, 'START', 2000, "<LF><CR>OK<LF><CR>");
                 } else {
-                    await sendCommand(stationConfig, 'STOP', 2000, "<LF><CR>OK<LF><CR>");
+                    await sendCommand(req, stationConfig, 'STOP', 2000, "<LF><CR>OK<LF><CR>");
                     console.log(`${V.error} Intervalle d'archive invalide pour ${stationId}: ${change.desiredValue}, ARRET d'Archivage !`);
                 }
             } else if (change.length === 1) {
-                // Écriture d'un byte
-                await sendCommand(stationConfig, `EEWR ${change.address.toString(16).padStart(2, '0').toUpperCase()} ${change.desiredValue.toString(16).padStart(2, '0').toUpperCase()}`, 2000, "<LF><CR>OK<LF><CR>");
+                await sendCommand(req, stationConfig, `EEWR ${change.address.toString(16).padStart(2, '0').toUpperCase()} ${change.desiredValue.toString(16).padStart(2, '0').toUpperCase()}`, 2000, "<LF><CR>OK<LF><CR>");
             } else if (change.length === 2) {
-                // Écriture de 2 bytes (Little Endian)
                 const lowByte = change.desiredValue & 0xFF;
                 const highByte = (change.desiredValue >> 8) & 0xFF;
-                await sendCommand(stationConfig, `EEWR ${change.address.toString(16).padStart(2, '0').toUpperCase()} ${lowByte.toString(16).padStart(2, '0').toUpperCase()}`, 2000, "<LF><CR>OK<LF><CR>");
-                await sendCommand(stationConfig, `EEWR ${(change.address + 1).toString(16).padStart(2, '0').toUpperCase()} ${highByte.toString(16).padStart(2, '0').toUpperCase()}`, 2000, "<LF><CR>OK<LF><CR>");
+                await sendCommand(req, stationConfig, `EEWR ${change.address.toString(16).padStart(2, '0').toUpperCase()} ${lowByte.toString(16).padStart(2, '0').toUpperCase()}`, 2000, "<LF><CR>OK<LF><CR>");
+                await sendCommand(req, stationConfig, `EEWR ${(change.address + 1).toString(16).padStart(2, '0').toUpperCase()} ${highByte.toString(16).padStart(2, '0').toUpperCase()}`, 2000, "<LF><CR>OK<LF><CR>");
             }
             
             changesMade = true;
         }
         
-        // Étape 5: Application des changements avec NEWSETUP
         if (changesMade) {
             console.log(`${V.memory} Application des changements avec NEWSETUP...`);
-            await sendCommand(stationConfig, 'NEWSETUP', 2000, "<ACK>");
+            await sendCommand(req, stationConfig, 'NEWSETUP', 2000, "<ACK>");
             
-            // Sauvegarder la configuration modifiée
             configManager.saveConfig(stationId, stationConfig);
             
             console.log(`${V.Check} Synchronisation terminée avec succès pour ${stationId}`);
@@ -503,11 +460,12 @@ async function syncStationSettings(stationConfig) {
         throw error;
     }
 }
-async function updateArchiveConfiguration(stationConfig) {
+
+async function updateArchiveConfiguration(req, stationConfig) {
     if (stationConfig.archiveRecordsEnable.desired != stationConfig.archiveRecordsEnable.lastReadValue){
         console.log(`[Station Service] Activation de la création des enregistrements d'archive pour ${stationConfig.id}...`);
         try {
-            await sendCommand(stationConfig, 'START', 2000, "<LF><CR>OK<LF><CR>");
+            await sendCommand(req, stationConfig, 'START', 2000, "<LF><CR>OK<LF><CR>");
         } catch (error) {
             console.error(`[Station Service] Erreur lors de l'activation des enregistrements d'archive: ${error.message}`);
             throw new Error(`Échec de l'activation des enregistrements d'archive: ${error.message}`);
@@ -517,7 +475,7 @@ async function updateArchiveConfiguration(stationConfig) {
     if (stationConfig.archiveInterval.desired != stationConfig.archiveInterval.lastReadValue && validIntervals.includes(stationConfig.archiveInterval.desired)){
         console.log(`[Station Service] Définition de l'intervalle d'archive à ${stationConfig.archiveInterval.desired} minutes pour ${stationConfig.id}...`);
         try {
-            await sendCommand(stationConfig, `SETPER ${stationConfig.archiveInterval.desired}`, 2000, "<LF><CR>");
+            await sendCommand(req, stationConfig, `SETPER ${stationConfig.archiveInterval.desired}`, 2000, "<LF><CR>");
         } catch (error) {
             console.error(`[Station Service] Erreur lors de la définition de l'intervalle d'archive: ${error.message}`);
             throw new Error(`Échec de la définition de l'intervalle d'archive: ${error.message}`);
@@ -527,12 +485,12 @@ async function updateArchiveConfiguration(stationConfig) {
     return { status: 'success', message: `Configuration de l'archive mise à jour avec succès pour ${stationConfig.id}.` };
 }
 
-async function getCurrentWeatherData(stationConfig) {
-    const loop1Bytes = await sendCommand(stationConfig, 'LPS 1 1', 2000, "<ACK>97<CRC>");
+async function getCurrentWeatherData(req, stationConfig) {
+    const loop1Bytes = await sendCommand(req, stationConfig, 'LPS 1 1', 2000, "<ACK>97<CRC>");
     const loop1Data = parseLOOP1Data(loop1Bytes);
     console.log(`${V.thermometer} Données LOOP1 récupérées pour ${stationConfig.id}:`, loop1Data);
 
-    const loop2Bytes = await sendCommand(stationConfig, 'LPS 2 1', 2000, "<ACK>97<CRC>");
+    const loop2Bytes = await sendCommand(req, stationConfig, 'LPS 2 1', 2000, "<ACK>97<CRC>");
     const loop2Data = parseLOOP2Data(loop2Bytes);
     console.log(`${V.thermometer} Données LOOP2 récupérées pour ${stationConfig.id}:`, loop2Data);
 
@@ -543,11 +501,9 @@ async function getCurrentWeatherData(stationConfig) {
     return processedData;
 }
 
-async function getStationInfo(stationConfig) {
+async function getStationInfo(req, stationConfig) {
     try {
         console.log(`${V.info} Récupération des informations de la station ${stationConfig.id}`);
-        
-        // await wakeUpConsole(stationConfig);
         
         const info = {
             stationId: stationConfig.id,
@@ -573,19 +529,12 @@ async function getStationInfo(stationConfig) {
     }
 }
 
-/**
- * Écrit les données d'un enregistrement d'archive dans InfluxDB.
- * @param {object} processedData Les données météo traitées.
- * @param {Date} datetime L'horodatage des données.
- * @param {string} stationId L'ID de la station.
- * @returns {Promise<boolean>} Retourne `true` si les données ont été écrites avec succès, sinon `false`.
- */
 async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
     const points = [];
-    // on supprime les champs inutiles
     delete processedData.date;
     delete processedData.time;
-    if (processedData.windSpeed) { // si il y a des données de vent (ISS connected)
+    
+    if (processedData.windSpeed) {
         const windSpeed = processedData.windSpeed.Value;
         const windDir = processedData.windDir?.Value !== undefined ? processedData.windDir.Value : null;
         
@@ -594,11 +543,10 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
             .floatField('speed', windSpeed)
             .floatField('direction', windDir)
             .tag('unit', processedData.windSpeed.Unit)
-            // .tag('direction', mapDegreesToCardinal(windDir))
             .timestamp(datetime);
         points.push(wind);
     
-        if (processedData.windSpeedMax) { // si il y a des données de vent max
+        if (processedData.windSpeedMax) {
             const windSpeedMax = processedData.windSpeedMax.Value;
             const windDirMax = processedData.windDirMax?.Value !== undefined ? processedData.windDirMax.Value : null;
             const gust = new Point('wind')
@@ -610,17 +558,17 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
             points.push(gust);
         }
     }
+    
     delete processedData.windDir;
     delete processedData.windSpeed;
     delete processedData.windSpeedMax;
     delete processedData.windDirMax;
 
-    // regroupe les entrees par type pour les ecrires en un seul point par type
     const groupedData = {};
     for (const [key, data] of Object.entries(processedData)) {
         const measurement = sensorTypeMap[key];
         if (measurement && typeof data.Value === 'number' && isFinite(data.Value)) {
-            if (!groupedData[measurement]) { // toutes les temperatures seront dans le même point
+            if (!groupedData[measurement]) {
                 groupedData[measurement] = {
                     fields: {},
                     unit: data.Unit
@@ -629,6 +577,7 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
             groupedData[measurement].fields[key] = data.Value;
         }
     }
+    
     for (const [measurement, data] of Object.entries(groupedData)) {
         const newPoint = new Point(measurement)
             .tag('station_id', stationId)
@@ -645,10 +594,10 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
         return await writePoints(points);
     }
 
-    return true; // Aucune donnée à écrire
+    return true;
 }
 
-async function downloadArchiveData(stationConfig, startDate, res) {
+async function downloadArchiveData(req, stationConfig, startDate, res) {
     let effectiveStartDate;
     if (startDate) {
         effectiveStartDate = startDate;
@@ -658,7 +607,8 @@ async function downloadArchiveData(stationConfig, startDate, res) {
     } else {
         effectiveStartDate = (new Date(new Date().getTime() - 4 * 24 * 60 * 60 * 1000));
     }
-    await sendCommand(stationConfig, 'DMPAFT', 2000, "<ACK>");
+    
+    await sendCommand(req, stationConfig, 'DMPAFT', 2000, "<ACK>");
 
     const year = effectiveStartDate.getUTCFullYear();
     const month = effectiveStartDate.getUTCMonth() + 1;
@@ -668,18 +618,18 @@ async function downloadArchiveData(stationConfig, startDate, res) {
     const minutes = effectiveStartDate.getUTCMinutes();
     const timeStamp = hours * 100 + minutes;
 
-    // construction du buffer datePayload = dateStamp + timeStamp, attention a l'ordre de Octets !!!!
     const datePayload = Buffer.from([ dateStamp & 0xFF, dateStamp >> 8, timeStamp & 0xFF, timeStamp >> 8]);
 
     const dateCrc = calculateCRC(datePayload);
     const dateCrcBytes = Buffer.from([dateCrc >> 8, dateCrc & 0xFF]);
     const fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
 
-    const pageInfo = await sendCommand(stationConfig, fullPayload, 5000, "<ACK>4<CRC>"); // pageInfo 01020200
+    // on envoit la date de la 1er archive souhaitée
+    const pageInfo = await sendCommand(req, stationConfig, fullPayload, 5000, "<ACK>4<CRC>");
     const numberOfPages = pageInfo.readUInt16LE(0);
     let firstReccord = pageInfo.readUInt8(2);
     console.log(`${V.books} ${numberOfPages} pages d'archives`, `${V.book} debute au ${firstReccord}ieme enregistrement de la 1er page`);
-    //function interne pour l'avancement
+    
     const sendProgress = (page, total) => {
         if (total > 1) {
             const out = {
@@ -687,52 +637,47 @@ async function downloadArchiveData(stationConfig, startDate, res) {
                 processedPages: page,
                 totalPages: total,
             }
-            // try {
-            //     // Envoi de l'avancement au client
-            //     res.write(JSON.stringify(out) + '\n');
-            // } catch (error) {
-            //     console.error(`${V.error} Erreur lors de l'envoi de l'avancement pour ${stationId}:`, out);
-            // }
         }
     };
     sendProgress(0, numberOfPages);
 
     const allRecords = {};
-    for (let i = 0; i < numberOfPages; i++) {
-        const ackByte = Buffer.from([0x06]);
-        const pageData = await sendCommand(stationConfig, ackByte, 2000, "265<CRC>");
+    // on se limite a 10 archive a la fois pour laisser la station aquerir les nouvelles données
+    for (let i = 0; i < numberOfPages && i < 10; i++) {
+        const ACK = Buffer.from([0x06]);
+        // on envoit l'ACK, demande de la suivante
+        const pageData = await sendCommand(req, stationConfig, ACK, 2000, "265<CRC>");
         const pageNumber = pageData.readUInt8(0);
         const pageDataOnly = pageData.slice(1, pageData.length-4);
+        
         for (let j = firstReccord; j < 5; j++) {
             const recordBuffer = pageDataOnly.slice(j * 52, (j + 1) * 52);
             if (recordBuffer.length === 52) {
                 const parsedRecord = parseDMPRecord(recordBuffer);
-                const processedData = processWeatherData(parsedRecord, stationConfig, 'metric'); // , userUnitsConfig);
+                const processedData = processWeatherData(parsedRecord, stationConfig, 'metric');
                 const nativedate = convertRawValue2NativeValue( parsedRecord.date.value, 'date_YYMMdd', null);
                 const nativetime = convertRawValue2NativeValue( parsedRecord.time.value, 'time', null);
-                const datetime = conversionTable.date.iso8601(nativedate) + conversionTable.time.iso8601(nativetime); // format ISO8601 ex: 2025-08-18T07:45:00.000Z
+                const datetime = conversionTable.date.iso8601(nativedate) + conversionTable.time.iso8601(nativetime);
 
                 if (stationConfig.lastArchiveDate === null || (new Date(datetime)) > (new Date(stationConfig.lastArchiveDate))) {
                     allRecords[datetime] = processedData;
-                    // Écrire dans InfluxDB, 
                     const WriteToDB = await writeArchiveToInfluxDB(processedData, new Date(datetime), stationConfig.id);
                     if (WriteToDB){
                         console.log(`${V.package} Pages ${pageNumber+1}.${j+1}/${numberOfPages} Archives / Write ${WriteToDB} points influxDb for [${datetime}] ✅`);
                         stationConfig.lastArchiveDate = datetime;
+                        configManager.autoSaveConfig(stationConfig);
                     } else {
                         console.warn(`${V.package} Pages ${pageNumber+1}.${j+1}/${numberOfPages} Archives / Error writing points influxDb for [${datetime}] ${V.error}`);
                     }
                 } else {
                     console.warn(`${V.Gyro} ${pageNumber+1}[${j+1}]/${numberOfPages}: ${datetime} <= ${stationConfig.lastArchiveDate}`);
                 }
-
             }
-        }        
+        }
         firstReccord = 0;
         sendProgress(i+1, numberOfPages);
     }
-    configManager.autoSaveConfig(stationConfig);
-    // await wakeUpConsole(stationConfig);
+    
     return { status: 'success', message: `${Object.keys(allRecords).length} pages sur ${numberOfPages} archive téléchargées.`, data: allRecords };
 }
 
@@ -740,7 +685,7 @@ async function testTCPIP(stationConfig) {
     return new Promise((resolve, reject) => {
         const { host, port } = stationConfig;
         const socket = new net.Socket();
-        const timeout = 5000; // 5 secondes de timeout
+        const timeout = 5000;
 
         socket.setTimeout(timeout);
 

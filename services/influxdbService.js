@@ -204,26 +204,26 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
     const rainFields = ['rainFall', 'ET'];
     
     // Séparer les champs en deux groupes
-    const rainSensors = sensorRefs.filter(ref => rainFields.includes(ref));
-    const otherSensors = sensorRefs.filter(ref => !rainFields.includes(ref));
+    const cumulativeSensors = sensorRefs.filter(ref => rainFields.includes(ref));
+    const meanSensors = sensorRefs.filter(ref => !rainFields.includes(ref));
     
     // Construire les filtres
-    const rainFilter = rainSensors.length > 0 
-        ? rainSensors.map(ref => `r._field == "${ref}"`).join(' or ')
+    const sumFilter = cumulativeSensors.length > 0 
+        ? cumulativeSensors.map(ref => `r._field == "${ref}"`).join(' or ')
         : null;
-    const otherFilter = otherSensors.length > 0
-        ? otherSensors.map(ref => `r._field == "${ref}"`).join(' or ')
+    const meanFilter = meanSensors.length > 0
+        ? meanSensors.map(ref => `r._field == "${ref}"`).join(' or ')
         : null;
     
     // Construire la requête Flux
     let fluxQuery = '';
     
     // Requête pour les champs à sommer (rain)
-    if (rainFilter) {
+    if (sumFilter) {
         fluxQuery += `
         rainData = from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
-            |> filter(fn: (r) => r.station_id == "${stationId}" and (${rainFilter}))
+            |> filter(fn: (r) => r.station_id == "${stationId}" and (${sumFilter}))
             |> group(columns: ["_field"])
             |> aggregateWindow(every: ${intervalSeconds}s, fn: sum, createEmpty: false)
             |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement"])
@@ -231,14 +231,14 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
     }
     
     // Requête pour les champs à moyenner
-    if (otherFilter) {
-        if (rainFilter) {
+    if (meanFilter) {
+        if (sumFilter) {
             fluxQuery += '\n';
         }
         fluxQuery += `
-        otherData = from(bucket: "${bucket}")
+        meanData = from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
-            |> filter(fn: (r) => r.station_id == "${stationId}" and (${otherFilter}))
+            |> filter(fn: (r) => r.station_id == "${stationId}" and (${meanFilter}))
             |> group(columns: ["_field"])
             |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
             |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement"])
@@ -246,10 +246,10 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
     }
     
     // Combiner les résultats si nécessaire
-    if (rainFilter && otherFilter) {
+    if (sumFilter && meanFilter) {
         fluxQuery += `
         
-        union(tables: [rainData, otherData])
+        union(tables: [rainData, meanData])
             |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
             |> sort(columns: ["_time"])
             |> yield()
@@ -262,10 +262,10 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
             |> sort(columns: ["_time"])
             |> yield()
         `;
-    } else if (otherFilter) {
+    } else if (meanFilter) {
         fluxQuery += `
         
-        otherData
+        meanData
             |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
             |> sort(columns: ["_time"])
             |> yield()
@@ -361,15 +361,29 @@ function formatWindData(results, intervalSeconds) {
 async function queryWindVectors(stationId, startDate, endDate, intervalSeconds = 3600) {
     // Requête simple pour récupérer les données avec les tags de direction
     const fluxQuery = `
-        from(bucket: "${bucket}")
-            |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
+    import "math"
+    from(bucket: "${bucket}")
+    |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
             |> filter(fn: (r) => r.station_id == "${stationId}")
-            |> filter(fn: (r) => r._measurement == "wind")
-            |> filter(fn: (r) => r._field == "speed" or r._field == "gust")
-            |> keep(columns: ["_time", "_field", "_value", "direction"])
-            |> yield()
-    `;
-    
+            |> filter(fn: (r) => r["_measurement"] == "wind")
+            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value") 
+            // => colonnes speed + direction
+            |> map(fn: (r) => ({
+                            r with
+                X: float(v: r.speed) * math.cos(x: math.pi * float(v: r.direction) / 180.0),
+                Y: float(v: r.speed) * math.sin(x: math.pi * float(v: r.direction) / 180.0)
+            }))
+            |> group(columns: ["weather", "sensor"])  // <-- séparation par station ET capteur
+            |> aggregateWindow(every: 10m, fn: mean, createEmpty: false) 
+            |> map(fn: (r) => ({
+                r with
+                Vmean: math.sqrt(x: r.X*r.X + r.Y*r.Y),
+                Dmean: if math.atan2(y: r.Y, x: r.X) < 0.0 
+                        then 180.0/math.pi * math.atan2(y: r.Y, x: r.X) + 360.0 
+                        else 180.0/math.pi * math.atan2(y: r.Y, x: r.X)
+            }))
+            |> keep(columns: ["_time", "weather", "sensor", "Vmean", "Dmean", "X", "Y"])
+`
     try {
         const results = await executeQuery(fluxQuery);
         return processWindVectorsWithTags(results, intervalSeconds);

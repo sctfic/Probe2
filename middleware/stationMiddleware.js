@@ -1,6 +1,6 @@
 // middleware/stationMiddleware.js
 const configManager = require('../services/configManager');
-const { sendCommand, wakeUpConsole, acquireConnectionLock, releaseConnectionLock } = require('../services/vp2NetClient');
+const { wakeUpConsole, getOrCreateSocket } = require('../services/vp2NetClient');
 const { O, V } = require('../utils/icons');
 
 const loadStationConfig = (req, res, next) => {
@@ -49,12 +49,15 @@ const withStationLamps = (handler) => {
     return async (req, res) => {
         const stationConfig = req.stationConfig;
         
-        // Utilise maintenant les nouveaux paramètres par défaut (5 retries, 1000ms delay)
-        await acquireConnectionLock(stationConfig);
-
         try {
-            await wakeUpConsole(stationConfig, true);
+            await getOrCreateSocket(req, stationConfig);
+
+            // Réveiller la console avec les écrans allumés
+            await wakeUpConsole(req, stationConfig, true);
+            
+            // Exécuter le handler en lui passant req en premier paramètre
             const result = await handler(req, res);
+            
             if (result && typeof result === 'object') {
                 res.json({
                     success: true,
@@ -72,11 +75,17 @@ const withStationLamps = (handler) => {
             });
         } finally {
             try {
-                await wakeUpConsole(stationConfig, false);
+                // Éteindre les écrans à la fin
+                await wakeUpConsole(req, stationConfig, false);
             } catch (error) {
                 console.error(`${V.error} ${stationConfig.id} - Erreur LAMPS OFF: ${error.message}`);
             }
-            releaseConnectionLock(stationConfig);
+            
+            // Nettoyer le socket de la requête s'il existe
+            if (req.weatherSocket && !req.weatherSocket.destroyed) {
+                req.weatherSocket.destroy();
+                console.log(`${V.BlackFlag} Socket manually closed for ${stationConfig.id}`);
+            }
         }
     };
 };

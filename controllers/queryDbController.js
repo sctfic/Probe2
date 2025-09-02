@@ -183,8 +183,8 @@ exports.getQueryRaws = async (req, res) => {
     }
 
     let sensorRefs = sensorRefsStr.split(',');
-    // on retire les doublons, les vides, 'ET' et 'rain'
-    // sensorRefs = sensorRefs.filter((ref, index) => ref && ref !== 'ET' && ref !== 'rain' && sensorRefs.indexOf(ref) === index);
+    // on retire les doublons, les vides
+    sensorRefs = sensorRefs.filter((ref, index) => ref && sensorRefs.indexOf(ref) === index);
 
     if (sensorRefs.length === 0) {
         return res.status(400).json({ success: false, error: 'Aucun capteur valide dans sensorRefs.' });
