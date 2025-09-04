@@ -624,13 +624,10 @@ function reorganizeConditionsGrouped(groupBy) {
                     groupGrid.appendChild(tileElement.firstElementChild);
                     // Charger le graphique pour cette nouvelle tuile
                     setTimeout(() => {
-                        if (item.sensorDb && dbSensorList && dbSensorList.metadata.sensor && 
-                            dbSensorList.metadata.sensor.includes(item.sensorDb)) {
+                        if (item.sensorDb) {
                             const chartId = `chart_${item.key}`;
                             const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
-                            loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`);
-                        } else {
-                            console.log('pas de graphique identifie pour Sensor', item.sensorDb );
+                            loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`, item.period);
                         }
                     }, 50);
                 }
@@ -678,13 +675,10 @@ function reorganizeConditionsList() {
             grid.appendChild(tileElement.firstElementChild);
             // Charger le graphique pour cette nouvelle tuile
             setTimeout(() => {
-                if (item.sensorDb && dbSensorList && dbSensorList.metadata.sensor && 
-                    dbSensorList.metadata.sensor.includes(item.sensorDb)) {
+                if (item.sensorDb) {
                     const chartId = `chart_${item.key}`;
                     const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
-                    loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`);
-                } else {
-                    console.log('pas de graphique identifie pour Sensor', item.sensorDb );
+                    loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`, item.period);
                 }
             }, 50);
         }
@@ -694,18 +688,21 @@ function reorganizeConditionsList() {
 function getBatteryImageAndClass(batteryValue) {
    
     const value = parseFloat(batteryValue);
+    console.log('batteryValue', batteryValue);
     let level, className = '';
     if (value > 102) {
         level = 'missing';
         className= 'missing-battery';
-    } else if (value >= 87.5) {
+    } else if (value >= 90) {
         level = 100;
-    } else if (value >= 62.5) {
-        level = 75;
-    } else if (value >= 37.5) {
-        level = 50;
-    } else if (value >= 12.5) {
-        level = 25;
+    } else if (value >=70) {
+        level = 80;
+    } else if (value >= 50) {
+        level = 60;
+    } else if (value >= 30) {
+        level = 40;
+    } else if (value >= 10) {
+        level = 20;
         className = 'low-battery';
     } else {
         level = 0;
@@ -718,8 +715,8 @@ function getBatteryImageAndClass(batteryValue) {
 function createConditionTileHTML(item) {
     let displayValue = item.value;
     let metaInfo = '';
-
     let unitDisplay = item.userUnit ? `<span class="condition-unit">${item.userUnit}</span>` : '';
+    const fn = eval(item.fnToUserUnit || 'x => x');
     
     let chartContent = '';
     if (item.key === 'ForecastNum') {
@@ -760,7 +757,7 @@ function createConditionTileHTML(item) {
         unitDisplay = '';
     } else if (item.key === 'batteryVoltage') {
         // Cas spécial pour la batterie avec niveau
-        const batteryInfo = getBatteryImageAndClass(displayValue);
+        const batteryInfo = getBatteryImageAndClass(fn(displayValue));
         chartContent = `
             <div class="battery-container">
                 <img src="img/${batteryInfo.image}" 
@@ -773,7 +770,6 @@ function createConditionTileHTML(item) {
         chartContent = `<div id="chart_${item.key}" class="plot-container"></div>`;
     }
     
-    const fn = eval(item.fnToUserUnit || 'x => x');
     return `
         <div class="condition-tile" data-key="${item.key}">
             <div class="condition-content">
@@ -792,22 +788,25 @@ function createConditionTileHTML(item) {
     `;
 }
         function getStartDate (period){
+        let date;
             if (period === 'dateStormRain') {
                 const str = currentConditionsData.dateStormRain?.Value;
-                return (str?.endsWith('T') ? str.slice(0, -1) : str) || Math.round((new Date()).getTime()/1000) - 60*60*24*7;
+                const stormDate = (str?.endsWith('T') ? str.slice(0, -1) : str)
+                date = new Date((stormDate || Math.round((new Date()).getTime()/1000) - 60*60*24*7)*1000);
+            } else {
+                date = new Date((Math.round((new Date()).getTime()/1000) - period)*1000);
             }
-            return Math.round((new Date()).getTime()/1000) - period;
+            return date.toISOString().replace('.000', '');
         }
 
         function loadAllCharts() {
             if (!selectedStation || !dbSensorList) return;
 
             allConditions.forEach(item => {
-                if (item.sensorDb && dbSensorList.metadata.sensor && 
-                    dbSensorList.metadata.sensor.includes(item.sensorDb)) {
+                if (item.sensorDb) {
                     const chartId = `chart_${item.key}`;
                     const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
-                    loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`);
+                    loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`, item.period);
                 }
             });
             console.log(requestCache);
@@ -843,8 +842,8 @@ function createConditionTileHTML(item) {
                 'windGust10Min': 'Rafale de vent (10min)',
                 'windGustDir10Min': 'Direction rafale (10min)',
                 'dewPoint': 'Point de rosée',
-                'heatIndex': 'Indice de chaleur',
-                'windChill': 'Refroidissement éolien',
+                'heatIndex': 'Indice de chaleur (heat index)',
+                'windChill': 'Refroidissement éolien (wind chill)',
                 'THSW': 'Indice THSW',
                 'dateStormRain': 'Date de début des dernières averses',
                 'last15MinRain': 'Pluie (15 dernières min)',

@@ -34,6 +34,8 @@ router.get('/:stationId/sync-settings', withStationLamps(async (req, res) => { /
 // Route pour tester la connexion à une station
 router.get('/:stationId/test', (async (req, res) => { return await stationService.testTCPIP(req.stationConfig); })); // http://probe2.lpz.ovh/api/station/VP2_Serramoune/test
 
+router.get('/:stationId/additional-conditions', (async (req, res) => { return await additionalController.getAdditionalProbe(req, res); }));
+
 // Route pour obtenir la configuration d'une station
 router.get('/:stationId', (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/config
     try {

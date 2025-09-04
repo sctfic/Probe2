@@ -17,7 +17,23 @@ function transformDataForPlot(apiData, metadata) {
     })).filter(item => !isNaN(item.Value) && item.Value !== null);
 }
 
-function createPlot(data, metadata, id) {
+function createPlot(data, metadata, id, period) {
+    console.log(period);
+    if (typeof period !== 'number') {
+        period = '1 day';
+    } else if(period <= 24*3600) {
+        period = '1 hour';
+    } else if (period <= 24*3600*7) {
+        period = '1 day';
+    } else if (period <= 24*3600*31) {
+        period = '1 week';
+    } else if (period <= 24*3600*365) {
+        period = '1 month';
+    } else {
+        period = '1 year';
+    }
+    console.log(period);
+
     const chartDiv = document.getElementById(id);
     if (!chartDiv) {
         console.error(`Div avec l'ID ${id} non trouvée`);
@@ -56,7 +72,7 @@ function createPlot(data, metadata, id) {
                 //     stroke: "#4dc0e0", 
                 //     curve: metadata.measurement === 'rain' ? "step" : "monotone-x"
                 // }),
-                Plot.differenceY(data, Plot.shiftX("+1 day", {
+                Plot.differenceY(data, Plot.shiftX(`+${period}`, {
                     x: "Date",
                     y: "Value",
                     stroke: "#4dc0e0",
@@ -178,8 +194,9 @@ async function fetchWithCache(url) {
 /**
  * Charge les données depuis l'API avec gestion du cache
  */
-async function loadData(id, url) {
+async function loadData(id, url, period) {
     const loadingText = document.getElementById('loadingText');
+    console.log(period);
     
     try {
         // Nettoyer périodiquement le cache
@@ -190,7 +207,7 @@ async function loadData(id, url) {
         
         // Transformation et affichage
         const plotData = transformDataForPlot(apiResponse.data, apiResponse.metadata);
-        createPlot(plotData, apiResponse.metadata, id);
+        createPlot(plotData, apiResponse.metadata, id, period);
         
     } catch (error) {
         console.error('Erreur lors du chargement:', error);

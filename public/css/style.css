@@ -955,15 +955,20 @@ label {
 
 /* Animation pour l'icône de batterie */
 .battery-icon {
-    width: 40px;
-    height: 40px;
+    width: 100px;
+    height: 200px;
+    transition: transform 0.3s ease, filter 0px;
     transition: transform 0.3s ease, filter 0.3s ease;
 }
 
 .condition-tile:hover .battery-icon {
     transform: scale(1.1);
 }
-
+.missing-battery {
+    width: 130px;
+    height: 150px;
+    margin-top: -80px;
+}
 .battery-container {
     display: flex;
     align-items: center;
