@@ -56,8 +56,8 @@
           }
       },
       "sensors": [
-          "speed",
-          "gust",
+          "Speed",
+          "Gust",
           "windSpeed",
           "windSpeedMax",
           "avgWindSpeed10Min",

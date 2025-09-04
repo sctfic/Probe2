@@ -5,7 +5,7 @@ const path = require('path');
 const { calculateCRC } = require('../utils/crc');
 const { O, V } = require('../utils/icons');
 
-const LOCK_DIR = path.resolve(__dirname, '../config');
+const LOCK_DIR = path.resolve(__dirname, '../config/stations');
 const LOCK_TIMEOUT_MS = 5000; // 5 secondes
 const LOCK_CHECK_RETRIES = 3;
 const LOCK_CHECK_INTERVAL_MS = 2000; // 2 secondes

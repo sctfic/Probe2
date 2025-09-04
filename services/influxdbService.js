@@ -101,38 +101,132 @@ async function executeQuery(fluxQuery) {
  * @returns {Promise<Object>} Un objet contenant les métadonnées de la station.
  */
 async function getMetadata(stationId) {
-    const fluxQuery = `
-        import "influxdata/influxdb/schema"
+    const bucketStructure = {};
 
-        schema.tagValues(bucket: "${bucket}", tag: "_field", predicate: (r) => r.station_id == "${stationId}", start: -365d)
-    `;
-    const sensorRefs = await executeQuery(fluxQuery);
+    try {
+        // Étape 1: Obtenir la liste de tous les _measurements
+        const measurementsQuery = `
+            import "influxdata/influxdb/schema"
+            schema.measurements(bucket: "${bucket}")
+        `;
+        const measurements = await new Promise((resolve, reject) => {
+            const results = [];
+            queryApi.queryRows(measurementsQuery, {
+                next(row, tableMeta) {
+                    const o = tableMeta.toObject(row);
+                    results.push(o._value);
+                },
+                error(error) {
+                    reject(error);
+                },
+                complete() {
+                    resolve(results);
+                },
+            });
+        });
 
-    const measurementsQuery = `
-        import "influxdata/influxdb/schema"
+        // Étape 2: Pour chaque measurement, obtenir les tagKeys et fieldKeys
+        for (const measurement of measurements) {
+            
+            // Requête pour les tags
+            const tagsQuery = `
+                import "influxdata/influxdb/schema"
+                schema.measurementTagKeys(
+                    bucket: "${bucket}",
+                    measurement: "${measurement}"
+                )
+            `;
+            const tags = await new Promise((resolve, reject) => {
+                const results = [];
+                queryApi.queryRows(tagsQuery, {
+                    next(row, tableMeta) {
+                        const o = tableMeta.toObject(row);
+                        results.push(o._value);
+                    },
+                    error(error) {
+                        reject(error);
+                    },
+                    complete() {
+                        resolve(results);
+                    },
+                });
+            });
 
-        schema.measurements(bucket: "${bucket}")
-    `;
-    const measurements = await executeQuery(measurementsQuery);
+            // Requête pour les champs (_fields)
+            const fieldsQuery = `
+                import "influxdata/influxdb/schema"
+                schema.measurementFieldKeys(
+                    bucket: "${bucket}",
+                    measurement: "${measurement}"
+                )
+            `;
+            const fields = await new Promise((resolve, reject) => {
+                const results = [];
+                queryApi.queryRows(fieldsQuery, {
+                    next(row, tableMeta) {
+                        const o = tableMeta.toObject(row);
+                        results.push(o._value);
+                    },
+                    error(error) {
+                        reject(error);
+                    },
+                    complete() {
+                        resolve(results);
+                    },
+                });
+            });
 
-    // const tagsQuery = `
-    //     import "influxdata/influxdb/schema"
+            const tagsWithValues = {};
+            for (const tag of tags.filter(t => t !== '_measurement' && t !== '_start' && t !== '_stop' && t !== '_field')) {
+                const valuesQuery = `
+                    import "influxdata/influxdb/schema"
+                    schema.measurementTagValues(
+                        bucket: "${bucket}",
+                        measurement: "${measurement}",
+                        tag: "${tag}"
+                    )
+                `;
+                const values = await new Promise((resolve, reject) => {
+                    const results = [];
+                    queryApi.queryRows(valuesQuery, {
+                        next(row, tableMeta) {
+                            const o = tableMeta.toObject(row);
+                            results.push(o._value);
+                        },
+                        error(error) {
+                            reject(error);
+                        },
+                        complete() {
+                            resolve(results);
+                        },
+                    });
+                });
+                tagsWithValues[tag] = values;
+            }
 
-    //     schema.tagKeys(
-    //         bucket: "Probe",
-    //         predicate: (r) => r._measurement == "wind"
-    //     )
-    // `;
-    // const tags = await executeQuery(tagsQuery);
+            // Stocker la structure
+            bucketStructure[measurement] = {
+                tags: tagsWithValues,
+                fields: fields,
+            };
+        }
+        return bucketStructure;
 
-    return {
-        station_id: stationId,
-        _field: sensorRefs.map(r => r._value),
-        _measurements: measurements.map(m => m._value),
-        // wind: tags.map(t => t._value)
-    };
+    } catch (error) {
+        console.error('Erreur lors de l\'extraction de la structure:', error);
+        return null;
+    }
 }
-
+function getFilter(sensorRef) {
+    let Filter;
+    if (sensorRef.includes(':')) {
+        const [measurement, sensor] = sensorRef.split(':');
+        Filter = `r._measurement == "${measurement}" and r.sensor == "${sensor}"`;
+    } else {
+        Filter = `r.sensor == "${sensorRef}"`;
+    }
+    return Filter;
+}
 /**
  * Récupère la plage de dates pour une station et un capteur spécifiques.
  * @param {string} stationId - Identifiant de la station.
@@ -142,20 +236,21 @@ async function getMetadata(stationId) {
  * @returns {Promise<Object>} Un objet contenant la plage de dates.
  */
 async function queryDateRange(stationId, sensorRef, startDate, endDate) {
+    
     const query = `
-        from(bucket: "${bucket}")
-          |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
-          |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "${sensorRef}")
-          |> group()
-          |> reduce(
-              identity: {min_time: time(v: 0), max_time: time(v: 0), count: 0, unit: ""},
-              fn: (r, accumulator) => ({
-                  min_time: if accumulator.count == 0 or r._time < accumulator.min_time then r._time else accumulator.min_time,
-                  max_time: if accumulator.count == 0 or r._time > accumulator.max_time then r._time else accumulator.max_time,
-                  count: accumulator.count + 1,
-                  unit: if exists r.unit then r.unit else accumulator.unit
-              })
-          )
+    from(bucket: "Probe")
+        |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'}) 
+        |> filter(fn: (r) => r.station_id == "${stationId}" and ${getFilter(sensorRef)})
+        |> group()
+        |> reduce(
+            identity: {min_time: time(v: 0), max_time: time(v: 0), count: 0, unit: ""},
+            fn: (r, accumulator) => ({
+                min_time: if accumulator.count == 0 or r._time < accumulator.min_time then r._time else accumulator.min_time,
+                max_time: if accumulator.count == 0 or r._time > accumulator.max_time then r._time else accumulator.max_time,
+                count: accumulator.count + 1,
+                unit: if exists r.unit then r.unit else accumulator.unit
+            })
+        )
     `;
 
     const result = await executeQuery(query);
@@ -181,7 +276,7 @@ async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSecond
     const fluxQuery = `
         from(bucket: "${bucket}")
           |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'}) 
-          |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "${sensorRef}")
+          |> filter(fn: (r) => r.station_id == "${stationId}" and ${getFilter(sensorRef)})
           |> group(columns: ["unit"])
           |> aggregateWindow(every: ${intervalSeconds}s, fn: ${sensorRef == 'rainFall' || sensorRef == 'ET' ? 'sum' : 'mean'}, createEmpty: false)
           |> keep(columns: ["_time", "_field", "_value", "unit"])
@@ -197,7 +292,6 @@ async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSecond
  * @param {string} startDate - Date de début.
  * @param {string} endDate - Date de fin.
  * @param {number} intervalSeconds - Intervalle en secondes.
- * @returns {Promise<Array>} Un tableau des données brutes.
  */
 async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeconds = 3600) {
     // Définir les champs qui doivent être sommés (mesures de pluie/évapotranspiration)
@@ -209,10 +303,10 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
     
     // Construire les filtres
     const sumFilter = cumulativeSensors.length > 0 
-        ? cumulativeSensors.map(ref => `r._field == "${ref}"`).join(' or ')
+        ? cumulativeSensors.map(ref => getFilter(ref)).join(' or ')
         : null;
     const meanFilter = meanSensors.length > 0
-        ? meanSensors.map(ref => `r._field == "${ref}"`).join(' or ')
+        ? meanSensors.map(ref => getFilter(ref)).join(' or ')
         : null;
     
     // Construire la requête Flux
@@ -221,10 +315,10 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
     // Requête pour les champs à sommer (rain)
     if (sumFilter) {
         fluxQuery += `
-        rainData = from(bucket: "${bucket}")
+        sumData = from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
             |> filter(fn: (r) => r.station_id == "${stationId}" and (${sumFilter}))
-            |> group(columns: ["_field"])
+            |> group(columns: ["sensor"])
             |> aggregateWindow(every: ${intervalSeconds}s, fn: sum, createEmpty: false)
             |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement"])
         `;
@@ -239,7 +333,7 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
         meanData = from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
             |> filter(fn: (r) => r.station_id == "${stationId}" and (${meanFilter}))
-            |> group(columns: ["_field"])
+            |> group(columns: ["sensor"])
             |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
             |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement"])
         `;
@@ -249,16 +343,16 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
     if (sumFilter && meanFilter) {
         fluxQuery += `
         
-        union(tables: [rainData, meanData])
-            |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+        union(tables: [sumData, meanData])
+            |> pivot(rowKey: ["_time"], columnKey: ["sensor"], valueColumn: "_value")
             |> sort(columns: ["_time"])
             |> yield()
         `;
-    } else if (rainFilter) {
+    } else if (sumFilter) {
         fluxQuery += `
         
-        rainData
-            |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+        sumData
+            |> pivot(rowKey: ["_time"], columnKey: ["sensor"], valueColumn: "_value")
             |> sort(columns: ["_time"])
             |> yield()
         `;
@@ -266,7 +360,7 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
         fluxQuery += `
         
         meanData
-            |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+            |> pivot(rowKey: ["_time"], columnKey: ["sensor"], valueColumn: "_value")
             |> sort(columns: ["_time"])
             |> yield()
         `;
@@ -276,81 +370,108 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
 }
 
 /**
- * Récupère les données pour le graphique du vent pour une station spécifique.
+ * Récupère les données de la rose des vents pour une station.
  * @param {string} stationId - Identifiant de la station.
  * @param {string} startDate - Date de début.
  * @param {string} endDate - Date de fin.
- * @returns {Promise<Array>} Un tableau des données pour le graphique du vent.
+ * @param {number} intervalSeconds - Intervalle en secondes.
  */
 async function queryWindRose(stationId, startDate, endDate, intervalSeconds = 3600) {
     const fluxQuery = `
-        speedAvg = from(bucket: "${bucket}")
-            |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
-            |> filter(fn: (r) => r.station_id == "${stationId}" and r._measurement == "wind" and r._field == "speed")
-            |> filter(fn: (r) => r.direction != "N/A")
-            |> group(columns: ["direction", "unit"])
-            |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
-            |> set(key: "_field", value: "avg")
+        // 1. Récupérer les données de direction Gust
+        directionData = from(bucket: "${bucket}")
+            |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
+            |> filter(fn: (r) => r.station_id == "${stationId}")
+            |> filter(fn: (r) => r._measurement == "direction")
+            |> keep(columns: ["_time", "_value", "sensor"])
+            |> rename(columns: {_value: "direction"})
 
-        gustMax = from(bucket: "${bucket}")
-            |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
-            |> filter(fn: (r) => r.station_id == "${stationId}" and r._measurement == "wind" and r._field == "gust")
-            |> filter(fn: (r) => r.direction != "N/A")
-            |> group(columns: ["direction", "unit"])
-            |> aggregateWindow(every: ${intervalSeconds}s, fn: max, createEmpty: false)
-            |> set(key: "_field", value: "gust")
 
-        union(tables: [speedAvg, gustMax])
-            |> pivot(rowKey: ["_time", "direction", "unit"], columnKey: ["_field"], valueColumn: "_value")
-            |> group()
-            |> sort(columns: ["_time", "direction"])
-            |> yield()
-    `;
-    
-    const results = await executeQuery(fluxQuery);
-    return formatWindData(results, intervalSeconds);
-}
+        // 2. Récupérer les données de vitesse Gust
+        speedData = from(bucket: "${bucket}")
+            |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
+            |> filter(fn: (r) => r.station_id == "${stationId}")
+            |> filter(fn: (r) => r._measurement == "speed")
+            |> keep(columns: ["_time", "_value", "sensor"])
+            |> rename(columns: {_value: "speed"})
 
-function formatWindData(results, intervalSeconds) {
-    const Data = {};
-    const allDirections = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-    // Grouper par timestamp
-    results.forEach(row => {
-        const timeKey = row._time;
-        const direction = row.direction;
-        
-        if (!Data[timeKey]) {
-            Data[timeKey] = {
-                d: timeKey,
-                period: intervalSeconds,
-                unit: row.unit || "",
-                petals: {}
-            };
+            // 3. Joindre les données de direction et de vitesse par _time
+            grpPetal = join(
+              tables: {direction: directionData, speed: speedData},
+              on: ["_time","sensor"]
+            )
             
-            // Initialiser toutes les directions avec des valeurs par défaut
-            allDirections.forEach(dir => {
-                Data[timeKey].petals[dir] = {
-                    avg: 0,
-                    gust: 0
-                };
-            });
-        }
-        
-        // Mettre à jour les valeurs pour la direction courante
-        if (allDirections.includes(direction)) {
-            if (row.avg !== null && row.avg !== undefined) {
-                Data[timeKey].petals[direction].avg = Math.round(row.avg * 10) / 10;
-            }
-            if (row.gust !== null && row.gust !== undefined) {
-                Data[timeKey].petals[direction].gust = Math.round(row.gust * 10) / 100;
-            }
-        }
-    });
-    
-    // Convertir l'objet en array et trier par timestamp
-    return Object.values(Data).sort((a, b) => new Date(a.d) - new Date(b.d));
+            // 5. Agréger par intervalle et par petal
+            |> group(columns: ["direction","sensor"])
+           count = grpPetal
+             |> aggregateWindow(every: ${intervalSeconds}s, fn: count, column: "speed", createEmpty: false)
+             |> rename(columns: { speed: "count"})
+           
+           gust = grpPetal
+             |> filter(fn: (r) => r.sensor == "Gust")
+             |> aggregateWindow(every: ${intervalSeconds}s, fn: max, column: "speed", createEmpty: false)
+             |> drop(columns: ["_start", "_stop"])
+           gCount = count
+             |> filter(fn: (r) => r.sensor == "Gust")
+             |> drop(columns: ["_start", "_stop"])
+           avg = grpPetal
+             |> filter(fn: (r) => r.sensor == "Speed")
+             |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, column: "speed", createEmpty: false)
+             |> drop(columns: ["_start", "_stop"])
+           aCount = count
+             |> filter(fn: (r) => r.sensor == "Speed")
+             |> drop(columns: ["_start", "_stop"])
+           
+           gustC = join(
+               tables: {gCount: gCount, gust: gust},
+               on: ["direction","_time"]
+             )
+           
+           avgC = join(
+               tables: {aCount: aCount, avg: avg},
+               on: ["direction","_time"]
+             )
+           
+           join(
+               tables: {avg: avgC, gust: gustC},
+               on: ["direction","_time"]
+             )
+             |> drop(columns: ["_start", "_stop","sensor_gust","sensor_avg", "sensor_aCount","sensor_gCount"])
+             |> yield()
+           
+    `;
+    const results = await executeQuery(fluxQuery);
+    return parserWindRose(results);
 }
 
+/**
+ * Convertit les données brutes en données par intervalle.
+ * @param {Array} data - Les données brutes.
+ * @returns {Object} Les données converties par intervalle.
+ */
+function parserWindRose(data) {
+    const petal = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+    return data.reduce((accumulator, currentItem) => {
+        const { _time, direction, count_gust, speed_gust, count_avg, speed_avg } = currentItem;
+        const petalIndex = Math.floor(direction / 22.5);
+        if (!accumulator[_time]) {
+            accumulator[_time] = {};
+        }
+
+        accumulator[_time][petal[petalIndex]] = {
+                gust:{
+                    v:speed_gust,
+                    c:count_gust
+                },
+                avg:{
+                    v:speed_avg,
+                    c:count_avg
+                }
+            };
+        
+        return accumulator;
+    }, {});
+}
 /**
  * Récupère les données pour le graphique du vent pour une station spécifique.
  * @param {string} stationId - Identifiant de la station.
@@ -458,7 +579,7 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
         import "math"
         from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'}) 
-            |> filter(fn: (r) => r.station_id == "${stationId}" and r._field == "${sensorRef}")
+            |> filter(fn: (r) => r.station_id == "${stationId}" and r.sensor == "${sensorRef}")
             |> group(columns: ["unit"])
             |> window(every: ${intervalSeconds}s)
             |> reduce(

@@ -624,11 +624,13 @@ function reorganizeConditionsGrouped(groupBy) {
                     groupGrid.appendChild(tileElement.firstElementChild);
                     // Charger le graphique pour cette nouvelle tuile
                     setTimeout(() => {
-                        if (item.sensorDb && dbSensorList && dbSensorList.data && dbSensorList.data._field && 
-                            dbSensorList.data._field.includes(item.sensorDb)) {
+                        if (item.sensorDb && dbSensorList && dbSensorList.metadata.sensor && 
+                            dbSensorList.metadata.sensor.includes(item.sensorDb)) {
                             const chartId = `chart_${item.key}`;
                             const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
                             loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`);
+                        } else {
+                            console.log('pas de graphique identifie pour Sensor', item.sensorDb );
                         }
                     }, 50);
                 }
@@ -676,11 +678,13 @@ function reorganizeConditionsList() {
             grid.appendChild(tileElement.firstElementChild);
             // Charger le graphique pour cette nouvelle tuile
             setTimeout(() => {
-                if (item.sensorDb && dbSensorList && dbSensorList.data && dbSensorList.data._field && 
-                    dbSensorList.data._field.includes(item.sensorDb)) {
+                if (item.sensorDb && dbSensorList && dbSensorList.metadata.sensor && 
+                    dbSensorList.metadata.sensor.includes(item.sensorDb)) {
                     const chartId = `chart_${item.key}`;
                     const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
                     loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`);
+                } else {
+                    console.log('pas de graphique identifie pour Sensor', item.sensorDb );
                 }
             }, 50);
         }
@@ -707,7 +711,7 @@ function getBatteryImageAndClass(batteryValue) {
         level = 0;
         className = 'low-battery';
     }
-    
+    console.log(`Niveau de batterie: ${level} (${className})`);
     return { image: `batterie-${level}.png`, className };
 }
 
@@ -768,7 +772,6 @@ function createConditionTileHTML(item) {
     } else {
         chartContent = `<div id="chart_${item.key}" class="plot-container"></div>`;
     }
-    console.log(item);
     
     const fn = eval(item.fnToUserUnit || 'x => x');
     return `
@@ -798,9 +801,10 @@ function createConditionTileHTML(item) {
 
         function loadAllCharts() {
             if (!selectedStation || !dbSensorList) return;
+
             allConditions.forEach(item => {
-                if (item.sensorDb && dbSensorList.data && dbSensorList.data._field && 
-                    dbSensorList.data._field.includes(item.sensorDb)) {
+                if (item.sensorDb && dbSensorList.metadata.sensor && 
+                    dbSensorList.metadata.sensor.includes(item.sensorDb)) {
                     const chartId = `chart_${item.key}`;
                     const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
                     loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`);

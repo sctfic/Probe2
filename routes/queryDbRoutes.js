@@ -8,6 +8,7 @@ const queryDbController = require('../controllers/queryDbController');
 
 // Route to clear all data from the bucket
 router.get('/clear', async (req, res) => { await queryDbController.clearAllData(req, res); }); // http://probe2.lpz.ovh/query/clear
+// .\influx-client.exe delete --bucket Probe --start '2025-09-02T20:30:00Z'  --stop '2025-09-02T23:00:00Z'
 
 // Route to get metadata for a station
 router.get('/:stationId', queryDbController.getQueryMetadata); // http://probe2.lpz.ovh/query/VP2_Serramoune

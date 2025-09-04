@@ -4,22 +4,22 @@
     "metadata": {
         "stationId": "VP2_Serramoune",
         "sensor": [
-            "ET",
             "ForecastNum",
-            "UV",
-            "UVMax",
-            "barometer",
-            "gust",
+            "Gust",
+            "Speed",
             "inHumidity",
-            "inTemp",
             "outHumidity",
-            "outTemp",
-            "rainFall",
             "solarRadiation",
             "solarRadiationMax",
-            "speed"
+            "barometer",
+            "ET",
+            "rainFall",
+            "inTemp",
+            "outTemp",
+            "UV",
+            "UVMax"
         ],
-        "queryTime": "2025-08-28T13:20:07.401Z",
+        "queryTime": "2025-09-04T13:21:06.415Z",
         "first": null,
         "last": null,
         "intervalSeconds": null,
@@ -28,20 +28,20 @@
             "temperature": {
                 "user": "°C",
                 "metric": "K",
-                "avaible_units": [
-                    {
+                "avaible_units": {
+                    "°C": {
                         "title": "Celsius",
-                        "symbol": "°C"
+                        "fnFromMetric": "(k) => Number((k-273.15).toFixed(1))"
                     },
-                    {
+                    "°F": {
                         "title": "Fahrenheit",
-                        "symbol": "°F"
+                        "fnFromMetric": "(k) => Number(((k-273.15)*9/5+32).toFixed(1))"
                     },
-                    {
+                    "K": {
                         "title": "Kelvin",
-                        "symbol": "K"
+                        "fnFromMetric": "(k) => Number(k.toFixed(1))"
                     }
-                ],
+                },
                 "sensors": [
                     "inTemp",
                     "outTemp",
@@ -63,25 +63,27 @@
             "speed": {
                 "user": "km/h",
                 "metric": "m/s",
-                "avaible_units": [
-                    {
+                "avaible_units": {
+                    "mph": {
                         "title": "mph",
-                        "symbol": "mph"
+                        "fnFromMetric": "(ms) => Number((ms*2.23693).toFixed(1))"
                     },
-                    {
+                    "m/s": {
                         "title": "m/s",
-                        "symbol": "m/s"
+                        "fnFromMetric": "(ms) => Number(ms.toFixed(1))"
                     },
-                    {
+                    "km/h": {
                         "title": "km/h",
-                        "symbol": "km/h"
+                        "fnFromMetric": "(ms) => Number((ms*3.6).toFixed(1))"
                     },
-                    {
+                    "knots": {
                         "title": "knots",
-                        "symbol": "knots"
+                        "fnFromMetric": "(ms) => Number((ms*2.23693).toFixed(1))"
                     }
-                ],
+                },
                 "sensors": [
+                    "speed",
+                    "gust",
                     "windSpeed",
                     "windSpeedMax",
                     "avgWindSpeed10Min",
@@ -92,16 +94,16 @@
             "direction": {
                 "user": "cardinal",
                 "metric": "°",
-                "avaible_units": [
-                    {
+                "avaible_units": {
+                    "°": {
                         "title": "degrees",
-                        "symbol": "°"
+                        "fnFromMetric": "(deg) => deg"
                     },
-                    {
+                    "cardinal": {
                         "title": "cardinal",
-                        "symbol": "cardinal"
+                        "fnFromMetric": "(deg) => ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][Math.round(deg / 22.5) % 16]"
                     }
-                ],
+                },
                 "sensors": [
                     "windDir",
                     "windDirMax",
@@ -111,24 +113,24 @@
             "pressure": {
                 "user": "Bar",
                 "metric": "hpa",
-                "avaible_units": [
-                    {
+                "avaible_units": {
+                    "inHg": {
                         "title": "imperial",
-                        "symbol": "inhg"
+                        "fnFromMetric": "(hpa) => Number((hpa*0.750062).toFixed(1))"
                     },
-                    {
+                    "hpa": {
                         "title": "metric",
-                        "symbol": "hpa"
+                        "fnFromMetric": "(hpa) => Number(hpa.toFixed(1))"
                     },
-                    {
-                        "title": "metric",
-                        "symbol": "mb"
+                    "mb": {
+                        "title": "millibar",
+                        "fnFromMetric": "(hpa) => Number(hpa.toFixed(1))"
                     },
-                    {
-                        "title": "Bar",
-                        "symbol": "Bar"
+                    "Bar": {
+                        "title": "Barometric pressure",
+                        "fnFromMetric": "(hpa) => Number((hpa/1000).toFixed(3))"
                     }
-                ],
+                },
                 "sensors": [
                     "barometer"
                 ]
@@ -136,20 +138,20 @@
             "rain": {
                 "user": "l/m²",
                 "metric": "mm",
-                "avaible_units": [
-                    {
-                        "title": "milimetre",
-                        "symbol": "mm"
+                "avaible_units": {
+                    "mm": {
+                        "title": "millimetre",
+                        "fnFromMetric": "(mm) => Number(mm.toFixed(1))"
                     },
-                    {
+                    "in": {
                         "title": "inch",
-                        "symbol": "in"
+                        "fnFromMetric": "(mm) => Number((mm/25.4).toFixed(2))"
                     },
-                    {
+                    "l/m²": {
                         "title": "litre per square meter",
-                        "symbol": "l/m²"
+                        "fnFromMetric": "(mm) => Number((mm*10).toFixed(2))"
                     }
-                ],
+                },
                 "sensors": [
                     "rainFall",
                     "stormRain",
@@ -168,20 +170,20 @@
             "rainRate": {
                 "user": "l/m²/h",
                 "metric": "mm/h",
-                "avaible_units": [
-                    {
+                "avaible_units": {
+                    "mm/h": {
                         "title": "milimetre per hour",
-                        "symbol": "mm/h"
+                        "fnFromMetric": "(mmh) => Number(mmh.toFixed(1))"
                     },
-                    {
+                    "in/h": {
                         "title": "inch per hour",
-                        "symbol": "in/h"
+                        "fnFromMetric": "(mmh) => Number((mmh/25.4).toFixed(2))"
                     },
-                    {
+                    "l/m²/h": {
                         "title": "litre per square meter per hour",
-                        "symbol": "l/m²/h"
+                        "fnFromMetric": "(mmh) => Number((mmh*10).toFixed(2))"
                     }
-                ],
+                },
                 "sensors": [
                     "rainRate"
                 ]
@@ -189,16 +191,16 @@
             "uv": {
                 "user": "min",
                 "metric": "index",
-                "avaible_units": [
-                    {
+                "avaible_units": {
+                    "index": {
                         "title": "index",
-                        "symbol": "index"
+                        "fnFromMetric": "(uv) => Number(uv.toFixed(1))"
                     },
-                    {
+                    "min": {
                         "title": "temps d'exposition avant un coup de soleil = 210/(UVIndex*exp(uvindex/32))",
-                        "symbol": "min"
+                        "fnFromMetric": "(uv) => Number(Math.min(180, 210/((uv*Math.exp(uv/32)))).toFixed(0))"
                     }
-                ],
+                },
                 "sensors": [
                     "UV",
                     "UVMax"
@@ -207,12 +209,12 @@
             "powerRadiation": {
                 "user": "w/m²",
                 "metric": "w/m²",
-                "avaible_units": [
-                    {
+                "avaible_units": {
+                    "w/m²": {
                         "title": "watt per square meter",
-                        "symbol": "w/m²"
+                        "fnFromMetric": "(w) => Number(w.toFixed(1))"
                     }
-                ],
+                },
                 "sensors": [
                     "solarRadiation",
                     "solarRadiationMax"
@@ -221,12 +223,12 @@
             "humidity": {
                 "user": "%",
                 "metric": "%",
-                "avaible_units": [
-                    {
+                "avaible_units": {
+                    "%": {
                         "title": "percent",
-                        "symbol": "%"
+                        "fnFromMetric": "(h) => Number(h.toFixed(1))"
                     }
-                ],
+                },
                 "sensors": [
                     "inHumidity",
                     "outHumidity",
@@ -243,16 +245,16 @@
             "battery": {
                 "user": "%",
                 "metric": "V",
-                "avaible_units": [
-                    {
+                "avaible_units": {
+                    "%": {
                         "title": "percent",
-                        "symbol": "%"
+                        "fnFromMetric": "(v) => Number((v*100/4.56).toFixed(0))"
                     },
-                    {
+                    "V": {
                         "title": "volts",
-                        "symbol": "V"
+                        "fnFromMetric": "(v) => Number(v.toFixed(2))"
                     }
-                ],
+                },
                 "sensors": [
                     "batteryVoltage"
                 ]
@@ -260,12 +262,16 @@
             "date": {
                 "user": "yyyy-mm-dd",
                 "metric": "iso8601",
-                "avaible_units": [
-                    {
+                "avaible_units": {
+                    "yyyy-mm-dd": {
                         "title": "date",
-                        "symbol": ""
+                        "fnFromMetric": "(d) => (d.includes('T') ? d.split('T')[0] : d).substring(0, 10)"
+                    },
+                    "iso8601": {
+                        "title": "iso8601",
+                        "fnFromMetric": "(d) => d"
                     }
-                ],
+                },
                 "sensors": [
                     "dateStormRain",
                     "date"
@@ -274,12 +280,16 @@
             "time": {
                 "user": "hh:mm",
                 "metric": "iso8601",
-                "avaible_units": [
-                    {
+                "avaible_units": {
+                    "hh:mm": {
                         "title": "heure minute",
-                        "symbol": "hh:mm"
+                        "fnFromMetric": "(t) => (t.includes('T') ? t.split('T')[1] : t).substring(0, 5)"
+                    },
+                    "iso8601": {
+                        "title": "iso8601",
+                        "fnFromMetric": "(t) => t"
                     }
-                ],
+                },
                 "sensors": [
                     "sunrise",
                     "sunset",
@@ -289,49 +299,175 @@
             "Forecast": {
                 "user": "ForecastClass",
                 "metric": "ForecastClass",
-                "avaible_units": [
-                    {
+                "avaible_units": {
+                    "ForecastNum": {
                         "title": "Weather Forecast Num",
-                        "symbol": "ForecastNum"
+                        "fnFromMetric": "(f) => f"
                     },
-                    {
+                    "ForecastClass": {
                         "title": "Weather Forecast Class for CSS",
-                        "symbol": "ForecastClass"
+                        "fnFromMetric": "(f) => f"
                     }
-                ],
+                },
                 "sensors": [
                     "ForecastIcon"
                 ]
             }
-        }
+        },
+        "userUnit": null,
+        "toUserUnit": null
     },
-    "data": {
-        "station_id": "VP2_Serramoune",
-        "_field": [
-            "ET",
-            "ForecastNum",
-            "UV",
-            "UVMax",
-            "barometer",
-            "gust",
-            "inHumidity",
-            "inTemp",
-            "outHumidity",
-            "outTemp",
-            "rainFall",
-            "solarRadiation",
-            "solarRadiationMax",
-            "speed"
-        ],
-        "_measurements": [
-            "Forecast",
-            "humidity",
-            "powerRadiation",
-            "pressure",
-            "rain",
-            "temperature",
-            "uv",
-            "wind"
-        ]
+    "measurements": {
+        "Forecast": {
+            "tags": {
+                "sensor": [
+                    "ForecastNum"
+                ],
+                "station_id": [
+                    "VP2_Serramoune"
+                ],
+                "unit": [
+                    "ForecastClass"
+                ]
+            },
+            "fields": [
+                "value"
+            ]
+        },
+        "direction": {
+            "tags": {
+                "sensor": [
+                    "Gust",
+                    "Speed"
+                ],
+                "station_id": [
+                    "VP2_Serramoune"
+                ],
+                "unit": [
+                    "°"
+                ]
+            },
+            "fields": [
+                "value"
+            ]
+        },
+        "humidity": {
+            "tags": {
+                "sensor": [
+                    "inHumidity",
+                    "outHumidity"
+                ],
+                "station_id": [
+                    "VP2_Serramoune"
+                ],
+                "unit": [
+                    "%"
+                ]
+            },
+            "fields": [
+                "value"
+            ]
+        },
+        "powerRadiation": {
+            "tags": {
+                "sensor": [
+                    "solarRadiation",
+                    "solarRadiationMax"
+                ],
+                "station_id": [
+                    "VP2_Serramoune"
+                ],
+                "unit": [
+                    "w/m²"
+                ]
+            },
+            "fields": [
+                "value"
+            ]
+        },
+        "pressure": {
+            "tags": {
+                "sensor": [
+                    "barometer"
+                ],
+                "station_id": [
+                    "VP2_Serramoune"
+                ],
+                "unit": [
+                    "hpa"
+                ]
+            },
+            "fields": [
+                "value"
+            ]
+        },
+        "rain": {
+            "tags": {
+                "sensor": [
+                    "ET",
+                    "rainFall"
+                ],
+                "station_id": [
+                    "VP2_Serramoune"
+                ],
+                "unit": [
+                    "mm"
+                ]
+            },
+            "fields": [
+                "value"
+            ]
+        },
+        "speed": {
+            "tags": {
+                "sensor": [
+                    "Gust",
+                    "Speed"
+                ],
+                "station_id": [
+                    "VP2_Serramoune"
+                ],
+                "unit": [
+                    "m/s"
+                ]
+            },
+            "fields": [
+                "value"
+            ]
+        },
+        "temperature": {
+            "tags": {
+                "sensor": [
+                    "inTemp",
+                    "outTemp"
+                ],
+                "station_id": [
+                    "VP2_Serramoune"
+                ],
+                "unit": [
+                    "K"
+                ]
+            },
+            "fields": [
+                "value"
+            ]
+        },
+        "uv": {
+            "tags": {
+                "sensor": [
+                    "UV",
+                    "UVMax"
+                ],
+                "station_id": [
+                    "VP2_Serramoune"
+                ],
+                "unit": [
+                    "index"
+                ]
+            },
+            "fields": [
+                "value"
+            ]
+        }
     }
 }

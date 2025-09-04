@@ -42,6 +42,7 @@ const handleError = (res, stationId, error, controllerName) => {
 
 async function getIntervalSeconds(stationId, sensorRef, startDate, endDate, stepCount = 100000) {
     // 1. Récupère la plage de dates réelle des données
+
     const dateRange = await influxdbService.queryDateRange(stationId, sensorRef, startDate, endDate);
     console.log(`Plage de dates réelle pour ${stationId} - ${sensorRef}:`, dateRange);
     // 2. Utilise les dates effectives ou celles fournies
@@ -61,14 +62,14 @@ exports.getQueryMetadata = async (req, res) => {
     const stationId = req.params.stationId;
     try {
         console.log(`${V.info} Demande de métadonnées pour la station ${stationId}`);
-        const data = await influxdbService.getMetadata(stationId);
-
+        const _measurements = await influxdbService.getMetadata(stationId);
+        const allFields = Object.values(_measurements).flatMap(measurement => measurement.tags.sensor);
         res.json({
             success: true,
             message: 'Success',
             metadata: {
                 stationId: stationId,
-                sensor: data._field,
+                sensor: [...new Set(allFields)],
                 queryTime: new Date().toISOString(),
                 first: null,
                 last: null,
@@ -78,12 +79,23 @@ exports.getQueryMetadata = async (req, res) => {
                 userUnit: null,
                 toUserUnit: null
             },
-            data: data
+            measurements: _measurements
         });
     } catch (error) {
         handleError(res, stationId, error, 'getQueryMetadata');
     }
 };
+
+function getTypeAndSensor(sensorRef) {
+    let type, sensor;
+    if (sensorRef.includes(':')) {
+        [type, sensor] = sensorRef.split(':');
+    } else {
+        type = sensorTypeMap[sensorRef];
+        sensor = sensorRef;
+    }
+    return { type, sensor };
+}
 
 exports.getQueryRange = async (req, res) => {
     const { stationId, sensorRef } = req.params;
@@ -93,6 +105,8 @@ exports.getQueryRange = async (req, res) => {
         return res.status(400).json({ success: false, error: 'Les paramètres stationId et sensorRef sont requis.' });
     }
     
+    const { type, sensor } = getTypeAndSensor(sensorRef);
+    
     try {
         console.log(`${V.info} Demande de plage de dates pour ${stationId} - ${sensorRef}`);
         const data = await influxdbService.queryDateRange(stationId, sensorRef, startDate ? new Date(startDate).getTime()/1000 : null, endDate ? (new Date(endDate).getTime()+1000)/1000 : null);
@@ -101,15 +115,15 @@ exports.getQueryRange = async (req, res) => {
             message: 'Success',
             metadata: {
                 stationId: stationId,
-                sensor: sensorRef,
+                sensor: sensor,
                 queryTime: new Date().toISOString(),
                 first: data.firstUtc ? new Date(data.firstUtc).toISOString() : null,
                 last: data.lastUtc ? new Date(data.lastUtc).toISOString() : null,
                 intervalSeconds: data.count > 0 ? Math.round((new Date(data.lastUtc).getTime() - new Date(data.firstUtc).getTime()) / data.count)/1000 : null,
                 count: data.count,
                 unit: data.unit || '',
-                userUnit: units?.[sensorTypeMap[sensorRef]]?.user || '',
-                toUserUnit: units?.[sensorTypeMap[sensorRef]]?.avaible_units?.[units?.[sensorTypeMap[sensorRef]]?.user]?.fnFromMetric || null
+                userUnit: units?.[type]?.user || '',
+                toUserUnit: units?.[type]?.avaible_units?.[units?.[type]?.user]?.fnFromMetric || null
             },
             data: []
         });
@@ -123,12 +137,7 @@ exports.getQueryRaw = async (req, res) => {
     const { startDate, endDate, stepCount: stepCountStr } = req.query;
     const stepCount = stepCountStr ? parseInt(stepCountStr, 10) : 100000;
     
-    if (!stationId || !sensorRef) {
-        return res.status(400).json({ success: false, error: 'Les paramètres stationId et sensorRef sont requis.' });
-    } else if (sensorRef === 'speed') {
-        // n'est pas pris en charge par QueryRaw
-        // return res.status(400).json({ success: false, error: '"speed" n\'est pas pris en charge par QueryRaw.' });
-    }
+    const { type, sensor } = getTypeAndSensor(sensorRef);
     
     try {
         // console.log(`${V.info} Demande de données brutes pour ${stationId} - ${sensorRef}`);
@@ -154,16 +163,16 @@ exports.getQueryRaw = async (req, res) => {
             message: msg,
             metadata: {
                 stationId: stationId,
-                measurement: sensorTypeMap[sensorRef],
-                sensor: sensorRef,
+                measurement: type,
+                sensor: sensor,
                 queryTime: new Date().toISOString(),
                 first: new Date(start).toISOString(),
                 last: new Date(end).toISOString(),
                 intervalSeconds: intervalSeconds,
                 count: Data.length,
                 unit: data[0]?.unit || '',
-                userUnit: units?.[sensorTypeMap[sensorRef]]?.user || '',
-                toUserUnit: units?.[sensorTypeMap[sensorRef]]?.avaible_units?.[units?.[sensorTypeMap[sensorRef]]?.user]?.fnFromMetric || null
+                userUnit: units?.[type]?.user || '',
+                toUserUnit: units?.[type]?.avaible_units?.[units?.[type]?.user]?.fnFromMetric || null
             },
             data: Data
         });
@@ -177,10 +186,6 @@ exports.getQueryRaws = async (req, res) => {
     const { startDate, endDate, stepCount: stepCountStr } = req.query;
     const stepCount = stepCountStr ? parseInt(stepCountStr, 10) : 100000;
 
-    if (!stationId || !sensorRefsStr) {
-        return res.status(400).json({ success: false, error: 'Les paramètres stationId et sensorRefs sont requis.' });
-    }
-
     let sensorRefs = sensorRefsStr.split(',');
     // on retire les doublons, les vides
     sensorRefs = sensorRefs.filter((ref, index) => ref && sensorRefs.indexOf(ref) === index);
@@ -188,55 +193,54 @@ exports.getQueryRaws = async (req, res) => {
     if (sensorRefs.length === 0) {
         return res.status(400).json({ success: false, error: 'Aucun capteur valide dans sensorRefs.' });
     }
-
+    const measurements = [];
+    const sensors = [];
+    const mix = {};
+    const sensorsFnFromMetric = {};
+    sensorRefs.forEach(ref => {
+        const { type, sensor } = getTypeAndSensor(ref);
+        measurements.push(type);
+        sensors.push(sensor);
+        mix[type] = sensor;
+        sensorsFnFromMetric[sensor] = {
+            unit: units?.[type]?.metric || null,
+            userUnit: units?.[type]?.user || null,
+            fnFromMetric: units?.[type]?.avaible_units?.[units?.[type]?.user]?.fnFromMetric || null
+        };
+    });
+console.log(`${V.info} sensorsFnFromMetric:`, sensorsFnFromMetric);
+console.log(`${V.info} Measurements:`, measurements);
+console.log(`${V.info} Sensors:`, sensors);
+console.log(`${V.info} Mix:`, mix);
     try {
         // Use the first sensor to determine the overall time range and interval
         const { start, end, intervalSeconds } = await getIntervalSeconds(stationId, sensorRefs[0], startDate, endDate, stepCount);
 
         const data = await influxdbService.queryRaws(stationId, sensorRefs, start / 1000, end / 1000, intervalSeconds);
+        // console.log(`${V.info} Donnees recuperees:`, data);
         const Data = data.map(row => {
             let result = {
                 d: row._time
             };
-            sensorRefs.forEach(ref => {
+            sensors.forEach(ref => {
                 result[ref] = Math.round(row[ref] * 100) / 100;
             });
             return result;
         });
         let msg = 'Full data loadded !';
         if (Data.length==stepCount+1 && new Date(Data[Data.length-1].d).getTime()==end) {
-            // Data.pop(); // supprimer la derniere valeur, qui est la derniere valeur de la plage avant agregation
             msg = '(!) Last value is current !';
         } else if (Data.length < stepCount) {
             msg = '<!> Data missing suspected !';
         }
-        // object avec une propriete au nom de chaque sensorTypeMap[ref] contenant l'unité user, metric et fnFromMetric
-        const measurementUnits = sensorRefs.reduce((acc, ref) => {
-            // si acc[sensorTypeMap[ref]] n'existe pas, l'initialiser
-            if (!acc[sensorTypeMap[ref]]) {
-                acc[sensorTypeMap[ref]] = [ref];
-            } else {
-                acc[sensorTypeMap[ref]].push(ref);
-            }
-            return acc;
-        }, {});
-        const sensorsFnFromMetric = sensorRefs.reduce((acc, ref) => {
-            // si acc[sensorTypeMap[ref]] n'existe pas, l'initialiser
-            acc[ref] = {
-                unit: units?.[sensorTypeMap[ref]]?.metric,
-                userUnit: units?.[sensorTypeMap[ref]]?.user,
-                toUserUnit: units?.[sensorTypeMap[ref]]?.avaible_units?.[units?.[sensorTypeMap[ref]]?.user]?.fnFromMetric,
-            };
-            return acc;
-        }, {});
 
         res.json({
             success: true,
             message: msg,
             metadata: {
                 stationId: stationId,
-                measurement: measurementUnits,
-                sensor: sensorRefs,
+                measurement: mix,
+                sensor: sensors,
                 queryTime: new Date().toISOString(),
                 first: new Date(start).toISOString(),
                 last: new Date(end).toISOString(),
