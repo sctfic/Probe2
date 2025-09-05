@@ -19,9 +19,6 @@ router.get('/:stationId/info', withStationLamps(async (req, res) => { //http://p
     return await stationController.getStationInfo(req, res);
 }));
 
-router.get('/:stationId/current-conditions', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/current-conditions
-    return await stationController.getCurrentWeather(req, res);
-}));
 
 router.get('/:stationId/update-datetime', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/update-datetime
     return await stationController.updateTime(req, res);
@@ -32,7 +29,11 @@ router.get('/:stationId/sync-settings', withStationLamps(async (req, res) => { /
 }));
 
 // Route pour tester la connexion à une station
-router.get('/:stationId/test', (async (req, res) => { return await stationService.testTCPIP(req.stationConfig); })); // http://probe2.lpz.ovh/api/station/VP2_Serramoune/test
+router.get('/:stationId/test', (async (req, res) => { return await stationController.testTcpIp(req, res); })); // http://probe2.lpz.ovh/api/station/VP2_Serramoune/test
+
+router.get('/:stationId/current-conditions', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/current-conditions
+    return await stationController.getCurrentWeather(req, res);
+}));
 
 router.get('/:stationId/additional-conditions', (async (req, res) => { return await additionalController.getAdditionalProbe(req, res); }));
 

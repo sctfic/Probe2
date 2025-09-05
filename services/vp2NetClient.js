@@ -2,6 +2,7 @@
 const net = require('net');
 const fs = require('fs');
 const path = require('path');
+const network = require('../services/networkService');
 const { calculateCRC } = require('../utils/crc');
 const { O, V } = require('../utils/icons');
 
@@ -58,24 +59,27 @@ function releaseLockFile(lockPath) {
  * @param {string} stationId ID de la station
  * @returns {Promise<string>} Retourne le chemin du fichier de verrou
  */
-async function acquireLock(stationId) {
-    const lockPath = path.join(LOCK_DIR, `${stationId}.lock`);
-    
+async function acquireLock(stationConfig) {
+    const lockPath = path.join(LOCK_DIR, `${stationConfig.id}.lock`);
+    const telnet = await network.testTCPIP(stationConfig);
+    if (telnet.status != 'success') {
+        throw new Error(`Cannot acquire lock for ${stationConfig.id}: ${telnet.status}`);
+    }
     for (let attempt = 1; attempt <= LOCK_CHECK_RETRIES; attempt++) {
         if (isLockFree(lockPath)) {
             touchLockFile(lockPath);
-            console.log(`${V.Check} Lock acquired for ${stationId} (attempt ${attempt}/${LOCK_CHECK_RETRIES})`);
+            console.log(`${V.Check} Lock acquired for ${stationConfig.id} (attempt ${attempt}/${LOCK_CHECK_RETRIES})`);
             return lockPath;
         }
         
-        console.warn(`${V.timeout} Lock busy for ${stationId}, attempt ${attempt}/${LOCK_CHECK_RETRIES}`);
+        console.warn(`${V.timeout} Lock busy for ${stationConfig.id}, attempt ${attempt}/${LOCK_CHECK_RETRIES}`);
         
         if (attempt < LOCK_CHECK_RETRIES) {
             await new Promise(resolve => setTimeout(resolve, LOCK_CHECK_INTERVAL_MS));
         }
     }
     
-    throw new Error(`Cannot acquire lock for ${stationId} after ${LOCK_CHECK_RETRIES} attempts`);
+    throw new Error(`Cannot acquire lock for ${stationConfig.id} after ${LOCK_CHECK_RETRIES} attempts`);
 }
 
 /**
@@ -167,9 +171,9 @@ async function getOrCreateSocket(req, stationConfig) {
     } else {
         // console.log(`${V.Check} No old socket found for ${stationConfig.id}`, V.Check);
     }
-    
+
     // Acquérir le verrou et créer un nouveau socket
-    const lockPath = await acquireLock(stationConfig.id);
+    const lockPath = await acquireLock(stationConfig);
     
     try {
         const socket = await createSocket(stationConfig, lockPath);

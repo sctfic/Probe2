@@ -48,39 +48,45 @@ const loadStationConfig = (req, res, next) => {
 const withStationLamps = (handler) => {
     return async (req, res) => {
         const stationConfig = req.stationConfig;
-        
         try {
             await getOrCreateSocket(req, stationConfig);
-
-            // Réveiller la console avec les écrans allumés
-            await wakeUpConsole(req, stationConfig, true);
-            
-            // Exécuter le handler en lui passant req en premier paramètre
-            const result = await handler(req, res);
-            
-            if (result && typeof result === 'object') {
-                res.json({
-                    success: true,
+            try {
+                // Réveiller la console avec les écrans allumés
+                await wakeUpConsole(req, stationConfig, true);
+                
+                // Exécuter le handler en lui passant req en premier paramètre
+                const result = await handler(req, res);
+                
+                if (result && typeof result === 'object') {
+                    res.json({
+                        success: true,
+                        stationId: stationConfig.id,
+                        timestamp: new Date().toISOString(),
+                        data: result
+                    });
+                }
+            } catch (error) {
+                console.error(`${V.error} ${stationConfig.id} - Erreur:`, error.message);
+                res.status(500).json({
+                    success: false,
                     stationId: stationConfig.id,
-                    timestamp: new Date().toISOString(),
-                    data: result
+                    error: error.message
                 });
+            } finally {
+                try {
+                    // Éteindre l'écrans à la fin
+                    await wakeUpConsole(req, stationConfig, false);
+                } catch (error) {
+                    console.error(`${V.error} ${stationConfig.id} - Erreur LAMPS OFF: ${error.message}`);
+                }
             }
         } catch (error) {
-            console.error(`${V.error} ${stationConfig.id} - Erreur:`, error.message);
             res.status(500).json({
                 success: false,
                 stationId: stationConfig.id,
                 error: error.message
             });
         } finally {
-            try {
-                // Éteindre les écrans à la fin
-                await wakeUpConsole(req, stationConfig, false);
-            } catch (error) {
-                console.error(`${V.error} ${stationConfig.id} - Erreur LAMPS OFF: ${error.message}`);
-            }
-            
             // Nettoyer le socket de la requête s'il existe
             if (req.weatherSocket && !req.weatherSocket.destroyed) {
                 req.weatherSocket.destroy();

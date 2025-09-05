@@ -2,9 +2,31 @@
 const stationService = require('../services/stationService');
 const influxdbService = require('../services/influxdbService');
 const configManager = require('../services/configManager');
+const network = require('../services/networkService');
 const path = require('path');
 const { V } = require('../utils/icons');
 
+exports.testTcpIp = async (req, res) => {
+    try {
+        const stationConfig = req.stationConfig;
+        console.log(`${V.info} Demande d'informations pour la station ${stationConfig.id}`);
+        
+        const telnet = await network.testTCPIP(req.stationConfig);
+        res.json({
+            success: true,
+            stationId: stationConfig.id,
+            timestamp: new Date().toISOString(),
+            data: telnet
+        });
+    } catch (error) {
+        console.error(`${V.error} Erreur dans getStationInfo pour ${req.stationConfig?.id}:`, error);
+        res.status(500).json({
+            success: false,
+            stationId: req.stationConfig?.id || 'unknown',
+            error: error.message
+        });
+    }
+};
 exports.getStationInfo = async (req, res) => {
     try {
         const stationConfig = req.stationConfig;

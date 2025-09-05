@@ -8,3 +8,6 @@ logs/
 docs/
 config/influxDb.json
 public/plot/
+config/VP2_Serramoune.lock
+public/img/batterie-25.png
+public/img/batterie-50.png
