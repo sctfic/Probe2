@@ -720,6 +720,7 @@ function createConditionTileHTML(item) {
     
     let chartContent = '';
     if (item.key === 'ForecastNum') {
+        console.log(displayValue);
         // Cas spécial pour ForecastIcon - afficher des images météo
         const weatherImages = displayValue.split(' ');
         chartContent = `

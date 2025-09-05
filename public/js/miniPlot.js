@@ -92,7 +92,7 @@ function createPlot(data, metadata, id, period) {
                     px: "Date", py: "Value", dy: -16,
                     frameAnchor: "top-left",
                     fontVariant: "tabular-nums",
-                    text: (d) => `${Plot.formatIsoDate(d.Date)} `
+                    text: (d) => `${d.Date.toLocaleString('fr-FR',{'dateStyle':"medium",'timeStyle':"short"})} ` //.toString('yyyy-MM-dd')
                 }))
             ]
         });

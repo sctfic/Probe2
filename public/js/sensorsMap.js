@@ -216,7 +216,7 @@ const sensorMap = {
         sensorDb: 'outTemp'
     },
     'heatIndex': {
-        label: 'Indice de chaleur',
+        label: 'Indice de chaleur (heatIndex)',
         measurement: 'temperature',
         period: 60*60*24*7,
         groupUsage: '6/ other',
@@ -224,7 +224,7 @@ const sensorMap = {
         sensorDb: 'outTemp'
     },
     'windChill': {
-        label: 'Refroidissement éolien',
+        label: 'Refroidissement éolien (wind Chill)',
         measurement: 'temperature',
         period: 60*60*24*7,
         groupUsage: '6/ other',

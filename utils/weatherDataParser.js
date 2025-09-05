@@ -310,18 +310,9 @@ const conversionTable = {
         '%': (v) => v > 4.7 ? 'BATTERY MISSING' : (v/4.56)*100 // 3*1.52v = 4.56v = 100% et 3*1.05 v = 3.15v = 0% et si > 4.7v = -1 for BATTERY MISSING !
     },
     Forecast: {
-        // d'apres les valeur dans la documentation Docs/VantageSerialProtocolDocs_v261.pdf page 23
-        // 8 = Sun
-        // 6 = Partial Sun + Cloud
-        // 2 = Cloud
-        // 3 = Cloud + Rain
-        // 18 = Cloud + Snow
-        // 19 = Cloud + Rain + Snow
-        // 7 = Partial Sun + Cloud + Rain
-        // 22 = Partial Sun + Cloud + Snow
-        // 23 = Partial Sun + Cloud + Rain + Snow
         'ForecastNum': (f) => f,
         'ForecastClass': (f) => {
+            // d'apres les valeur dans la documentation Docs/VantageSerialProtocolDocs_v261.pdf page 23
             switch (f) {
                 case 8: return 'Sun';
                 case 6: return 'Sun Cloud';
@@ -332,7 +323,7 @@ const conversionTable = {
                 case 19: return 'Cloud Rain Snow';
                 case 22: return 'Sun Cloud Snow';
                 case 23: return 'Sun Cloud Rain Snow';
-                default: return f; // 'Unknown';
+                default: return 'Undetermined forecastNum('+f+')'; // 'Unknown';
             }
         }
     },
@@ -360,6 +351,7 @@ function convertToUnit(nativeValue, key, UnitsType='user') {
         console.error(`No user unit found for ${type}`);
         return nativeValue;
     }
+    // console.log(type,unit, nativeValue);
     const convertFn = conversionTable[type]?.[unit];
     if (!convertFn) {
         console.error(`No conversion function found for ${type} to ${unit}`);
