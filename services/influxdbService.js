@@ -236,11 +236,14 @@ function getFilter(sensorRef) {
  * @returns {Promise<Object>} Un objet contenant la plage de dates.
  */
 async function queryDateRange(stationId, sensorRef, startDate, endDate) {
-    
+    let filter = '';
+    if (sensorRef) {
+        filter = getFilter(sensorRef);
+    }
     const query = `
     from(bucket: "Probe")
         |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'}) 
-        |> filter(fn: (r) => r.station_id == "${stationId}" and ${getFilter(sensorRef)})
+        |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
         |> group()
         |> reduce(
             identity: {min_time: time(v: 0), max_time: time(v: 0), count: 0, unit: ""},
@@ -415,11 +418,11 @@ async function queryWindRose(stationId, startDate, endDate, intervalSeconds = 36
              |> filter(fn: (r) => r.sensor == "Gust")
              |> drop(columns: ["_start", "_stop"])
            avg = grpPetal
-             |> filter(fn: (r) => r.sensor == "Speed")
+             |> filter(fn: (r) => r.sensor == "Wind")
              |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, column: "speed", createEmpty: false)
              |> drop(columns: ["_start", "_stop"])
            aCount = count
-             |> filter(fn: (r) => r.sensor == "Speed")
+             |> filter(fn: (r) => r.sensor == "Wind")
              |> drop(columns: ["_start", "_stop"])
            
            gustC = join(

@@ -8,6 +8,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.17/dist/plot.umd.js"></script>
 <!-- External CSS and JS -->
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/newStation.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/station.css">
+<link rel="stylesheet" href="css/settings.css">
 <script src="js/miniPlot.js"></script>
 <script src="js/sensorsMap.js"></script>
 </head>
@@ -18,10 +22,10 @@
     </div>
     <nav>
         <ul>
-            <li data-section="currents-section" class="active">Currents</li>
+            <li data-section="dashboard-section" class="active">Dashboard</li>
             <li data-section="historique-section">Historique</li>
+            <li data-section="stations-section">Stations</li>
             <li data-section="settings-section">Settings</li>
-            <li data-section="new-station-section">New Station</li>
         </ul>
     </nav>
 </header>
@@ -29,14 +33,59 @@
 <!-- Sélecteur global de station -->
 <div class="station-selector">
     <div class="station-info" id="station-info"></div>
-    <div class="status-message" id="conditions-status" style="display: none;"></div>
-    <select id="global-station-select">
-        <option value="">Chargement des stations...</option>
-    </select>
+    <div class="status-message" id="status-bar" style="display: none;"></div>
+    <div class="station-selector-container">
+        <select id="global-station-select">
+            <option value="">Chargement des stations...</option>
+        </select>
+        <button class="add-station-btn" id="add-station-btn" title="Ajouter une nouvelle station">+</button>
+    </div>
 </div>
+    <!-- Modale pour ajouter une station -->
+    <div id="station-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Ajouter une nouvelle station</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="success-msg" class="success-message-add"></div>
+                <form id="station-form">
+                    <div class="form-group required">
+                        <label for="station-name">Nom de la station</label>
+                        <input type="text" id="station-name" required placeholder="Ex: Station Production">
+                        <div class="error-message-add" id="name-error"></div>
+                    </div>
 
+                    <div class="form-group required">
+                        <label for="station-host">Hôte</label>
+                        <input type="text" id="station-host" required placeholder="Ex: 192.168.1.100 ou example.com">
+                        <div class="error-message-add" id="host-error"></div>
+                    </div>
+
+                    <div class="form-group required">
+                        <label for="station-port">Port</label>
+                        <input type="number" id="station-port" required min="1" max="65535" placeholder="Ex: 8080">
+                        <div class="error-message-add" id="port-error"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="station-comment">Commentaire (optionnel)</label>
+                        <input type="text" id="station-comment" placeholder="Description ou notes">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancel-btn">Annuler</button>
+                <button type="submit" class="btn btn-primary" id="submit-btn" form="station-form">
+                    <div class="spinner" id="spinner"></div>
+                    Ajouter la station
+                </button>
+            </div>
+        </div>
+    </div>
 <main id="content-container" class="content-container">
-    <section id="currents-section" class="content-section active">
+    <section id="dashboard-section" class="content-section active">
         
         <!-- Contrôles de filtre réorganisés -->
         <div class="conditions-controls">
@@ -54,79 +103,34 @@
                 </select>
             </div>
         </div>
-        
         <div class="conditions-container" id="conditions-container">
             <!-- Les données météo seront chargées ici -->
         </div>
     </section>
     
     <section id="historique-section" class="content-section">
-        <h1>Historique des Données</h1>
-        <p>Afficher ici les graphiques et tableaux historiques pour la station sélectionnée.</p>
     </section>
     
-    <section id="settings-section" class="content-section">
-        <h1>Paramètres</h1>
-        <div class="status-message" id="settings-status" style="display: none;"></div>
-        
+    <section id="stations-section" class="content-section">
         <div id="settings-container">
             <!-- Le formulaire de configuration sera chargé ici -->
         </div>
     </section>
     
-    <section id="new-station-section" class="content-section">
-        <h1>Ajout d'une Station Météo</h1>
-        <div class="stations-header">
-            <button id="add-station-btn">Ajouter une station</button>
-        </div>
-        
-        <!-- Modal pour ajouter/éditer une station -->
-        <div id="station-modal" class="modal" style="display: none;">
-            <div class="modal-content">
-                <h2 id="modal-title">Ajouter une station</h2>
-                <form id="station-form">
-                    <input type="hidden" id="station-id">
-                
-                    <div class="form-group">
-                        <label for="station-name">Nom *</label>
-                        <input type="text" id="station-name" required>
-                    </div>
-                
-                    <div class="form-group">
-                        <label for="station-host">Hôte *</label>
-                        <input type="text" id="station-host" required>
-                    </div>
-                
-                    <div class="form-group">
-                        <label for="station-port">Port *</label>
-                        <input type="number" id="station-port" required>
-                    </div>
-                
-                    <div class="form-group">
-                        <label for="station-comment">Description</label>
-                        <input type="text" id="station-comment">
-                    </div>
-                    
-                    <div class="modal-actions">
-                        <button type="button" id="cancel-station">Annuler</button>
-                        <button type="submit">Enregistrer</button>
-                    </div>
-                </form>
-            </div>
+    <!-- Section modifiée dans le HTML principal -->
+    <section id="settings-section" class="content-section">
+        <div id="preferences-container">
+            <!-- Le formulaire de préférences d'unités sera chargé ici -->
         </div>
     </section>
 </main>
 
 <script>
-
+    let selectedStation = null;
     document.addEventListener('DOMContentLoaded', () => {
         // Variables globales
         let globalStations = [];
-        let selectedStation = null;
         let stationsConfig = {};
-        let currentConditionsData = null;
-        let allConditions = []; // Stocke toutes les conditions sans filtre
-        let dbSensorList = null;
 
         // Éléments DOM
         const navItems = document.querySelectorAll('.navbar nav ul li');
@@ -207,968 +211,18 @@
             }
         }
 
+        // Ajout dans la fonction refreshActiveSection() du script principal
+
         function refreshActiveSection() {
             const activeSectionId = sections[currentIndex].id;
             
-            if (activeSectionId === 'currents-section') {
+            if (activeSectionId === 'dashboard-section') {
                 fetchCurrentConditions();
-            } else if (activeSectionId === 'settings-section') {
+            } else if (activeSectionId === 'stations-section') {
                 fetchStationSettings();
-            }
-        }
-
-        // --- Section Données Actuelles ---
-        
-        async function fetchCurrentConditions() {
-            if (!selectedStation) {
-                showConditionsStatus('Aucune station sélectionnée', 'error');
-                return;
-            }
-
-            showConditionsStatus('Chargement des données météo...', 'loading');
-
-            let data, api0;
-            try {
-                try {
-                    api0 = await fetch(`/api/station/${selectedStation.id}/current-conditions`, { cache: 'no-cache' });
-                    if (!api0.ok) {
-                        throw new Error(`HTTP error! status: ${api0.status}`);
-                    }
-                } catch (error) {
-                    console.warn('Données mock chargées', error.message);
-                    api0 = await fetch(`/mock/station/current-conditions.json`);
-                }
-
-                data = await api0.json();                
-                const api1 = await fetch(`/query/${selectedStation.id}`);
-                if (!api1.ok) console.log('Erreur de récupération des _field');
-                dbSensorList = await api1.json();
-                console.log('dbSensorList', dbSensorList);
-
-                if (data.success && data.data) {
-                    currentConditionsData = data.data;
-                    processAndDisplayConditions();
-                    showConditionsStatus('Données actualisées avec succès', 'success');
-                } else {
-                    throw new Error('Format de données invalide');
-                }
-            } catch (error) {
-                console.error('Erreur:', error);
-                showConditionsStatus(`Erreur: ${error.message}`, 'error');
-                const conditionsList = document.getElementById('conditions-list');
-                if (conditionsList) conditionsList.innerHTML = '';
-            }
-        }
-
-        function processAndDisplayConditions() {
-            if (!currentConditionsData) return;
-
-            // Convertir les données en tableau et exclure certains champs
-            const excludeKeys = ['datagramme', 'timestamp'];
-            allConditions = Object.entries(currentConditionsData)
-                .filter(([key]) => !excludeKeys.includes(key))
-                .map(([key, data]) => {
-                    const sensorInfo = sensorMap[key] || {};
-                    return {
-                        key,
-                        name: sensorInfo.label || formatLabel(key),
-                        unit: data.Unit,
-                        value: data.Value,
-                        fnToUserUnit: data.toUserUnit,
-                        userUnit: data.userUnit,
-                        measurement: sensorInfo.measurement || 'unknown',
-                        groupUsage: sensorInfo.groupUsage || '0',
-                        groupCustom: sensorInfo.groupCustom || 0,
-                        period: sensorInfo.period || '3d',
-                        sensorDb: sensorInfo.sensorDb,
-                        searchText: [sensorInfo.label, key, formatLabel(key), String(data.Value), data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
-                    };
-                });
-
-            console.log('allConditions', allConditions);
-            // Afficher les conditions selon le groupement
-            displayConditions();
-            
-            // Appliquer le filtre en cours
-            applyCurrentFilter();
-
-        }
-
-        // Nouvelle fonction pour appliquer le filtre sans recharger
-        function applyCurrentFilter() {
-            const filterText = document.getElementById('conditions-filter')?.value?.toLowerCase() || '';
-            const tiles = document.querySelectorAll('.condition-tile');
-            
-            let visibleCount = 0;
-            
-            tiles.forEach(tile => {
-                const conditionKey = tile.dataset.key;
-                const condition = allConditions.find(c => c.key === conditionKey);
-                
-                if (!condition) return;
-                
-                const isVisible = filterText === '' || condition.searchText.includes(filterText);
-                
-                if (isVisible) {
-                    tile.style.display = '';
-                    visibleCount++;
-                } else {
-                    tile.style.display = 'none';
-                }
-            });
-
-            // Mise à jour de la bare de stats
-            updateConditionsStats(visibleCount);
-            
-            // Gestion des groupes vides
-            updateGroupVisibility();
-        }
-
-        function updateGroupVisibility() {
-            const groups = document.querySelectorAll('.unit-group');
-            
-            groups.forEach(group => {
-                const visibleTiles = group.querySelectorAll('.condition-tile[style=""], .condition-tile:not([style*="display: none"])');
-                const hasVisibleTiles = Array.from(group.querySelectorAll('.condition-tile')).some(tile => 
-                    tile.style.display !== 'none'
-                );
-                
-                if (hasVisibleTiles) {
-                    group.style.display = '';
-                    // Mettre à jour le compteur du groupe
-                    const counter = group.querySelector('.unit-count');
-                    if (counter) {
-                        counter.textContent = visibleTiles.length;
-                    }
-                } else {
-                    group.style.display = 'none';
-                }
-            });
-        }
-
-        function updateConditionsStats(visibleCount) {
-            const statsEl = document.getElementById('conditions-stats-display');
-            
-            if (statsEl && currentConditionsData) {
-                const totalCount = Object.keys(currentConditionsData).length;
-                const visibleConditions = allConditions.filter((_, index) => {
-                    const tile = document.querySelector(`.condition-tile[data-key="${allConditions[index].key}"]`);
-                    return tile && tile.style.display !== 'none';
-                });
-                const unitsCount = new Set(visibleConditions.map(item => item.unit)).size;
-                
-                statsEl.innerHTML = `${visibleCount} / ${totalCount} mesures • ${unitsCount} types`;
-                statsEl.style.display = 'block';
-            }
-        }
-
-
-        function displayConditions() {
-            const groupBy = document.getElementById('conditions-group')?.value || 'unit';
-            
-            if (groupBy === 'none') {
-                reorganizeConditionsList();
-            } else {
-                reorganizeConditionsGrouped(groupBy);
-            }
-        }
-// Ajoutez cette fonction pour mettre à jour une tuile existante
-
-// Variable globale pour stocker les valeurs précédentes
-let previousValues = {};
-
-// Fonction pour détecter si le changement est majeur
-function isMajorChange(oldValue, newValue, unit) {
-    if (oldValue === undefined || oldValue === null) return false;
-    
-    const old = parseFloat(oldValue);
-    const current = parseFloat(newValue);
-    
-    if (isNaN(old) || isNaN(current)) return false;
-    
-    const percentChange = Math.abs((current - old) / old) * 100;
-    
-    // Seuils pour considérer un changement comme majeur selon le type de mesure
-    const majorThresholds = {
-        'temperature': 2,     // 2°C
-        'pressure': 1,        // 1% 
-        'humidity': 5,        // 5%
-        'wind': 10,          // 10 km/h ou 10%
-        'rain': 0.1,         // 0.1mm
-        'default': 5         // 5% par défaut
-    };
-    
-    // Déterminer le seuil selon l'unité
-    let threshold = majorThresholds.default;
-    if (unit && (unit.includes('°C') || unit.includes('°F'))) threshold = majorThresholds.temperature;
-    else if (unit && (unit.includes('hPa') || unit.includes('mb'))) threshold = majorThresholds.pressure;
-    else if (unit && unit.includes('%')) threshold = majorThresholds.humidity;
-    else if (unit && (unit.includes('km/h') || unit.includes('m/s'))) threshold = majorThresholds.wind;
-    else if (unit && unit.includes('mm')) threshold = majorThresholds.rain;
-    
-    return percentChange > threshold;
-}
-
-// Fonction modifiée pour mettre à jour une tuile existante avec animation
-function updateExistingTile(tileElement, item) {
-    const fn = eval(item.fnToUserUnit || 'x => x');
-    const valueElement = tileElement.querySelector('.condition-value');
-    
-    if (valueElement) {
-        // Récupérer l'ancienne valeur pour comparaison
-        const previousValue = previousValues[item.key];
-        const currentValue = item.value;
-        
-        // Vérifier si la valeur a changé
-        const hasChanged = previousValue !== undefined && previousValue !== currentValue;
-        const isMajor = hasChanged && isMajorChange(previousValue, currentValue, item.userUnit);
-        
-        let unitDisplay = item.userUnit ? `<span class="condition-unit">${item.userUnit}</span>` : '';
-        
-        // Cas spéciaux pour certains types de données
-        if (item.unit === 'dateStormRain' || item.unit === 'iso8601' || item.userUnit === 'cardinal') {
-            unitDisplay = '';
-        }
-        
-        // Mettre à jour le contenu
-        valueElement.innerHTML = `${fn(currentValue)} ${unitDisplay}`;
-        
-        // Appliquer l'animation si la valeur a changé
-        if (hasChanged) {
-            // Retirer les classes d'animation précédentes
-            tileElement.classList.remove('value-changed', 'major-change');
-            
-            // Forcer un reflow pour s'assurer que les classes sont bien retirées
-            tileElement.offsetHeight;
-            
-            // Ajouter la classe appropriée selon l'ampleur du changement
-            if (isMajor) {
-                tileElement.classList.add('major-change');
-            } else {
-                tileElement.classList.add('value-changed');
-            }
-            
-            // Retirer la classe après l'animation pour permettre les futures animations
-            setTimeout(() => {
-                tileElement.classList.remove('value-changed', 'major-change');
-            }, isMajor ? 800 : 600);
-        }
-        
-        // Mettre à jour la valeur précédente
-        previousValues[item.key] = currentValue;
-    }
-    
-    // Mettre à jour les cas spéciaux avec animation si nécessaire
-    if (item.key === 'ForecastNum') {
-        const chartElement = tileElement.querySelector('.condition-chart');
-        if (chartElement) {
-            const weatherImages = item.value.split(' ');
-            chartElement.innerHTML = `
-                <div class="weather-forecast-container">
-                    ${weatherImages.map(weather => `
-                        <img src="img/${weather}.png" 
-                             alt="${weather}" 
-                             class="weather-icon weather-${weather.toLowerCase()} ${item.value === weather ? 'active' : ''}"
-                             style="z-index: ${weather === 'Cloud' ? 3 : weather === 'Rain' ? 4 : weather === 'Snow' ? 5 : 2}">
-                    `).join('')}
-                </div>
-            `;
-        }
-    } else if (item.measurement === 'direction') {
-        const chartElement = tileElement.querySelector('.condition-chart');
-        if (chartElement) {
-            const windDirection = parseFloat(item.value) || 135;
-            const angleRad = (windDirection - 90) * Math.PI / 180;
-            const radius = 64;
-            const x = Math.cos(angleRad) * radius;
-            const y = Math.sin(angleRad) * radius;
-            
-            chartElement.innerHTML = `
-                <div class="wind-compass">
-                    <img src="img/windRose.png" alt="Rose des vents" class="wind-rose">
-                    <img src="img/windArrow.png" alt="Direction du vent" class="wind-arrow" 
-                        style="transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${windDirection}deg)">
-                </div>
-            `;
-        }
-    }
-}
-
-// Fonction pour initialiser les valeurs précédentes lors du premier chargement
-function initializePreviousValues() {
-    if (currentConditionsData) {
-        const excludeKeys = ['datagramme', 'timestamp'];
-        Object.entries(currentConditionsData)
-            .filter(([key]) => !excludeKeys.includes(key))
-            .forEach(([key, data]) => {
-                if (previousValues[key] === undefined) {
-                    previousValues[key] = data.Value;
-                }
-            });
-    }
-}
-
-// Modifier la fonction processAndDisplayConditions pour initialiser les valeurs
-function processAndDisplayConditions() {
-    if (!currentConditionsData) return;
-
-    // Initialiser les valeurs précédentes si c'est le premier chargement
-    if (Object.keys(previousValues).length === 0) {
-        initializePreviousValues();
-    }
-
-    // Convertir les données en tableau et exclure certains champs
-    const excludeKeys = ['datagramme', 'timestamp'];
-    allConditions = Object.entries(currentConditionsData)
-        .filter(([key]) => !excludeKeys.includes(key))
-        .map(([key, data]) => {
-            const sensorInfo = sensorMap[key] || {};
-            return {
-                key,
-                name: sensorInfo.label || formatLabel(key),
-                unit: data.Unit,
-                value: data.Value,
-                fnToUserUnit: data.toUserUnit,
-                userUnit: data.userUnit,
-                measurement: sensorInfo.measurement || 'unknown',
-                groupUsage: sensorInfo.groupUsage || '0',
-                groupCustom: sensorInfo.groupCustom || 0,
-                period: sensorInfo.period || '3d',
-                sensorDb: sensorInfo.sensorDb,
-                searchText: [sensorInfo.label, key, formatLabel(key), String(data.Value), data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
-            };
-        });
-
-    console.log('allConditions', allConditions);
-    // Afficher les conditions selon le groupement
-    displayConditions();
-    
-    // Appliquer le filtre en cours
-    applyCurrentFilter();
-}
-// Modifiez la fonction reorganizeConditionsGrouped()
-function reorganizeConditionsGrouped(groupBy) {
-    const conditionsContainer = document.getElementById('conditions-container');
-    if (!conditionsContainer) return;
-
-    if (allConditions.length === 0) {
-        conditionsContainer.innerHTML = '<div class="conditions-grid"><div class="no-results">Aucune donnée ne correspond à votre recherche.</div></div>';
-        return;
-    }
-
-    // Détacher les tuiles existantes du DOM pour les préserver
-    const existingTiles = {};
-    document.querySelectorAll('.condition-tile').forEach(tile => {
-        const key = tile.dataset.key;
-        if (key) {
-            tile.remove();
-            existingTiles[key] = tile;
-        }
-    });
-
-    // Grouper selon le critère
-    const groupedData = allConditions.reduce((groups, item) => {
-        let groupKey;
-        switch (groupBy) {
-            case 'measurement':
-                groupKey = item.measurement || 'Sans type';
-                break;
-            case 'groupUsage':
-                groupKey = item.groupUsage;
-                break;
-            case 'groupCustom':
-                groupKey = item.groupCustom;
-                break;
-            default:
-                groupKey = item.sensorDb || 'Sans historique!';
-                break;
-        }
-        
-        if (!groups[groupKey]) {
-            groups[groupKey] = [];
-        }
-        groups[groupKey].push(item);
-        return groups;
-    }, {});
-
-    // Créer la nouvelle structure
-    let newHTML = '';
-    Object.entries(groupedData).sort((a, b) => a[0].localeCompare(b[0])).forEach(([groupName, items]) => {
-        newHTML += `
-            <div class="unit-group">
-                <h3>
-                    ${groupName}
-                    <span class="unit-count">${items.length}</span>
-                </h3>
-                <div class="conditions-grid" data-group="${groupName}">
-                </div>
-            </div>
-        `;
-    });
-
-    conditionsContainer.innerHTML = newHTML;
-
-    // Réinsérer les tuiles dans les bons groupes
-    Object.entries(groupedData).forEach(([groupName, items]) => {
-        const groupGrid = conditionsContainer.querySelector(`[data-group="${groupName}"]`);
-        if (groupGrid) {
-            items.forEach(item => {
-                if (existingTiles[item.key]) {
-                    // MODIFICATION ICI: Mettre à jour la tuile existante avant de la réinsérer
-                    updateExistingTile(existingTiles[item.key], item);
-                    groupGrid.appendChild(existingTiles[item.key]);
-                } else {
-                    // Créer une nouvelle tuile
-                    const tileElement = document.createElement('div');
-                    tileElement.innerHTML = createConditionTileHTML(item);
-                    groupGrid.appendChild(tileElement.firstElementChild);
-                    // Charger le graphique pour cette nouvelle tuile
-                    setTimeout(() => {
-                        if (item.sensorDb) {
-                            const chartId = `chart_${item.key}`;
-                            const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
-                            loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`, item.period);
-                        }
-                    }, 50);
-                }
-            });
-        }
-    });
-}
-
-// Modifiez aussi la fonction reorganizeConditionsList()
-function reorganizeConditionsList() {
-    const conditionsContainer = document.getElementById('conditions-container');
-    if (!conditionsContainer) return;
-
-    if (allConditions.length === 0) {
-        conditionsContainer.innerHTML = '<div class="conditions-grid"><div class="no-results">Aucune donnée ne correspond à votre recherche.</div></div>';
-        return;
-    }
-
-    // Détacher les tuiles existantes du DOM pour les préserver
-    const existingTiles = {};
-    document.querySelectorAll('.condition-tile').forEach(tile => {
-        const key = tile.dataset.key;
-        if (key) {
-            tile.remove();
-            existingTiles[key] = tile;
-        }
-    });
-
-    // Créer la nouvelle structure
-    const newHTML = '<div class="conditions-grid" data-ungrouped="true"></div>';
-    conditionsContainer.innerHTML = newHTML;
-
-    const grid = conditionsContainer.querySelector('[data-ungrouped="true"]');
-    
-    // Réinsérer les tuiles
-    allConditions.forEach(item => {
-        if (existingTiles[item.key]) {
-            // MODIFICATION ICI: Mettre à jour la tuile existante avant de la réinsérer
-            updateExistingTile(existingTiles[item.key], item);
-            grid.appendChild(existingTiles[item.key]);
-        } else {
-            // Créer une nouvelle tuile
-            const tileElement = document.createElement('div');
-            tileElement.innerHTML = createConditionTileHTML(item);
-            grid.appendChild(tileElement.firstElementChild);
-            // Charger le graphique pour cette nouvelle tuile
-            setTimeout(() => {
-                if (item.sensorDb) {
-                    const chartId = `chart_${item.key}`;
-                    const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
-                    loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`, item.period);
-                }
-            }, 50);
-        }
-    });
-}
-// Fonction pour déterminer le niveau de batterie et l'image correspondante
-function getBatteryImageAndClass(batteryValue) {
-   
-    const value = parseFloat(batteryValue);
-    console.log('batteryValue', batteryValue);
-    let level, className = '';
-    if (value > 102) {
-        level = 'missing';
-        className= 'missing-battery';
-    } else if (value >= 90) {
-        level = 100;
-    } else if (value >=70) {
-        level = 80;
-    } else if (value >= 50) {
-        level = 60;
-    } else if (value >= 30) {
-        level = 40;
-    } else if (value >= 10) {
-        level = 20;
-        className = 'low-battery';
-    } else {
-        level = 0;
-        className = 'low-battery';
-    }
-    console.log(`Niveau de batterie: ${level} (${className})`);
-    return { image: `batterie-${level}.png`, className };
-}
-
-function createConditionTileHTML(item) {
-    let displayValue = item.value;
-    let metaInfo = '';
-    let unitDisplay = item.userUnit ? `<span class="condition-unit">${item.userUnit}</span>` : '';
-    const fn = eval(item.fnToUserUnit || 'x => x');
-    
-    let chartContent = '';
-    if (item.key === 'ForecastNum') {
-        console.log(displayValue);
-        // Cas spécial pour ForecastIcon - afficher des images météo
-        const weatherImages = displayValue.split(' ');
-        chartContent = `
-            <div class="weather-forecast-container">
-                ${weatherImages.map(weather => `
-                    <img src="img/${weather}.png" 
-                         alt="${weather}" 
-                         class="weather-icon weather-${weather.toLowerCase()} ${displayValue === weather ? 'active' : ''}"
-                         style="z-index: ${weather === 'Cloud' ? 3 : weather === 'Rain' ? 4 : weather === 'Snow' ? 5 : 2}">
-                `).join('')}
-            </div>
-        `;
-        unitDisplay = '';
-    } else if (item.measurement === 'direction') {
-        // Cas spécial pour afficher une flèche directionnelle 
-        const windDirection = parseFloat(displayValue) || 135;
-        // Calculer la position sur le cercle (rayon 100px)
-        const angleRad = (windDirection - 90) * Math.PI / 180; // -90 pour que 0° soit en haut
-        const radius = 64;
-        const x = Math.cos(angleRad) * radius;
-        const y = Math.sin(angleRad) * radius;
-        
-        chartContent = `
-            <div class="wind-compass">
-                <img src="img/windRose.png" alt="Rose des vents" class="wind-rose">
-                <img src="img/windArrow.png" alt="Direction du vent" class="wind-arrow" 
-                    style="transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${windDirection}deg)">
-            </div>
-        `;
-        unitDisplay = '';
-    } else if (item.key === 'sunrise' || item.key === 'sunset') {
-        console.log('sunrise', displayValue, chartContent);
-        unitDisplay = '';
-    } else if (item.unit === 'dateStormRain' || item.unit === 'iso8601' || item.userUnit === 'cardinal'){
-        unitDisplay = '';
-    } else if (item.key === 'batteryVoltage') {
-        // Cas spécial pour la batterie avec niveau
-        const batteryInfo = getBatteryImageAndClass(fn(displayValue));
-        chartContent = `
-            <div class="battery-container">
-                <img src="img/${batteryInfo.image}" 
-                     alt="Niveau de batterie" 
-                     class="battery-icon ${batteryInfo.className}">
-            </div>
-        `;
-        // Pour la batterie, on peut garder l'unité si elle existe
-    } else {
-        chartContent = `<div id="chart_${item.key}" class="plot-container"></div>`;
-    }
-    
-    return `
-        <div class="condition-tile" data-key="${item.key}">
-            <div class="condition-content">
-                <div class="condition-info">
-                    <div class="condition-name">${item.name}</div>
-                    <div class="condition-value">
-                        ${fn(displayValue)} ${unitDisplay}
-                    </div>
-                    ${metaInfo}
-                </div>
-                <div class="condition-chart">
-                    ${chartContent}
-                </div>
-            </div>
-        </div>
-    `;
-}
-        function getStartDate (period){
-        let date;
-            if (period === 'dateStormRain') {
-                const str = currentConditionsData.dateStormRain?.Value;
-                const stormDate = (str?.endsWith('T') ? str.slice(0, -1) : str)
-                date = new Date((stormDate || Math.round((new Date()).getTime()/1000) - 60*60*24*7)*1000);
-            } else {
-                date = new Date((Math.round((new Date()).getTime()/1000) - period)*1000);
-            }
-            return date.toISOString().replace('.000', '');
-        }
-
-        function loadAllCharts() {
-            if (!selectedStation || !dbSensorList) return;
-
-            allConditions.forEach(item => {
-                if (item.sensorDb) {
-                    const chartId = `chart_${item.key}`;
-                    const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
-                    loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`, item.period);
-                }
-            });
-            console.log(requestCache);
-        }
-
-        function formatLabel(key) {
-            const labelMap = {
-                'barometer': 'Baromètre',
-                'inTemp': 'Température intérieure',
-                'inHumidity': 'Humidité intérieure',
-                'outTemp': 'Température extérieure',
-                'windSpeed': 'Vitesse du vent',
-                'windSpeedMax': 'Vitesse du vent max',
-                'avgWindSpeed10Min': 'Vitesse vent moyenne (10min)',
-                'windDir': 'Direction du vent',
-                'windDirMax': 'Direction du vent max',
-                'outHumidity': 'Humidité extérieure',
-                'rainRate': 'Taux de précipitation',
-                'UV': 'Index UV',
-                'solarRadiation': 'Puissance Radiation solaire',
-                'stormRain': "Dernières précipitations d'averses",
-                'dayRain': 'Pluie du jour',
-                'monthRain': 'Pluie du mois',
-                'yearRain': 'Pluie de l\'année',
-                'dayET': 'Évapotranspiration du jour',
-                'monthET': 'Évapotranspiration du mois',
-                'yearET': 'Évapotranspiration de l\'année',
-                'batteryVoltage': 'Voltage batterie',
-                'ForecastIcon': 'Prévision météo 24h',
-                'sunrise': 'Lever du soleil',
-                'sunset': 'Coucher du soleil',
-                'avgWindSpeed2Min': 'Vitesse vent moyenne (2min)',
-                'windGust10Min': 'Rafale de vent (10min)',
-                'windGustDir10Min': 'Direction rafale (10min)',
-                'dewPoint': 'Point de rosée',
-                'heatIndex': 'Indice de chaleur (heat index)',
-                'windChill': 'Refroidissement éolien (wind chill)',
-                'THSW': 'Indice THSW',
-                'dateStormRain': 'Date de début des dernières averses',
-                'last15MinRain': 'Pluie (15 dernières min)',
-                'lastHourRain': 'Pluie (dernière heure)',
-                'last24HourRain': 'Pluie (24 dernières heures)'
-            };
-            
-            return labelMap[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-        }
-
-        function showConditionsStatus(message, type) {
-            const statusEl = document.getElementById('conditions-status');
-            if (!statusEl) return;
-
-            statusEl.textContent = message;
-            statusEl.className = `status-message status-${type}`;
-            statusEl.style.display = message ? 'block' : 'none';
-
-            if (type === 'success') {
-                setTimeout(() => {
-                    statusEl.style.display = 'none';
-                }, 3000);
-            }
-        }
-
-        // --- Section Paramètres (Settings) ---
-        
-        let currentStationSettings = null;
-
-        async function fetchStationSettings() {
-            if (!selectedStation) {
-                showSettingsStatus('Aucune station sélectionnée', 'error');
-                return;
-            }
-
-            showSettingsStatus('Chargement des paramètres...', 'loading');
-
-            try {
-                const response = await fetch(`/api/station/${selectedStation.id}`);
-                if (!response.ok) throw new Error('Erreur de récupération des paramètres');
-                
-                const data = await response.json();
-                if (data.success && data.settings) {
-                    currentStationSettings = data.settings;
-                    displaySettingsForm();
-                    showSettingsStatus('Paramètres chargés avec succès', 'success');
-                } else {
-                    throw new Error('Format de données invalide');
-                }
-            } catch (error) {
-                console.error('Erreur:', error);
-                showSettingsStatus(`Erreur: ${error.message}`, 'error');
-                document.getElementById('settings-container').innerHTML = '';
-            }
-        }
-
-        function displaySettingsForm() {
-            const settingsContainer = document.getElementById('settings-container');
-            if (!settingsContainer || !currentStationSettings) return;
-
-            const excludeKeys = ['id', 'lastArchiveDate', 'deltaTimeSeconds', 'path'];
-            
-            const groups = {
-                identity: {
-                    title: 'Identité',
-                    fields: ['name', 'location', 'comment']
-                },
-                network: {
-                    title: 'Configuration Réseau',
-                    fields: ['host', 'port']
-                },
-                localisation: {
-                    title: 'Localisation',
-                    fields: ['longitude', 'latitude', 'longitudeEastWest', 'latitudeNorthSouth', 'altitude']
-                },
-                meteo: {
-                    title: 'Station Météo',
-                    fields: ['archiveInterval','AMPMMode', 'dateFormat', 'windCupSize', 'rainCollectorSize', 'rainSaisonStart']
-                }
-            };
-
-            let formHTML = '<form id="station-settings-form" class="settings-form">';
-            
-            Object.entries(groups).forEach(([groupKey, group]) => {
-                formHTML += `
-                    <div class="settings-group">
-                        <h3>${group.title}</h3>
-                        <div class="settings-row">
-                `;
-                
-                group.fields.forEach(fieldKey => {
-                    if (currentStationSettings.hasOwnProperty(fieldKey) && !excludeKeys.includes(fieldKey)) {
-                        const field = currentStationSettings[fieldKey];
-                        formHTML += createSettingFieldHTML(fieldKey, field);
-                    }
-                });
-                
-                formHTML += `
-                        </div>
-                    </div>
-                `;
-            });
-
-            formHTML += `
-                <div class="settings-actions">
-                    <button type="button" class="btn-secondary" id="reset-settings">Annuler</button>
-                    <button type="submit">Enregistrer</button>
-                </div>
-            </form>
-            `;
-
-            settingsContainer.innerHTML = formHTML;
-
-            const form = document.getElementById('station-settings-form');
-            const resetBtn = document.getElementById('reset-settings');
-
-            if (form) {
-                form.addEventListener('submit', handleSettingsSubmit);
-            }
-
-            if (resetBtn) {
-                resetBtn.addEventListener('click', () => {
-                    displaySettingsForm();
-                });
-            }
-        }
-
-        function createSettingFieldHTML(key, field) {
-            const label = formatSettingLabel(key);
-            let value = '';
-            let tooltip = '';
-
-            if (typeof field === 'object' && field !== null) {
-                value = field.desired !== undefined ? field.desired : field.value || '';
-                
-                const tooltipParts = [];
-                if (field.comment) tooltipParts.push(field.comment);
-                if (field.lastReadValue !== undefined) tooltipParts.push(`Valeur actuelle: ${field.lastReadValue}`);
-                tooltip = tooltipParts.join(' | ');
-            } else {
-                value = field;
-            }
-
-            const inputType = getInputTypeForField(key, value);
-            const tooltipHTML = tooltip ? `<span class="tooltip" data-tooltip="${tooltip}">?</span>` : '';
-
-            return `
-                <div class="settings-field">
-                    <label for="setting-${key}">
-                        ${label}
-                        ${tooltipHTML}
-                    </label>
-                    ${createInputHTML(key, value, inputType)}
-                </div>
-            `;
-        }
-
-        function createInputHTML(key, value, inputType) {
-            if (inputType === 'select') {
-                return createSelectHTML(key, value);
-            }
-
-            return `<input type="${inputType}" id="setting-${key}" name="${key}" value="${value}" ${key=='timezone'?'readonly':''}>`;
-        }
-
-        function createSelectHTML(key, value) {
-            const selectOptions = {
-                'AMPMMode': [
-                    { value: 0, label: 'AM/PM' },
-                    { value: 1, label: '24h' }
-                ],
-                'dateFormat': [
-                    { value: 0, label: 'Mois/Jour' },
-                    { value: 1, label: 'Jour/Mois' }
-                ],
-                'windCupSize': [
-                    { value: 0, label: 'Petit' },
-                    { value: 1, label: 'Grand' }
-                ],
-                'rainCollectorSize': [
-                    { value: 0, label: '0.01in' },
-                    { value: 1, label: '0.2mm' },
-                    { value: 2, label: '0.1mm' }
-                ],
-                'latitudeNorthSouth': [
-                    { value: 0, label: 'Sud' },
-                    { value: 1, label: 'Nord' }
-                ],
-                'longitudeEastWest': [
-                    { value: 0, label: 'Est' },
-                    { value: 1, label: 'Ouest' }
-                ],
-                'archiveInterval': [
-                    { value: 1, label: '1 min' },
-                    { value: 5, label: '5 min' },
-                    { value: 10, label: '10 min' },
-                    { value: 15, label: '15 min' },
-                    { value: 30, label: '30 min' },
-                    { value: 60, label: '1 heure' },
-                    { value: 120, label: '2 heures' }
-                ]
-            };
-
-            if (!selectOptions[key]) return `<input type="text" id="setting-${key}" name="${key}" value="${value}">`;
-
-            let optionsHTML = '';
-            selectOptions[key].forEach(option => {
-                const selected = option.value == value ? 'selected' : '';
-                optionsHTML += `<option value="${option.value}" ${selected}>${option.label}</option>`;
-            });
-
-            return `<select id="setting-${key}" name="${key}">${optionsHTML}</select>`;
-        }
-
-        function getInputTypeForField(key, value) {
-            if (['AMPMMode', 'archiveInterval', 'dateFormat', 'windCupSize', 'rainCollectorSize', 'latitudeNorthSouth', 'longitudeEastWest'].includes(key)) {
-                return 'select';
-            }
-            if (['port', 'rainSaisonStart'].includes(key)) {
-                return 'number';
-            }
-            if (['longitude', 'latitude', 'altitude'].includes(key)) {
-                return 'number';
-            }
-            return 'text';
-        }
-
-        function formatSettingLabel(key) {
-            const labelMap = {
-                'name': 'Nom de la station',
-                'archiveInterval': 'Intervalle archive (min)',
-                'comment': 'Description',
-                'host': 'Adresse IP/Host',
-                'port': 'Port',
-                'location': 'Emplacement',
-                'longitude': 'Longitude',
-                'latitude': 'Latitude',
-                'altitude': 'Altitude (m)',
-                'AMPMMode': 'Format heure',
-                'dateFormat': 'Format date',
-                'windCupSize': 'Taille anémomètre',
-                'rainCollectorSize': 'Taille pluviomètre',
-                'rainSaisonStart': 'Mois début saison pluie',
-                'latitudeNorthSouth': 'Latitude Nord/Sud',
-                'longitudeEastWest': 'Longitude Est/Ouest'
-            };
-            
-            return labelMap[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-        }
-
-        async function handleSettingsSubmit(e) {
-            e.preventDefault();
-            if (!selectedStation) return;
-
-            const formData = new FormData(e.target);
-            const settings = {};
-
-            for (let [key, value] of formData.entries()) {
-                const currentField = currentStationSettings[key];
-                
-                if (typeof currentField === 'object' && currentField !== null) {
-                    settings[key] = {
-                        ...currentField,
-                        desired: isNaN(value) ? value : Number(value)
-                    };
-                } else {
-                    settings[key] = isNaN(value) ? value : Number(value);
-                }
-            }
-
-            showSettingsStatus('Enregistrement des paramètres...', 'loading');
-
-            try {
-                const response = await fetch(`/api/station/${selectedStation.id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(settings)
-                });
-
-                const result = await response.json();
-                if (!result.success) throw new Error('Erreur lors de la sauvegarde');
-
-                showSettingsStatus('Synchronisation avec la station...', 'loading');
-
-                const syncResponse = await fetch(`/api/station/${selectedStation.id}/sync-settings`);
-                const syncResult = await syncResponse.json();
-                if (!syncResult.success) {
-                    console.warn('Avertissement synchronisation:', syncResult.message || 'Erreur inconnue');
-                }
-
-                showSettingsStatus('Mise à jour de la date/heure...', 'loading');
-
-                const datetimeResponse = await fetch(`/api/station/${selectedStation.id}/update-datetime`);
-                const datetimeResult = await datetimeResponse.json();
-                if (!datetimeResult.success) {
-                    console.warn('Avertissement mise à jour date/heure:', datetimeResult.message || 'Erreur inconnue');
-                }
-
-                showSettingsStatus('Paramètres sauvegardés et synchronisés avec succès', 'success');
-                
-                setTimeout(() => {
-                    fetchStationSettings();
-                }, 2000);
-
-            } catch (error) {
-                console.error('Erreur:', error);
-                showSettingsStatus(`Erreur: ${error.message}`, 'error');
-            }
-        }
-
-        function showSettingsStatus(message, type) {
-            const statusEl = document.getElementById('settings-status');
-            if (!statusEl) return;
-
-            statusEl.textContent = message;
-            statusEl.className = `status-message status-${type}`;
-            statusEl.style.display = message ? 'block' : 'none';
-
-            if (type === 'success') {
-                setTimeout(() => {
-                    statusEl.style.display = 'none';
-                }, 5000);
+            } else if (activeSectionId === 'settings-section') {
+                // Nouvelle section : charger les préférences d'unités
+                fetchUnitsPreferences();
             }
         }
 
@@ -1274,5 +328,10 @@ function createConditionTileHTML(item) {
     });
 
 </script>
+<script src="js/global.js"></script>
+<script src="js/newStation.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/station.js"></script>
+<script src="js/settings.js"></script>
 </body>
 </html>

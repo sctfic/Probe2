@@ -37,7 +37,7 @@ const sensorMap = {
         period: 60*60*24*7,
         groupUsage: '1/ Outdoor',
         groupCustom: 1,
-        sensorDb: 'speed:Speed'
+        sensorDb: 'speed:Wind'
     },
     'windSpeedMax': {
         label: 'Vitesse du vent max',
@@ -53,7 +53,7 @@ const sensorMap = {
         period: 60*60*24*7,
         groupUsage: '5/ other_wind',
         groupCustom: 1,
-        sensorDb: 'speed:Speed'
+        sensorDb: 'speed:Wind'
     },
     'windDir': {
         label: 'Direction du vent',
@@ -61,7 +61,7 @@ const sensorMap = {
         period: 60*60*24*7,
         groupUsage: '1/ Outdoor',
         groupCustom: 1,
-        sensorDb: 'direction:Speed'
+        sensorDb: 'direction:Wind'
     },
     'outHumidity': {
         label: 'Humidité extérieure',
@@ -80,7 +80,7 @@ const sensorMap = {
         sensorDb: null
     },
     'UV': {
-        label: 'Index UV',
+        label: 'Index UV (duree avant coup de soleil)',
         measurement: 'uv',
         period: 60*60*24*7,
         groupUsage: '2/ Sun',
@@ -189,7 +189,7 @@ const sensorMap = {
         period: 60*60*24*7,
         groupUsage: '5/ other_wind',
         groupCustom: 1,
-        sensorDb: 'speed:Speed'
+        sensorDb: 'speed:Wind'
     },
     'windGust10Min': {
         label: 'Rafale de vent (10min)',

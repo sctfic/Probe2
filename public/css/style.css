@@ -303,10 +303,10 @@ h1 {
 }
 
 .settings-group {
-    margin-bottom: 30px;
+    margin-bottom: 3px;
     background: #f8f9fa;
     border-radius: 8px;
-    padding: 20px;
+    padding: 10px 6px;
 }
 
 .settings-group h3 {
@@ -320,8 +320,8 @@ h1 {
 .settings-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-    margin-bottom: 15px;
+    gap: 10px;
+    margin-bottom: 5px;
 }
 
 .settings-field {
@@ -987,3 +987,6 @@ label {
     50% { opacity: 0.6; }
     100% { opacity: 1; }
 }
+
+
+

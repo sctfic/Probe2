@@ -38,11 +38,11 @@
               |> filter(fn: (r) => r.sensor == "Gust")
               |> drop(columns: ["_start", "_stop"])
             avg = grpPetal
-              |> filter(fn: (r) => r.sensor == "Speed")
+              |> filter(fn: (r) => r.sensor == "Wind")
               |> aggregateWindow(every: 256600s, fn: mean, column: "speed", createEmpty: false)
               |> drop(columns: ["_start", "_stop"])
             aCount = count
-              |> filter(fn: (r) => r.sensor == "Speed")
+              |> filter(fn: (r) => r.sensor == "Wind")
               |> drop(columns: ["_start", "_stop"])
 
             gustC = join(
@@ -70,7 +70,7 @@ voici la structure de mes data dans mon bucket influxdb
         "tags": {
             "sensor": [
                 "Gust",
-                "Speed"
+                "Wind"
             ],
             "station_id": [
                 "VP2_Serramoune"
@@ -87,7 +87,7 @@ voici la structure de mes data dans mon bucket influxdb
         "tags": {
             "sensor": [
                 "Gust",
-                "Speed"
+                "Wind"
             ],
             "station_id": [
                 "VP2_Serramoune"

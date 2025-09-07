@@ -93,16 +93,8 @@ async function createSocket(stationConfig, lockPath) {
     console.log(`${V.satellite} Creating new socket for ${key}`);
     
     const socket = new net.Socket();
-    socket.setTimeout(10000);
-    socket.setKeepAlive(true, 30000);
-    
-    // // Override de la méthode write pour toucher le verrou automatiquement
-    // const originalWrite = socket.write.bind(socket);
-    // socket.write = function(data, encoding, callback) {
-    //     console.log(`${O.white} Writing to ${lockPath}`);
-    //     touchLockFile(lockPath);
-    //     return originalWrite(data, encoding, callback);
-    // };
+    socket.setTimeout(800);
+    socket.setKeepAlive(true, 5000);
     
     // Stockage du lockPath dans le socket pour libération ultérieure
     socket._lockPath = lockPath;
@@ -454,5 +446,6 @@ async function wakeUpConsole(req, stationConfig, screen = null) {
 module.exports = {
     sendCommand,
     wakeUpConsole,
-    getOrCreateSocket
+    getOrCreateSocket,
+    isLockFree
 };

@@ -14,7 +14,7 @@ router.get('/clear', async (req, res) => { await queryDbController.clearAllData(
 router.get('/:stationId', queryDbController.getQueryMetadata); // http://probe2.lpz.ovh/query/VP2_Serramoune
 
 // Route to get the date range for a sensor (startDate and endDate are optional)
-router.get('/:stationId/Range/:sensorRef', queryDbController.getQueryRange); // http://probe2.lpz.ovh/query/VP2_Serramoune/Range/inTemp?startDate=2025-08-21T00:00:00.000Z&endDate=2025-08-21T23:00:00.000Z
+router.get('/:stationId/Range/:sensorRef?', queryDbController.getQueryRange); // http://probe2.lpz.ovh/query/VP2_Serramoune/Range/inTemp?startDate=2025-08-21T00:00:00.000Z&endDate=2025-08-21T23:00:00.000Z
 
 // Route to get raw data for a sensor (startDate and endDate are optional)
 router.get('/:stationId/Raw/:sensorRef', queryDbController.getQueryRaw); // http://probe2.lpz.ovh/query/VP2_Serramoune/Raw/barometer?startDate=2025-08-21T00:00:00.000Z&endDate=2025-08-21T23:00:00.000Z

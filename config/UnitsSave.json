@@ -39,19 +39,19 @@
       "metric": "m/s",
       "available_units": {
           "mph": {
-              "title": "miles par heure",
+              "title": "mph",
               "fnFromMetric": "(ms) => Number((ms*2.23693).toFixed(1))"
           },
           "m/s": {
-              "title": "mètre/secondes",
+              "title": "m/s",
               "fnFromMetric": "(ms) => Number(ms.toFixed(1))"
           },
           "km/h": {
-              "title": "kilometre/heure",
+              "title": "km/h",
               "fnFromMetric": "(ms) => Number((ms*3.6).toFixed(1))"
           },
           "knots": {
-              "title": "nœuds",
+              "title": "knots",
               "fnFromMetric": "(ms) => Number((ms*2.23693).toFixed(1))"
           }
       },
@@ -171,7 +171,7 @@
               "fnFromMetric": "(uv) => Number(uv.toFixed(1))"
           },
           "min": {
-              "title": "temps d'exposition avant brulure",
+              "title": "temps d'exposition avant un coup de soleil = 210/(UVIndex*exp(uvindex/32))",
               "fnFromMetric": "(uv) => Number(Math.min(180, 210/((uv*Math.exp(uv/32)))).toFixed(0))",
               "skin": 2
           }

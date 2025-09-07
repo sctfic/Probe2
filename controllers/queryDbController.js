@@ -64,6 +64,8 @@ exports.getQueryMetadata = async (req, res) => {
         console.log(`${V.info} Demande de métadonnées pour la station ${stationId}`);
         const _measurements = await influxdbService.getMetadata(stationId);
         const allFields = Object.values(_measurements).flatMap(measurement => measurement.tags.sensor);
+        const dateRange = await influxdbService.queryDateRange(stationId, '', 0, new Date().getTime()/1000);
+
         res.json({
             success: true,
             message: 'Success',
@@ -71,8 +73,8 @@ exports.getQueryMetadata = async (req, res) => {
                 stationId: stationId,
                 sensor: [...new Set(allFields)],
                 queryTime: new Date().toISOString(),
-                first: null,
-                last: null,
+                first: dateRange.firstUtc,
+                last: dateRange.lastUtc,
                 intervalSeconds: null,
                 count: null,
                 unit: units,
@@ -86,7 +88,7 @@ exports.getQueryMetadata = async (req, res) => {
     }
 };
 
-function getTypeAndSensor(sensorRef) {
+function getTypeAndSensor(sensorRef='') {
     let type, sensor;
     if (sensorRef.includes(':')) {
         [type, sensor] = sensorRef.split(':');
@@ -101,7 +103,7 @@ exports.getQueryRange = async (req, res) => {
     const { stationId, sensorRef } = req.params;
     const { startDate, endDate } = req.query;
     
-    if (!stationId || !sensorRef) {
+    if (!stationId) {
         return res.status(400).json({ success: false, error: 'Les paramètres stationId et sensorRef sont requis.' });
     }
     
@@ -123,7 +125,7 @@ exports.getQueryRange = async (req, res) => {
                 count: data.count,
                 unit: data.unit || '',
                 userUnit: units?.[type]?.user || '',
-                toUserUnit: units?.[type]?.avaible_units?.[units?.[type]?.user]?.fnFromMetric || null
+                toUserUnit: units?.[type]?.available_units?.[units?.[type]?.user]?.fnFromMetric || null
             },
             data: []
         });
@@ -172,7 +174,7 @@ exports.getQueryRaw = async (req, res) => {
                 count: Data.length,
                 unit: data[0]?.unit || '',
                 userUnit: units?.[type]?.user || '',
-                toUserUnit: units?.[type]?.avaible_units?.[units?.[type]?.user]?.fnFromMetric || null
+                toUserUnit: units?.[type]?.available_units?.[units?.[type]?.user]?.fnFromMetric || null
             },
             data: Data
         });
@@ -205,7 +207,7 @@ exports.getQueryRaws = async (req, res) => {
         sensorsFnFromMetric[sensor] = {
             unit: units?.[type]?.metric || null,
             userUnit: units?.[type]?.user || null,
-            fnFromMetric: units?.[type]?.avaible_units?.[units?.[type]?.user]?.fnFromMetric || null
+            fnFromMetric: units?.[type]?.available_units?.[units?.[type]?.user]?.fnFromMetric || null
         };
     });
     try {
@@ -298,7 +300,7 @@ exports.getQueryCandle = async (req, res) => {
                 count: Data.length,
                 unit: data[0]?.unit || '',
                 userUnit: units?.[type]?.user || '',
-                toUserUnit: units?.[type]?.avaible_units?.[units?.[type]?.user]?.fnFromMetric || null
+                toUserUnit: units?.[type]?.available_units?.[units?.[type]?.user]?.fnFromMetric || null
             },
             data: Data
         });
@@ -332,15 +334,15 @@ exports.getQueryWindRose = async (req, res) => {
             message: msg,
             metadata: {
                 stationId: stationId,
-                measurement: { "speed": "Speed", "direction": "Speed" },
+                measurement: { "speed": 'Wind', "direction": 'Wind' },
                 queryTime: new Date().toISOString(),
                 first: new Date(start).toISOString(),
                 last: new Date(end).toISOString(),
                 intervalSeconds: intervalSeconds,
                 count: data.length,
-                unit: units?.['Speed']?.metric || '',
-                userUnit: units?.['Speed']?.user || '',
-                toUserUnit: units?.['Speed']?.avaible_units?.[units?.['Speed']?.user]?.fnFromMetric || null
+                unit: units?.['Wind']?.metric || '',
+                userUnit: units?.['Wind']?.user || '',
+                toUserUnit: units?.['Wind']?.available_units?.[units?.['Wind']?.user]?.fnFromMetric || null
             },
             data: data
         });
@@ -374,15 +376,15 @@ exports.getQueryWindVectors = async (req, res) => {
             message: msg,
             metadata: {
                 stationId: stationId,
-                sensor: ['Speed', 'Gust'],
+                sensor: ['Wind', 'Gust'],
                 queryTime: new Date().toISOString(),
                 first: new Date(start).toISOString(),
                 last: new Date(end).toISOString(),
                 intervalSeconds: intervalSeconds,
                 count: data.length,
-                unit: units?.['Speed']?.metric || '',
-                userUnit: units?.['Speed']?.user || '',
-                toUserUnit: units?.['Speed']?.avaible_units?.[units?.['Speed']?.user]?.fnFromMetric || null
+                unit: units?.['Wind']?.metric || '',
+                userUnit: units?.['Wind']?.user || '',
+                toUserUnit: units?.['Wind']?.available_units?.[units?.['Wind']?.user]?.fnFromMetric || null
             },
             data: data
         });

@@ -58,6 +58,7 @@ const withStationLamps = (handler) => {
                 const result = await handler(req, res);
                 
                 if (result && typeof result === 'object') {
+                    console.log(`${V.info} ${stationConfig.id} - Réponse:`, result);
                     res.json({
                         success: true,
                         stationId: stationConfig.id,

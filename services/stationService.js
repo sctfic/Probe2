@@ -533,11 +533,12 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
     delete processedData.time;
     
     for (const [key, data] of Object.entries(processedData)) {
+        if (typeof data.Value !== 'number') { continue; }
         let tag;
         if (key === 'windDirMax' || key === 'windSpeedMax') {
             tag = 'Gust';
         } else if (key === 'windDir' || key === 'windSpeed') {
-            tag = 'Speed';
+            tag = 'Wind';
         } else {tag = key;}
         const point = new Point(sensorTypeMap[key])
             .tag('station_id', stationId)

@@ -200,7 +200,7 @@ const sensorTypeMap = {
     inTemp: 'temperature',
     inHumidity: 'humidity',
     outTemp: 'temperature',
-    Speed: 'speed',
+    Wind: 'speed',
     Gust: 'speed',
     windSpeed: 'speed',
     windSpeedMax: 'speed',
@@ -311,20 +311,24 @@ const conversionTable = {
     },
     Forecast: {
         'ForecastNum': (f) => f,
-        'ForecastClass': (f) => {
-            // d'apres les valeur dans la documentation Docs/VantageSerialProtocolDocs_v261.pdf page 23
-            switch (f) {
-                case 8: return 'Sun';
-                case 6: return 'Sun Cloud';
-                case 2: return 'Cloud';
-                case 3: return 'Cloud Rain';
-                case 7: return 'Sun Cloud Rain';
-                case 18: return 'Cloud Snow';
-                case 19: return 'Cloud Rain Snow';
-                case 22: return 'Sun Cloud Snow';
-                case 23: return 'Sun Cloud Rain Snow';
-                default: return 'Undetermined forecastNum('+f+')'; // 'Unknown';
+        'ForecastClass': (f) => {// d'apres les valeur dans la documentation Docs/VantageSerialProtocolDocs_v261.pdf page 23
+            const icons = [];
+            if ((f & 1) !== 0) {
+                icons.push("Rain");
             }
+            if ((f & 2) !== 0) {
+                icons.push("Cloud");
+            }
+            if ((f & 4) !== 0) {
+                icons.push("Sun Cloud");
+            }
+            if ((f & 8) !== 0) {
+                icons.push("Sun");
+            }
+            if ((f & 16) !== 0) {
+                icons.push("Snow");
+            }
+            return icons.join(" ");
         }
     },
     date: { // format d'entré : yyyy/MM/dd
@@ -384,7 +388,7 @@ function processWeatherData(weatherData, stationConfig, UnitsType='metric') {
                 Value: convertToUnit(nativeValue, key, UnitsType),
                 Unit: units[sensorTypeMap[key]]?.[UnitsType] || data.native_unit,
                 userUnit: userUnit,
-                toUserUnit: units[sensorTypeMap[key]]?.avaible_units?.[userUnit]?.["fnFromMetric"]
+                toUserUnit: units[sensorTypeMap[key]]?.available_units?.[userUnit]?.["fnFromMetric"]
             };
         }
     }

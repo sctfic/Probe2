@@ -9,9 +9,9 @@ module.exports = {
         'node_modules',
         './node_modules',
         './config/stations',
+        './public',
         './docs',
         './.git',
-        './logs',
         './logs/*', // Ajout explicite pour ignorer tout le contenu du répertoire logs
         '*.log',    // Ignorer tous les fichiers .log à la racine
         '**/*.log'  // Ignorer tous les fichiers .log dans tous les sous-répertoires

@@ -6,7 +6,7 @@
         "sensor": [
             "ForecastNum",
             "Gust",
-            "Speed",
+            "Wind",
             "inHumidity",
             "outHumidity",
             "solarRadiation",
@@ -28,7 +28,7 @@
             "temperature": {
                 "user": "°C",
                 "metric": "K",
-                "avaible_units": {
+                "available_units": {
                     "°C": {
                         "title": "Celsius",
                         "fnFromMetric": "(k) => Number((k-273.15).toFixed(1))"
@@ -63,7 +63,7 @@
             "speed": {
                 "user": "km/h",
                 "metric": "m/s",
-                "avaible_units": {
+                "available_units": {
                     "mph": {
                         "title": "mph",
                         "fnFromMetric": "(ms) => Number((ms*2.23693).toFixed(1))"
@@ -94,7 +94,7 @@
             "direction": {
                 "user": "cardinal",
                 "metric": "°",
-                "avaible_units": {
+                "available_units": {
                     "°": {
                         "title": "degrees",
                         "fnFromMetric": "(deg) => deg"
@@ -113,7 +113,7 @@
             "pressure": {
                 "user": "Bar",
                 "metric": "hpa",
-                "avaible_units": {
+                "available_units": {
                     "inHg": {
                         "title": "imperial",
                         "fnFromMetric": "(hpa) => Number((hpa*0.750062).toFixed(1))"
@@ -138,7 +138,7 @@
             "rain": {
                 "user": "l/m²",
                 "metric": "mm",
-                "avaible_units": {
+                "available_units": {
                     "mm": {
                         "title": "millimetre",
                         "fnFromMetric": "(mm) => Number(mm.toFixed(1))"
@@ -170,7 +170,7 @@
             "rainRate": {
                 "user": "l/m²/h",
                 "metric": "mm/h",
-                "avaible_units": {
+                "available_units": {
                     "mm/h": {
                         "title": "milimetre per hour",
                         "fnFromMetric": "(mmh) => Number(mmh.toFixed(1))"
@@ -191,7 +191,7 @@
             "uv": {
                 "user": "min",
                 "metric": "index",
-                "avaible_units": {
+                "available_units": {
                     "index": {
                         "title": "index",
                         "fnFromMetric": "(uv) => Number(uv.toFixed(1))"
@@ -209,7 +209,7 @@
             "powerRadiation": {
                 "user": "w/m²",
                 "metric": "w/m²",
-                "avaible_units": {
+                "available_units": {
                     "w/m²": {
                         "title": "watt per square meter",
                         "fnFromMetric": "(w) => Number(w.toFixed(1))"
@@ -223,7 +223,7 @@
             "humidity": {
                 "user": "%",
                 "metric": "%",
-                "avaible_units": {
+                "available_units": {
                     "%": {
                         "title": "percent",
                         "fnFromMetric": "(h) => Number(h.toFixed(1))"
@@ -245,7 +245,7 @@
             "battery": {
                 "user": "%",
                 "metric": "V",
-                "avaible_units": {
+                "available_units": {
                     "%": {
                         "title": "percent",
                         "fnFromMetric": "(v) => Number((v*100/4.56).toFixed(0))"
@@ -262,7 +262,7 @@
             "date": {
                 "user": "yyyy-mm-dd",
                 "metric": "iso8601",
-                "avaible_units": {
+                "available_units": {
                     "yyyy-mm-dd": {
                         "title": "date",
                         "fnFromMetric": "(d) => (d.includes('T') ? d.split('T')[0] : d).substring(0, 10)"
@@ -280,7 +280,7 @@
             "time": {
                 "user": "hh:mm",
                 "metric": "iso8601",
-                "avaible_units": {
+                "available_units": {
                     "hh:mm": {
                         "title": "heure minute",
                         "fnFromMetric": "(t) => (t.includes('T') ? t.split('T')[1] : t).substring(0, 5)"
@@ -299,7 +299,7 @@
             "Forecast": {
                 "user": "ForecastClass",
                 "metric": "ForecastClass",
-                "avaible_units": {
+                "available_units": {
                     "ForecastNum": {
                         "title": "Weather Forecast Num",
                         "fnFromMetric": "(f) => f"
@@ -338,7 +338,7 @@
             "tags": {
                 "sensor": [
                     "Gust",
-                    "Speed"
+                    "Wind"
                 ],
                 "station_id": [
                     "VP2_Serramoune"
@@ -422,7 +422,7 @@
             "tags": {
                 "sensor": [
                     "Gust",
-                    "Speed"
+                    "Wind"
                 ],
                 "station_id": [
                     "VP2_Serramoune"

@@ -18,7 +18,7 @@ function transformDataForPlot(apiData, metadata) {
 }
 
 function createPlot(data, metadata, id, period) {
-    console.log(period);
+    // console.log(period);
     if (typeof period !== 'number') {
         period = '1 day';
     } else if(period <= 24*3600) {
@@ -32,7 +32,7 @@ function createPlot(data, metadata, id, period) {
     } else {
         period = '1 year';
     }
-    console.log(period);
+    // console.log(period);
 
     const chartDiv = document.getElementById(id);
     if (!chartDiv) {
@@ -196,8 +196,6 @@ async function fetchWithCache(url) {
  */
 async function loadData(id, url, period) {
     const loadingText = document.getElementById('loadingText');
-    console.log(period);
-    
     try {
         // Nettoyer périodiquement le cache
         cleanCache();
