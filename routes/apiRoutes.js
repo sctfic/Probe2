@@ -37,7 +37,7 @@ router.get('/settings', (req, res) => { // http://probe2.lpz.ovh/api/settings
 router.put('/settings', (req, res) => { // http://probe2.lpz.ovh/api/settings
     try {
         const newSettings = req.body.settings;
-
+console.log(newSettings.uv);
         if (!newSettings || typeof newSettings !== 'object') {
             return res.status(400).json({
                 success: false,

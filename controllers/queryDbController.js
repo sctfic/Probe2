@@ -64,7 +64,7 @@ exports.getQueryMetadata = async (req, res) => {
         console.log(`${V.info} Demande de métadonnées pour la station ${stationId}`);
         const _measurements = await influxdbService.getMetadata(stationId);
         const allFields = Object.values(_measurements).flatMap(measurement => measurement.tags.sensor);
-        const dateRange = await influxdbService.queryDateRange(stationId, '', 0, new Date().getTime()/1000);
+        const dateRange = await influxdbService.queryDateRange(stationId, '', 0, Math.round(new Date().getTime()/1000));
 
         res.json({
             success: true,
@@ -309,7 +309,7 @@ exports.getQueryCandle = async (req, res) => {
     }
 };
 
-exports.getQueryWindRose = async (req, res) => {
+exports.getQueryWindRose = async (req, res) => { // https://observablehq.com/@julesblm/wind-rose
     const { stationId } = req.params;
     const { startDate, endDate, stepCount = 10 } = req.query;
     

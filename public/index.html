@@ -4,8 +4,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Probe Météo</title>
 <!-- Observable Plot -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.17/dist/plot.umd.js"></script>
+<script src="js/d3.min.js"></script>
+<script src="js/plot.umd.js"></script>
 <!-- External CSS and JS -->
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/newStation.css">
@@ -125,6 +125,12 @@
     </section>
 </main>
 
+<footer class="footer">
+    <div class="footer-bottom">
+        <p>&copy; 2025 Probe Météo v0.1.35 - Développé par Alban LOPEZ</p>
+    </div>
+</footer>
+
 <script>
     let selectedStation = null;
     document.addEventListener('DOMContentLoaded', () => {
@@ -138,7 +144,61 @@
         const contentContainer = document.getElementById('content-container');
         const globalStationSelect = document.getElementById('global-station-select');
         const stationInfo = document.getElementById('station-info');
+        const footerNavLinks = document.querySelectorAll('.footer-nav-link');
         let currentIndex = 0;
+
+        // Mapping des sections pour l'URL
+        const sectionMap = {
+            'dashboard-section': 'dashboard',
+            'historique-section': 'historique', 
+            'stations-section': 'stations',
+            'settings-section': 'settings'
+        };
+
+        const reverseSectionMap = {
+            'dashboard': 'dashboard-section',
+            'historique': 'historique-section',
+            'stations': 'stations-section', 
+            'settings': 'settings-section'
+        };
+
+        // --- Gestion de l'URL et de l'historique ---
+        
+        function updateURL(sectionId) {
+            const sectionName = sectionMap[sectionId];
+            if (sectionName) {
+                const newUrl = `${window.location.origin}${window.location.pathname}#${sectionName}`;
+                history.pushState({ section: sectionName }, '', newUrl);
+            }
+        }
+
+        function loadFromURL() {
+            const hash = window.location.hash.slice(1); // Enlever le #
+            if (hash && reverseSectionMap[hash]) {
+                const sectionId = reverseSectionMap[hash];
+                const sectionIndex = Array.from(sections).findIndex(section => section.id === sectionId);
+                if (sectionIndex !== -1) {
+                    currentIndex = sectionIndex;
+                    updateView(false); // false = ne pas mettre à jour l'URL
+                }
+            }
+        }
+
+        // Écouter les changements d'URL (bouton retour du navigateur)
+        window.addEventListener('popstate', (event) => {
+            if (event.state && event.state.section) {
+                const sectionId = reverseSectionMap[event.state.section];
+                if (sectionId) {
+                    const sectionIndex = Array.from(sections).findIndex(section => section.id === sectionId);
+                    if (sectionIndex !== -1) {
+                        currentIndex = sectionIndex;
+                        updateView(false);
+                    }
+                }
+            } else {
+                loadFromURL();
+            }
+        });
 
         // --- Gestion du sélecteur global de stations ---
         
@@ -189,6 +249,7 @@
             
             if (selectedStation) {
                 stationInfo.textContent = `${selectedStation.location} (${selectedStation.host}:${selectedStation.port})`;
+                updateFooterInfo();
                 updateAllSectionInfo();
                 refreshActiveSection();
             } else {
@@ -211,8 +272,6 @@
             }
         }
 
-        // Ajout dans la fonction refreshActiveSection() du script principal
-
         function refreshActiveSection() {
             const activeSectionId = sections[currentIndex].id;
             
@@ -221,14 +280,13 @@
             } else if (activeSectionId === 'stations-section') {
                 fetchStationSettings();
             } else if (activeSectionId === 'settings-section') {
-                // Nouvelle section : charger les préférences d'unités
                 fetchUnitsPreferences();
             }
         }
 
         // --- Navigation Logic ---
         
-        function updateView() {
+        function updateView(updateUrl = true) {
             if (contentContainer) {
                 contentContainer.style.transform = `translateX(-${currentIndex * 100}vw)`;
             }
@@ -241,7 +299,35 @@
                 }
             });
 
+            // Mettre à jour les liens du footer
+            footerNavLinks.forEach(link => {
+                const linkSection = link.dataset.section;
+                const currentSection = sections[currentIndex].id;
+                if (linkSection === currentSection) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+
+            // Mettre à jour l'URL si demandé
+            if (updateUrl) {
+                updateURL(sections[currentIndex].id);
+            }
+
             refreshActiveSection();
+        }
+
+        function navigateToSection(sectionId) {
+            const sectionIndex = Array.from(sections).findIndex(section => section.id === sectionId);
+            if (sectionIndex !== -1) {
+                currentIndex = sectionIndex;
+                if (contentContainer) {
+                    contentContainer.style.transition = 'transform 0.3s ease-out';
+                    updateView();
+                    setTimeout(() => { contentContainer.style.transition = ''; }, 300);
+                }
+            }
         }
 
         navItems.forEach((item, index) => {
@@ -254,6 +340,8 @@
                 }
             });
         });
+
+        // Event listeners pour les liens du footer - supprimé car footer simplifié
 
         // --- Gestion du swipe ---
         let startX = 0;
@@ -309,7 +397,6 @@
         const conditionsFilter = document.getElementById('conditions-filter');
         const conditionsGroup = document.getElementById('conditions-group');
 
-        // Nouveau comportement pour le filtre - pas de rechargement des données
         if (conditionsFilter) {
             conditionsFilter.addEventListener('input', applyCurrentFilter);
         }
@@ -324,7 +411,8 @@
         // --- Initialisation ---
         
         loadGlobalStations();
-        updateView();
+        loadFromURL(); // Charger la section depuis l'URL
+        updateView(false); // Initialiser sans mettre à jour l'URL
     });
 
 </script>

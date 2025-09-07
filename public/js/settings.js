@@ -1,101 +1,88 @@
 // DEM values for different skin types
 const SKIN_TYPES = {
-    1: { name: "Type 1", description: "Brûle rapidement et ne bronze pas. Peau très claire avec des taches de rousseur, cheveux roux ou blonds, yeux clairs.", dem: 2.5 },
-    2: { name: "Type 2", description: "Brûle facilement et bronze lentement. Peau claire, cheveux blonds, yeux clairs.", dem: 3.0 },
-    3: { name: "Type 3", description: "Brûle rarement et bronze facilement. Peau légèrement mate, cheveux châtain/bruns, yeux foncés.", dem: 4.0 },
-    4: { name: "Type 4", description: "Brûle très rarement et bronze bien. Peau mate, cheveux foncés, yeux foncés, de type méditerranéen.", dem: 5.0 },
-    5: { name: "Type 5", description: "Peau asiatique, très résistante au soleil.", dem: 8.0 },
-    6: { name: "Type 6", description: "Peau noire, extrêmement résistante au soleil.", dem: 15.0 }
+    1: { name: "Type 1", description: "Brûle rapidement et ne bronze pas. Peau très claire avec des taches de rousseur, cheveux roux ou blonds, yeux clairs.", dem: 24 },
+    2: { name: "Type 2", description: "Brûle facilement et bronze lentement. Peau claire, cheveux blonds, yeux clairs.", dem: 32 },
+    3: { name: "Type 3", description: "Brûle rarement et bronze facilement. Peau légèrement mate, cheveux châtain/bruns, yeux foncés.", dem: 40 },
+    4: { name: "Type 4", description: "Brûle très rarement et bronze bien. Peau mate, cheveux foncés, yeux foncés, de type méditerranéen.", dem: 48 },
+    5: { name: "Type 5", description: "Peau asiatique, très résistante au soleil.", dem: 64 },
+    6: { name: "Type 6", description: "Peau noire, extrêmement résistante au soleil.", dem: 80 }
 };
 
 // Catégories d'unités avec leurs icônes et descriptions
 const UNIT_CATEGORIES = {
     temperature: {
-        icon: '🌡️',
         title: 'Température',
         description: 'Unités de mesure de la température'
     },
     speed: {
-        icon: '💨',
         title: 'Vitesse du vent',
         description: 'Unités de mesure de la vitesse du vent'
     },
     direction: {
-        icon: '🧭',
         title: 'Direction du vent',
         description: 'Format d\'affichage de la direction du vent'
     },
     pressure: {
-        icon: '📊',
         title: 'Pression atmosphérique',
         description: 'Unités de mesure de la pression barométrique'
     },
     rain: {
-        icon: '🌧️',
         title: 'Précipitations',
         description: 'Unités de mesure des précipitations'
     },
     rainRate: {
-        icon: '⛈️',
         title: 'Intensité de pluie',
         description: 'Unités de mesure de l\'intensité des précipitations'
     },
     uv: {
-        icon: '☀️',
         title: 'Rayonnement UV',
         description: 'Format d\'affichage de l\'index UV'
     },
     powerRadiation: {
-        icon: '🔆',
         title: 'Rayonnement solaire',
         description: 'Unités de mesure du rayonnement solaire'
     },
     humidity: {
-        icon: '💧',
         title: 'Humidité',
         description: 'Unités de mesure de l\'humidité'
     },
     battery: {
-        icon: '🔋',
         title: 'Batterie',
         description: 'Format d\'affichage de l\'état de la batterie'
     },
     date: {
-        icon: '📅',
         title: 'Date',
         description: 'Format d\'affichage des dates'
     },
     time: {
-        icon: '🕐',
         title: 'Heure',
         description: 'Format d\'affichage de l\'heure'
     },
     Forecast: {
-        icon: '🌤️',
         title: 'Prévisions météo',
         description: 'Format d\'affichage des prévisions'
     }
 };
 
 let currentUnitsSettings = {};
-let currentSkinType = 3; // Type par défaut
+let currentSkinType = 2; // Type par défaut
 
 // --- Preferences Section: Units Settings ---
 
 async function fetchUnitsPreferences() {
-    showPreferencesStatus('Chargement des préférences d\'unités...', 'loading');
+    showPreferencesStatus('Chargement des unités...', 'loading');
 
     try {
         const response = await fetch('/api/settings');
-        if (!response.ok) throw new Error('Erreur de chargement des préférences');
+        if (!response.ok) throw new Error('Erreur de chargement des unités');
 
         const data = await response.json();
         if (data.success && data.settings) {
             currentUnitsSettings = data.settings;
             displayPreferencesForm(data.settings);
-            showPreferencesStatus('Préférences chargées avec succès', 'success');
+            showPreferencesStatus('Unités chargées avec succès', 'success');
         } else {
-            throw new Error('Format de données invalide pour les préférences');
+            throw new Error('Format de données invalide pour les unités');
         }
     } catch (error) {
         console.error('Erreur:', error);
@@ -118,7 +105,7 @@ function displayPreferencesForm(settings) {
         'Vent et Direction': ['speed', 'direction'],
         'Précipitations': ['rain', 'rainRate'],
         'Rayonnement': ['uv', 'powerRadiation'],
-        'Système': ['battery', 'date', 'time', 'Forecast']
+        'Système': ['battery', 'date', 'time']
     };
 
     let formHTML = '<form id="units-preferences-form" class="settings-form">';
@@ -224,6 +211,7 @@ function generateSkinTypeSelector() {
 
     skinHTML += `
             </select>
+            <input type="number" id="dem-input" name="dem" value="${SKIN_TYPES[currentSkinType].dem}" hidden>
             <div class="skin-type-info" style="margin-top: 8px; padding: 8px; background: #f0f8ff; border-radius: 4px; font-size: 0.9em;">
                 <p style="margin: 0 0 5px 0; color: #666;">Le facteur DEM (Dose Érythémale Minimale) détermine la sensibilité de votre peau aux UV.</p>
                 <div class="current-dem" style="font-weight: bold; color: var(--accent-blue);">DEM actuel : <span id="current-dem-value">${SKIN_TYPES[currentSkinType].dem}</span></div>
@@ -257,9 +245,14 @@ function updateSkinTypeDEM() {
     const selectedType = parseInt(skinTypeSelect.value);
     const demValue = SKIN_TYPES[selectedType].dem;
     const demDisplay = document.getElementById('current-dem-value');
+    const demInput = document.getElementById('dem-input');
     
     if (demDisplay) {
         demDisplay.textContent = demValue;
+    }
+    if (demInput) {
+        demInput.value = demValue;
+        console.log('demInput.value', demInput.value);
     }
     currentSkinType = selectedType;
 }
@@ -267,7 +260,7 @@ function updateSkinTypeDEM() {
 async function handleUnitsFormSubmit(event) {
     event.preventDefault();
     
-    showPreferencesStatus('Enregistrement des préférences...', 'loading');
+    showPreferencesStatus('Enregistrement des Unités...', 'loading');
 
     try {
         const formData = new FormData(event.target);
@@ -276,9 +269,12 @@ async function handleUnitsFormSubmit(event) {
         // Mettre à jour les unités sélectionnées
         for (const [key, value] of formData.entries()) {
             if (key === 'skin_type') {
+                const skin_type = parseInt(value);
+                updatedSettings.uv.available_units.min.skin = skin_type;
                 // Traitement spécial pour le type de peau UV
                 if (updatedSettings.uv && updatedSettings.uv.available_units && updatedSettings.uv.available_units.min) {
-                    updatedSettings.uv.available_units.min.skin = parseInt(value);
+                    updatedSettings.uv.available_units.min.skin = skin_type;
+                    updatedSettings.uv.available_units.min.fnFromMetric = `(uv, dem=${SKIN_TYPES[skin_type].dem}) => Number(Math.min(180, dem*6.5/((uv*Math.exp(uv/dem)))).toFixed(0))`;
                 }
             } else if (updatedSettings[key]) {
                 updatedSettings[key].user = value;
@@ -304,7 +300,7 @@ async function handleUnitsFormSubmit(event) {
         
         if (result.success) {
             currentUnitsSettings = updatedSettings;
-            showPreferencesStatus('Préférences enregistrées avec succès !', 'success');
+            showPreferencesStatus('Unités enregistrées avec succès !', 'success');
             
             // Rafraîchir l'affichage si on est sur le dashboard
             if (typeof fetchCurrentConditions === 'function') {
@@ -325,11 +321,11 @@ async function handleUnitsFormSubmit(event) {
 }
 
 async function resetUnitsToDefault() {
-    if (!confirm('Êtes-vous sûr de vouloir réinitialiser toutes les unités aux valeurs par défaut ?')) {
+    if (!confirm('Êtes-vous sûr de vouloir réinitialiser toutes les unités aux valeurs initiales ?')) {
         return;
     }
 
-    showPreferencesStatus('Réinitialisation des préférences...', 'loading');
+    showPreferencesStatus('Réinitialisation des Unités...', 'loading');
 
     try {
         // Créer un objet avec les unités par défaut
@@ -366,7 +362,7 @@ async function resetUnitsToDefault() {
         if (result.success) {
             currentUnitsSettings = defaultSettings;
             currentSkinType = 3;
-            showPreferencesStatus('Préférences réinitialisées avec succès !', 'success');
+            showPreferencesStatus('Unités réinitialisées avec succès !', 'success');
             
             // Recharger le formulaire avec les nouvelles valeurs
             setTimeout(() => {
