@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Détail du capteur - Probe Météo</title>
+    <!-- Observable Plot -->
+    <script src="js/d3.min.js"></script>
+    <script src="js/plot.umd.js"></script>
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/draw.css">
+    <!-- Scripts -->
+    <script src="js/sensorsMap.js"></script>
+</head>
+<body>
+    <header class="navbar">
+        <div class="logo">
+            <a href="index.html" title="Retour au dashboard">
+                <img src="img/probe-logo.png" alt="Probe Logo">
+            </a>
+        </div>
+        <h2 id="chart-title">Chargement...</h2>
+        <div>
+            <img id="fullscreenToggleBtn" class="brightness" src="img/Expand.png" alt="fullScreen" style="height: 1.6em; vertical-align: middle;" title="Passer en mode plein écran (F11)">
+        </div>
+    </header>
+
+    <main class="draw-container">
+        <div id="status-bar" class="status-message" style="display: none;"></div>
+
+        <div class="chart-wrapper">
+            <h2>
+                <span>Graphique data brute</span>
+                <input type="range" id="period-slider" min="0" max="365" value="1" step="1" title="Ajuster la fenêtre de glissement">
+            </h2>
+            <div id="raw-chart-container" class="chart-container"></div>
+        </div>
+
+        <div class="chart-wrapper">
+            <h2>
+                <span>Graphique (Min/Max/Moyenne)</span>
+                <input type="range" id="k-slider" min="2" max="100" value="10" step="1" title="Ajuster la fenêtre de groupement">
+            </h2>
+            <div id="candle-chart-container" class="chart-container"></div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-bottom">
+            <p>&copy; 2025 Probe Météo v0.1.35 - Développé par Alban LOPEZ</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const stepCount = 5000;
+            const stationId = urlParams.get('station');
+            const sensorKey = urlParams.get('sensor');
+            const titleElement = document.getElementById('chart-title');
+            const statusBar = document.getElementById('status-bar');
+
+            let meta;
+            let chartRawData = null;
+            let data = null;
+            let chartRawMetadata = null;
+
+            if (!stationId || !sensorKey) {
+                titleElement.textContent = 'Erreur : Paramètres manquants';
+                showStatus('Station ID ou capteur manquant dans l\'URL.', 'error');
+                return;
+            }
+
+            const sensorInfo = sensorMap[sensorKey] || { label: sensorKey.replace('.calc', '') };
+            titleElement.textContent = `${sensorInfo.label} dans le contexte ${stationId}`;
+
+            if (sensorKey.endsWith('.calc')) {
+                loadCalcData();
+            } else {
+                loadChartData();
+            }
+
+            function toISOStringWithoutMs(date) {
+                return date.toISOString().split('.')[0] + "Z";
+            }
+
+            function showStatus(message, type) {
+                statusBar.textContent = message;
+                statusBar.className = `status-message status-${type}`;
+                statusBar.style.display = 'block';
+            }
+
+            function loadScript(src) {
+                return new Promise((resolve, reject) => {
+                    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+                    const script = document.createElement('script');
+                    script.src = src;
+                    script.onload = () => resolve();
+                    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+                    document.head.appendChild(script);
+                });
+            }
+
+            async function loadCalcData() {
+                try {
+                    showStatus('Chargement des données calculées...', 'loading');
+
+                    // 1. Get metadata for the calculated sensor and station config
+                    const [metaResponse, stationResponse] = await Promise.all([
+                        fetch(`/api/station/${stationId}/additional-conditions/${sensorKey}`),
+                        fetch(`/api/station/${stationId}`)
+                    ]);
+
+                    if (!metaResponse.ok) throw new Error('Erreur de chargement des métadonnées du capteur calculé.');
+                    if (!stationResponse.ok) throw new Error('Erreur de chargement de la configuration de la station.');
+                    
+                    const metaPayload = await metaResponse.json();
+                    if (!metaPayload.success) throw new Error(metaPayload.error || 'Format de métadonnées invalide.');
+                    const meta = metaPayload.data[sensorKey];
+
+                    const stationPayload = await stationResponse.json();
+                    if (!stationPayload.success) throw new Error(stationPayload.error || 'Format de configuration invalide.');
+                    const stationConfig = stationPayload.settings;
+
+                    // 2. Dynamically load required JS files
+                    if (meta.js && meta.js.length > 0) {
+                        await Promise.all(meta.js.map(loadScript));
+                    }
+
+                    // 3. Fetch raw data for needed sensors
+                    const endDate = new Date();
+                    const startDate = new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 derniers jours
+                    const rawUrl = `/query/${stationId}/Raws/${meta.dataNeeded.join(',')}?startDate=${toISOStringWithoutMs(startDate)}&endDate=${toISOStringWithoutMs(endDate)}&stepCount=500`;
+                    
+                    const rawResponse = await fetch(rawUrl);
+                    if (!rawResponse.ok) throw new Error('Erreur de chargement des données brutes nécessaires.');
+                    const rawData = await rawResponse.json();
+                    if (!rawData.success) throw new Error(rawData.error || 'Format de données brutes invalide.');
+                    
+                    // 4. Calculate the new data series
+                    const fn = eval(meta.fn);
+                    const toUserUnit = meta.toUserUnit ? eval(meta.toUserUnit) : v => v;
+                    const lon = stationConfig.longitude.lastReadValue;
+                    const lat = stationConfig.latitude.lastReadValue;
+
+                    const calculatedData = rawData.data.map(row => {
+                        let value = fn.length === 1 ? fn(row) : fn(row.d, lon, lat);
+                        if (typeof value === 'object' && value !== null) value = value.altitude * 180 / Math.PI;
+                        return {d: row.d, v: toUserUnit(value)};
+                    }).filter(d => d.v !== null && !isNaN(d.v));
+
+                    // 5. Prepare metadata for charts
+                    const chartMetadata = {unit: meta.Unit, userUnit: meta.userUnit, toUserUnit: meta.toUserUnit};
+
+                    // 6. Render charts
+                    document.getElementById('candle-chart-container').innerHTML = '<div class="no-data">Graphique en chandeliers non disponible pour les données calculées.</div>';
+                    renderLineChart(calculatedData, chartMetadata);
+                    showStatus('Graphiques chargés.', 'success');
+                    setTimeout(() => statusBar.style.display = 'none', 3000);
+                } catch (error) {
+                    console.error('Erreur de chargement des données calculées:', error);
+                    showStatus(`Erreur: ${error.message}`, 'error');
+                }
+            }
+            
+            async function loadChartData() {
+                const endDate = new Date();
+                const startDate = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 derniers jours
+                const rawUrl = `/query/${stationId}/Raw/${sensorKey}?startDate=${toISOStringWithoutMs(startDate)}&endDate=${toISOStringWithoutMs(endDate)}&stepCount=${stepCount}`;
+
+                try {
+                    showStatus('Chargement des données...', 'loading');
+                    const [rawResponse] = await Promise.all([
+                        fetch(rawUrl)
+                    ]);
+
+                    if (!rawResponse.ok) {
+                        console.log(rawResponse);
+                        throw new Error('Erreur lors de la récupération des données des graphiques.');
+                    }
+
+                    const rawData = await rawResponse.json();
+
+                    if (rawData.success) {
+                        chartRawData = rawData.data;
+                        chartRawMetadata = rawData.metadata;
+                        // parse toute les value v converti avec rawData.metadata.toUserUnit
+                        const fn = eval(rawData.metadata.toUserUnit);
+                        data = chartRawData.map(row => ({d: new Date(row.d), v: fn(row.v)}));
+                        renderMinMaxChart(data, chartRawMetadata);
+                        renderLineChart(data, rawData.metadata);
+                    } else {
+                        document.getElementById('candle-chart-container').innerHTML = `<div class="no-data">Erreur de chargement des données: ${rawData.error || ''}</div>`;
+                    }
+
+                    showStatus('Graphiques chargés.', 'success');
+                    setTimeout(() => statusBar.style.display = 'none', 3000);
+                } catch (error) {
+                    console.error('Erreur de chargement:', error);
+                    showStatus(`Erreur: ${error.message}`, 'error');
+                }
+            }
+
+            function renderMinMaxChart(data, metadata) {
+                const chartContainer = document.getElementById('candle-chart-container');
+                if (!data || data.length === 0) {
+                    chartContainer.innerHTML = '<div class="no-data">Aucune donnée disponible pour ce graphique.</div>';
+                    return;
+                }
+                const kSlider = document.getElementById('k-slider');
+                
+                const k = kSlider.value * stepCount / 10 / 100;
+                const plot = Plot.plot({
+                    width: chartContainer.clientWidth,
+                    height: 400,
+                    x: { type: "time", label: "Date" },
+                    y: { label: `${sensorInfo.label} (${metadata.userUnit})`, grid: true },
+                    marks: [
+                        Plot.lineY(data, {x: "d", y: "v", strokeOpacity: 0.3}),
+                        Plot.lineY(data, Plot.windowY({k, reduce: "min"}, {x: "d", y: "v", stroke: "blue"})),
+                        Plot.lineY(data, Plot.windowY({k, reduce: "max"}, {x: "d", y: "v", stroke: "red"})),
+                        Plot.lineY(data, Plot.windowY({k, reduce: "mean"}, {x: "d", y: "v"})),
+                        Plot.dot(data, Plot.pointerX({x: "d", y: "v", stroke: "gray"})),
+                        Plot.text(data, Plot.pointerX({
+                            px: "d", py: "v", dy: -16, dx: -20,
+                            frameAnchor: "top-right",
+                            fontVariant: "tabular-nums",
+                            text: (d) => `${d.d.toLocaleString('fr-FR',{'dateStyle':"medium",'timeStyle':"short"})}  ${d.v} ${metadata.userUnit}`
+                        }))
+                    ]
+                });
+
+                chartContainer.innerHTML = '';
+                chartContainer.appendChild(plot);
+            }
+
+            function renderLineChart(data, metadata) {
+                const chartContainer = document.getElementById('raw-chart-container');
+                 if (!data || data.length === 0) {
+                    chartContainer.innerHTML = '<div class="no-data">Aucune donnée disponible pour ce graphique.</div>';
+                    return;
+                }
+                const period = document.getElementById('period-slider').value;
+                const plot = Plot.plot({
+                    width: chartContainer.clientWidth,
+                    height: 400,
+                    x: { type: "time", label: "Date" },
+                    y: { label: `${sensorInfo.label} (${metadata.userUnit})`, grid: true },
+                    marks: [
+                        Plot.differenceY(data, Plot.shiftX(`+${period} day`, {
+                            x: "d",
+                            y: "v",
+                            stroke: "#4dc0e0",
+                            positiveFill : "#FF6B6B",
+                            negativeFill : "#98FB98",
+                            fillOpacity: 0.6,
+                            // curve: metadata.measurement === 'rain' ? "step" : "monotone-x",
+                        })),
+                        Plot.dot(data, Plot.pointerX({x: "d", y: "v", stroke: "red"})),
+                        Plot.text(data, Plot.pointerX({
+                            px: "d", py: "v", dy: -16, dx: -20,
+                            frameAnchor: "top-right",
+                            fontVariant: "tabular-nums",
+                            text: (d) => `delta [${period} day] / ${d.d.toLocaleString('fr-FR',{'dateStyle':"medium",'timeStyle':"short"})} - ${d.v} ${metadata.userUnit}`
+                        }))
+                    ]
+                });
+                chartContainer.innerHTML = '';
+                chartContainer.appendChild(plot);
+            }
+
+            function initializeFullscreenButton() {
+                const fullscreenBtn = document.getElementById('fullscreenToggleBtn');
+                if (!fullscreenBtn) return;
+
+                function updateButtonAppearance() {
+                    if (!fullscreenBtn) return; 
+                    if (document.fullscreenElement) {
+                        fullscreenBtn.src = 'img/Reduce.png';
+                        fullscreenBtn.title = "Quitter le mode plein écran (Esc)";
+                    } else {
+                        fullscreenBtn.src = 'img/Expand.png';
+                        fullscreenBtn.title = "Passer en mode plein écran (F11)";
+                    }
+                }
+
+                function toggleFullscreen() {
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(err => {
+                            showStatus(`Mode plein écran non supporté ou refusé.`, 'warning');
+                        });
+                    } else {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        }
+                    }
+                }
+                fullscreenBtn.addEventListener('click', toggleFullscreen);
+                document.addEventListener('fullscreenchange', updateButtonAppearance);
+                updateButtonAppearance(); 
+            }
+            initializeFullscreenButton();
+
+            const kSlider = document.getElementById('k-slider');
+            if (kSlider) {
+                kSlider.addEventListener('input', () => {
+                    if (data) {
+                        renderMinMaxChart(data, chartRawMetadata);
+                    }
+                });
+            }
+            
+            const periodSlider = document.getElementById('period-slider');
+            if (periodSlider) {
+                periodSlider.addEventListener('input', () => {
+                    if (data) {
+                        renderLineChart(data, chartRawMetadata);
+                    }
+                });
+            }
+        });
+
+    </script>
+</body>
+</html>

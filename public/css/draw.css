@@ -1,0 +1,70 @@
+body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+/* Styles pour les titres */
+h2, h2 span {
+    color: var(--accent-blue);
+    margin: 10px;
+}
+h2 input {
+    width: 240px;
+}
+.draw-container {
+    padding-top: 70px; /* Espace pour la navbar */
+    padding-bottom: 60px; /* Espace pour le footer */
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.draw-container h1 {
+    text-align: center;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.chart-wrapper {
+    margin-bottom: 40px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.chart-wrapper h2 {
+    margin-top: 0;
+    color: var(--primary-dark);
+    font-size: 1.2em;
+    border-bottom: 2px solid var(--accent-blue);
+    padding-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.chart-wrapper h2 label {
+    font-size: 0.7em;
+    font-weight: normal;
+    color: #666;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.no-data {
+    padding: 20px;
+    text-align: center;
+    color: #6c757d;
+}
+
+.brightness {
+    filter: brightness(30%) invert(70%);
+}
+.brightness:hover {
+    filter: brightness(0) invert(1);
+}

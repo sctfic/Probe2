@@ -5,30 +5,6 @@ const units = require('../config/Units.json');
 const { sensorTypeMap } = require('../utils/weatherDataParser');
 const configManager = require('../services/configManager');
 const stationMiddleware = require('../middleware/stationMiddleware');
-//
-
-// Generic function to handle responses
-// const handleResponse = (res, stationId, data, format = 'json', unit = null, message = null) => {
-//     if (format === 'tsv') { // visible dans le navigateur comme un fichier csv pas en telechargement
-//         res.header('Content-Type', 'text/plain');
-//         if (data && data.length > 0) {
-//             const headers = Object.keys({d: 'Date', v: 'Value', ...data[0],unit}).join('\t');
-//             const rows = data.map(row => Object.values({d: row.d, v: row.v, ...row,unit}).join('\t')).join('\n');
-//             res.send(`${headers}\n${rows}`);
-//         } else {
-//             res.send('');
-//         }
-//     } else {
-//         res.json({
-//             success: true,
-//             message: message || 'Success',
-//             stationId: stationId,
-//             timestamp: new Date().toISOString(),
-//             unit: unit,
-//             data: data
-//         });
-//     }
-// };
 
 // Generic function to handle errors
 const handleError = (res, stationId, error, controllerName) => {
@@ -40,7 +16,7 @@ const handleError = (res, stationId, error, controllerName) => {
     });
 };
 
-async function getIntervalSeconds(stationId, sensorRef, startDate, endDate, stepCount = 100000) {
+async function getIntervalSeconds(stationId, sensorRef, startDate, endDate, stepCount = 10000) {
     // 1. Récupère la plage de dates réelle des données
 
     const dateRange = await influxdbService.queryDateRange(stationId, sensorRef, startDate, endDate);
@@ -52,8 +28,8 @@ async function getIntervalSeconds(stationId, sensorRef, startDate, endDate, step
     const totalSeconds  = (endTime.getTime() - startTime.getTime()) / 1000;
     // console.log(`Total de secondes: ${totalSeconds}`, endTime.getTime()/1000, startTime.getTime()/1000);
     return {
-        start: startTime.getTime(),
-        end: endTime.getTime(),
+        start: startTime.toDateString(),
+        end: endTime.toDateString(),
         intervalSeconds: Math.round(totalSeconds / parseInt(stepCount))
     };
 };
@@ -187,7 +163,7 @@ exports.getQueryRaws = async (req, res) => {
     const { stationId, sensorRefs: sensorRefsStr } = req.params;
     const { startDate, endDate, stepCount: stepCountStr } = req.query;
     const stepCount = stepCountStr ? parseInt(stepCountStr, 10) : 100000;
-
+console.log(sensorRefsStr);
     let sensorRefs = sensorRefsStr.split(',');
     // on retire les doublons, les vides
     sensorRefs = sensorRefs.filter((ref, index) => ref && sensorRefs.indexOf(ref) === index);

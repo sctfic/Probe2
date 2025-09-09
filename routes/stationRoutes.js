@@ -36,7 +36,7 @@ router.get('/:stationId/current-conditions', withStationLamps(async (req, res) =
     return await stationController.getCurrentWeather(req, res);
 }));
 
-router.get('/:stationId/additional-conditions', (async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/additional-conditions
+router.get('/:stationId/additional-conditions/:sensors?', (async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/additional-conditions
     return await additionalController.getAdditionalProbe(req, res);
 }));
 

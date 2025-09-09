@@ -1,5 +1,6 @@
 // controllers/additionalController.js
 const units = require('../config/Units.json');
+const {V, O} = require('../utils/icons');
 // const additionalProbe = require('../config/aditionnalProbe.json');
 
 const Probes = { // toujours finir d'un '.calc'
@@ -10,7 +11,7 @@ const Probes = { // toujours finir d'un '.calc'
         "userUnit": "",
         "toUserUnit": "",
         "fn": "(d,lon,lat) => { return SunCalc.getPosition(new Date(d), lat, lon); }",
-        "dataNeeded": ["solarRadiation"],
+        "dataNeeded": ["solarRadiation","UV","ET"],
         "js":["/js/sunCalc.js"], // https://suncalc.net/
         "comment": "calcul de la phase du soleil",
         "period": 60*60*24*7,
@@ -49,14 +50,23 @@ const Probes = { // toujours finir d'un '.calc'
 
 async function getAdditionalProbe (req, res){
     const stationConfig = req.stationConfig;
+    const sensors = req.params.sensors;
     const timeStamp = new Date().toISOString();
-
+    let ProbeReduced = null;
+    // si il y a une liste de sensors on garde seulement ces sensors dans Probes
+    if (sensors){
+        const sensorList = sensors.split(',');
+        ProbeReduced = Object.keys(Probes).reduce((acc, key) => {
+            if (sensorList.includes(key)) acc[key] = Probes[key];
+            return acc;
+        }, {});
+    }
     try {
         res.json({
             success: true,
             stationId: stationConfig.id,
             timestamp: timeStamp,
-            data: Probes
+            data: ProbeReduced || Probes
         });
     } catch (error) {
         console.error(`${V.error} Erreur dans getCurrentWeather pour ${req.stationConfig?.id}:`, error);

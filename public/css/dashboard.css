@@ -508,3 +508,8 @@
         margin-top: -15px;
     }
 }
+/* Style pour les liens des tuiles */
+.tile-link {
+    text-decoration: none;
+    color: inherit;
+}

@@ -131,7 +131,7 @@ function processAndDisplayConditions() {
                 groupUsage: sensorInfo.groupUsage || '0',
                 groupCustom: sensorInfo.groupCustom || 0,
                 period: sensorInfo.period || '3d',
-                sensorDb: sensorInfo.sensorDb,
+                sensorDb: sensorInfo.sensorDb || key,
                 searchText: [sensorInfo.label, key, data.label, String(data.Value), data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
             };
         });
@@ -525,7 +525,7 @@ function createConditionTileHTML(item) {
     let chartContent = '';
     if (item.key === 'ForecastNum') {
         console.log(displayValue);
-        // Cas spécial pour ForecastIcon - afficher des images météo
+        // Cas spécial pour ForecastIcon - afficher des images météo (pas de lien)
         const weatherImages = displayValue.split(' ');
         chartContent = `
             <div class="weather-forecast-container">
@@ -538,6 +538,18 @@ function createConditionTileHTML(item) {
             </div>
         `;
         unitDisplay = '';
+        return `
+            <div class="condition-tile" data-key="${item.key}">
+                <div class="condition-content">
+                    <div class="condition-info">
+                        <div class="condition-name">${item.name}</div>
+                        <div class="condition-value">${fn(displayValue)} ${unitDisplay}</div>
+                        ${metaInfo}
+                    </div>
+                    <div class="condition-chart">${chartContent}</div>
+                </div>
+            </div>
+        `;
     } else if (item.measurement === 'direction') {
         // Cas spécial pour afficher une flèche directionnelle 
         const windDirection = parseFloat(displayValue) || 135;
@@ -573,7 +585,8 @@ function createConditionTileHTML(item) {
     }
     
     return `
-        <div class="condition-tile" data-key="${item.key}">
+        <a href="draw.html?station=${selectedStation.id}&sensor=${item.sensorDb}" class="tile-link" title="Voir le détail du capteur ${item.name}">
+            <div class="condition-tile" data-key="${item.key}">
             <div class="condition-content">
                 <div class="condition-info">
                     <div class="condition-name">${item.name}</div>
@@ -586,7 +599,8 @@ function createConditionTileHTML(item) {
                     ${chartContent}
                 </div>
             </div>
-        </div>
+            </div>
+        </a>
     `;
 }
 function getStartDate (period){
@@ -598,7 +612,7 @@ let date;
     } else {
         date = new Date((Math.round((new Date()).getTime()/1000) - period)*1000);
     }
-    return date.toISOString().replace('.000', '');
+    return date.toISOString().split('.')[0] + 'Z';
 }
 
 function loadAllCharts() {
