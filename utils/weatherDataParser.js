@@ -384,11 +384,12 @@ function processWeatherData(weatherData, stationConfig, UnitsType='metric') {
         if (!isNaN(data.value)) { // on illimine les capteurs sans valeur !
             const nativeValue = convertRawValue2NativeValue(data.value, data.native_unit, stationConfig);
             const userUnit = units[sensorTypeMap[key]]?.["user"];
+            // console.log(nativeValue, userUnit, units[sensorTypeMap[key]]?.available_units);
             processed[key] = {
                 Value: convertToUnit(nativeValue, key, UnitsType),
                 Unit: units[sensorTypeMap[key]]?.[UnitsType] || data.native_unit,
                 userUnit: userUnit,
-                toUserUnit: units[sensorTypeMap[key]]?.avaible_units?.[userUnit]?.["fnFromMetric"]
+                toUserUnit: units[sensorTypeMap[key]]?.available_units?.[userUnit]?.["fnFromMetric"]
             };
         }
     }

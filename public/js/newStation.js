@@ -180,8 +180,9 @@ class StationManager {
             this.showSuccess('Station ajoutée avec succès !');
             
             // Ajouter la nouvelle station au select (si elle a un ID)
-            if (result.id) {
-                this.addStationToSelect(result.id, formData.name);
+            if (result.data.id) {
+                console.log('Nouvelle station ajoutée:', result.data);
+                this.addStationToSelect(result.data.id, result.data.name);
             }
 
             // Fermer la modale après un délai

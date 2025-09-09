@@ -8,7 +8,9 @@ let previousValues = {};
 
 function mergeData(data) {
     if (data.data['SUN.calc']) {
+
         if (data.data.sunrise && data.data.sunset) {
+            console.log(data.data.sunrise, data.data.sunset)
             const sunrise = data.data.sunrise;
             const fn1 = eval(sunrise.toUserUnit);
             const sunset = data.data.sunset;

@@ -1,113 +1,34 @@
 // services/vp2NetClient.js
 const net = require('net');
-const fs = require('fs');
-const path = require('path');
 const network = require('../services/networkService');
+const lockManager = require('./lockManager');
 const { calculateCRC } = require('../utils/crc');
 const { O, V } = require('../utils/icons');
-
-const LOCK_DIR = path.resolve(__dirname, '../config/stations');
-const LOCK_TIMEOUT_MS = 5000; // 5 secondes
-const LOCK_CHECK_RETRIES = 3;
-const LOCK_CHECK_INTERVAL_MS = 2000; // 2 secondes
-
-/**
- * Vérifie si un fichier de verrou est expiré
- * @param {string} lockPath Chemin vers le fichier de verrou
- * @returns {boolean} True si le verrou est libre (expiré ou inexistant)
- */
-function isLockFree(lockPath) {
-    try {
-        const stats = fs.statSync(lockPath);
-        const age = Date.now() - stats.mtime.getTime();
-        return age > LOCK_TIMEOUT_MS;
-    } catch (error) {
-        // Fichier n'existe pas = verrou libre
-        return true;
-    }
-}
-
-/**
- * Crée ou met à jour le fichier de verrou
- * @param {string} lockPath Chemin vers le fichier de verrou
- */
-function touchLockFile(lockPath) {
-    const now = new Date();
-    try {
-        fs.writeFileSync(lockPath, now.toISOString());
-        // fs.utimesSync(lockPath, now, now);
-    } catch (error) {
-        // Si le fichier n'existe pas, le créer
-        fs.writeFileSync(lockPath, now.toString());
-    }
-}
-
-/**
- * Supprime le fichier de verrou
- * @param {string} lockPath Chemin vers le fichier de verrou
- */
-function releaseLockFile(lockPath) {
-    try {
-        fs.unlinkSync(lockPath);
-    } catch (error) {
-        // Ignore si le fichier n'existe pas déjà
-    }
-}
-
-/**
- * Tente d'acquérir le verrou avec retry
- * @param {string} stationId ID de la station
- * @returns {Promise<string>} Retourne le chemin du fichier de verrou
- */
-async function acquireLock(stationConfig) {
-    const lockPath = path.join(LOCK_DIR, `${stationConfig.id}.lock`);
-    const telnet = await network.testTCPIP(stationConfig);
-    if (telnet.status != 'success') {
-        throw new Error(`Cannot acquire lock for ${stationConfig.id}: ${telnet.status}`);
-    }
-    for (let attempt = 1; attempt <= LOCK_CHECK_RETRIES; attempt++) {
-        if (isLockFree(lockPath)) {
-            touchLockFile(lockPath);
-            console.log(`${V.Check} Lock acquired for ${stationConfig.id} (attempt ${attempt}/${LOCK_CHECK_RETRIES})`);
-            return lockPath;
-        }
-        
-        console.warn(`${V.timeout} Lock busy for ${stationConfig.id}, attempt ${attempt}/${LOCK_CHECK_RETRIES}`);
-        
-        if (attempt < LOCK_CHECK_RETRIES) {
-            await new Promise(resolve => setTimeout(resolve, LOCK_CHECK_INTERVAL_MS));
-        }
-    }
-    
-    throw new Error(`Cannot acquire lock for ${stationConfig.id} after ${LOCK_CHECK_RETRIES} attempts`);
-}
 
 /**
  * Crée un nouveau socket pour une station
  * @param {object} stationConfig Configuration de la station
- * @param {string} lockPath Chemin du fichier de verrou
  * @returns {Promise<net.Socket>} Socket connecté
  */
-async function createSocket(stationConfig, lockPath) {
+async function createSocket(stationConfig) {
     const key = `${stationConfig.host}:${stationConfig.port}`;
     console.log(`${V.satellite} Creating new socket for ${key}`);
     
     const socket = new net.Socket();
-    socket.setTimeout(800);
-    socket.setKeepAlive(true, 5000);
+    socket.setTimeout(3000);
+    socket.setKeepAlive(true, 2000);
     
-    // Stockage du lockPath dans le socket pour libération ultérieure
-    socket._lockPath = lockPath;
+    // Stockage de l'ID de la station pour la gestion des verrous
     socket._stationId = stationConfig.id;
     
     socket.on('close', (hadError) => {
         console.log(`${V.BlackFlag} Socket closed for ${key} (hadError: ${hadError})`);
-        releaseLockFile(lockPath);
+        lockManager.release(stationConfig.id);
     });
     
     socket.on('error', (err) => {
         console.error(`${V.error} Socket error for ${key}: ${err.message}`);
-        releaseLockFile(lockPath);
+        lockManager.release(stationConfig.id);
     });
     
     socket.on('timeout', () => {
@@ -150,9 +71,7 @@ async function getOrCreateSocket(req, stationConfig) {
         
         // console.log(`${V.connect} Reusing socket for ${stationConfig.id} in this request`);
         // Toucher le verrou pour le maintenir actif
-        // if (req.weatherSocket._lockPath) {
-            touchLockFile(req.weatherSocket._lockPath);
-        // }
+        lockManager.touch(stationConfig.id);
         return req.weatherSocket;
     }
     
@@ -165,13 +84,13 @@ async function getOrCreateSocket(req, stationConfig) {
     }
 
     // Acquérir le verrou et créer un nouveau socket
-    const lockPath = await acquireLock(stationConfig);
+    await lockManager.acquire(stationConfig);
     
     try {
-        const socket = await createSocket(stationConfig, lockPath);
+        const socket = await createSocket(stationConfig);
         req.weatherSocket = socket; // Stocker dans la requête
     } catch (error) {
-        releaseLockFile(lockPath);
+        lockManager.release(stationConfig.id);
         throw error;
     }
 }
@@ -306,7 +225,7 @@ function sendAndReceive(weatherSocket, command, timeout, parsedFormat) {
                 reject(err);
             }
         });
-        touchLockFile(weatherSocket._lockPath);
+        lockManager.touch(weatherSocket._stationId);
     });
 }
 
@@ -396,7 +315,7 @@ async function wakeUpConsole(req, stationConfig, screen = null) {
     
     while (attempts < maxAttempts) {
         attempts++;
-        
+        console.log(V.sleep,'try wakeUp', stationConfig.id)
         try {
             const ESC_LF = Buffer.from([0x1B, 0x0A]);
             
@@ -428,20 +347,9 @@ async function wakeUpConsole(req, stationConfig, screen = null) {
     throw new Error(`Failed to wake up console after ${maxAttempts} attempts`);
 }
 
-// Fonctions compatibles avec l'ancien système (pour la transition)
-// async function acquireConnectionLock(stationConfig, maxRetries = 10, retryDelay = 2000, operationType = 'default') {
-//     // Cette fonction est maintenant intégrée dans getOrCreateSocket
-//     console.log(`${O.orange} Lock will be acquired automatically when needed for ${stationConfig.id}`);
-// }
-
-// function releaseConnectionLock(stationConfig) {
-//     console.log(`${O.blue} Socket will be automatically closed at end of request for ${stationConfig.id}`);
-// }
-
-// function hasConnectionLock(stationConfig) {
-//     const lockPath = path.join(LOCK_DIR, `${stationConfig.id}.lock`);
-//     return !isLockFree(lockPath);
-// }
+function isLockFree(stationId) {
+    return lockManager.isFree(stationId);
+}
 
 module.exports = {
     sendCommand,
