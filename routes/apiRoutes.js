@@ -93,55 +93,7 @@ router.get('/stations', (req, res) => { // http://probe2.lpz.ovh/api/stations
 });
 
 // Route pour créer une nouvelle configuration de station
-router.post('/new', (req, res) => { // http://probe2.lpz.ovh/api/new
-    try {
-        console.log(param);
-        const stationId = req.params.stationId;
-        const newConfig = req.body;
-        
-        console.log(`${V.write} Création d'une nouvelle configuration pour la station ${stationId}`);
-        
-        // Vérifier si la station existe déjà
-        const existingConfig = configManager.loadConfig(stationId);
-        if (existingConfig) {
-            return res.status(409).json({
-                success: false,
-                error: `La configuration pour la station ${stationId} existe déjà`
-            });
-        }
-        
-        // Validation des champs requis
-        if (!newConfig.host || !newConfig.port) {
-            return res.status(400).json({
-                success: false,
-                error: 'Les champs IP et port sont requis'
-            });
-        }
-        
-        // Ajouter l'ID à la configuration
-        newConfig.id = stationId;
-        
-        // Sauvegarder la nouvelle configuration
-        const success = configManager.saveConfig(stationId, newConfig);
-        
-        if (success) {
-            res.status(201).json({
-                success: true,
-                message: `Configuration créée avec succès pour la station ${stationId}`,
-                stationId: stationId,
-                data: newConfig
-            });
-        } else {
-            throw new Error('Échec de la création de la configuration');
-        }
-    } catch (error) {
-        console.error(`${V.error} Erreur lors de la création de la configuration:`, error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
+router.post('/new', appController.createStation); // http://probe2.lpz.ovh/api/new
 
 
 module.exports = router;
