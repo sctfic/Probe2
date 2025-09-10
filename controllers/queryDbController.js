@@ -163,7 +163,7 @@ exports.getQueryRaws = async (req, res) => {
     const { stationId, sensorRefs: sensorRefsStr } = req.params;
     const { startDate, endDate, stepCount: stepCountStr } = req.query;
     const stepCount = stepCountStr ? parseInt(stepCountStr, 10) : 100000;
-console.log(sensorRefsStr);
+// console.log(sensorRefsStr);
     let sensorRefs = sensorRefsStr.split(',');
     // on retire les doublons, les vides
     sensorRefs = sensorRefs.filter((ref, index) => ref && sensorRefs.indexOf(ref) === index);
@@ -176,15 +176,18 @@ console.log(sensorRefsStr);
     const mix = {};
     const sensorsFnFromMetric = {};
     sensorRefs.forEach(ref => {
-        const { type, sensor } = getTypeAndSensor(ref);
-        measurements.push(type);
-        sensors.push(sensor);
-        mix[type] = sensor;
-        sensorsFnFromMetric[sensor] = {
-            unit: units?.[type]?.metric || null,
-            userUnit: units?.[type]?.user || null,
-            fnFromMetric: units?.[type]?.available_units?.[units?.[type]?.user]?.fnFromMetric || null
-        };
+        const {type, sensor } = getTypeAndSensor(ref);
+        console.log(ref, type, sensor);
+        if(type && sensor){
+            measurements.push(type);
+            sensors.push(ref);
+            mix[type] ? mix[type].push(ref) : mix[type] = [ref];
+            sensorsFnFromMetric[sensor] = {
+                unit: units?.[type]?.metric || null,
+                userUnit: units?.[type]?.user || null,
+                fnFromMetric: units?.[type]?.available_units?.[units?.[type]?.user]?.fnFromMetric || null
+            };
+        }
     });
     try {
         // Use the first sensor to determine the overall time range and interval
@@ -246,12 +249,12 @@ exports.getQueryCandle = async (req, res) => {
         const Data = data.map(row => {
             return {
                 d: row.datetime,
-                first: row.first,
-                min: row.min,
-                v: row.avg,
-                max: row.max,
-                last: row.last,
-                count: row.count
+                Open: row.first,
+                High: row.max,
+                Low: row.min,
+                Close: row.last,
+                Mean: row.avg,
+                Count: row.count
             };
         });
 

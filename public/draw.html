@@ -221,7 +221,7 @@
                         Plot.lineY(data, Plot.windowY({k, reduce: "min"}, {x: "d", y: "v", stroke: "blue"})),
                         Plot.lineY(data, Plot.windowY({k, reduce: "max"}, {x: "d", y: "v", stroke: "red"})),
                         Plot.lineY(data, Plot.windowY({k, reduce: "mean"}, {x: "d", y: "v"})),
-                        Plot.dot(data, Plot.pointerX({x: "d", y: "v", stroke: "gray"})),
+                        Plot.dot(data, Plot.pointerX( Plot.windowY({k, reduce: "mean"}, {x: "d", y: "v"}))),
                         Plot.text(data, Plot.pointerX({
                             px: "d", py: "v", dy: -16, dx: -20,
                             frameAnchor: "top-right",

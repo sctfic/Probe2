@@ -1,169 +1,166 @@
 {
     "success": true,
-    "message": "(!) Last value is current !",
+    "message": "Full data loadded !",
     "metadata": {
         "stationId": "VP2_Serramoune",
         "measurement": {
-            "pressure": [
-                "barometer"
-            ],
-            "temperature": [
-                "inTemp"
+            "rain": [
+                "ET"
             ],
             "uv": [
-                "UV"
+                "UV",
+                "UVMax"
             ],
-            "rain": [
-                "ET",
-                "rainFall"
+            "temperature": [
+                "inTemp",
+                "outTemp"
+            ],
+            "direction": [
+                "direction:Wind"
+            ],
+            "speed": [
+                "speed:Wind"
             ]
         },
         "sensor": [
-            "barometer",
-            "inTemp",
-            "UV",
             "ET",
-            "rainFall"
+            "UV",
+            "UVMax",
+            "inTemp",
+            "outTemp",
+            "direction:Wind",
+            "speed:Wind"
         ],
-        "queryTime": "2025-08-30T09:56:13.573Z",
-        "first": "2025-08-21T00:00:00.000Z",
-        "last": "2025-08-30T09:55:00.000Z",
-        "intervalSeconds": 67775,
-        "count": 13,
+        "queryTime": "2025-09-10T14:26:20.137Z",
+        "first": "2025-08-26T22:00:00.000Z",
+        "last": "2025-09-09T22:00:00.000Z",
+        "intervalSeconds": 3997,
+        "count": 302,
         "unit": null,
         "userUnit": null,
         "toUserUnit": {
-            "barometer": {
-                "unit": "hpa",
-                "userUnit": "Bar",
-                "toUserUnit": "(hpa) => Number((hpa/1000).toFixed(3))"
-            },
-            "inTemp": {
-                "unit": "K",
-                "userUnit": "°C",
-                "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
+            "ET": {
+                "unit": "mm",
+                "userUnit": "l/m²",
+                "fnFromMetric": "(mm) => Number((mm*10).toFixed(2))"
             },
             "UV": {
                 "unit": "index",
                 "userUnit": "min",
-                "toUserUnit": "(uv) => Number(Math.min(180, 210/((uv*Math.exp(uv/32)))).toFixed(0))"
+                "fnFromMetric": "(uv, dem=24) => Number(Math.min(180, (6.5*dem)/((uv*Math.exp(uv/dem)))).toFixed(0))"
             },
-            "ET": {
-                "unit": "mm",
-                "userUnit": "l/m²",
-                "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
+            "UVMax": {
+                "unit": "index",
+                "userUnit": "min",
+                "fnFromMetric": "(uv, dem=24) => Number(Math.min(180, (6.5*dem)/((uv*Math.exp(uv/dem)))).toFixed(0))"
             },
-            "rainFall": {
-                "unit": "mm",
-                "userUnit": "l/m²",
-                "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
+            "inTemp": {
+                "unit": "K",
+                "userUnit": "°F",
+                "fnFromMetric": "(k) => Number(((k-273.15)*9/5+32).toFixed(1))"
+            },
+            "outTemp": {
+                "unit": "K",
+                "userUnit": "°F",
+                "fnFromMetric": "(k) => Number(((k-273.15)*9/5+32).toFixed(1))"
+            },
+            "Wind": {
+                "unit": "m/s",
+                "userUnit": "km/h",
+                "fnFromMetric": "(ms) => Number((ms*3.6).toFixed(1))"
             }
         }
     },
     "data": [
         {
-            "d": "2025-08-21T12:25:50Z",
-            "barometer": 1020.23,
-            "inTemp": 295.71,
-            "UV": 0,
+            "d": "2025-08-27T16:56:16Z",
             "ET": 0,
-            "rainFall": 0
+            "UV": 0.96,
+            "UVMax": 1.07,
+            "inTemp": 295.69,
+            "outTemp": 296.58,
+            "direction:Wind": null,
+            "speed:Wind": null
         },
         {
-            "d": "2025-08-22T07:15:25Z",
-            "barometer": 1025.31,
+            "d": "2025-08-27T18:02:53Z",
+            "ET": 0.07,
+            "UV": 0.53,
+            "UVMax": 0.57,
+            "inTemp": 295.86,
+            "outTemp": 296.42,
+            "direction:Wind": null,
+            "speed:Wind": null
+        },
+        {
+            "d": "2025-08-27T19:09:30Z",
+            "ET": 0.02,
+            "UV": 0,
+            "UVMax": 0,
+            "inTemp": 295.83,
+            "outTemp": 295.98,
+            "direction:Wind": null,
+            "speed:Wind": null
+        },
+        {
+            "d": "2025-08-27T20:16:07Z",
+            "ET": 0,
+            "UV": 0,
+            "UVMax": 0,
             "inTemp": 295.6,
-            "UV": 0,
+            "outTemp": 295.07,
+            "direction:Wind": null,
+            "speed:Wind": null
+        },
+        {
+            "d": "2025-08-27T21:22:44Z",
             "ET": 0,
-            "rainFall": 0
-        },
-        {
-            "d": "2025-08-23T02:05:00Z",
-            "barometer": 1026.78,
-            "inTemp": 295.3,
             "UV": 0,
-            "ET": 0,
-            "rainFall": 0
+            "UVMax": 0,
+            "inTemp": 294.99,
+            "outTemp": 293.78,
+            "direction:Wind": null,
+            "speed:Wind": null
         },
         {
-            "d": "2025-08-23T20:54:35Z",
-            "barometer": 1021.48,
-            "inTemp": 294.92,
-            "UV": 2.19,
-            "ET": 0.99,
-            "rainFall": 0.4
+            "d": "2025-08-27T22:29:21Z",
+            "ET": 0.01,
+            "UV": 0,
+            "UVMax": 0,
+            "inTemp": 294.28,
+            "outTemp": 292.68,
+            "direction:Wind": null,
+            "speed:Wind": null
         },
         {
-            "d": "2025-08-24T15:44:10Z",
-            "barometer": 1014.25,
-            "inTemp": 293.2,
-            "UV": 1.07,
-            "ET": 0.96,
-            "rainFall": 0.2
+            "d": "2025-08-27T23:35:58Z",
+            "ET": 0.01,
+            "UV": 0,
+            "UVMax": 0,
+            "inTemp": 293.99,
+            "outTemp": 292.16,
+            "direction:Wind": null,
+            "speed:Wind": null
         },
         {
-            "d": "2025-08-25T10:33:45Z",
-            "barometer": 1013.65,
-            "inTemp": 295.93,
-            "UV": 0.41,
-            "ET": 0.78,
-            "rainFall": 1.8
+            "d": "2025-08-28T00:42:35Z",
+            "ET": 0.01,
+            "UV": 0,
+            "UVMax": 0,
+            "inTemp": 293.39,
+            "outTemp": 291.36,
+            "direction:Wind": null,
+            "speed:Wind": null
         },
         {
-            "d": "2025-08-26T05:23:20Z",
-            "barometer": 1013.28,
-            "inTemp": 298.48,
-            "UV": 1.49,
-            "ET": 1.37,
-            "rainFall": 3
-        },
-        {
-            "d": "2025-08-27T00:12:55Z",
-            "barometer": 1013.41,
-            "inTemp": 295.77,
-            "UV": 0.3,
-            "ET": 0.28,
-            "rainFall": 1.2
-        },
-        {
-            "d": "2025-08-27T19:02:30Z",
-            "barometer": 1011.28,
-            "inTemp": 294.43,
-            "UV": 0.49,
-            "ET": 0.51,
-            "rainFall": 0.4
-        },
-        {
-            "d": "2025-08-28T13:52:05Z",
-            "barometer": 1011.12,
-            "inTemp": 292.63,
-            "UV": 0.23,
-            "ET": 0.26,
-            "rainFall": 0.2
-        },
-        {
-            "d": "2025-08-29T08:41:40Z",
-            "barometer": 1012.91,
-            "inTemp": 289.57,
-            "UV": 0.43,
-            "ET": 0.46,
-            "rainFall": 0.6
-        },
-        {
-            "d": "2025-08-30T03:31:15Z",
-            "barometer": 1012.76,
-            "inTemp": 290.26,
-            "UV": 0.45,
-            "ET": 0.48,
-            "rainFall": 0.4
-        },
-        {
-            "d": "2025-08-30T09:55:00Z",
-            "barometer": 1014.75,
-            "inTemp": 290.16,
-            "UV": 0.03,
-            "ET": 0.05,
-            "rainFall": 0.2
+            "d": "2025-08-28T01:49:12Z",
+            "ET": 0.01,
+            "UV": 0,
+            "UVMax": 0,
+            "inTemp": 293.19,
+            "outTemp": 290.78,
+            "direction:Wind": null,
+            "speed:Wind": null
         }
     ]
 }
