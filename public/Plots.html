@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Visualisation des capteurs météo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .control-group {
+            margin-bottom: 10px;
+        }
+        
+        label {
+            display: inline-block;
+            width: 120px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        input[type="text"] {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            width: 300px;
+        }
+        
+        button {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .axis {
+            font-size: 9px;
+        }
+        
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: #000;
+            shape-rendering: crispEdges;
+            stroke-width: 1px;
+        }
+        
+        .grid line {
+            stroke: #ddd;
+            stroke-dasharray: 2,2;
+        }
+        
+        .line {
+            fill: none;
+            stroke-width: 1px;
+        }
+        
+        .overlay {
+            fill: none;
+            pointer-events: all;
+        }
+        
+        .focus {
+            pointer-events: none;
+        }
+        
+        .focus line {
+            stroke: #666;
+            stroke-width: 1px;
+            stroke-dasharray: 3,3;
+        }
+        
+        .focus text {
+            font-size: 11px;
+            font-weight: bold;
+            fill: #333;
+            text-shadow:
+               1px 1px 1px rgb(255, 255, 255),
+               -1px -1px 1px rgb(255, 255, 255),
+               1px -1px 1px rgb(255, 255, 255),
+               -1px 1px 1px rgb(255, 255, 255),
+               2px 2px 1px rgb(255, 255, 255),
+               -2px -2px 1px rgb(255, 255, 255),
+               2px -2px 1px rgb(255, 255, 255),
+               -2px 2px 1px rgb(255, 255, 255);
+        }
+        
+        .legend {
+            font-size: 12px;
+        }
+        
+        .legend rect {
+            stroke: none;
+        }
+        
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 3px;
+        }
+        
+        .status.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="status" class="status" style="display: none;"></div>
+        <div id="chart"></div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script>
+        // Configuration globale
+        const margin = { top: 20, right: 80, bottom: 40, left: 80 };
+        const width = window.innerWidth - 200;
+        const height = 500;
+        const innerWidth = width - margin.left - margin.right;
+        const innerHeight = height - margin.top - margin.bottom;
+
+        // Variables globales
+        let svg, xScale, yScales = {}, currentData = null, metadata = null;
+        let colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+        let zoomTransform = d3.zoomIdentity;
+        let overlay; // Garder une référence à l'overlay
+
+        // Fonction pour afficher le statut
+        function showStatus(message, type = 'loading') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.style.display = 'block';
+        }
+
+        function hideStatus() {
+            document.getElementById('status').style.display = 'none';
+        }
+
+        // Fonction pour obtenir les paramètres de l'URL
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                sensors: params.get('sensors') || 'ET,UV,UVMax,inTemp,outTemp',
+                stepCount: params.get('stepCount') || '30',
+                startDate: params.get('startDate') || null,
+                endDate: params.get('endDate') || null
+            };
+        }
+
+        // Initialisation avec les paramètres URL
+        function initFromUrl() {
+            const params = getUrlParams();
+            console.log('Paramètres URL:', params);
+            loadData(params);
+        }
+
+        // Fonction principale pour charger les données
+        async function loadData(params = null) {
+            if (!params) {
+                params = getUrlParams();
+            }
+            
+            const { sensors, stepCount, startDate, endDate } = params;
+            
+            if (!sensors) {
+                showStatus('Veuillez spécifier au moins un capteur dans l\'URL', 'error');
+                return;
+            }
+
+            showStatus('Chargement des données...');
+            
+            try {
+                let url = `http://probe2.lpz.ovh/query/VP2_Serramoune/Raws/${sensors}?stepCount=${stepCount}`;
+                
+                // Ajouter les paramètres de date si présents
+                if (startDate) {
+                    url += `&startDate=${encodeURIComponent(startDate)}`;
+                }
+                if (endDate) {
+                    url += `&endDate=${encodeURIComponent(endDate)}`;
+                }
+                
+                console.log('Fetching:', url);
+                
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.message || 'Erreur lors du chargement des données');
+                }
+
+                currentData = data.data;
+                metadata = data.metadata;
+                
+                // Traitement des données
+                processData();
+                createChart();
+                
+                showStatus(`${currentData.length} points de données chargés avec succès`, 'success');
+                setTimeout(hideStatus, 3000);
+                
+            } catch (error) {
+                console.error('Erreur:', error);
+                showStatus(`Erreur: ${error.message}`, 'error');
+            }
+        }
+
+        // Traitement des données
+        function processData() {
+            // eval des fonctions dans metadata.toUserUnit[key].fnFromMetric
+            Object.keys(metadata.toUserUnit).forEach(
+                key => metadata.toUserUnit[key].fnFromMetric = eval(metadata.toUserUnit[key].fnFromMetric)
+            );
+            
+            currentData.forEach(d => {
+                d.datetime = new Date(d.d);
+                
+                // Convertir toutes les valeurs numériques
+                Object.keys(d).forEach(key => {
+                    if (key !== 'd' && key !== 'datetime' && d[key] !== null) {
+                        d[key] = metadata.toUserUnit[key].fnFromMetric(d[key]);
+                    }
+                });
+            });
+
+            // Trier par date
+            currentData.sort((a, b) => a.datetime - b.datetime);
+        }
+
+        // Création du graphique
+        function createChart() {
+            // Nettoyer le graphique existant
+            d3.select("#chart").selectAll("*").remove();
+
+            // Créer le SVG
+            svg = d3.select("#chart")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            // Définir le clipPath
+            svg.append("defs").append("clipPath")
+                .attr("id", "clip")
+                .append("rect")
+                .attr("width", innerWidth)
+                .attr("height", innerHeight);
+
+            // Échelle temporelle
+            xScale = d3.scaleTime()
+                .domain(d3.extent(currentData, d => d.datetime))
+                .range([0, innerWidth]);
+
+            // Créer les échelles Y basées sur les groupes de mesures
+            const measurementGroups = metadata.measurement;
+            const groupKeys = Object.keys(measurementGroups);
+            const yAxisWidth = 60;
+            
+            yScales = {};
+            
+            groupKeys.forEach((groupName, index) => {
+                const sensors = measurementGroups[groupName];
+                const validSensors = sensors.filter(sensor => 
+                    currentData.some(d => d[sensor] !== null && d[sensor] !== undefined)
+                );
+                
+                if (validSensors.length > 0) {
+                    // Calculer le domaine pour ce groupe
+                    const allValues = [];
+                    validSensors.forEach(sensor => {
+                        currentData.forEach(d => {
+                            if (d[sensor] !== null && d[sensor] !== undefined) {
+                                allValues.push(d[sensor]);
+                            }
+                        });
+                    });
+                    
+                    if (allValues.length > 0) {
+                        const extent = d3.extent(allValues);
+                        const padding = (extent[1] - extent[0]) * 0.05;
+                        
+                        yScales[groupName] = {
+                            scale: d3.scaleLinear()
+                                .domain([extent[0] - padding, extent[1] + padding])
+                                .range([innerHeight, 0]),
+                            sensors: validSensors,
+                            orientation: (index+1 >> 1) & 1 ?'right':'left',
+                            position: (index & 1) ?  'right':'left',
+                            index: Math.floor(index / 2)
+                        };
+                    }
+                }
+            });
+
+            // Créer les axes
+            createAxes(g);
+            
+            // Créer les lignes
+            createLines(g);
+            
+            // Ajouter la légende
+            createLegend(g);
+            
+            // Ajouter l'interaction
+            addInteraction(g);
+            
+            // Ajouter le zoom
+            addZoom();
+        }
+
+        // Création des axes
+        function createAxes(g) {
+            // Axe X
+            g.append("g")
+                .attr("class", "axis axis-x")
+                .attr("transform", `translate(0,${innerHeight})`)
+                .call(d3.axisBottom(xScale).tickSize(2));
+
+            // Axes Y
+            Object.entries(yScales).forEach(([groupName, scaleInfo]) => {
+                const sensor = metadata.measurement[groupName][0]
+                const unit = metadata.toUserUnit[sensor].userUnit;
+                const orientation = scaleInfo.orientation === 'left';
+                const position = scaleInfo.position === 'left';
+                
+                const axis = orientation ?
+                    d3.axisLeft(scaleInfo.scale).tickSize(2) :
+                    d3.axisRight(scaleInfo.scale).tickSize(3);
+
+                const transform = position ? `translate(0,0)` : `translate(${innerWidth},0)`;
+                console.log( unit, 'orientation',scaleInfo.orientation, 'position',scaleInfo.position, 'transform',transform);
+                g.append("g")
+                    .attr("class", `axis axis-y axis-${groupName}`)
+                    .attr("transform", transform)
+                    .call(axis);
+                
+                // Label de l'axe
+                const labelX = (position ? 0 : innerWidth) + (orientation ?  -20 : 20);
+                console.log(sensor, unit, labelX);
+                g.append("text")
+                    .attr("class", "axis-label")
+                    .attr("transform", `translate(${labelX},5)`)
+                    .style("text-anchor", "middle")
+                    .style("font-size", "10px")
+                    .style("font-weight", "bold")
+                    .text(unit);
+            });
+        }
+
+        // Création des lignes
+        function createLines(g) {
+            const linesGroup = g.append("g")
+                .attr("clip-path", "url(#clip)");
+
+            Object.entries(yScales).forEach(([groupName, scaleInfo]) => {
+                scaleInfo.sensors.forEach(sensor => {
+                    const line = d3.line()
+                        .x(d => xScale(d.datetime))
+                        .y(d => scaleInfo.scale(d[sensor]))
+                        .defined(d => d[sensor] !== null && d[sensor] !== undefined)
+                        .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveBasis);
+
+                    linesGroup.append("path")
+                        .datum(currentData)
+                        .attr("class", `line line-${sensor.replace(":", "_")}`)
+                        .attr("d", line)
+                        .style("stroke", colorScale(sensor.replace(":", "_")))
+                        .style("opacity", 0)
+                        .transition()
+                        .duration(500)
+                        .style("opacity", 1);
+                });
+            });
+        }
+
+        // Création de la légende
+        function createLegend(g) {
+            const legend = g.append("g")
+                .attr("class", "legend")
+                .attr("transform", `translate(${innerWidth - 150}, 20)`);
+
+            let yOffset = 0;
+            Object.entries(yScales).forEach(([groupName, scaleInfo]) => {
+                // Titre du groupe
+                legend.append("text")
+                    .attr("x", 0)
+                    .attr("y", yOffset)
+                    .style("font-weight", "bold")
+                    .style("font-size", "11px")
+                    .text(groupName);
+                yOffset += 15;
+
+                // Capteurs du groupe
+                scaleInfo.sensors.forEach(sensor => {
+                    const item = legend.append("g")
+                        .attr("transform", `translate(10, ${yOffset})`);
+
+                    item.append("line")
+                        .attr("x1", 0)
+                        .attr("x2", 15)
+                        .attr("y1", 0)
+                        .attr("y2", 0)
+                        .style("stroke", colorScale(sensor.replace(":", "_")))
+                        .style("stroke-width", 2);
+
+                    item.append("text")
+                        .attr("x", 20)
+                        .attr("y", 0)
+                        .attr("dy", "0.35em")
+                        .style("font-size", "10px")
+                        .text(sensor);
+
+                    yOffset += 12;
+                });
+                yOffset += 5;
+            });
+        }
+
+        // Fonction pour mettre à jour l'infobulle et les cercles
+        function updateTooltip(event) {
+                    const currentXScale = zoomTransform.rescaleX(xScale);
+                    const bisect = d3.bisector(d => d.datetime).left;
+                    const x0 = currentXScale.invert(d3.pointer(event)[0]);
+                    const i = bisect(currentData, x0, 1);
+                    const d = currentData[i];
+
+            const focus = svg.select(".focus");
+            const tooltip = focus.select(".tooltip");
+            const dotsGroup = focus.select(".dots");
+                    
+                    if (d) {
+                focus.style("display", null);
+                        focus.attr("transform", `translate(${currentXScale(d.datetime)},0)`);
+                        
+                        // Effacer les anciens tooltips et dots
+                        tooltip.selectAll("*").remove();
+                        dotsGroup.selectAll("*").remove();
+                        
+                        // Ajouter la date
+                        tooltip.append("text")
+                            .attr("x", -58)
+                            .attr("y", -5)
+                            .style("font-size", "11px")
+                            .style("font-weight", "bold")
+                            .text(d3.timeFormat("%Y-%m-%d %H:%M")(d.datetime));
+                        
+                        let yPos = 10;
+                        Object.entries(yScales).forEach(([groupName, scaleInfo]) => {
+                            scaleInfo.sensors.forEach(sensor => {
+                                if (d[sensor] !== null && d[sensor] !== undefined) {
+                                    // Ajouter le cercle sur la courbe
+                                    dotsGroup.append("circle")
+                                        .attr("cx", 0)
+                                        .attr("cy", scaleInfo.scale(d[sensor]))
+                                        .attr("r", 3)
+                                        .attr("stroke", colorScale(sensor.replace(":", "_")))
+                                        .attr("stroke-width", 1)
+                                        .attr("fill", "none")
+                                        .style("pointer-events", "none");
+                                    
+                                    // Ajouter le texte du tooltip
+                                    tooltip.append("text")
+                                        .attr("x", 5)
+                                        .attr("y", yPos)
+                                        .style("font-size", "10px")
+                                        .style("fill", colorScale(sensor.replace(":", "_")))
+                                        .text(`${d[sensor]} ${metadata.toUserUnit[sensor].userUnit}`);
+                                        
+                                    tooltip.append("text")
+                                        .attr("x", -5)
+                                        .attr("y", yPos)
+                                        .attr("text-anchor", "end")
+                                        .style("font-size", "10px")
+                                        .style("fill", colorScale(sensor.replace(":", "_")))
+                                        .text(`${sensor}`);
+                                    yPos += 12;
+                                }
+                            });
+                        });
+            } else {
+                 focus.style("display", "none");
+            }
+        }
+
+        // Ajout de l'interaction
+        function addInteraction(g) {
+            const focus = g.append("g")
+                .attr("class", "focus")
+                .style("display", "none");
+
+            focus.append("line")
+                .attr("class", "focus-line")
+                .attr("y1", 0)
+                .attr("y2", innerHeight)
+                .style("stroke", "#666")
+                .style("stroke-dasharray", "3,3");
+
+            focus.append("g")
+                .attr("class", "tooltip");
+            
+            focus.append("g")
+                .attr("class", "dots");
+
+            overlay = g.append("rect")
+                .attr("class", "overlay")
+                .attr("width", innerWidth)
+                .attr("height", innerHeight)
+                .on("mouseover", () => focus.style("display", null))
+                .on("mouseout", () => focus.style("display", "none"))
+                .on("mousemove", updateTooltip);
+        }
+
+        // Ajout du zoom
+        function addZoom() {
+            const zoom = d3.zoom()
+                .scaleExtent([1, 50])
+                .extent([[0, 0], [innerWidth, innerHeight]])
+                .on("zoom", function(event) {
+                    zoomTransform = event.transform;
+                    const newXScale = zoomTransform.rescaleX(xScale);
+                    
+                    // Mettre à jour l'axe X
+                    svg.select(".axis-x").call(d3.axisBottom(newXScale));
+                    
+                    // Mettre à jour les lignes
+                    Object.entries(yScales).forEach(([groupName, scaleInfo]) => {
+                        scaleInfo.sensors.forEach(sensor => {
+                            const line = d3.line()
+                                .x(d => newXScale(d.datetime))
+                                .y(d => scaleInfo.scale(d[sensor]))
+                                .defined(d => d[sensor] !== null && d[sensor] !== undefined)
+                                .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveBasis);
+
+                            svg.select(`.line-${sensor.replace(":", "_")}`)
+                                .attr("d", line);
+                        });
+                    });
+
+                    // Appeler la fonction de mise à jour du tooltip pour le curseur
+                    // qui est probablement en cours de survol.
+                    const pointer = d3.pointer(event, overlay.node());
+                    if (pointer) {
+                        updateTooltip({ clientX: pointer[0], clientY: pointer[1] });
+                    }
+                });
+
+            svg.call(zoom);
+        }
+
+        // Chargement initial
+        window.addEventListener('load', initFromUrl);
+    </script>
+</body>
+</html>

@@ -68,3 +68,89 @@ h2 input {
 .brightness:hover {
     filter: brightness(0) invert(1);
 }
+
+/* Styles from Plots.html for D3 chart */
+.chart-container {
+    position: relative;
+}
+
+.axis {
+    font-size: 9px;
+}
+
+.axis path,
+.axis line {
+    fill: none;
+    stroke: #000;
+    shape-rendering: crispEdges;
+    stroke-width: 1px;
+}
+
+.grid line {
+    stroke: #ddd;
+    stroke-dasharray: 2,2;
+}
+
+.line {
+    fill: none;
+    stroke-width: 1px;
+}
+
+.overlay {
+    fill: none;
+    pointer-events: all;
+}
+
+.focus {
+    pointer-events: none;
+}
+
+.focus line {
+    stroke: #666;
+    stroke-width: 1px;
+    stroke-dasharray: 3,3;
+}
+
+.focus text {
+    font-size: 11px;
+    font-weight: bold;
+    fill: #333;
+    text-shadow:
+       1px 1px 1px rgb(255, 255, 255),
+       -1px -1px 1px rgb(255, 255, 255),
+       1px -1px 1px rgb(255, 255, 255),
+       -1px 1px 1px rgb(255, 255, 255),
+       2px 2px 1px rgb(255, 255, 255),
+       -2px -2px 1px rgb(255, 255, 255),
+       2px -2px 1px rgb(255, 255, 255),
+       -2px 2px 1px rgb(255, 255, 255);
+}
+
+.legend {
+    font-size: 12px;
+}
+
+.legend rect {
+    stroke: none;
+}
+
+.status {
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 3px;
+}
+
+.status.loading {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.status.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status.success {
+    background: #d4edda;
+    color: #155724;
+}

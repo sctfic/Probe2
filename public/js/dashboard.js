@@ -585,8 +585,8 @@ function createConditionTileHTML(item) {
     }
     
     return `
+    <div class="condition-tile" data-key="${item.key}">
         <a href="draw.html?station=${selectedStation.id}&sensor=${item.sensorDb}" class="tile-link" title="Voir le détail du capteur ${item.name}">
-            <div class="condition-tile" data-key="${item.key}">
             <div class="condition-content">
                 <div class="condition-info">
                     <div class="condition-name">${item.name}</div>
@@ -599,8 +599,8 @@ function createConditionTileHTML(item) {
                     ${chartContent}
                 </div>
             </div>
-            </div>
         </a>
+    </div>
     `;
 }
 function getStartDate (period){

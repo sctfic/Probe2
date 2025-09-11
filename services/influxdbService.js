@@ -291,7 +291,7 @@ async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSecond
 /**
  * Récupère les données brutes pour une station et plusieurs capteurs spécifiques.
  * @param {string} stationId - Identifiant de la station.
- * @param {Array<string>} sensorRefs - Références des capteurs.
+ * @param {Array<string>} sensorRefs - Références des capteurs (format: "_measurement:sensor").
  * @param {string} startDate - Date de début.
  * @param {string} endDate - Date de fin.
  * @param {number} intervalSeconds - Intervalle en secondes.
@@ -300,9 +300,15 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
     // Définir les champs qui doivent être sommés (mesures de pluie/évapotranspiration)
     const rainFields = ['rainFall', 'ET'];
     
-    // Séparer les champs en deux groupes
-    const cumulativeSensors = sensorRefs.filter(ref => rainFields.includes(ref));
-    const meanSensors = sensorRefs.filter(ref => !rainFields.includes(ref));
+    // Séparer les capteurs en fonction de leur type (cumulatif ou moyenne)
+    const cumulativeSensors = sensorRefs.filter(ref => {
+        const [, sensor] = ref.includes(':') ? ref.split(':') : [null, ref];
+        return rainFields.includes(sensor);
+    });
+    const meanSensors = sensorRefs.filter(ref => {
+        const [, sensor] = ref.includes(':') ? ref.split(':') : [null, ref];
+        return !rainFields.includes(sensor);
+    });
     
     // Construire les filtres
     const sumFilter = cumulativeSensors.length > 0 
@@ -321,9 +327,10 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
         sumData = from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
             |> filter(fn: (r) => r.station_id == "${stationId}" and (${sumFilter}))
-            |> group(columns: ["sensor"])
+            |> map(fn: (r) => ({ r with sensor_key: r._measurement + ":" + r.sensor }))
+            |> group(columns: ["sensor_key"])
             |> aggregateWindow(every: ${intervalSeconds}s, fn: sum, createEmpty: false)
-            |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement"])
+            |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement", "sensor"])
         `;
     }
     
@@ -336,9 +343,10 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
         meanData = from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
             |> filter(fn: (r) => r.station_id == "${stationId}" and (${meanFilter}))
-            |> group(columns: ["sensor"])
+            |> map(fn: (r) => ({ r with sensor_key: r._measurement + ":" + r.sensor }))
+            |> group(columns: ["sensor_key"])
             |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
-            |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement"])
+            |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement", "sensor"])
         `;
     }
     
@@ -347,7 +355,7 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
         fluxQuery += `
         
         union(tables: [sumData, meanData])
-            |> pivot(rowKey: ["_time"], columnKey: ["sensor"], valueColumn: "_value")
+            |> pivot(rowKey: ["_time"], columnKey: ["sensor_key"], valueColumn: "_value")
             |> sort(columns: ["_time"])
             |> yield()
         `;
@@ -355,7 +363,7 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
         fluxQuery += `
         
         sumData
-            |> pivot(rowKey: ["_time"], columnKey: ["sensor"], valueColumn: "_value")
+            |> pivot(rowKey: ["_time"], columnKey: ["sensor_key"], valueColumn: "_value")
             |> sort(columns: ["_time"])
             |> yield()
         `;
@@ -363,7 +371,7 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
         fluxQuery += `
         
         meanData
-            |> pivot(rowKey: ["_time"], columnKey: ["sensor"], valueColumn: "_value")
+            |> pivot(rowKey: ["_time"], columnKey: ["sensor_key"], valueColumn: "_value")
             |> sort(columns: ["_time"])
             |> yield()
         `;

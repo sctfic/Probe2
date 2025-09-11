@@ -20,16 +20,14 @@ async function getIntervalSeconds(stationId, sensorRef, startDate, endDate, step
     // 1. Récupère la plage de dates réelle des données
 
     const dateRange = await influxdbService.queryDateRange(stationId, sensorRef, startDate, endDate);
-    console.log(`Plage de dates réelle pour ${stationId} - ${sensorRef}:`, dateRange);
     // 2. Utilise les dates effectives ou celles fournies
     const startTime = new Date(dateRange.firstUtc);
     const endTime = new Date(dateRange.lastUtc);
     // 3. Calcule l'intervalle optimal
     const totalSeconds  = (endTime.getTime() - startTime.getTime()) / 1000;
-    // console.log(`Total de secondes: ${totalSeconds}`, endTime.getTime()/1000, startTime.getTime()/1000);
     return {
-        start: startTime.toDateString(),
-        end: endTime.toDateString(),
+        start: startTime.toISOString().replace('.000Z', 'Z'),
+        end: endTime.toISOString().replace('.000Z', 'Z'),
         intervalSeconds: Math.round(totalSeconds / parseInt(stepCount))
     };
 };
@@ -121,7 +119,7 @@ exports.getQueryRaw = async (req, res) => {
         // console.log(`${V.info} Demande de données brutes pour ${stationId} - ${sensorRef}`);
         const {start, end, intervalSeconds } = await getIntervalSeconds(stationId, sensorRef, startDate, endDate, stepCount);
         // console.log(`${V.info} Intervalle choisi: ${intervalSeconds} secondes`, { start, end, stop: (start+stepCount*intervalSeconds*1000) });
-        const data = await influxdbService.queryRaw(stationId, sensorRef, start/1000, end/1000, intervalSeconds);
+        const data = await influxdbService.queryRaw(stationId, sensorRef, start, end, intervalSeconds);
         // formatage des données
         const Data = data.map(row => {
             return {
@@ -163,7 +161,6 @@ exports.getQueryRaws = async (req, res) => {
     const { stationId, sensorRefs: sensorRefsStr } = req.params;
     const { startDate, endDate, stepCount: stepCountStr } = req.query;
     const stepCount = stepCountStr ? parseInt(stepCountStr, 10) : 100000;
-// console.log(sensorRefsStr);
     let sensorRefs = sensorRefsStr.split(',');
     // on retire les doublons, les vides
     sensorRefs = sensorRefs.filter((ref, index) => ref && sensorRefs.indexOf(ref) === index);
@@ -177,12 +174,13 @@ exports.getQueryRaws = async (req, res) => {
     const sensorsFnFromMetric = {};
     sensorRefs.forEach(ref => {
         const {type, sensor } = getTypeAndSensor(ref);
-        console.log(ref, type, sensor);
+        // console.log(ref, type, sensor);
         if(type && sensor){
+            const merge = type + ':' + sensor;
             measurements.push(type);
-            sensors.push(ref);
-            mix[type] ? mix[type].push(ref) : mix[type] = [ref];
-            sensorsFnFromMetric[sensor] = {
+            sensors.push(merge);
+            mix[type] ? mix[type].push(merge) : mix[type] = [merge];
+            sensorsFnFromMetric[merge] = {
                 unit: units?.[type]?.metric || null,
                 userUnit: units?.[type]?.user || null,
                 fnFromMetric: units?.[type]?.available_units?.[units?.[type]?.user]?.fnFromMetric || null
@@ -192,15 +190,14 @@ exports.getQueryRaws = async (req, res) => {
     try {
         // Use the first sensor to determine the overall time range and interval
         const { start, end, intervalSeconds } = await getIntervalSeconds(stationId, sensorRefs[0], startDate, endDate, stepCount);
-
-        const data = await influxdbService.queryRaws(stationId, sensorRefs, start / 1000, end / 1000, intervalSeconds);
-        // console.log(`${V.info} Donnees recuperees:`, data);
+        const data = await influxdbService.queryRaws(stationId, sensorRefs, start, end, intervalSeconds);
         const Data = data.map(row => {
             let result = {
                 d: row._time
             };
-            sensors.forEach(ref => {
-                result[ref] = Math.round(row[ref] * 100) / 100;
+            // pour chaque key on arrondi à 2 décimales
+            Object.keys(row).filter(key => key !== '_time' && key !== 'result' && key !== 'table').forEach(key => {
+                result[key] = Math.round(row[key] * 100) / 100;
             });
             return result;
         });
@@ -244,7 +241,7 @@ exports.getQueryCandle = async (req, res) => {
         // console.log(`${V.info} Demande de données candle pour ${stationId} - ${sensorRef} avec ${stepCount} intervalles`);
         const {start, end, intervalSeconds } = await getIntervalSeconds(stationId, sensor, startDate, endDate, stepCount);
         // console.log(`${V.info} Intervalle choisi: ${intervalSeconds} secondes`, { start, end });
-        const data = await influxdbService.queryCandle(stationId, sensor, start/1000, end/1000, intervalSeconds);
+        const data = await influxdbService.queryCandle(stationId, sensor, start, end, intervalSeconds);
         // formatage des données
         const Data = data.map(row => {
             return {
@@ -300,7 +297,7 @@ exports.getQueryWindRose = async (req, res) => { // https://observablehq.com/@ju
         console.log(`${V.info} Demande de données de vent pour ${stationId}`);
         const {start, end, intervalSeconds } = await getIntervalSeconds(stationId, 'speed', startDate, endDate, stepCount);
         console.log(`${V.info} Intervalle calculé: ${intervalSeconds}s pour ${stepCount} étapes`, { start, end });
-        const data = await influxdbService.queryWindRose(stationId, start/1000, end/1000, intervalSeconds);
+        const data = await influxdbService.queryWindRose(stationId, start, end, intervalSeconds);
         let msg = 'Full data loadded !';
         if (data.length==stepCount+1 && new Date(data[data.length-1].d).getTime()==end) {
             // data.pop(); // supprimer la derniere valeur, qui est la derniere valeur de la plage avant agregation
@@ -342,7 +339,7 @@ exports.getQueryWindVectors = async (req, res) => {
         console.log(`${V.info} Demande de données de vent pour ${stationId}`);
         const {start, end, intervalSeconds } = await getIntervalSeconds(stationId, 'speed', startDate, endDate, stepCount);
         console.log(`${V.info} Intervalle calculé: ${intervalSeconds}s pour ${stepCount} étapes`, { start, end });
-        const data = await influxdbService.queryWindVectors(stationId, start/1000, end/1000, intervalSeconds);
+        const data = await influxdbService.queryWindVectors(stationId, start, end, intervalSeconds);
         let msg = 'Full data loadded !';
         if (data.length==stepCount+1 && new Date(data[data.length-1].d).getTime()==end) {
             // data.pop(); // supprimer la derniere valeur, qui est la derniere valeur de la plage avant agregation

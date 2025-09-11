@@ -20,17 +20,17 @@ function transformDataForPlot(apiData, metadata) {
 function createPlot(data, metadata, id, period) {
     // console.log(period);
     if (typeof period !== 'number') {
-        period = '1 day';
+        period = '0 day';
     } else if(period <= 24*3600) {
         period = '1 hour';
     } else if (period <= 24*3600*7) {
         period = '1 day';
     } else if (period <= 24*3600*31) {
-        period = '1 week';
+        period = '1 day';
     } else if (period <= 24*3600*365) {
-        period = '1 month';
+        period = '1 day';
     } else {
-        period = '1 year';
+        period = '1 day';
     }
     // console.log(period);
 

@@ -2,7 +2,7 @@ const sensorMap = {
     'barometer': {
         label: 'Baromètre',
         measurement: 'pressure',
-        period: 60 * 60 * 24 * 7,
+        period: 60 * 60 * 24 * 30,
         groupUsage: '1/ Outdoor',
         groupCustom: 1,
         sensorDb: 'barometer'
