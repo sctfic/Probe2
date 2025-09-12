@@ -531,6 +531,41 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
     const points = [];
     delete processedData.date;
     delete processedData.time;
+    let Ux = 0;
+    let Vy = 0;
+    // console.log(processedData.windSpeedMax, processedData.windDirMax);
+    // console.log(processedData.windSpeedMax?.Value, typeof processedData.windSpeedMax?.Value, processedData.windDirMax?.Value, typeof processedData.windDirMax?.Value );
+    if (typeof processedData.windSpeedMax?.Value === 'number' && typeof processedData.windDirMax?.Value === 'number'){
+        Ux = Math.round(processedData.windSpeedMax.Value * Math.sin(Math.PI * processedData.windDirMax.Value / 180.0)*1000)/1000
+        Vy = Math.round(processedData.windSpeedMax.Value * Math.cos(Math.PI * processedData.windDirMax.Value / 180.0)*1000)/1000
+    }
+    // console.log(Ux,Vy);
+    const vGust = new Point('vector')
+            .tag('station_id', stationId)
+            .floatField('Ux', Ux)
+            .floatField('Vy', Vy)
+            .tag('unit', '->')
+            .tag('sensor', 'Gust')
+            .timestamp(datetime);
+        points.push(vGust);
+    Ux = 0;
+    Vy = 0;
+    // console.log(processedData.windSpeed.Value, typeof processedData.windSpeed.Value, processedData.windDir.Value, typeof processedData.windDir.Value );
+    if (typeof processedData.windSpeed?.Value === 'number' && typeof processedData.windDir?.Value === 'number'){
+        Ux = Math.round(processedData.windSpeed.Value * Math.sin(Math.PI * processedData.windDir.Value / 180.0)*1000)/1000
+        Vy = Math.round(processedData.windSpeed.Value * Math.cos(Math.PI * processedData.windDir.Value / 180.0)*1000)/1000
+    }
+    // console.log(Ux,Vy);
+
+    const vWind = new Point('vector')
+            .tag('station_id', stationId)
+            .floatField('Ux', Ux)
+            .floatField('Vy', Vy)
+            .tag('unit', '->')
+            .tag('sensor', 'Wind')
+            .timestamp(datetime);
+        points.push(vWind);
+    
     
     for (const [key, data] of Object.entries(processedData)) {
         if (typeof data.Value !== 'number') { continue; }

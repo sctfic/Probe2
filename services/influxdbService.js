@@ -472,11 +472,11 @@ function parserWindRose(data) {
 
         accumulator[_time][petal[petalIndex]] = {
                 gust:{
-                    v:speed_gust,
+                    v:Math.round(speed_gust*100)/100,
                     c:count_gust
                 },
-                avg:{
-                    v:speed_avg,
+                wind:{
+                    v:Math.round(speed_avg*100)/100,
                     c:count_avg
                 }
             };

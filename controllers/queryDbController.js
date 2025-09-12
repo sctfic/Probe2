@@ -157,29 +157,23 @@ exports.getQueryRaw = async (req, res) => {
     }
 };
 
-exports.getQueryRaws = async (req, res) => {
-    const { stationId, sensorRefs: sensorRefsStr } = req.params;
-    const { startDate, endDate, stepCount: stepCountStr } = req.query;
-    const stepCount = stepCountStr ? parseInt(stepCountStr, 10) : 100000;
-    let sensorRefs = sensorRefsStr.split(',');
-    // on retire les doublons, les vides
-    sensorRefs = sensorRefs.filter((ref, index) => ref && sensorRefs.indexOf(ref) === index);
-
-    if (sensorRefs.length === 0) {
-        return res.status(400).json({ success: false, error: 'Aucun capteur valide dans sensorRefs.' });
-    }
+function getMetadata(stationId, sensorRefs, { start, end, intervalSeconds }, data) {
     const measurements = [];
     const sensors = [];
     const mix = {};
     const sensorsFnFromMetric = {};
+
     sensorRefs.forEach(ref => {
-        const {type, sensor } = getTypeAndSensor(ref);
-        // console.log(ref, type, sensor);
-        if(type && sensor){
-            const merge = type + ':' + sensor;
+        const { type, sensor } = getTypeAndSensor(ref);
+        if (type && sensor) {
+            const merge = `${type}:${sensor}`;
             measurements.push(type);
             sensors.push(merge);
-            mix[type] ? mix[type].push(merge) : mix[type] = [merge];
+            if (mix[type]) {
+                mix[type].push(merge);
+            } else {
+                mix[type] = [merge];
+            }
             sensorsFnFromMetric[merge] = {
                 unit: units?.[type]?.metric || null,
                 userUnit: units?.[type]?.user || null,
@@ -187,47 +181,62 @@ exports.getQueryRaws = async (req, res) => {
             };
         }
     });
+
+    return {
+        stationId: stationId,
+        measurement: mix,
+        sensor: sensors,
+        queryTime: new Date().toISOString(),
+        first: new Date(start).toISOString(),
+        last: new Date(end).toISOString(),
+        intervalSeconds: intervalSeconds,
+        count: data.length,
+        unit: null,
+        userUnit: null,
+        toUserUnit: sensorsFnFromMetric
+    };
+}
+
+exports.getQueryRaws = async (req, res) => {
+    const { stationId, sensorRefs: sensorRefsStr } = req.params;
+    const { startDate, endDate, stepCount: stepCountStr } = req.query;
+    const stepCount = stepCountStr ? parseInt(stepCountStr, 10) : 100000;
+    let sensorRefs = sensorRefsStr.split(',');
+    // on retire les doublons, les vides
+    sensorRefs = sensorRefs.filter((ref, index) => ref && sensorRefs.indexOf(ref) === index);
+    if (sensorRefs.length === 0) {
+        return res.status(400).json({ success: false, error: 'Aucun capteur valide dans sensorRefs.' });
+    }
     try {
         // Use the first sensor to determine the overall time range and interval
-        const { start, end, intervalSeconds } = await getIntervalSeconds(stationId, sensorRefs[0], startDate, endDate, stepCount);
-        const data = await influxdbService.queryRaws(stationId, sensorRefs, start, end, intervalSeconds);
+        const timeInfo = await getIntervalSeconds(stationId, sensorRefs[0], startDate, endDate, stepCount);
+        const data = await influxdbService.queryRaws(stationId, sensorRefs, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
         const Data = data.map(row => {
-            let result = {
-                d: row._time
-            };
+            let result = { d: row._time };
             // pour chaque key on arrondi à 2 décimales
             Object.keys(row).filter(key => key !== '_time' && key !== 'result' && key !== 'table').forEach(key => {
                 result[key] = Math.round(row[key] * 100) / 100;
             });
             return result;
         });
+
         let msg = 'Full data loadded !';
-        if (Data.length==stepCount+1 && new Date(Data[Data.length-1].d).getTime()==end) {
+        if (Data.length === stepCount + 1 && new Date(Data[Data.length - 1].d).getTime() === new Date(timeInfo.end).getTime()) {
             msg = '(!) Last value is current !';
         } else if (Data.length < stepCount) {
             msg = '<!> Data missing suspected !';
         }
 
+        const metadata = getMetadata(stationId, sensorRefs, timeInfo, Data);
+
         res.json({
             success: true,
             message: msg,
-            metadata: {
-                stationId: stationId,
-                measurement: mix,
-                sensor: sensors,
-                queryTime: new Date().toISOString(),
-                first: new Date(start).toISOString(),
-                last: new Date(end).toISOString(),
-                intervalSeconds: intervalSeconds,
-                count: Data.length,
-                unit: null,
-                userUnit: null,
-                toUserUnit: sensorsFnFromMetric
-            },
+            metadata,
             data: Data
         });
     } catch (error) {
-        handleError(res, stationId, error, 'getQueryRaw');
+        handleError(res, stationId, error, 'getQueryRaws');
     }
 };
 
@@ -292,35 +301,24 @@ exports.getQueryWindRose = async (req, res) => { // https://observablehq.com/@ju
     if (!stationId) {
         return res.status(400).json({ success: false, error: 'Le paramètre stationId est requis.' });
     }
-    
     try {
         console.log(`${V.info} Demande de données de vent pour ${stationId}`);
-        const {start, end, intervalSeconds } = await getIntervalSeconds(stationId, 'speed', startDate, endDate, stepCount);
-        console.log(`${V.info} Intervalle calculé: ${intervalSeconds}s pour ${stepCount} étapes`, { start, end });
-        const data = await influxdbService.queryWindRose(stationId, start, end, intervalSeconds);
+        const timeInfo = await getIntervalSeconds(stationId, 'speed:Wind', startDate, endDate, stepCount);
+        const data = await influxdbService.queryWindRose(stationId, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
         let msg = 'Full data loadded !';
-        if (data.length==stepCount+1 && new Date(data[data.length-1].d).getTime()==end) {
+        if (data.length==stepCount+1 && new Date(data[data.length-1].d).getTime()==timeInfo.end) {
             // data.pop(); // supprimer la derniere valeur, qui est la derniere valeur de la plage avant agregation
             msg = '(!) Last value is current !';
         } else if (data.length < stepCount) {
             msg = '<!> Data missing suspected !';
         }
+        const metadata = getMetadata(stationId, ['speed:Wind', 'direction:Gust', 'speed:Gust', 'direction:Wind'], timeInfo, data);
+
         res.json({
             success: true,
             message: msg,
-            metadata: {
-                stationId: stationId,
-                measurement: { "speed": 'Wind', "direction": 'Wind' },
-                queryTime: new Date().toISOString(),
-                first: new Date(start).toISOString(),
-                last: new Date(end).toISOString(),
-                intervalSeconds: intervalSeconds,
-                count: data.length,
-                unit: units?.['Wind']?.metric || '',
-                userUnit: units?.['Wind']?.user || '',
-                toUserUnit: units?.['Wind']?.available_units?.[units?.['Wind']?.user]?.fnFromMetric || null
-            },
-            data: data
+            metadata,
+            data
         });
     } catch (error) {
         handleError(res, stationId, error, 'getQueryWindRose');
@@ -337,32 +335,21 @@ exports.getQueryWindVectors = async (req, res) => {
     
     try {
         console.log(`${V.info} Demande de données de vent pour ${stationId}`);
-        const {start, end, intervalSeconds } = await getIntervalSeconds(stationId, 'Wind', startDate, endDate, stepCount);
-        console.log(`${V.info} Intervalle calculé: ${intervalSeconds}s pour ${stepCount} étapes`, { start, end });
-        const data = await influxdbService.queryWindVectors(stationId, start, end, intervalSeconds);
+        const timeInfo = await getIntervalSeconds(stationId, 'speed:Wind', startDate, endDate, stepCount);
+        const data = await influxdbService.queryWindVectors(stationId, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
         let msg = 'Full data loadded !';
-        if (data.length==stepCount+1 && new Date(data[data.length-1].d).getTime()==end) {
+        if (data.length==stepCount+1 && new Date(data[data.length-1].d).getTime()==timeInfo.end) {
             // data.pop(); // supprimer la derniere valeur, qui est la derniere valeur de la plage avant agregation
             msg = '(!) Last value is current !';
         } else if (data.length < stepCount) {
             msg = '<!> Data missing suspected !';
         }
+        const metadata = getMetadata(stationId, ['speed:Wind', 'direction:Gust', 'speed:Gust', 'direction:Wind'], timeInfo, data);
         res.json({
             success: true,
             message: msg,
-            metadata: {
-                stationId: stationId,
-                sensor: ['Wind', 'Gust'],
-                queryTime: new Date().toISOString(),
-                first: new Date(start).toISOString(),
-                last: new Date(end).toISOString(),
-                intervalSeconds: intervalSeconds,
-                count: data.length,
-                unit: units?.['Wind']?.metric || '',
-                userUnit: units?.['Wind']?.user || '',
-                toUserUnit: units?.['Wind']?.available_units?.[units?.['Wind']?.user]?.fnFromMetric || null
-            },
-            data: data
+            metadata,
+            data
         });
     } catch (error) {
         handleError(res, stationId, error, 'getQueryWindVectors');

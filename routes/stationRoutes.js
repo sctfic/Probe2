@@ -5,10 +5,11 @@ const { loadStationConfig, withStationLamps } = require('../middleware/stationMi
 const stationController = require('../controllers/stationController');
 const additionalController = require('../controllers/additionalController');
 
-const { V } = require('../utils/icons');
-
 // Middleware pour toutes les routes de stations
 router.use('/:stationId', loadStationConfig);
+
+// Route pour supprimer une configuration de station
+router.delete('/:stationId', stationController.deleteStation);
 
 // Route pour récupérer les données d'archive depuis la station (GET)
 router.get('/:stationId/collect', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/collect
@@ -94,44 +95,6 @@ router.put('/:stationId', (req, res) => {
         res.status(500).json({
             success: false,
             stationId: req.params.stationId,
-            error: error.message
-        });
-    }
-});
-
-// Route pour supprimer une configuration de station
-router.delete('/stations/:stationId', (req, res) => {
-    try {
-        const stationId = req.params.stationId;
-        
-        console.log(`${V.trash} Suppression de la configuration pour la station ${stationId}`);
-        
-        // Vérifier si la station existe
-        const existingConfig = configManager.loadConfig(stationId);
-        if (!existingConfig) {
-            return res.status(404).json({
-                success: false,
-                error: `Configuration non trouvée pour la station ${stationId}`
-            });
-        }
-        
-        // Supprimer la configuration
-        const success = configManager.deleteConfig(stationId);
-        
-        if (success) {
-            res.json({
-                success: true,
-                timestamp: new Date().toISOString(),
-                message: `Configuration supprimée avec succès pour la station ${stationId}`,
-                stationId: stationId
-            });
-        } else {
-            throw new Error('Échec de la suppression de la configuration');
-        }
-    } catch (error) {
-        console.error(`${V.error} Erreur lors de la suppression de la configuration:`, error);
-        res.status(500).json({
-            success: false,
             error: error.message
         });
     }

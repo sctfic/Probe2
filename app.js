@@ -41,28 +41,29 @@ app.get('/api/', (req, res) => { //http://probe2.lpz.ovh/api/
         version: require('./package.json').version,
         endpoints: {
             root: {url:'/api', method:'GET'}, //http://probe2.lpz.ovh/api
-            info: {url:'/api/info', method:'GET'}, //http://probe2.lpz.ovh/api/info
             health: {url:'/api/health', method:'GET'}, //http://probe2.lpz.ovh/api/health
             stations: {url:'/api/stations', method:'GET'}, //http://probe2.lpz.ovh/api/stations
             station: {
                 info: {url:'/api/station/:stationId/info', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/info
                 test: {url:'/api/station/:stationId/test', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/test
-                currents: {url:'/api/station/:stationId/current-conditions', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/current-conditions
+                currentConditions: {url:'/api/station/:stationId/current-conditions', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/current-conditions
+                additionalConditions: {url:'/api/station/:stationId/additional-conditions/:sensors?', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/additional-conditions
                 collect: {url:'/api/station/:stationId/collect', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/collect
-                datetime: {url:'/api/station/:stationId/update-datetime', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/update-datetime
-                'syncSettings': {url:'/api/station/:stationId/sync-settings', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/sync-settings
+                updateDatetime: {url:'/api/station/:stationId/update-datetime', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/update-datetime
+                syncSettings: {url:'/api/station/:stationId/sync-settings', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/sync-settings
                 read: {url:'/api/station/:stationId', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune
                 modify: {url:'/api/station/:stationId', method:'PUT'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune
                 remove: {url:'/api/station/:stationId', method:'DELETE'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune
-                query: {url:'/api/station/:stationId/query?sensorRefs=...&nbrStep=...&grouping=...&startDate=...&endDate=...', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/query
             },
             queryDb: {
+                // clear: {url:'/query/clear', method:'GET'}, //http://probe2.lpz.ovh/query/clear
                 metadata: {url:'/query/:stationId', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune
-                range: {url:'/query/:stationId/Range/:sensorRef', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Range/inTemp
+                range: {url:'/query/:stationId/Range/:sensorRef?', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Range/inTemp
                 raw: {url:'/query/:stationId/Raw/:sensorRef', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Raw/inTemp
-                wind: {url:'/query/:stationId/Wind', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Wind
-                rain: {url:'/query/:stationId/Rain', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Rain
-                candle: {url:'/query/:stationId/Candle', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Candle
+                raws: {url:'/query/:stationId/Raws/:sensorRefs', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Raws/barometer,inTemp
+                windRose: {url:'/query/:stationId/WindRose', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/WindRose
+                windVectors: {url:'/query/:stationId/WindVectors', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/WindVectors
+                candle: {url:'/query/:stationId/Candle/:sensorRef', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Candle/barometer
             },
         },
         stations:  stationsList,
@@ -110,7 +111,7 @@ app.listen(PORT, () => {
     // Planification dynamique de la collecte pour chaque station
     console.log(`${V.info} [CRON] Initialisation des tâches de collecte planifiées...`);
     const stations = configManager.listStations();
-console.log(stations);
+    console.log(stations);
     stations.forEach((station) => {
         const stationConfig = configManager.loadConfig(station);
         const archiveInterval = stationConfig.archiveInterval?.lastReadValue;

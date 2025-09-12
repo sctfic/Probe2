@@ -1,0 +1,99 @@
+{
+    "success": true,
+    "timestamp": "2025-09-12T01:22:50.280Z",
+    "message": "API Probe2 - Surveillance de stations météorologiques VP2",
+    "version": "0.1.31",
+    "endpoints": {
+        "root": {
+            "url": "/api",
+            "method": "GET"
+        },
+        "info": {
+            "url": "/api/info",
+            "method": "GET"
+        },
+        "health": {
+            "url": "/api/health",
+            "method": "GET"
+        },
+        "stations": {
+            "url": "/api/stations",
+            "method": "GET"
+        },
+        "station": {
+            "info": {
+                "url": "/api/station/:stationId/info",
+                "method": "GET"
+            },
+            "test": {
+                "url": "/api/station/:stationId/test",
+                "method": "GET"
+            },
+            "currentConditions": {
+                "url": "/api/station/:stationId/current-conditions",
+                "method": "GET"
+            },
+            "additionalConditions": {
+                "url": "/api/station/:stationId/additional-conditions/:sensors?",
+                "method": "GET"
+            },
+            "collect": {
+                "url": "/api/station/:stationId/collect",
+                "method": "GET"
+            },
+            "updateDatetime": {
+                "url": "/api/station/:stationId/update-datetime",
+                "method": "GET"
+            },
+            "syncSettings": {
+                "url": "/api/station/:stationId/sync-settings",
+                "method": "GET"
+            },
+            "read": {
+                "url": "/api/station/:stationId",
+                "method": "GET"
+            },
+            "modify": {
+                "url": "/api/station/:stationId",
+                "method": "PUT"
+            },
+            "remove": {
+                "url": "/api/station/:stationId",
+                "method": "DELETE"
+            }
+        },
+        "queryDb": {
+            "metadata": {
+                "url": "/query/:stationId",
+                "method": "GET"
+            },
+            "range": {
+                "url": "/query/:stationId/Range/:sensorRef?",
+                "method": "GET"
+            },
+            "raw": {
+                "url": "/query/:stationId/Raw/:sensorRef",
+                "method": "GET"
+            },
+            "raws": {
+                "url": "/query/:stationId/Raws/:sensorRefs",
+                "method": "GET"
+            },
+            "windRose": {
+                "url": "/query/:stationId/WindRose",
+                "method": "GET"
+            },
+            "windVectors": {
+                "url": "/query/:stationId/WindVectors",
+                "method": "GET"
+            },
+            "candle": {
+                "url": "/query/:stationId/Candle/:sensorRef",
+                "method": "GET"
+            }
+        }
+    },
+    "stations": [
+        "VP2_Serramoune"
+    ]
+}
