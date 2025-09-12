@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vecteurs de Vent - VP2_Serramoune</title>
+    <!-- Observable Plot -->
+    <script src="js/d3.min.js"></script>
+    <script src="js/plot.umd.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #fafafa;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-weight: 300;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .chart-container {
+            width: 100%;
+            margin: 20px 0;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 3px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ecf0f1;
+        }
+        
+        .stat-box {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Vecteurs de Vent</h1>
+        <div class="subtitle">Station VP2_Serramoune • 27 août - 10 septembre 2025</div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #3498db;"></div>
+                <span>Vent moyen</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #e74c3c;"></div>
+                <span>Rafales</span>
+            </div>
+        </div>
+        
+        <div class="chart-container" id="wind-chart"></div>
+        
+        <div class="stats" id="stats"></div>
+    </div>
+
+    <script>
+        // Préparation des données pour Plot
+        function prepareData(windData) {
+            console.log(windData);
+            const windVectors = [];
+            const gustVectors = [];
+
+            // Traitement des données de vent
+            windData.data.Wind.forEach(d => {
+                const date = new Date(d.d);
+                if (d.Ux !== 0 || d.Vy !== 0) { // Ignorer les vecteurs nuls
+                    windVectors.push({
+                        date: date,
+                        x1: date,
+                        y1: 0,
+                        x2: new Date(date.getTime() + d.Ux * 1000 * 3600 * 24), // Échelle arbitraire
+                        y2: d.Vy,
+                        type: 'wind',
+                        speed: d.spd,
+                        direction: d.dir
+                    });
+                }
+            });
+
+            // Traitement des données de rafales
+            windData.data.Gust.forEach(d => {
+                const date = new Date(d.d);
+                gustVectors.push({
+                    date: date,
+                    x1: date,
+                    y1: 0,
+                    x2: new Date(date.getTime() + d.Ux * 1000 * 3600 * 24), // Échelle arbitraire
+                    y2: d.Vy,
+                    type: 'gust',
+                    speed: d.spd,
+                    direction: d.dir
+                });
+            });
+
+            return { windVectors, gustVectors };
+        }
+
+        // Création du graphique
+        function createChart(windData) {
+            const { windVectors, gustVectors } = prepareData(windData);
+            
+            const allData = [...windVectors, ...gustVectors];
+            
+            // Facteur d'échelle pour les vecteurs
+            const scale = 50000000; // Ajustement de l'échelle des vecteurs
+            
+            const chart = Plot.plot({
+                title: "Vecteurs de vent dans le temps",
+                width: 1000,
+                height: 200,
+                marginLeft: 80,
+                marginRight: 60,
+                marginTop: 40,
+                marginBottom: 80,
+                x: {
+                    type: "time",
+                    label: "Date",
+                    tickFormat: d3.timeFormat("%d/%m"),
+                    grid: true
+                },
+                y: {
+                    label: "Vitesse",
+                    grid: true
+                },
+                color: {
+                    legend: true,
+                    domain: ["wind", "gust"],
+                    range: ["#3498db", "#e74c3c"]
+                },
+                marks: [
+                    // Ligne de référence y=0
+                    Plot.ruleY([0], {stroke: "#bdc3c7", strokeWidth: 1}),
+                    Plot.dot(gustVectors, {x: "date", y: "speed", stroke: "#e74c3c", r:.5}),
+
+                    // Vecteurs de rafales (flèches)
+                    Plot.vector(gustVectors.filter(d => d.speed > 0.01), {
+                        anchor: "start",
+                        x: d => d.date,
+                        y: 0,
+                        rotate: d => d.direction,
+                        length: d => d.speed,
+                        shape: "arrow",
+                        r:1,
+                        stroke: "#e74c3c",
+                        headSize: 6,
+                        strokeWidth: 1,
+                        title: `${d => d.date}\n${d => d.speed} m/s\n${d => d.direction}°`
+                    }),
+
+                    // Vecteurs de vent (flèches)
+                    Plot.vector(gustVectors.filter(d => d.speed > 0.01), Plot.pointerX({
+                        anchor: "start",
+                        x: d => d.date,
+                        y: 0,
+                        rotate: d => d.direction,
+                        length: d => d.speed,
+                        shape: "arrow",
+                        r:1,
+                        stroke: "#3498db",
+                        headSize: 6,
+                        strokeWidth: 1,
+                        title: `${d => d.date}\n${d => d.speed} m/s\n${d => d.direction}°`
+                    })),
+                    // Pointers au survol
+                    Plot.dot(gustVectors, Plot.pointerX({x: "date", y: "speed", stroke: "#e74c3c", r:1})),
+                    Plot.text(gustVectors, Plot.pointerX({
+                        px: "date", py: "speed", dy: -16, dx: 30,
+                        frameAnchor: "top-right",
+                        fontVariant: "tabular-nums",
+                        text: (d) => ` ${d.speed} m/s`
+                    })),
+                    // Points de base pour les vecteurs
+                    Plot.dot(allData, {
+                        x: d => d.date,
+                        y: 0,
+                        r: 3,
+                        fill: d => d.type,
+                        stroke: "white",
+                        strokeWidth: 1,
+                        title: d => d.date
+                    })
+                ]
+            });
+
+            return chart;
+        }
+
+        // Calcul des statistiques
+        function calculateStats(windData) {
+            const windSpeeds = windData.data.Wind.map(d => d.spd).filter(s => s > 0);
+            const gustSpeeds = windData.data.Gust.map(d => d.spd);
+            
+            const avgWind = windSpeeds.length > 0 ? (windSpeeds.reduce((a, b) => a + b, 0) / windSpeeds.length) : 0;
+            const maxGust = Math.max(...gustSpeeds);
+            const avgGust = gustSpeeds.reduce((a, b) => a + b, 0) / gustSpeeds.length;
+            
+            return {
+                avgWind: avgWind.toFixed(2),
+                maxGust: maxGust.toFixed(2),
+                avgGust: avgGust.toFixed(2),
+                totalMeasurements: windData.data.Wind.length
+            };
+        }
+
+        // Affichage des statistiques
+        function displayStats(windData) {
+            const stats = calculateStats(windData);
+            const statsContainer = document.getElementById('stats');
+            
+            statsContainer.innerHTML = `
+                <div class="stat-box">
+                    <div class="stat-value">${stats.avgWind}</div>
+                    <div class="stat-label">Vent moyen (m/s)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">${stats.maxGust}</div>
+                    <div class="stat-label">Rafale max (m/s)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">${stats.avgGust}</div>
+                    <div class="stat-label">Rafale moyenne (m/s)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">${stats.totalMeasurements}</div>
+                    <div class="stat-label">Mesures totales</div>
+                </div>
+            `;
+        }
+
+        // Initialisation
+        async function init() {
+            try {
+                const response = await fetch('http://probe2.lpz.ovh/query/VP2_Serramoune/WindVectors?stepCount=200');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const windData = await response.json();
+
+                const chart = createChart(windData);
+                document.getElementById('wind-chart').appendChild(chart);
+                displayStats(windData);
+            } catch (error) {
+                console.error('Erreur lors de la création du graphique:', error);
+                document.getElementById('wind-chart').innerHTML = 
+                    '<p style="text-align: center; color: #e74c3c;">Erreur lors du chargement du graphique</p>';
+            }
+        }
+
+        // Démarrage une fois le DOM chargé
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

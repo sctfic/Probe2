@@ -337,7 +337,7 @@ exports.getQueryWindVectors = async (req, res) => {
     
     try {
         console.log(`${V.info} Demande de données de vent pour ${stationId}`);
-        const {start, end, intervalSeconds } = await getIntervalSeconds(stationId, 'speed', startDate, endDate, stepCount);
+        const {start, end, intervalSeconds } = await getIntervalSeconds(stationId, 'Wind', startDate, endDate, stepCount);
         console.log(`${V.info} Intervalle calculé: ${intervalSeconds}s pour ${stepCount} étapes`, { start, end });
         const data = await influxdbService.queryWindVectors(stationId, start, end, intervalSeconds);
         let msg = 'Full data loadded !';

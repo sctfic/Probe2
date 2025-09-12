@@ -3,6 +3,7 @@ let currentConditionsData = null;
 let allConditions = []; // Stores all conditions without filter
 let dbSensorList = null;
 let previousValues = {};
+let selectedTiles = new Set();
 
 // --- Dashboard Section: Current Conditions ---
 
@@ -586,7 +587,7 @@ function createConditionTileHTML(item) {
     
     return `
     <div class="condition-tile" data-key="${item.key}">
-        <a href="draw.html?station=${selectedStation.id}&sensor=${item.sensorDb}" class="tile-link" title="Voir le détail du capteur ${item.name}">
+        <a href="Plots.html?station=${selectedStation.id}&sensors=${item.sensorDb}" class="tile-link" title="Voir le détail du capteur ${item.name}">
             <div class="condition-content">
                 <div class="condition-info">
                     <div class="condition-name">${item.name}</div>
@@ -642,3 +643,87 @@ function showConditionsStatus(message, type) {
         }, 3000);
     }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const contextMenu = document.getElementById('custom-context-menu');
+    const compareMenuItem = document.getElementById('compare-selected');
+    const container = document.getElementById('conditions-container');
+
+    if (!container || !contextMenu || !compareMenuItem) {
+        console.warn("Dashboard interaction elements not found.");
+        return;
+    }
+
+    const clearSelection = () => {
+        document.querySelectorAll('.condition-tile.selected').forEach(t => t.classList.remove('selected'));
+        selectedTiles.clear();
+    };
+
+    const hideContextMenu = () => {
+        contextMenu.style.display = 'none';
+    };
+
+    const handleTileClick = (event) => {
+        const tile = event.target.closest('.condition-tile');
+        if (!tile) return;
+
+        if (event.ctrlKey) {
+            event.preventDefault(); // Prevent link navigation on Ctrl+click
+            const key = tile.dataset.key;
+            if (selectedTiles.has(key)) {
+                selectedTiles.delete(key);
+                tile.classList.remove('selected');
+            } else {
+                selectedTiles.add(key);
+                tile.classList.add('selected');
+            }
+        } else {
+            // On a normal click, if the tile is not selected, clear the previous selection.
+            if (!tile.classList.contains('selected')) {
+                clearSelection();
+            }
+        }
+    };
+
+    const handleContextMenu = (event) => {
+        const tile = event.target.closest('.condition-tile');
+        if (!tile || !tile.classList.contains('selected') || selectedTiles.size <= 1) {
+            hideContextMenu();
+            return;
+        }
+
+        event.preventDefault();
+        contextMenu.style.display = 'block';
+        
+        const { clientX: mouseX, clientY: mouseY } = event;
+        const { innerWidth, innerHeight } = window;
+        const { offsetWidth: menuWidth, offsetHeight: menuHeight } = contextMenu;
+
+        contextMenu.style.top = `${mouseY + menuHeight > innerHeight ? mouseY - menuHeight : mouseY}px`;
+        contextMenu.style.left = `${mouseX + menuWidth > innerWidth ? mouseX - menuWidth : mouseX}px`;
+    };
+
+    const compareSelectedItems = () => {
+        if (selectedTiles.size > 1) {
+            const sensorsToCompare = [...selectedTiles]
+                .map(key => allConditions.find(c => c.key === key)?.sensorDb)
+                .filter(sensorDb => sensorDb) // Filter out null/undefined/empty
+                .filter((value, index, self) => self.indexOf(value) === index); // Unique values
+
+            if (sensorsToCompare.length > 0) {
+                const url = `Plots.html?station=${selectedStation.id}&sensors=${sensorsToCompare.join(',')}`;
+                window.open(url, '_blank');
+            } else {
+                alert("Aucun capteur avec historique à comparer parmi la sélection.");
+            }
+        }
+        hideContextMenu();
+    };
+
+    container.addEventListener('click', handleTileClick);
+    container.addEventListener('contextmenu', handleContextMenu);
+    compareMenuItem.addEventListener('click', compareSelectedItems);
+
+    window.addEventListener('click', () => hideContextMenu());
+    document.addEventListener('keydown', (e) => e.key === 'Escape' && (clearSelection(), hideContextMenu()));
+});

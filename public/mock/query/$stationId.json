@@ -4,7 +4,6 @@
     "metadata": {
         "stationId": "VP2_Serramoune",
         "sensor": [
-            "ForecastNum",
             "Gust",
             "Wind",
             "inHumidity",
@@ -19,14 +18,14 @@
             "UV",
             "UVMax"
         ],
-        "queryTime": "2025-09-04T13:21:06.415Z",
-        "first": null,
-        "last": null,
+        "queryTime": "2025-09-11T12:01:40.533Z",
+        "first": "2025-08-27T16:10:00Z",
+        "last": "2025-09-10T19:40:00Z",
         "intervalSeconds": null,
         "count": null,
         "unit": {
             "temperature": {
-                "user": "°C",
+                "user": "°F",
                 "metric": "K",
                 "available_units": {
                     "°C": {
@@ -65,25 +64,25 @@
                 "metric": "m/s",
                 "available_units": {
                     "mph": {
-                        "title": "mph",
+                        "title": "miles par heure",
                         "fnFromMetric": "(ms) => Number((ms*2.23693).toFixed(1))"
                     },
                     "m/s": {
-                        "title": "m/s",
+                        "title": "mètre/secondes",
                         "fnFromMetric": "(ms) => Number(ms.toFixed(1))"
                     },
                     "km/h": {
-                        "title": "km/h",
+                        "title": "kilometre/heure",
                         "fnFromMetric": "(ms) => Number((ms*3.6).toFixed(1))"
                     },
                     "knots": {
-                        "title": "knots",
+                        "title": "nœuds",
                         "fnFromMetric": "(ms) => Number((ms*2.23693).toFixed(1))"
                     }
                 },
                 "sensors": [
-                    "speed",
-                    "gust",
+                    "Wind",
+                    "Gust",
                     "windSpeed",
                     "windSpeedMax",
                     "avgWindSpeed10Min",
@@ -111,7 +110,7 @@
                 ]
             },
             "pressure": {
-                "user": "Bar",
+                "user": "inHg",
                 "metric": "hpa",
                 "available_units": {
                     "inHg": {
@@ -197,8 +196,9 @@
                         "fnFromMetric": "(uv) => Number(uv.toFixed(1))"
                     },
                     "min": {
-                        "title": "temps d'exposition avant un coup de soleil = 210/(UVIndex*exp(uvindex/32))",
-                        "fnFromMetric": "(uv) => Number(Math.min(180, 210/((uv*Math.exp(uv/32)))).toFixed(0))"
+                        "title": "temps d'exposition avant brulure",
+                        "fnFromMetric": "(uv, dem=24) => Number(Math.min(180, (6.5*dem)/((uv*Math.exp(uv/dem)))).toFixed(0))",
+                        "skin": 1
                     }
                 },
                 "sensors": [
@@ -318,22 +318,6 @@
         "toUserUnit": null
     },
     "measurements": {
-        "Forecast": {
-            "tags": {
-                "sensor": [
-                    "ForecastNum"
-                ],
-                "station_id": [
-                    "VP2_Serramoune"
-                ],
-                "unit": [
-                    "ForecastClass"
-                ]
-            },
-            "fields": [
-                "value"
-            ]
-        },
         "direction": {
             "tags": {
                 "sensor": [

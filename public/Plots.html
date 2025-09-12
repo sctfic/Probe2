@@ -2,14 +2,14 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Visualisation des capteurs météo</title>
+    <title>Comparaison de capteurs météo</title>
+    <!-- Observable Plot -->
+    <script src="js/d3.min.js"></script>
+    <script src="js/plot.umd.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/draw.css">
+
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
         
         .container {
             background: white;
@@ -117,39 +117,58 @@
             stroke: none;
         }
         
-        .status {
-            margin-top: 10px;
-            padding: 10px;
-            border-radius: 3px;
-        }
-        
-        .status.loading {
+        .status-absolute.loading {
             background: #d1ecf1;
             color: #0c5460;
         }
         
-        .status.error {
+        .status-absolute.error {
             background: #f8d7da;
             color: #721c24;
         }
         
-        .status.success {
+        .status-absolute.success {
             background: #d4edda;
             color: #155724;
         }
     </style>
+
 </head>
 <body>
-    <div class="container">
-        <div id="status" class="status" style="display: none;"></div>
-        <div id="chart"></div>
-    </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <header class="navbar">
+        <div class="logo">
+            <a href="index.html" title="Retour au dashboard">
+                <img src="img/probe-logo.png" alt="Probe Logo">
+            </a>
+        </div>
+        <h2 id="chart-title">Chargement...</h2>
+        <div>
+            <img id="fullscreenToggleBtn" class="brightness" src="img/Expand.png" alt="fullScreen" style="height: 1.6em; vertical-align: middle;" title="Passer en mode plein écran (F11)">
+        </div>
+    </header>
+
+    <main class="draw-container">
+        <div class="chart-wrapper">
+            <h2>
+                <span>Graphique D3 multi-capteurs</span>
+                <span id="toggleD3ChartBtn" class="toggle-chevron open" title="Masquer le graphique">▶</span>
+            </h2>
+            <div id="d3-chart-container" class="chart-container">
+                <div id="chart"></div>
+            </div>
+        </div>
+    </main>
+    
+    <footer class="footer">
+        <div class="footer-bottom">
+            <p>&copy; 2025 Probe Météo v0.1.35 - Développé par Alban LOPEZ</p>
+        </div>
+    </footer>
     <script>
         // Configuration globale
-        const margin = { top: 20, right: 80, bottom: 40, left: 80 };
-        const width = window.innerWidth - 200;
-        const height = 500;
+        const margin = { top: 10, right: 40, bottom: 20, left: 40 };
+        const width = window.innerWidth - 80;
+        const height = 300;
         const innerWidth = width - margin.left - margin.right;
         const innerHeight = height - margin.top - margin.bottom;
 
@@ -162,21 +181,30 @@
         // Fonction pour afficher le statut
         function showStatus(message, type = 'loading') {
             const statusDiv = document.getElementById('status');
-            statusDiv.textContent = message;
-            statusDiv.className = `status ${type}`;
-            statusDiv.style.display = 'block';
+            console.log(`[STATUS] Affichage: ${type} - ${message}`);
+            if (statusDiv) {
+                statusDiv.textContent = message;
+                statusDiv.className = `status-absolute status-${type}`;
+                statusDiv.style.top = '20px';
+                statusDiv.style.opacity = '1';
+                statusDiv.style.pointerEvents = 'auto';
+            }
         }
 
         function hideStatus() {
-            document.getElementById('status').style.display = 'none';
+            const statusDiv = document.getElementById('status');
+            console.log('[STATUS] Masquage du message.');
+            statusDiv.style.opacity = '0';
+            statusDiv.style.top = '10px';
+            statusDiv.style.pointerEvents = 'none';
         }
 
         // Fonction pour obtenir les paramètres de l'URL
         function getUrlParams() {
             const params = new URLSearchParams(window.location.search);
             return {
-                sensors: params.get('sensors') || 'ET,UV,UVMax,inTemp,outTemp',
-                stepCount: params.get('stepCount') || '30',
+                sensors: params.get('sensors') || 'inTemp,outTemp',
+                stepCount: params.get('stepCount') || 10000,
                 startDate: params.get('startDate') || null,
                 endDate: params.get('endDate') || null
             };
@@ -186,6 +214,10 @@
         function initFromUrl() {
             const params = getUrlParams();
             console.log('Paramètres URL:', params);
+            const titleElement = document.getElementById('chart-title');
+            if (titleElement && params.sensors) {
+                titleElement.textContent = `Comparaison de ${params.sensors}`;
+            }
             loadData(params);
         }
 
@@ -196,7 +228,6 @@
             }
             
             const { sensors, stepCount, startDate, endDate } = params;
-            
             if (!sensors) {
                 showStatus('Veuillez spécifier au moins un capteur dans l\'URL', 'error');
                 return;
@@ -369,7 +400,6 @@
                     d3.axisRight(scaleInfo.scale).tickSize(3);
 
                 const transform = position ? `translate(0,0)` : `translate(${innerWidth},0)`;
-                console.log( unit, 'orientation',scaleInfo.orientation, 'position',scaleInfo.position, 'transform',transform);
                 g.append("g")
                     .attr("class", `axis axis-y axis-${groupName}`)
                     .attr("transform", transform)
@@ -377,7 +407,6 @@
                 
                 // Label de l'axe
                 const labelX = (position ? 0 : innerWidth) + (orientation ?  -20 : 20);
-                console.log(sensor, unit, labelX);
                 g.append("text")
                     .attr("class", "axis-label")
                     .attr("transform", `translate(${labelX},5)`)
@@ -480,7 +509,7 @@
                         // Ajouter la date
                         tooltip.append("text")
                             .attr("x", -58)
-                            .attr("y", -5)
+                            .attr("y", -2)
                             .style("font-size", "11px")
                             .style("font-weight", "bold")
                             .text(d3.timeFormat("%Y-%m-%d %H:%M")(d.datetime));
@@ -588,8 +617,59 @@
             svg.call(zoom);
         }
 
+        function initializeToggleD3ChartButton() {
+            const toggleBtn = document.getElementById('toggleD3ChartBtn');
+            const chartContainer = document.getElementById('d3-chart-container');
+
+            if (!toggleBtn || !chartContainer) return;
+
+            toggleBtn.addEventListener('click', () => {
+                const isHidden = chartContainer.classList.contains('hidden');
+                if (isHidden) {
+                    chartContainer.classList.remove('hidden');
+                    toggleBtn.classList.add('open');
+                    toggleBtn.title = 'Masquer le graphique';
+                } else {
+                    chartContainer.classList.add('hidden');
+                    toggleBtn.classList.remove('open');
+                    toggleBtn.title = 'Afficher le graphique';
+                }
+            });
+        }
+
+        function initializeFullscreenButton() {
+            const fullscreenBtn = document.getElementById('fullscreenToggleBtn');
+            if (!fullscreenBtn) return;
+
+            function updateButtonAppearance() {
+                if (!fullscreenBtn) return; 
+                if (document.fullscreenElement) {
+                    fullscreenBtn.src = 'img/Reduce.png';
+                    fullscreenBtn.title = "Quitter le mode plein écran (Esc)";
+                } else {
+                    fullscreenBtn.src = 'img/Expand.png';
+                    fullscreenBtn.title = "Passer en mode plein écran (F11)";
+                }
+            }
+
+            function toggleFullscreen() {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        showStatus(`Mode plein écran non supporté ou refusé.`, 'warning');
+                    });
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    }
+                }
+            }
+            fullscreenBtn.addEventListener('click', toggleFullscreen);
+            document.addEventListener('fullscreenchange', updateButtonAppearance);
+            updateButtonAppearance(); 
+        }
+
         // Chargement initial
-        window.addEventListener('load', initFromUrl);
+        window.addEventListener('load', () => { initFromUrl(); initializeToggleD3ChartButton(); initializeFullscreenButton(); });
     </script>
 </body>
 </html>
