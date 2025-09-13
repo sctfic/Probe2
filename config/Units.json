@@ -1,6 +1,6 @@
 {
     "temperature": {
-        "user": "°F",
+        "user": "°C",
         "metric": "K",
         "available_units": {
             "°C": {
@@ -85,7 +85,7 @@
         ]
     },
     "pressure": {
-        "user": "inHg",
+        "user": "hpa",
         "metric": "hpa",
         "available_units": {
             "inHg": {
@@ -172,7 +172,7 @@
             },
             "min": {
                 "title": "temps d'exposition avant brulure",
-                "fnFromMetric": "(uv, dem=24) => Number(Math.min(180, (6.5*dem)/((uv*Math.exp(uv/dem)))).toFixed(0))",
+                "fnFromMetric": "(uv, dem=24) => Number(Math.min(180, dem*6.5/((uv*Math.exp(uv/dem)))).toFixed(0))",
                 "skin": 1
             }
         },

@@ -326,17 +326,18 @@ exports.getQueryWindRose = async (req, res) => { // https://observablehq.com/@ju
 };
 
 exports.getQueryWindVectors = async (req, res) => {
-    const { stationId } = req.params;
+    const { stationId, sensorRef='Wind' } = req.params;
     const { startDate, endDate, stepCount = 100 } = req.query;
     
     if (!stationId) {
         return res.status(400).json({ success: false, error: 'Le paramètre stationId est requis.' });
     }
+    if (sensorRef !== 'Wind' && sensorRef !== 'Gust') {sensorRef = 'Wind';}
     
     try {
         console.log(`${V.info} Demande de données de vent pour ${stationId}`);
         const timeInfo = await getIntervalSeconds(stationId, 'speed:Wind', startDate, endDate, stepCount);
-        const data = await influxdbService.queryWindVectors(stationId, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
+        const data = await influxdbService.queryWindVectors(stationId, sensorRef, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
         let msg = 'Full data loadded !';
         if (data.length==stepCount+1 && new Date(data[data.length-1].d).getTime()==timeInfo.end) {
             // data.pop(); // supprimer la derniere valeur, qui est la derniere valeur de la plage avant agregation
@@ -345,6 +346,7 @@ exports.getQueryWindVectors = async (req, res) => {
             msg = '<!> Data missing suspected !';
         }
         const metadata = getMetadata(stationId, ['speed:Wind', 'direction:Gust', 'speed:Gust', 'direction:Wind'], timeInfo, data);
+        metadata.sensor = sensorRef;
         res.json({
             success: true,
             message: msg,

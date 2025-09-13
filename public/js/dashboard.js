@@ -1,4 +1,6 @@
 // Variables for dashboard section
+const API_BASE_URL = 'http://probe2.lpz.ovh/query';
+
 let currentConditionsData = null;
 let allConditions = []; // Stores all conditions without filter
 let dbSensorList = null;
@@ -11,7 +13,6 @@ function mergeData(data) {
     if (data.data['SUN.calc']) {
 
         if (data.data.sunrise && data.data.sunset) {
-            console.log(data.data.sunrise, data.data.sunset)
             const sunrise = data.data.sunrise;
             const fn1 = eval(sunrise.toUserUnit);
             const sunset = data.data.sunset;
@@ -73,7 +74,6 @@ async function fetchCurrentConditions() {
             // Handle the second response (add-conditions)
             if (apiAdditional && apiAdditional.ok) {
                 const additionalData = await apiAdditional.json();
-                console.log('additionalData', additionalData.data);
                 data.data = { ...data.data, ...additionalData.data }; // Merge data
             } else {
                 console.warn('La requête pour les conditions additionnelles a échoué. Aucune donnée additionnelle ne sera ajoutée.');
@@ -82,7 +82,6 @@ async function fetchCurrentConditions() {
             // Handle the third response (query)
             if (apiSensor && apiSensor.ok) {
                 dbSensorList = await apiSensor.json();
-                console.log('dbSensorList', dbSensorList);
             } else {
                 console.error('Erreur de récupération des _field');
             }
@@ -433,8 +432,14 @@ function reorganizeConditionsGrouped(groupBy) {
                     setTimeout(() => {
                         if (item.sensorDb) {
                             const chartId = `chart_${item.key}`;
-                            const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
-                            loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`, item.period);
+                            if (item.sensorDb.startsWith('vector:')) {
+                                const type = item.sensorDb.split(':')[1];
+                                const param = `stepCount=250&startDate=${getStartDate(item.period)}`;
+                                loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindVectors/${type}?${param}`);
+                            } else {
+                                const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
+                                loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`, item.period);
+                            }
                         }
                     }, 50);
                 }
@@ -482,8 +487,14 @@ function reorganizeConditionsList() {
             setTimeout(() => {
                 if (item.sensorDb) {
                     const chartId = `chart_${item.key}`;
-                    const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
-                    loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`, item.period);
+                    if (item.sensorDb.startsWith('vector:')) {
+                        const type = item.sensorDb.split(':')[1];
+                        const param = `stepCount=250&startDate=${getStartDate(item.period)}`;
+                        loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindVectors/${type}?${param}`);
+                    } else {
+                        const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
+                        loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`, item.period);
+                    }
                 }
             }, 50);
         }
@@ -493,7 +504,6 @@ function reorganizeConditionsList() {
 function getBatteryImageAndClass(batteryValue) {
    
     const value = parseFloat(batteryValue);
-    console.log('batteryValue', batteryValue);
     let level, className = '';
     if (value > 102) {
         level = 'missing';
@@ -513,7 +523,6 @@ function getBatteryImageAndClass(batteryValue) {
         level = 0;
         className = 'low-battery';
     }
-    console.log(`Niveau de batterie: ${level} (${className})`);
     return { image: `batterie-${level}.png`, className };
 }
 
@@ -525,7 +534,6 @@ function createConditionTileHTML(item) {
     
     let chartContent = '';
     if (item.key === 'ForecastNum') {
-        console.log(displayValue);
         // Cas spécial pour ForecastIcon - afficher des images météo (pas de lien)
         const weatherImages = displayValue.split(' ');
         chartContent = `
@@ -616,14 +624,20 @@ let date;
     return date.toISOString().split('.')[0] + 'Z';
 }
 
+
 function loadAllCharts() {
     if (!selectedStation || !dbSensorList) return;
-
     allConditions.forEach(item => {
         if (item.sensorDb) {
             const chartId = `chart_${item.key}`;
-            const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
-            loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`, item.period);
+            if (item.sensorDb.startsWith('vector:')) {
+                const type = item.sensorDb.split(':')[1];
+                const param = `stepCount=250&startDate=${getStartDate(item.period)}`;
+                loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindVectors/${type}?${param}`);
+            } else {
+                const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
+                loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`, item.period);
+            }
         }
     });
     console.log(requestCache);

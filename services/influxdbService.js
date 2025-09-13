@@ -526,106 +526,63 @@ function parserWindRose(data) {
 //         "fields": [
 //             "value"
 //         ]
+//     },
+//     "vector": {
+//         "tags": {
+//             "sensor": [
+//                 "Gust",
+//                 "Wind"
+//             ],
+//             "station_id": [
+//                 "VP2_Serramoune"
+//             ],
+//             "unit": [
+//                 "->"
+//             ]
+//         },
+//         "fields": [
+//             "Ux",
+//             "Vy"
+//         ]
 //     }
 // }
 
-async function queryWindVectors(stationId, startDate, endDate, intervalSeconds = 3600) {
+async function queryWindVectors(stationId, sensorRef, startDate, endDate, intervalSeconds = 3600) {
     const fluxQuery = `
         import "math"
-        // Récupérer les données de direction
-        directionData = from(bucket: "${bucket}")
+        from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
             |> filter(fn: (r) => r.station_id == "${stationId}")
-            |> filter(fn: (r) => r._measurement == "direction")
-            |> keep(columns: ["_time", "_value", "sensor"])
-            |> rename(columns: {_value: "direction"})
-        // Récupérer les données de vitesse
-        speedData = from(bucket: "${bucket}")
-            |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
-            |> filter(fn: (r) => r.station_id == "${stationId}")
-            |> filter(fn: (r) => r._measurement == "speed")
-            |> keep(columns: ["_time", "_value", "sensor"])
-            |> rename(columns: {_value: "speed"})
-        // Joindre les données et calculer les projections U et V
-        windData = join(
-            tables: {direction: directionData, speed: speedData},
-            on: ["_time", "sensor"]
-        )
-        |> filter(fn: (r) => exists r.direction and r.direction >= 0.0)
-        |> map(fn: (r) => ({
-            _time: r._time,
-            sensor: r.sensor,
-            direction: r.direction,
-            speed: r.speed,
-            U: r.speed * math.sin(x: math.pi * r.direction / 180.0),
-            V: r.speed * math.cos(x: math.pi * r.direction / 180.0)
-        }))
-        // Calculer séparément les moyennes U et V
-        uMean = windData
-        |> group(columns: ["sensor"])
-        |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, column: "U", createEmpty: false)
-        |> keep(columns: ["_time", "sensor", "U"])
-        |> rename(columns: {U: "UMean"})
-
-        vMean = windData
-        |> group(columns: ["sensor"])
-        |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, column: "V", createEmpty: false)
-        |> keep(columns: ["_time", "sensor", "V"])
-        |> rename(columns: {V: "VMean"})
-
-        // Joindre les moyennes et recalculer vitesse/direction
-        join(tables: {u: uMean, v: vMean}, on: ["_time", "sensor"])
-        |> map(fn: (r) => ({
-            _time: r._time,
-            sensor: r.sensor,
-            UMean: r.UMean,
-            VMean: r.VMean,
-            speedMean: math.sqrt(x: r.UMean * r.UMean + r.VMean * r.VMean),
-            directionMean: math.atan2(y: r.UMean, x: r.VMean) * 180.0 / math.pi
-        }))
-        |> map(fn: (r) => ({
-            r with
-            directionMean: if r.directionMean < 0.0 then r.directionMean + 360.0 else r.directionMean
-        }))
-        |> sort(columns: ["_time", "sensor"])
-        |> yield()
+            |> filter(fn: (r) => r._measurement == "vector" and r.sensor == "${sensorRef}")
+            |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
+            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+            |> map(fn: (r) => {
+                    dir = math.atan2(y: r.Ux, x: r.Vy) * 180.0 / math.pi
+                return {
+                    d: r._time,
+                    Ux: r.Ux,
+                    Vy: r.Vy,
+                    spd: math.sqrt(x: r.Ux * r.Ux + r.Vy * r.Vy),
+                    dir: if dir < 0.0 then dir + 360.0 else dir
+                }
+            })
     `;
     
     try {
         const results = await executeQuery(fluxQuery);
-        return processWindVectorsData(results);
+        return results.map(item => {
+            return {
+                d: item.d,
+                Ux: Math.round(item.Ux * 1000) / 1000,
+                Vy: Math.round(item.Vy * 1000) / 1000,
+                spd: Math.round(item.spd * 10) / 10,
+                dir: Math.round(item.dir)
+            };
+        });
     } catch (error) {
         console.error('Erreur lors de la requête des vecteurs de vent:', error);
         throw error;
     }
-}
-
-
-function processWindVectorsData(data) {
-    // on genere une entree par capteur
-    const processedData = data.map(item => {
-        return {
-            d: item._time,
-            sensor: item.sensor,
-            Ux: Math.round(item.UMean * 1000) / 1000,
-            Vy: Math.round(item.VMean * 1000) / 1000,
-            dir: Math.round(item.directionMean),
-            spd: Math.round(item.speedMean * 100) / 100
-        };
-    });
-
-    // On peut ensuite grouper par capteur
-    const groupedData = processedData.reduce((acc, item) => {
-        const key = item.sensor;
-        if (!acc[key]) {
-            acc[key] = [];
-        }
-        delete item.sensor; // on n'a plus besoin du capteur dans l'item
-        acc[key].push(item);
-        return acc;
-    }, {});
-
-    return groupedData;
 }
 
 

@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="css/station.css">
 <link rel="stylesheet" href="css/settings.css">
 <script src="js/miniPlot.js"></script>
+<script src="js/miniVectors.js"></script>
 <script src="js/sensorsMap.js"></script>
 </head>
 <body>
@@ -86,7 +87,6 @@
     </div>
 <main id="content-container" class="content-container">
     <section id="dashboard-section" class="content-section active">
-        
         <!-- Contrôles de filtre réorganisés -->
         <div class="conditions-controls">
             <div class="filter-group">
@@ -171,24 +171,86 @@
 
         // --- Gestion de l'URL et de l'historique ---
         
-        function updateURL(sectionId) {
+        function updateURL(sectionId, params = {}, replace = false) {
             const sectionName = sectionMap[sectionId];
             if (sectionName) {
-                const newUrl = `${window.location.origin}${window.location.pathname}#${sectionName}`;
-                history.pushState({ section: sectionName }, '', newUrl);
+                let hash = sectionName;
+                const queryParams = [];
+                for (const key in params) {
+                    const value = params[key];
+                    if (value) { // N'ajoute que les paramètres non vides
+                        queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+                    }
+                }
+                if (queryParams.length > 0) {
+                    hash += `?${queryParams.join('&')}`;
+                }
+                const newUrl = `${window.location.pathname}#${hash}`;
+                const state = { section: sectionName, params };
+
+                // Utilise replaceState pour les changements fréquents (filtre) pour ne pas polluer l'historique
+                if (replace) {
+                    history.replaceState(state, '', newUrl);
+                } else {
+                    history.pushState(state, '', newUrl);
+                }
+            }
+        }
+
+        function updateDashboardURL(replace = false) {
+            if (sections[currentIndex].id === 'dashboard-section') {
+                const params = {
+                    station: globalStationSelect.value,
+                    filter: document.getElementById('conditions-filter').value,
+                    group: document.getElementById('conditions-group').value
+                };
+                updateURL('dashboard-section', params, replace);
             }
         }
 
         function loadFromURL() {
-            const hash = window.location.hash.slice(1); // Enlever le #
-            if (hash && reverseSectionMap[hash]) {
-                const sectionId = reverseSectionMap[hash];
+            const hash = window.location.hash.slice(1) || 'dashboard';
+            const [sectionName, query] = hash.split('?');
+            const params = new URLSearchParams(query);
+
+            if (sectionName && reverseSectionMap[sectionName]) {
+                const sectionId = reverseSectionMap[sectionName];
                 const sectionIndex = Array.from(sections).findIndex(section => section.id === sectionId);
                 if (sectionIndex !== -1) {
                     currentIndex = sectionIndex;
-                    updateView(false); // false = ne pas mettre à jour l'URL
                 }
             }
+
+            // Appliquer les paramètres du dashboard depuis l'URL
+            const urlStation = params.get('station');
+            const urlFilter = params.get('filter');
+            const urlGroup = params.get('group');
+
+            if (urlFilter) {
+                document.getElementById('conditions-filter').value = urlFilter;
+            }
+            if (urlGroup) {
+                document.getElementById('conditions-group').value = urlGroup;
+            }
+
+            let stationToSelect = null;
+            if (urlStation && globalStations.some(s => s.id === urlStation)) {
+                stationToSelect = urlStation;
+            } else if (globalStations.length > 0) {
+                stationToSelect = globalStations[0].id;
+            }
+
+            if (stationToSelect) {
+                globalStationSelect.value = stationToSelect;
+                // Mettre à jour manuellement l'état de la station sélectionnée
+                selectedStation = globalStations.find(s => s.id === stationToSelect) || null;
+                if (selectedStation) {
+                    stationInfo.textContent = `${selectedStation.location} (${selectedStation.host}:${selectedStation.port})`;
+                    updateAllSectionInfo();
+                }
+            }
+
+            updateView(false); // Mettre à jour la vue sans modifier l'URL
         }
 
         // Écouter les changements d'URL (bouton retour du navigateur)
@@ -199,7 +261,7 @@
                     const sectionIndex = Array.from(sections).findIndex(section => section.id === sectionId);
                     if (sectionIndex !== -1) {
                         currentIndex = sectionIndex;
-                        updateView(false);
+                        loadFromURL(); // Recharger l'état complet depuis l'URL
                     }
                 }
             } else {
@@ -243,11 +305,7 @@
                 globalStationSelect.appendChild(option);
             });
 
-            // Sélectionner automatiquement la première station si disponible
-            if (globalStations.length > 0) {
-                globalStationSelect.value = globalStations[0].id;
-                onStationChange();
-            }
+            // La station sera sélectionnée par loadFromURL
         }
 
         function onStationChange() {
@@ -258,6 +316,7 @@
                 stationInfo.textContent = `${selectedStation.location} (${selectedStation.host}:${selectedStation.port})`;
                 updateAllSectionInfo();
                 refreshActiveSection();
+                updateDashboardURL(); // Mettre à jour l'URL avec la nouvelle station
             } else {
                 stationInfo.textContent = '';
                 clearAllSectionInfo();
@@ -344,6 +403,7 @@
                     updateView();
                     setTimeout(() => { contentContainer.style.transition = ''; }, 300);
                 }
+                updateDashboardURL();
             });
         });
 
@@ -404,21 +464,27 @@
         const conditionsGroup = document.getElementById('conditions-group');
 
         if (conditionsFilter) {
-            conditionsFilter.addEventListener('input', applyCurrentFilter);
+            let filterTimeout;
+            conditionsFilter.addEventListener('input', () => {
+                applyCurrentFilter();
+                clearTimeout(filterTimeout);
+                // Utilise un debounce pour ne pas surcharger l'historique du navigateur
+                filterTimeout = setTimeout(() => updateDashboardURL(true), 300);
+            });
         }
 
         if (conditionsGroup) {
             conditionsGroup.addEventListener('change', () => {
                 displayConditions();
                 applyCurrentFilter();
+                updateDashboardURL();
             });
         }
 
         // --- Initialisation ---
-        
-        loadGlobalStations();
-        loadFromURL(); // Charger la section depuis l'URL
-        updateView(false); // Initialiser sans mettre à jour l'URL
+        loadGlobalStations().then(() => {
+            loadFromURL(); // Charger l'état complet depuis l'URL (y compris la station)
+        });
     });
 
 </script>

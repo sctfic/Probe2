@@ -4,6 +4,7 @@ const router = express.Router();
 const { loadStationConfig, withStationLamps } = require('../middleware/stationMiddleware');
 const stationController = require('../controllers/stationController');
 const additionalController = require('../controllers/additionalController');
+const V = require('../utils/icons');
 
 // Middleware pour toutes les routes de stations
 router.use('/:stationId', loadStationConfig);

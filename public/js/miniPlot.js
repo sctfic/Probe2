@@ -1,5 +1,4 @@
 // Configuration globale
-const API_BASE_URL = 'http://probe2.lpz.ovh/query';
 const CACHE_DURATION = 10000; // 10 secondes en millisecondes
 
 // Cache pour stocker les promesses et les réponses
