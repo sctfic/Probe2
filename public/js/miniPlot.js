@@ -162,7 +162,6 @@ async function fetchWithCache(url) {
             if (!apiResponse.success) {
                 throw new Error(apiResponse.message || 'Erreur inconnue de l\'API');
             }
-            
             // Mettre à jour le cache avec la réponse résolue
             requestCache.set(url, {
                 timestamp: Date.now(),
@@ -176,7 +175,6 @@ async function fetchWithCache(url) {
         .catch(error => {
             // En cas d'erreur, supprimer l'entrée du cache
             requestCache.delete(url);
-            console.error(`Request failed for: ${url}`, error);
             throw error;
         });
     
@@ -207,8 +205,8 @@ async function loadData(id, url, period) {
         createPlot(plotData, apiResponse.metadata, id, period);
         
     } catch (error) {
-        console.error('Erreur lors du chargement:', error);
-        console.error('URL:', url);
+        // console.error('Erreur lors du chargement:', error);
+        // console.error('URL:', url);
     }
 }
 

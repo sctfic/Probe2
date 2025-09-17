@@ -1,11 +1,11 @@
 // DEM values for different skin types
 const SKIN_TYPES = {
-    1: { name: "Type 1", description: "Brûle rapidement et ne bronze pas. Peau très claire avec des taches de rousseur, cheveux roux ou blonds, yeux clairs.", dem: 24 },
+    1: { name: "Type 1", description: "Brûle rapidement et ne bronze pas. Peau très claire avec des taches de rousseur, cheveux roux ou blonds, yeux clairs.", dem: 18 },
     2: { name: "Type 2", description: "Brûle facilement et bronze lentement. Peau claire, cheveux blonds, yeux clairs.", dem: 32 },
-    3: { name: "Type 3", description: "Brûle rarement et bronze facilement. Peau légèrement mate, cheveux châtain/bruns, yeux foncés.", dem: 40 },
-    4: { name: "Type 4", description: "Brûle très rarement et bronze bien. Peau mate, cheveux foncés, yeux foncés, de type méditerranéen.", dem: 48 },
-    5: { name: "Type 5", description: "Peau asiatique, très résistante au soleil.", dem: 64 },
-    6: { name: "Type 6", description: "Peau noire, extrêmement résistante au soleil.", dem: 80 }
+    3: { name: "Type 3", description: "Brûle rarement et bronze facilement. Peau légèrement mate, cheveux châtain/bruns, yeux foncés.", dem: 46 },
+    4: { name: "Type 4", description: "Brûle très rarement et bronze bien. Peau mate, cheveux foncés, yeux foncés, de type méditerranéen.", dem: 60 },
+    5: { name: "Type 5", description: "Peau asiatique, très résistante au soleil.", dem: 76 },
+    6: { name: "Type 6", description: "Peau noire, extrêmement résistante au soleil.", dem: 98 }
 };
 
 // Catégories d'unités avec leurs icônes et descriptions
@@ -274,7 +274,7 @@ async function handleUnitsFormSubmit(event) {
                 // Traitement spécial pour le type de peau UV
                 if (updatedSettings.uv && updatedSettings.uv.available_units && updatedSettings.uv.available_units.min) {
                     updatedSettings.uv.available_units.min.skin = skin_type;
-                    updatedSettings.uv.available_units.min.fnFromMetric = `(uv, dem=${SKIN_TYPES[skin_type].dem}) => Number(Math.min(180, dem*6.5/((uv*Math.exp(uv/dem)))).toFixed(0))`;
+                    updatedSettings.uv.available_units.min.fnFromMetric = `(uv, dem=${SKIN_TYPES[skin_type].dem}) => Number(Math.min(300, dem*6.5/((uv*Math.exp(uv/dem)))).toFixed(0))`;
                 }
             } else if (updatedSettings[key]) {
                 updatedSettings[key].user = value;

@@ -86,12 +86,6 @@
             marker-end: url(#arrowhead);
         }
         
-        .hair2 {
-            stroke: #e74c3c;
-            stroke-width: 1.5;
-            marker-end: url(#arrowheadGust);
-        }
-        
         .arrow:hover .hair {
             stroke: #E6550D;
             stroke-width: 3;
@@ -171,12 +165,11 @@
 
     <script>
         let windPoints = [];
-        let gustPoints = [];
         let allData = [];
 
         // Variables globales pour le graphique
         let svg, g, xScale, yScale, xAxis, yAxis, sensitive, zoomBehavior;
-        const margin = {top: 20, right: 60, bottom: 60, left: 60};
+        const margin = {top: 10, right: 30, bottom: 30, left: 30};
         const width = 1200 - margin.left - margin.right;
         const height = 300 - margin.top - margin.bottom;
         const vectorScale = 50; // Facteur d'échelle pour la longueur des vecteurs
@@ -208,19 +201,6 @@
                 .attr("orient", "auto")
                 .append("polygon")
                 .attr("fill", "#3182bd")
-                .attr("points", "0,0 -2,-2 5,0 -2,2");
-
-            defs.append("marker")
-                .attr("id", "arrowheadGust")
-                .attr("refX", 0)
-                .attr("refY", 0)
-                .attr("viewBox", "-5 -5 10 10")
-                .attr("markerUnits", "strokeWidth")
-                .attr("markerWidth", 6)
-                .attr("markerHeight", 6)
-                .attr("orient", "auto")
-                .append("polygon")
-                .attr("fill", "#e74c3c")
                 .attr("points", "0,0 -2,-2 5,0 -2,2");
 
             defs.append("marker")
@@ -276,23 +256,6 @@
                     .attr("display", d => (d.date >= xExtent[0] && d.date <= xExtent[1]) ? 'inline' : 'none')
                     .append("title")
                     .text(d => `Vent moyen: ${d.spd.toFixed(2)} m/s\nDirection: ${d.dir}°\nDate: ${d.date.toLocaleDateString()}`);
-
-                // Vecteurs de rafales
-                g.selectAll(".gust-arrow").remove(); // Redessin simple
-                g.selectAll(".gust-arrow")
-                    .data(gustPoints)
-                    .enter()
-                    .append("g")
-                    .attr("class", "gust-arrow arrow")
-                    .append("line")
-                    .attr("class", "hair2")
-                    .attr("x1", d => currentXScale(d.date))
-                    .attr("y1", yScale(0))
-                    .attr("x2", d => currentXScale(d.date) + d.Ux * vectorScale)
-                    .attr("y2", d => yScale(d.Vy))
-                    .attr("display", d => (d.date >= xExtent[0] && d.date <= xExtent[1]) ? 'inline' : 'none')
-                    .append("title")
-                    .text(d => `Rafale: ${d.spd.toFixed(2)} m/s\nDirection: ${d.dir}°\nDate: ${d.date.toLocaleDateString()}`);
             }
 
             // Fonction de dessin des axes (inspirée du code original)
@@ -348,12 +311,10 @@
             // Mise à jour du graphique avec de nouvelles données
             window.updateChart = function(windData) {
                 const timeFormat = d3.timeParse("%Y-%m-%dT%H:%M:%SZ");
-                windPoints = windData.data.Wind.map(d => ({date: timeFormat(d.d), ...d}));
-                gustPoints = windData.data.Gust.map(d => ({date: timeFormat(d.d), ...d}));
-                allData = [...windPoints, ...gustPoints];
+                windPoints = windData.data.map(d => ({date: timeFormat(d.d), ...d}));
 
-                xScale.domain(d3.extent(allData, d => d.date));
-                yScale.domain(d3.extent(allData, d => d.Vy));
+                xScale.domain(d3.extent(windPoints, d => d.date));
+                yScale.domain(d3.extent(windPoints, d => d.Vy));
 
                 // Réinitialise l'état du zoom sans déclencher d'événement pour éviter une boucle
                 sensitive.node().__zoom = d3.zoomIdentity;
@@ -365,7 +326,7 @@
 
         async function loadDataAndUpdate(startDate, endDate) {
             try {
-                let url = `http://probe2.lpz.ovh/query/VP2_Serramoune/WindVectors?stepCount=200`;
+                let url = `http://probe2.lpz.ovh/query/VP2_Serramoune/WindVectors?stepCount=300`;
                 if (startDate) url += `&startDate=${startDate.toISOString()}`;
                 if (endDate) url += `&endDate=${endDate.toISOString()}`;
 
@@ -386,16 +347,13 @@
 
         // Calcul des statistiques
         function displayStats(windData) {
-            if (!windData || !windData.data || !windData.data.Wind) {
+            if (!windData || !windData.data) {
                 document.getElementById('stats').innerHTML = '';
                 return;
             }
-            const windSpeeds = windData.data.Wind.map(d => d.spd).filter(s => s > 0);
-            const gustSpeeds = windData.data.Gust.map(d => d.spd);
+            const windSpeeds = windData.data.map(d => d.spd).filter(s => s > 0);
             
             const avgWind = windSpeeds.length > 0 ? (windSpeeds.reduce((a, b) => a + b, 0) / windSpeeds.length) : 0;
-            const maxGust = gustSpeeds.length > 0 ? Math.max(...gustSpeeds) : 0;
-            const avgGust = gustSpeeds.length > 0 ? gustSpeeds.reduce((a, b) => a + b, 0) / gustSpeeds.length : 0;
             
             document.getElementById('stats').innerHTML = `
                 <div class="stat-box">
@@ -403,15 +361,7 @@
                     <div class="stat-label">Vent moyen (m/s)</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-value">${maxGust.toFixed(2)}</div>
-                    <div class="stat-label">Rafale max (m/s)</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-value">${avgGust.toFixed(2)}</div>
-                    <div class="stat-label">Rafale moyenne (m/s)</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-value">${windData.data.Wind.length}</div>
+                    <div class="stat-value">${windData.data.length}</div>
                     <div class="stat-label">Mesures totales</div>
                 </div>
             `;

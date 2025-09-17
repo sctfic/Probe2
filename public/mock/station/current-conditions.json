@@ -151,7 +151,7 @@
             "Value": 3.2,
             "Unit": "index",
             "userUnit": "min",
-            "toUserUnit": "(uv) => Number(Math.min(180, 210/((uv*Math.exp(uv/32)))).toFixed(0))"
+            "toUserUnit": "(uv, dem=24) => Number(Math.min(300, (6.5*dem)/((uv*Math.exp(uv/dem)))).toFixed(0))"
         },
         "solarRadiation": {
             "Value": 547,

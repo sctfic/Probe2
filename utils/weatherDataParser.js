@@ -295,7 +295,7 @@ const conversionTable = {
     },
     uv: {
         'index': (uv) => uv ,
-        'min': (uv, dem=24) => Number(Math.min(180, 210/((uv*Math.exp(uv/dem)))).toFixed(0))
+        'min': (uv, dem=24) => Number(Math.min(300, (6.5*dem)/((uv*Math.exp(uv/dem)))).toFixed(0))
         // temps d'exposition avant un coup de soleil = (DEM*6.5)/(UVIndex*exp(uvindex/DEM))
         // DEM (Dose Erythemale Minimal) = 32 mJ/cm² peau claire de Type 2, (type 6 = noire)
     },

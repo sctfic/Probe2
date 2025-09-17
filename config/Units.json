@@ -172,8 +172,8 @@
             },
             "min": {
                 "title": "temps d'exposition avant brulure",
-                "fnFromMetric": "(uv, dem=24) => Number(Math.min(180, dem*6.5/((uv*Math.exp(uv/dem)))).toFixed(0))",
-                "skin": 1
+                "fnFromMetric": "(uv, dem=32) => Number(Math.min(180, dem*6.5/((uv*Math.exp(uv/dem)))).toFixed(0))",
+                "skin": 2
             }
         },
         "sensors": [

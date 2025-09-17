@@ -257,12 +257,15 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate) {
     `;
 
     const result = await executeQuery(query);
+    if (!result || result.length === 0 || result[0].count === 0) {
+        return { firstUtc: null, lastUtc: null, count: 0, unit: '' };
+    }
     const data = result[0];
 
     return {
         firstUtc: data.min_time,
         lastUtc: data.max_time,
-        count: data.count-1,
+        count: data.count,
         unit: data.unit
     };
 }

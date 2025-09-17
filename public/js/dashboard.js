@@ -1,11 +1,26 @@
 // Variables for dashboard section
 const API_BASE_URL = 'http://probe2.lpz.ovh/query';
+const STORAGE_KEY_ORDER = 'dashboardTileOrder';
 
 let currentConditionsData = null;
 let allConditions = []; // Stores all conditions without filter
 let dbSensorList = null;
 let previousValues = {};
 let selectedTiles = new Set();
+
+function saveCustomOrder() {
+    if (!selectedStation) return;
+    const order = Object.fromEntries(allConditions.map(item => [item.key, item.customOrder]));
+    console.log(`[DND] Saving custom order for station ${selectedStation.id}:`, order);
+    localStorage.setItem(`${STORAGE_KEY_ORDER}_${selectedStation.id}`, JSON.stringify(order));
+}
+
+function loadCustomOrder() {
+    if (!selectedStation) return {};
+    const order = JSON.parse(localStorage.getItem(`${STORAGE_KEY_ORDER}_${selectedStation.id}`) || '{}');
+    console.log(`[DND] Loaded custom order for station ${selectedStation.id}:`, order);
+    return order;
+}
 
 // --- Dashboard Section: Current Conditions ---
 
@@ -114,12 +129,17 @@ function processAndDisplayConditions() {
         initializePreviousValues();
     }
 
+    const customOrder = loadCustomOrder();
+    let maxOrder = 0;
+
     // Convertir les données en tableau et exclure certains champs
     const excludeKeys = ['datagramme', 'timestamp'];
     allConditions = Object.entries(currentConditionsData)
         .filter(([key]) => !excludeKeys.includes(key))
         .map(([key, data]) => {
             const sensorInfo = sensorMap[key] || {};
+            const order = customOrder[key];
+            if (order !== undefined && order > maxOrder) maxOrder = order;
             return {
                 key,
                 name: sensorInfo.label || data.label,
@@ -130,12 +150,24 @@ function processAndDisplayConditions() {
                 measurement: sensorInfo.measurement || 'unknown',
                 groupUsage: sensorInfo.groupUsage || '0',
                 groupCustom: sensorInfo.groupCustom || 0,
-                period: sensorInfo.period || '3d',
-                sensorDb: sensorInfo.sensorDb || key,
+                customOrder: order,
+                period: sensorInfo.period || '7d',
+                sensorDb: sensorInfo.sensorDb,
                 searchText: [sensorInfo.label, key, data.label, String(data.Value), data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
             };
         });
 
+    // Assign order to new items and ensure uniqueness
+    let usedOrders = new Set(allConditions.map(item => item.customOrder).filter(o => o !== undefined));
+    allConditions.forEach(item => {
+        if (item.customOrder === undefined) {
+            while (usedOrders.has(++maxOrder)) {}
+            item.customOrder = maxOrder;
+            usedOrders.add(item.customOrder);
+        }
+    });
+
+    console.log('[DND] Conditions with custom order before sort:', allConditions.map(i => ({key: i.key, order: i.customOrder})));
     console.log('allConditions', allConditions);
     // Afficher les conditions selon le groupement
     displayConditions();
@@ -216,11 +248,18 @@ function updateConditionsStats(visibleCount) {
 function displayConditions() {
     const groupBy = document.getElementById('conditions-group')?.value || 'unit';
     
+    allConditions.sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0));
+    console.log('[DND] Sorted conditions by customOrder:', allConditions.map(i => i.key));
+
     if (groupBy === 'none') {
         reorganizeConditionsList();
+        initDragAndDrop();
     } else {
         reorganizeConditionsGrouped(groupBy);
+        deinitDragAndDrop();
     }
+
+    applyCurrentFilter();
 }
 
 // Fonction pour détecter si le changement est majeur
@@ -418,6 +457,7 @@ function reorganizeConditionsGrouped(groupBy) {
     // Réinsérer les tuiles dans les bons groupes
     Object.entries(groupedData).forEach(([groupName, items]) => {
         const groupGrid = conditionsContainer.querySelector(`[data-group="${groupName}"]`);
+        items.sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0));
         if (groupGrid) {
             items.forEach(item => {
                 if (existingTiles[item.key]) {
@@ -428,20 +468,7 @@ function reorganizeConditionsGrouped(groupBy) {
                     const tileElement = document.createElement('div');
                     tileElement.innerHTML = createConditionTileHTML(item);
                     groupGrid.appendChild(tileElement.firstElementChild);
-                    // Charger le graphique pour cette nouvelle tuile
-                    setTimeout(() => {
-                        if (item.sensorDb) {
-                            const chartId = `chart_${item.key}`;
-                            if (item.sensorDb.startsWith('vector:')) {
-                                const type = item.sensorDb.split(':')[1];
-                                const param = `stepCount=250&startDate=${getStartDate(item.period)}`;
-                                loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindVectors/${type}?${param}`);
-                            } else {
-                                const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
-                                loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`, item.period);
-                            }
-                        }
-                    }, 50);
+                    setTimeout(() => loadChartForItem(item), 50);
                 }
             });
         }
@@ -477,26 +504,13 @@ function reorganizeConditionsList() {
     allConditions.forEach(item => {
         if (existingTiles[item.key]) {
             updateExistingTile(existingTiles[item.key], item);
-            grid.appendChild(existingTiles[item.key]);
+            grid.appendChild(existingTiles[item.key]); // existingTiles[item.key] is already a DOM element
         } else {
             // Créer une nouvelle tuile
             const tileElement = document.createElement('div');
             tileElement.innerHTML = createConditionTileHTML(item);
             grid.appendChild(tileElement.firstElementChild);
-            // Charger le graphique pour cette nouvelle tuile
-            setTimeout(() => {
-                if (item.sensorDb) {
-                    const chartId = `chart_${item.key}`;
-                    if (item.sensorDb.startsWith('vector:')) {
-                        const type = item.sensorDb.split(':')[1];
-                        const param = `stepCount=250&startDate=${getStartDate(item.period)}`;
-                        loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindVectors/${type}?${param}`);
-                    } else {
-                        const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
-                        loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`, item.period);
-                    }
-                }
-            }, 50);
+            setTimeout(() => loadChartForItem(item), 50);
         }
     });
 }
@@ -527,8 +541,8 @@ function getBatteryImageAndClass(batteryValue) {
 }
 
 function createConditionTileHTML(item) {
-    let displayValue = item.value;
-    let metaInfo = '';
+    const displayValue = item.value;
+    const metaInfo = '';
     let unitDisplay = item.userUnit ? `<span class="condition-unit">${item.userUnit}</span>` : '';
     const fn = eval(item.fnToUserUnit || 'x => x');
     
@@ -548,7 +562,7 @@ function createConditionTileHTML(item) {
         `;
         unitDisplay = '';
         return `
-            <div class="condition-tile" data-key="${item.key}">
+            <div class="condition-tile" data-key="${item.key}" draggable="false">
                 <div class="condition-content">
                     <div class="condition-info">
                         <div class="condition-name">${item.name}</div>
@@ -594,7 +608,7 @@ function createConditionTileHTML(item) {
     }
     
     return `
-    <div class="condition-tile" data-key="${item.key}">
+    <div class="condition-tile" data-key="${item.key}" draggable="false">
         <a href="Plots.html?station=${selectedStation.id}&sensors=${item.sensorDb}" class="tile-link" title="Voir le détail du capteur ${item.name}">
             <div class="condition-content">
                 <div class="condition-info">
@@ -627,20 +641,24 @@ let date;
 
 function loadAllCharts() {
     if (!selectedStation || !dbSensorList) return;
-    allConditions.forEach(item => {
-        if (item.sensorDb) {
-            const chartId = `chart_${item.key}`;
-            if (item.sensorDb.startsWith('vector:')) {
-                const type = item.sensorDb.split(':')[1];
-                const param = `stepCount=250&startDate=${getStartDate(item.period)}`;
-                loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindVectors/${type}?${param}`);
-            } else {
-                const param = `stepCount=${item.measurement === 'rain' ? 24 : 246}&startDate=${getStartDate(item.period)}`;
-                loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${param}`, item.period);
-            }
-        }
-    });
+    allConditions.forEach(loadChartForItem);
     console.log(requestCache);
+}
+
+function loadChartForItem(item) {
+    if (!item.sensorDb) return;
+    const chartId = `chart_${item.key}`;
+    const start = `startDate=${getStartDate(item.period)}`;
+    const count = `stepCount=${item.measurement === 'rain' ? 24 : 246}`;
+    if (item.sensorDb.startsWith('vector:')) {
+        const sensorRef = item.sensorDb.substring('vector:'.length);
+        loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindVectors/${sensorRef}?${count}&${start}`, item.period);
+    } else if (item.sensorDb.startsWith('rose:')) {
+        const sensorRef = item.sensorDb.substring('rose:'.length);
+        loadRosePlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindRose/${sensorRef}?${count}&${start}`, item.period);
+    } else {
+        loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${count}&${start}`, item.period);
+    }
 }
 
 function showConditionsStatus(message, type) {
@@ -656,6 +674,87 @@ function showConditionsStatus(message, type) {
             statusEl.style.display = 'none';
         }, 3000);
     }
+}
+
+let dragKey = null;
+let draggedDOMElement = null;
+
+function handleDragStart(e) {
+    const tile = e.target.closest('.condition-tile');
+    if (!tile) return;
+    draggedDOMElement = tile; // Keep a direct reference to the DOM element
+    dragKey = tile.dataset.key;
+    e.dataTransfer.setData('text/plain', dragKey);
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => {
+        tile.classList.add('dragging');
+    }, 0);
+}
+
+function handleDragEnd(e) {
+    if (draggedDOMElement) {
+        draggedDOMElement.classList.remove('dragging');
+    }
+    draggedDOMElement = null;
+    dragKey = null;
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    const targetTile = e.target.closest('.condition-tile');
+    if (!targetTile || targetTile === draggedDOMElement) return;
+    
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    targetTile.classList.add('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    const targetTile = e.target.closest('.condition-tile');
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    if (!targetTile || !draggedDOMElement || targetTile === draggedDOMElement) {
+        return;
+    }
+
+    const targetKey = targetTile.dataset.key;
+
+    const draggedItemIndex = allConditions.findIndex(c => c.key === dragKey);
+    const targetItemIndex = allConditions.findIndex(c => c.key === targetKey);
+
+    if (draggedItemIndex === -1 || targetItemIndex === -1) return; // Should not happen if dragKey is set
+
+    const [draggedItem] = allConditions.splice(draggedItemIndex, 1);
+    allConditions.splice(targetItemIndex, 0, draggedItem);
+
+    allConditions.forEach((item, index) => item.customOrder = index);
+    console.log('[DND] New order after drop:', allConditions.map(item => `${item.key}: ${item.customOrder}`));
+    saveCustomOrder();
+
+    // Reorder the DOM element directly instead of a full redraw
+    targetTile.parentNode.insertBefore(draggedDOMElement, targetTile);
+}
+
+function initDragAndDrop() {
+    const container = document.getElementById('conditions-container');
+    if (!container) return;
+    container.classList.add('sortable');
+    container.querySelectorAll('.condition-tile').forEach(tile => tile.setAttribute('draggable', 'true'));
+    container.addEventListener('dragstart', handleDragStart);
+    container.addEventListener('dragend', handleDragEnd);
+    container.addEventListener('dragover', handleDragOver);
+    container.addEventListener('drop', handleDrop);
+}
+
+function deinitDragAndDrop() {
+    const container = document.getElementById('conditions-container');
+    if (!container) return;
+    container.classList.remove('sortable');
+    container.querySelectorAll('.condition-tile').forEach(tile => tile.setAttribute('draggable', 'false'));
+    container.removeEventListener('dragstart', handleDragStart);
+    container.removeEventListener('dragend', handleDragEnd);
+    container.removeEventListener('dragover', handleDragOver);
+    container.removeEventListener('drop', handleDrop);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

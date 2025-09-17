@@ -11,6 +11,19 @@
 <link rel="stylesheet" href="css/newStation.css">
 <link rel="stylesheet" href="css/dashboard.css">
 <link rel="stylesheet" href="css/station.css">
+<style>
+    /* Styles pour le drag & drop */
+    .conditions-container.sortable .condition-tile {
+        cursor: move;
+    }
+    .condition-tile.dragging {
+        opacity: 0.5;
+        border: 2px dashed #007bff;
+    }
+    .condition-tile.drag-over {
+        border-left: 3px solid #007bff;
+    }
+</style>
 <link rel="stylesheet" href="css/settings.css">
 <script src="js/miniPlot.js"></script>
 <script src="js/miniVectors.js"></script>
@@ -99,7 +112,7 @@
                     <option value="measurement">Regroupement par Type de mesure</option>
                     <option value="groupCustom">Regroupement Personnel</option>
                     <option value="sensorDb">Regroupement par Type d'historique</option>
-                    <option value="none">Aucun regroupement</option>
+                    <option value="none">Custom Order (Drag & Drop)</option>
                 </select>
             </div>
         </div>

@@ -9,7 +9,7 @@ const stationMiddleware = require('../middleware/stationMiddleware');
 // Generic function to handle errors
 const handleError = (res, stationId, error, controllerName) => {
     console.error(`${V.error} Erreur dans ${controllerName} pour ${stationId}:`, error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
         success: false,
         stationId: stationId || 'unknown',
         error: error.message
@@ -20,15 +20,23 @@ async function getIntervalSeconds(stationId, sensorRef, startDate, endDate, step
     // 1. Récupère la plage de dates réelle des données
 
     const dateRange = await influxdbService.queryDateRange(stationId, sensorRef, startDate, endDate);
+
+    if (!dateRange.firstUtc) {
+        const err = new Error('Aucune donnée trouvée dans la plage de dates spécifiée.');
+        err.statusCode = 404; // Not Found
+        throw err;
+    }
+
     // 2. Utilise les dates effectives ou celles fournies
     const startTime = new Date(dateRange.firstUtc);
     const endTime = new Date(dateRange.lastUtc);
     // 3. Calcule l'intervalle optimal
     const totalSeconds  = (endTime.getTime() - startTime.getTime()) / 1000;
+    const interval = Math.max(1, Math.round(totalSeconds / parseInt(stepCount)));
     return {
         start: startTime.toISOString().replace('.000Z', 'Z'),
         end: endTime.toISOString().replace('.000Z', 'Z'),
-        intervalSeconds: Math.round(totalSeconds / parseInt(stepCount))
+        intervalSeconds: interval
     };
 };
 
@@ -95,7 +103,7 @@ exports.getQueryRange = async (req, res) => {
                 queryTime: new Date().toISOString(),
                 first: data.firstUtc ? new Date(data.firstUtc).toISOString() : null,
                 last: data.lastUtc ? new Date(data.lastUtc).toISOString() : null,
-                intervalSeconds: data.count > 0 ? Math.round((new Date(data.lastUtc).getTime() - new Date(data.firstUtc).getTime()) / data.count)/1000 : null,
+                intervalSeconds: data.count > 1 ? Math.round((new Date(data.lastUtc).getTime() - new Date(data.firstUtc).getTime()) / (data.count - 1))/1000 : null,
                 count: data.count,
                 unit: data.unit || '',
                 userUnit: units?.[type]?.user || '',

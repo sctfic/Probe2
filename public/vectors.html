@@ -116,40 +116,19 @@
     <script>
         // Préparation des données pour Plot
         function prepareData(windData) {
-            console.log(windData);
             const windVectors = [];
             const gustVectors = [];
 
             // Traitement des données de vent
             windData.data.Wind.forEach(d => {
                 const date = new Date(d.d);
-                if (d.Ux !== 0 || d.Vy !== 0) { // Ignorer les vecteurs nuls
-                    windVectors.push({
-                        date: date,
-                        x1: date,
-                        y1: 0,
-                        x2: new Date(date.getTime() + d.Ux * 1000 * 3600 * 24), // Échelle arbitraire
-                        y2: d.Vy,
-                        type: 'wind',
-                        speed: d.spd,
-                        direction: d.dir
-                    });
-                }
+                windVectors.push({date, type: 'wind', speed: d.spd, direction: d.dir});
             });
 
             // Traitement des données de rafales
             windData.data.Gust.forEach(d => {
                 const date = new Date(d.d);
-                gustVectors.push({
-                    date: date,
-                    x1: date,
-                    y1: 0,
-                    x2: new Date(date.getTime() + d.Ux * 1000 * 3600 * 24), // Échelle arbitraire
-                    y2: d.Vy,
-                    type: 'gust',
-                    speed: d.spd,
-                    direction: d.dir
-                });
+                gustVectors.push({date, type: 'gust', speed: d.spd, direction: d.dir});
             });
 
             return { windVectors, gustVectors };
@@ -157,21 +136,25 @@
 
         // Création du graphique
         function createChart(windData) {
+            const unit = windData.metadata.toUserUnit['speed:Gust'].userUnit;
+            const fn = eval(windData.metadata.toUserUnit['speed:Gust'].fnFromMetric);
             const { windVectors, gustVectors } = prepareData(windData);
             
             const allData = [...windVectors, ...gustVectors];
+            const maxSpeed = d3.max(allData, d => d.speed);
             
-            // Facteur d'échelle pour les vecteurs
-            const scale = 50000000; // Ajustement de l'échelle des vecteurs
+            // Le facteur d'échelle rend la longueur du vecteur (en pixels) proportionnelle à la vitesse.
+            // Ici, le vecteur de vitesse maximale aura une longueur de la moitié de la hauteur du graphique.
+            const lengthScale = (200 / 2) / maxSpeed;
             
             const chart = Plot.plot({
                 title: "Vecteurs de vent dans le temps",
-                width: 1000,
+                width: 640,
                 height: 200,
-                marginLeft: 80,
-                marginRight: 60,
-                marginTop: 40,
-                marginBottom: 80,
+                marginLeft: 30,
+                marginRight: 30,
+                marginTop: 20,
+                marginBottom: 20,
                 x: {
                     type: "time",
                     label: "Date",
@@ -179,7 +162,8 @@
                     grid: true
                 },
                 y: {
-                    label: "Vitesse",
+                    label: `Vitesse (${unit})`,
+                    domain: [-maxSpeed, maxSpeed], // Centre l'axe Y sur 0 et l'échelle sur la vitesse max
                     grid: true
                 },
                 color: {
@@ -190,55 +174,55 @@
                 marks: [
                     // Ligne de référence y=0
                     Plot.ruleY([0], {stroke: "#bdc3c7", strokeWidth: 1}),
-                    Plot.dot(gustVectors, {x: "date", y: "speed", stroke: "#e74c3c", r:.5}),
 
                     // Vecteurs de rafales (flèches)
                     Plot.vector(gustVectors.filter(d => d.speed > 0.01), {
                         anchor: "start",
-                        x: d => d.date,
+                        x: 'date',
                         y: 0,
-                        rotate: d => d.direction,
-                        length: d => d.speed,
+                        rotate: "direction",
+                        length: "speed",
+                        scale: lengthScale,
                         shape: "arrow",
-                        r:1,
                         stroke: "#e74c3c",
-                        headSize: 6,
-                        strokeWidth: 1,
-                        title: `${d => d.date}\n${d => d.speed} m/s\n${d => d.direction}°`
+                        r: 1,
+                        strokeWidth: 1
                     }),
-
-                    // Vecteurs de vent (flèches)
+                    // Vecteurs de rafales (flèches)
                     Plot.vector(gustVectors.filter(d => d.speed > 0.01), Plot.pointerX({
                         anchor: "start",
-                        x: d => d.date,
+                        x: 'date',
                         y: 0,
-                        rotate: d => d.direction,
-                        length: d => d.speed,
+                        rotate: "direction",
+                        length: "speed",
+                        scale: lengthScale,
                         shape: "arrow",
-                        r:1,
-                        stroke: "#3498db",
-                        headSize: 6,
-                        strokeWidth: 1,
-                        title: `${d => d.date}\n${d => d.speed} m/s\n${d => d.direction}°`
+                        stroke: "#e94e3e",
+                        r: 1,
+                        strokeWidth: 2
                     })),
+
+                    // Vecteurs de vent (flèches)
+                    Plot.vector(windVectors.filter(d => d.speed > 0.01), {
+                        anchor: "start",
+                        x: 'date',
+                        y: 0,
+                        rotate: "direction",
+                        length: "speed",
+                        scale: lengthScale,
+                        shape: "arrow",
+                        stroke: "#3498db",
+                        r: 1,
+                        strokeWidth: 1
+                    }),
+                    Plot.crosshair(allData, {x: "date", y: "speed"}),
                     // Pointers au survol
-                    Plot.dot(gustVectors, Plot.pointerX({x: "date", y: "speed", stroke: "#e74c3c", r:1})),
-                    Plot.text(gustVectors, Plot.pointerX({
-                        px: "date", py: "speed", dy: -16, dx: 30,
+                    Plot.text(allData, Plot.pointerX({
+                        px: "date", y: 0, dy: -16, dx: 30,
                         frameAnchor: "top-right",
                         fontVariant: "tabular-nums",
-                        text: (d) => ` ${d.speed} m/s`
-                    })),
-                    // Points de base pour les vecteurs
-                    Plot.dot(allData, {
-                        x: d => d.date,
-                        y: 0,
-                        r: 3,
-                        fill: d => d.type,
-                        stroke: "white",
-                        strokeWidth: 1,
-                        title: d => d.date
-                    })
+                        text: (d) => ` ${fn(d.speed)} ${unit}\n${d.direction}°`
+                    }))
                 ]
             });
 
