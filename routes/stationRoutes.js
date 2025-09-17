@@ -1,7 +1,7 @@
 // routes/stationRoutes.js
 const express = require('express');
 const router = express.Router();
-const { loadStationConfig, withStationLamps } = require('../middleware/stationMiddleware');
+const { loadStationConfig, talkStationWithLamp, talkStationQuickly } = require('../middleware/stationMiddleware');
 const stationController = require('../controllers/stationController');
 const additionalController = require('../controllers/additionalController');
 const V = require('../utils/icons');
@@ -13,34 +13,23 @@ router.use('/:stationId', loadStationConfig);
 router.delete('/:stationId', stationController.deleteStation);
 
 // Route pour récupérer les données d'archive depuis la station (GET)
-router.get('/:stationId/collect', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/collect
-    return await stationController.getArchiveData(req, res);
-}));
+router.get('/:stationId/collect', talkStationWithLamp(stationController.getArchiveData)); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/collect
 
 // Routes pour les stations météorologiques
-router.get('/:stationId/info', async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/info
-    return await stationController.getStationInfo(req, res);
-});
+router.get('/:stationId/info', stationController.getStationInfo); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/info
 
 
-router.get('/:stationId/update-datetime', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/update-datetime
-    return await stationController.updateTime(req, res);
-}));
+router.get('/:stationId/update-datetime', talkStationWithLamp(stationController.updateTime)); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/update-datetime
 
-router.get('/:stationId/sync-settings', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/sync-settings
-    return await stationController.syncSettings(req, res);
-}));
+router.get('/:stationId/sync-settings', talkStationWithLamp(stationController.syncSettings)); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/sync-settings
 
 // Route pour tester la connexion à une station
-router.get('/:stationId/test', (async (req, res) => { return await stationController.testTcpIp(req, res); })); // http://probe2.lpz.ovh/api/station/VP2_Serramoune/test
+router.get('/:stationId/test', stationController.testTcpIp); // http://probe2.lpz.ovh/api/station/VP2_Serramoune/test
 
-router.get('/:stationId/current-conditions', withStationLamps(async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/current-conditions
-    return await stationController.getCurrentWeather(req, res);
-}));
+router.get('/:stationId/current-conditions', talkStationQuickly(stationController.getCurrentWeather)); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/current-conditions
 
-router.get('/:stationId/additional-conditions/:sensors?', (async (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune/additional-conditions
-    return await additionalController.getAdditionalProbe(req, res);
-}));
+router.get('/:stationId/additional-conditions', additionalController.getAdditionalProbe); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/additional-conditions
+router.get('/:stationId/additional-conditions/:sensors', additionalController.getAdditionalProbe); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/additional-conditions/:sensors
 
 // Route pour obtenir la configuration d'une station
 router.get('/:stationId', (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune

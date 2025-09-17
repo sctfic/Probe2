@@ -2,6 +2,7 @@
 const API_BASE_URL = 'http://probe2.lpz.ovh/query';
 const STORAGE_KEY_ORDER = 'dashboardTileOrder';
 
+
 let currentConditionsData = null;
 let allConditions = []; // Stores all conditions without filter
 let dbSensorList = null;
@@ -60,7 +61,8 @@ async function fetchCurrentConditions() {
             const promises = [
                 fetch(`/api/station/${selectedStation.id}/current-conditions`, { cache: 'no-cache' }),
                 fetch(`/api/station/${selectedStation.id}/additional-conditions`, { cache: 'no-cache' }),
-                fetch(`/query/${selectedStation.id}`)
+                fetch(`/query/${selectedStation.id}`),
+                // fetch(`/api/station/${selectedStation.id}/info`)
             ];
 
             // Use Promise.all to wait for all three promises to resolve
@@ -89,6 +91,13 @@ async function fetchCurrentConditions() {
             // Handle the second response (add-conditions)
             if (apiAdditional && apiAdditional.ok) {
                 const additionalData = await apiAdditional.json();
+                Object.entries(additionalData.data).forEach(([key, item]) => {
+                    item.js.forEach(script => {
+                        const scriptElement = document.createElement('script');
+                        scriptElement.src = script;
+                        document.head.appendChild(scriptElement);
+                    });
+                });
                 data.data = { ...data.data, ...additionalData.data }; // Merge data
             } else {
                 console.warn('La requête pour les conditions additionnelles a échoué. Aucune donnée additionnelle ne sera ajoutée.');
@@ -96,6 +105,7 @@ async function fetchCurrentConditions() {
 
             // Handle the third response (query)
             if (apiSensor && apiSensor.ok) {
+                console.log('apiSensor', apiSensor);
                 dbSensorList = await apiSensor.json();
             } else {
                 console.error('Erreur de récupération des _field');
@@ -153,6 +163,8 @@ function processAndDisplayConditions() {
                 customOrder: order,
                 period: sensorInfo.period || '7d',
                 sensorDb: sensorInfo.sensorDb,
+                dataNeeded: sensorInfo.dataNeeded,
+                comment: sensorInfo.comment,
                 searchText: [sensorInfo.label, key, data.label, String(data.Value), data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
             };
         });
@@ -656,6 +668,8 @@ function loadChartForItem(item) {
     } else if (item.sensorDb.startsWith('rose:')) {
         const sensorRef = item.sensorDb.substring('rose:'.length);
         loadRosePlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindRose/${sensorRef}?${count}&${start}`, item.period);
+    } else if (item.sensorDb == 'calc') {
+        loadCalcPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/Raws/${item.dataNeeded.join(',')}?${count}&${start}`, item.period);
     } else {
         loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${count}&${start}`, item.period);
     }

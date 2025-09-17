@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vecteurs de Vent - VP2_Serramoune</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #fafafa;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-weight: 300;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .chart-container {
+            width: 100%;
+            margin: 20px 0;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 3px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ecf0f1;
+        }
+        
+        .stat-box {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        /* Styles pour les éléments D3 */
+        .axis {
+            font-size: 12px;
+        }
+
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: #bdc3c7;
+            shape-rendering: crispEdges;
+        }
+
+        .grid .tick {
+            stroke: #f1f2f6;
+            opacity: 0.7;
+        }
+        
+        .grid path {
+            stroke-width: 0;
+        }
+
+        .hair {
+            stroke: #3498db;
+            stroke-width: 2;
+            marker-end: url(#arrowhead);
+        }
+
+        .hair2 {
+            stroke: #e74c3c;
+            stroke-width: 2;
+            marker-end: url(#arrowheadGust);
+        }
+
+        .arrow:hover .hair {
+            stroke: #2980b9;
+            stroke-width: 3;
+        }
+
+        .arrow:hover .hair2 {
+            stroke: #c0392b;
+            stroke-width: 3;
+        }
+
+        .sensitive {
+            fill: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Vecteurs de Vent</h1>
+        <div class="subtitle">Station VP2_Serramoune • 27 août - 10 septembre 2025</div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #3498db;"></div>
+                <span>Vent moyen</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #e74c3c;"></div>
+                <span>Rafales</span>
+            </div>
+        </div>
+        
+        <div class="chart-container" id="wind-chart"></div>
+        
+        <div class="stats" id="stats"></div>
+    </div>
+
+    <script>
+        // Données JSON - adaptées du format original
+        var windApiData = {
+            "data": {
+                "Gust": [
+                    {"d": "2025-08-27T22:41:13Z", "Ux": -0.552, "Vy": -0.079, "dir": 262, "spd": 0.56},
+                    {"d": "2025-08-28T08:40:20Z", "Ux": -0.065, "Vy": 0.195, "dir": 341, "spd": 0.21},
+                    {"d": "2025-08-28T18:39:27Z", "Ux": -0.362, "Vy": -0.315, "dir": 229, "spd": 0.48},
+                    {"d": "2025-08-29T04:38:34Z", "Ux": -0.064, "Vy": -1.445, "dir": 183, "spd": 1.45},
+                    {"d": "2025-08-29T14:37:41Z", "Ux": -0.396, "Vy": 0.974, "dir": 338, "spd": 1.05},
+                    {"d": "2025-08-30T00:36:48Z", "Ux": -0.201, "Vy": 0.943, "dir": 348, "spd": 0.96},
+                    {"d": "2025-08-30T10:35:55Z", "Ux": 0.059, "Vy": 0.511, "dir": 7, "spd": 0.51},
+                    {"d": "2025-08-30T20:35:02Z", "Ux": -0.473, "Vy": 1.065, "dir": 336, "spd": 1.17},
+                    {"d": "2025-08-31T06:34:09Z", "Ux": 0, "Vy": 0.447, "dir": 0, "spd": 0.45},
+                    {"d": "2025-08-31T16:33:16Z", "Ux": -0.479, "Vy": 0.807, "dir": 329, "spd": 0.94},
+                    {"d": "2025-09-01T02:32:23Z", "Ux": -0.203, "Vy": -0.348, "dir": 210, "spd": 0.4},
+                    {"d": "2025-09-01T12:31:30Z", "Ux": -0.34, "Vy": -0.219, "dir": 237, "spd": 0.4},
+                    {"d": "2025-09-01T22:30:37Z", "Ux": -0.426, "Vy": 1.273, "dir": 341, "spd": 1.34},
+                    {"d": "2025-09-02T18:28:51Z", "Ux": -0.384, "Vy": 1.745, "dir": 348, "spd": 1.79},
+                    {"d": "2025-09-03T04:27:58Z", "Ux": -0.325, "Vy": 0.926, "dir": 341, "spd": 0.98},
+                    {"d": "2025-09-03T14:27:05Z", "Ux": 0.484, "Vy": 0.293, "dir": 59, "spd": 0.57},
+                    {"d": "2025-09-04T00:26:12Z", "Ux": -0.143, "Vy": 1.357, "dir": 354, "spd": 1.36},
+                    {"d": "2025-09-04T20:24:26Z", "Ux": -0.19, "Vy": 0.516, "dir": 340, "spd": 0.55},
+                    {"d": "2025-09-05T06:23:33Z", "Ux": -1.58, "Vy": -1.58, "dir": 225, "spd": 2.24},
+                    {"d": "2025-09-05T16:22:40Z", "Ux": 0.952, "Vy": 0.315, "dir": 72, "spd": 1},
+                    {"d": "2025-09-06T02:21:47Z", "Ux": 0.862, "Vy": 0.166, "dir": 79, "spd": 0.88},
+                    {"d": "2025-09-06T22:20:01Z", "Ux": -0.263, "Vy": 0.867, "dir": 343, "spd": 0.91},
+                    {"d": "2025-09-07T08:19:08Z", "Ux": -0.415, "Vy": -0.554, "dir": 217, "spd": 0.69},
+                    {"d": "2025-09-07T18:18:15Z", "Ux": -0.315, "Vy": 1.077, "dir": 344, "spd": 1.12},
+                    {"d": "2025-09-08T04:17:22Z", "Ux": -0.052, "Vy": -0.346, "dir": 189, "spd": 0.35},
+                    {"d": "2025-08-28T14:16:29Z", "Ux": -0.076, "Vy": -0.028, "dir": 250, "spd": 0.08},
+                    {"d": "2025-09-09T00:15:36Z", "Ux": -0.214, "Vy": 1.132, "dir": 349, "spd": 1.15},
+                    {"d": "2025-09-09T10:14:43Z", "Ux": -0.22, "Vy": -0.496, "dir": 204, "spd": 0.54},
+                    {"d": "2025-09-09T20:13:50Z", "Ux": 0, "Vy": -0.894, "dir": 180, "spd": 0.89},
+                    {"d": "2025-09-10T16:12:04Z", "Ux": -0.002, "Vy": -0.475, "dir": 180, "spd": 0.47},
+                    {"d": "2025-09-10T19:40:00Z", "Ux": -0.208, "Vy": -0.182, "dir": 229, "spd": 0.28}
+                ],
+                "Wind": [
+                    {"d": "2025-08-27T22:41:13Z", "Ux": 0, "Vy": 0, "dir": 0, "spd": 0},
+                    {"d": "2025-08-28T08:40:20Z", "Ux": 0, "Vy": 0, "dir": 180, "spd": 0},
+                    {"d": "2025-08-28T18:39:27Z", "Ux": -0.076, "Vy": -0.019, "dir": 256, "spd": 0.08},
+                    {"d": "2025-08-29T04:38:34Z", "Ux": -0.009, "Vy": -0.018, "dir": 207, "spd": 0.02},
+                    {"d": "2025-08-29T14:37:41Z", "Ux": -0.061, "Vy": 0.066, "dir": 318, "spd": 0.09},
+                    {"d": "2025-08-30T00:36:48Z", "Ux": -0.165, "Vy": 0.004, "dir": 271, "spd": 0.17},
+                    {"d": "2025-08-30T10:35:55Z", "Ux": -0.018, "Vy": -0.018, "dir": 226, "spd": 0.03},
+                    {"d": "2025-08-30T20:35:02Z", "Ux": -0.248, "Vy": 0.268, "dir": 317, "spd": 0.37},
+                    {"d": "2025-08-31T06:34:09Z", "Ux": 0, "Vy": 0, "dir": 0, "spd": 0},
+                    {"d": "2025-08-31T16:33:16Z", "Ux": -0.228, "Vy": 0.15, "dir": 303, "spd": 0.27},
+                    {"d": "2025-09-01T02:32:23Z", "Ux": -0.038, "Vy": -0.009, "dir": 256, "spd": 0.04},
+                    {"d": "2025-09-01T12:31:30Z", "Ux": -0.023, "Vy": 0.027, "dir": 320, "spd": 0.04},
+                    {"d": "2025-09-01T22:30:37Z", "Ux": -0.263, "Vy": 0.202, "dir": 307, "spd": 0.33},
+                    {"d": "2025-09-02T18:28:51Z", "Ux": -0.398, "Vy": 0.135, "dir": 289, "spd": 0.42},
+                    {"d": "2025-09-03T04:27:58Z", "Ux": -0.161, "Vy": 0.087, "dir": 298, "spd": 0.18},
+                    {"d": "2025-09-03T14:27:05Z", "Ux": 0.036, "Vy": 0.037, "dir": 44, "spd": 0.05},
+                    {"d": "2025-09-04T00:26:12Z", "Ux": -0.262, "Vy": 0.334, "dir": 322, "spd": 0.42},
+                    {"d": "2025-09-04T20:24:26Z", "Ux": -0.045, "Vy": 0.055, "dir": 321, "spd": 0.07},
+                    {"d": "2025-09-05T06:23:33Z", "Ux": 0, "Vy": 0, "dir": 0, "spd": 0},
+                    {"d": "2025-09-05T16:22:40Z", "Ux": 0.169, "Vy": 0.042, "dir": 76, "spd": 0.17},
+                    {"d": "2025-09-06T02:21:47Z", "Ux": 0.16, "Vy": 0.07, "dir": 66, "spd": 0.17},
+                    {"d": "2025-09-06T22:20:01Z", "Ux": -0.069, "Vy": 0.151, "dir": 336, "spd": 0.17},
+                    {"d": "2025-09-07T08:19:08Z", "Ux": 0, "Vy": 0, "dir": 0, "spd": 0},
+                    {"d": "2025-09-07T18:18:15Z", "Ux": -0.125, "Vy": 0.241, "dir": 333, "spd": 0.27},
+                    {"d": "2025-09-08T04:17:22Z", "Ux": 0.002, "Vy": -0.015, "dir": 172, "spd": 0.01},
+                    {"d": "2025-09-08T14:16:29Z", "Ux": 0, "Vy": 0, "dir": 0, "spd": 0},
+                    {"d": "2025-09-09T00:15:36Z", "Ux": -0.035, "Vy": 0.104, "dir": 341, "spd": 0.11},
+                    {"d": "2025-09-09T10:14:43Z", "Ux": 0, "Vy": 0, "dir": 0, "spd": 0},
+                    {"d": "2025-09-09T20:13:50Z", "Ux": 0, "Vy": 0, "dir": 0, "spd": 0},
+                    {"d": "2025-09-10T16:12:04Z", "Ux": -0.016, "Vy": -0.002, "dir": 263, "spd": 0.02},
+                    {"d": "2025-09-10T19:40:00Z", "Ux": -0.028, "Vy": -0.061, "dir": 205, "spd": 0.07}
+                ]
+            }
+        };
+
+        // Fonction principale inspirée de timeSeriesChart_histoWind
+        function timeSeriesChart_windVectors() {
+            var data,
+                margin = {top: 5, right: 25, bottom: 40, left: 40},
+                width = 1000,
+                height = 300,
+                timeFormat = d3.time.format("%Y-%m-%dT%H:%M:%SZ"),
+                dateParser = function(d) { return timeFormat.parse(d.d); },
+                Speed = function(d) { return +d.spd; },
+                angle = function(d) { return +d.dir; },
+                xSpeed = function(d) { return +d.Ux; },
+                ySpeed = function(d) { return +d.Vy; },
+                xScale = d3.time.scale().range([0, width]),
+                yScale = d3.scale.linear().range([height, 0]),
+                xAxis = d3.svg.axis().scale(xScale).orient("bottom").tickSize(4,0),
+                yAxis = d3.svg.axis().scale(yScale).orient("left").ticks(6).tickSize(3,0),
+                onClickAction = function(d) { console.log(d); },
+                vectorScale = 80; // Facteur d'échelle pour les vecteurs
+
+            function chart(selection) {
+                selection.each(function(rawdata) {
+                    // Conversion des données comme dans l'original
+                    data = rawdata.map(function(d, i) {
+                        return {
+                            date: dateParser.call(rawdata, d, i),
+                            Speed: Speed.call(rawdata, d, i),
+                            angle: angle.call(rawdata, d, i),
+                            xSpeed: xSpeed.call(rawdata, d, i),
+                            ySpeed: ySpeed.call(rawdata, d, i),
+                            type: d.type || 'wind'
+                        };
+                    });
+
+                    var domainDate = d3.extent(data, function(d) { return d.date; });
+                    
+                    // Configuration des échelles
+                    yScale
+                        .domain(d3.extent(data, function(d) { return d.ySpeed; }))
+                        .range([height - margin.top - margin.bottom, 0]);
+                    
+                    xScale
+                        .domain(domainDate)
+                        .range([0, width - margin.left - margin.right]);
+
+                    // Création du SVG principal
+                    var svg = d3.select(this).selectAll("svg").data([data]);
+                    
+                    var gEnter = svg.enter()
+                        .append("svg")
+                        .attr("width", "100%")
+                        .attr("height", height + margin.top + margin.bottom);
+
+                    // Définition des marqueurs de flèches (comme dans l'original)
+                    var defs = gEnter.append("defs");
+
+                    defs.append("marker")
+                        .attr("id", "arrowhead")
+                        .attr("refX", 2)
+                        .attr("refY", 0)
+                        .attr("viewBox", "-5 -5 12 10")
+                        .attr("markerUnits", "strokeWidth")
+                        .attr("markerWidth", 6)
+                        .attr("markerHeight", 12)
+                        .attr("orient", "auto")
+                        .append("polygon")
+                        .attr("stroke", "#3498db")
+                        .attr("fill", "#3498db")
+                        .attr("points", "0,0 -2.5,-2.5 5,0 -2.5,2.5");
+
+                    defs.append("marker")
+                        .attr("id", "arrowheadGust")
+                        .attr("refX", 2)
+                        .attr("refY", 0)
+                        .attr("viewBox", "-5 -5 12 10")
+                        .attr("markerUnits", "strokeWidth")
+                        .attr("markerWidth", 6)
+                        .attr("markerHeight", 12)
+                        .attr("orient", "auto")
+                        .append("polygon")
+                        .attr("stroke", "#e74c3c")
+                        .attr("fill", "#e74c3c")
+                        .attr("points", "0,0 -2.5,-2.5 5,0 -2.5,2.5");
+
+                    // Groupe principal avec transformations
+                    var g = gEnter.append("g")
+                        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+                    // Grille
+                    g.append("g")
+                        .attr("class", "grid")
+                        .attr("transform", "translate(0," + (height - margin.top - margin.bottom) + ")")
+                        .call(d3.svg.axis().scale(xScale)
+                            .orient("bottom")
+                            .tickSize(-(height - margin.top - margin.bottom), 0, 0)
+                            .tickFormat(""));
+
+                    g.append("g")
+                        .attr("class", "grid")
+                        .call(d3.svg.axis().scale(yScale)
+                            .orient("left")
+                            .tickSize(-(width - margin.left - margin.right), 0, 0)
+                            .tickFormat(""));
+
+                    // Ligne de référence y=0
+                    g.append("line")
+                        .attr("x1", 0)
+                        .attr("x2", width - margin.left - margin.right)
+                        .attr("y1", yScale(0))
+                        .attr("y2", yScale(0))
+                        .attr("stroke", "#34495e")
+                        .attr("stroke-width", 1)
+                        .attr("stroke-dasharray", "3,3");
+
+                    // Axes
+                    g.append("g").attr("class", "x axis");
+                    g.append("g").attr("class", "y axis");
+
+                    // Groupes pour les flèches (inspiré de l'original)
+                    var arrow = g.selectAll(".arrow")
+                        .data(data)
+                        .enter()
+                        .append("g")
+                        .attr("class", "arrow")
+                        .on("click", onClickAction);
+
+                    // Lignes principales des vecteurs
+                    arrow.append("line")
+                        .attr("class", function(d) { return d.type === 'gust' ? "hair2" : "hair"; });
+
+                    // Titres pour les tooltips (comme dans l'original)
+                    arrow.append("title")
+                        .text(function(d) {
+                            return "Vitesse: " + d.Speed.toFixed(2) + " m/s" +
+                                   "\nAngle: " + d.angle + "°" +
+                                   "\nDate: " + d.date.toLocaleDateString() + " " + d.date.toLocaleTimeString();
+                        });
+
+                    // Fonction de mise à jour des courbes (comme dans l'original)
+                    g.updateCurve = function() {
+                        var xExtend = xScale.domain();
+                        
+                        this.selectAll('.hair,.hair2')
+                            .attr("x1", function(d) { return xScale(d.date); })
+                            .attr("y1", function(d) { return yScale(0); })
+                            .attr("x2", function(d) { 
+                                return xScale(d.date) + d.xSpeed * vectorScale; 
+                            })
+                            .attr("y2", function(d) { 
+                                return yScale(0) - d.ySpeed * vectorScale; 
+                            })
+                            .attr("display", function(d) {
+                                return (d.date >= xExtend[0] && d.date <= xExtend[1]) ? 'inline' : 'none'; 
+                            });
+                        
+                        return this;
+                    };
+
+                    // Fonction de dessin des axes (comme dans l'original)
+                    g.drawAxis = function() {
+                        var xPos;
+                        if (0 < yScale.domain()[0])
+                            xPos = yScale.range()[0];
+                        else if (yScale.domain()[1] < 0)
+                            xPos = yScale.range()[1];
+                        else
+                            xPos = yScale(0);
+
+                        g.select(".x.axis")
+                            .attr("transform", "translate(0," + (height - margin.top - margin.bottom) + ")")
+                            .call(xAxis);
+                        
+                        g.select(".y.axis")
+                            .call(yAxis);
+                        
+                        return this;
+                    };
+
+                    // Initialisation
+                    g.updateCurve().drawAxis();
+                });
+            }
+
+            // Accesseurs (comme dans l'original)
+            chart.width = function(_) {
+                if (!arguments.length) return width;
+                width = _;
+                return chart;
+            };
+
+            chart.height = function(_) {
+                if (!arguments.length) return height;
+                height = _;
+                return chart;
+            };
+
+            chart.margin = function(_) {
+                if (!arguments.length) return margin;
+                margin = _;
+                return chart;
+            };
+
+            chart.onClickAction = function(_) {
+                if (!arguments.length) return onClickAction;
+                onClickAction = _;
+                return chart;
+            };
+
+            return chart;
+        }
+
+        // Préparation des données combinées
+        function prepareChartData() {
+            var combinedData = [];
+            
+            // Ajouter les données de vent
+            windApiData.data.Wind.forEach(function(d) {
+                if (d.Ux !== 0 || d.Vy !== 0) { // Filtrer les vecteurs nuls
+                    var windPoint = {
+                        d: d.d,
+                        Ux: d.Ux,
+                        Vy: d.Vy,
+                        dir: d.dir,
+                        spd: d.spd,
+                        type: 'wind'
+                    };
+                    combinedData.push(windPoint);
+                }
+            });
+            
+            // Ajouter les données de rafales
+            windApiData.data.Gust.forEach(function(d) {
+                var gustPoint = {
+                    d: d.d,
+                    Ux: d.Ux,
+                    Vy: d.Vy,
+                    dir: d.dir,
+                    spd: d.spd,
+                    type: 'gust'
+                };
+                combinedData.push(gustPoint);
+            });
+            
+            return combinedData;
+        }
+
+        // Calcul des statistiques
+        function calculateStats() {
+            var windSpeeds = windApiData.data.Wind.map(function(d) { return d.spd; }).filter(function(s) { return s > 0; });
+            var gustSpeeds = windApiData.data.Gust.map(function(d) { return d.spd; });
+            
+            var avgWind = windSpeeds.length > 0 ? (windSpeeds.reduce(function(a, b) { return a + b; }, 0) / windSpeeds.length) : 0;
+            var maxGust = d3.max(gustSpeeds);
+            var avgGust = gustSpeeds.reduce(function(a, b) { return a + b; }, 0) / gustSpeeds.length;
+            
+            return {
+                avgWind: avgWind.toFixed(2),
+                maxGust: maxGust.toFixed(2),
+                avgGust: avgGust.toFixed(2),
+                totalMeasurements: windApiData.data.Wind.length
+            };
+        }
+
+        // Affichage des statistiques
+        function displayStats() {
+            var stats = calculateStats();
+            var statsContainer = document.getElementById('stats');
+            
+            statsContainer.innerHTML = 
+                '<div class="stat-box">' +
+                    '<div class="stat-value">' + stats.avgWind + '</div>' +
+                    '<div class="stat-label">Vent moyen (m/s)</div>' +
+                '</div>' +
+                '<div class="stat-box">' +
+                    '<div class="stat-value">' + stats.maxGust + '</div>' +
+                    '<div class="stat-label">Rafale max (m/s)</div>' +
+                '</div>' +
+                '<div class="stat-box">' +
+                    '<div class="stat-value">' + stats.avgGust + '</div>' +
+                    '<div class="stat-label">Rafale moyenne (m/s)</div>' +
+                '</div>' +
+                '<div class="stat-box">' +
+                    '<div class="stat-value">' + stats.totalMeasurements + '</div>' +
+                    '<div class="stat-label">Mesures totales</div>' +
+                '</div>';
+        }
+
+        // Initialisation (inspirée de include_histoWind)
+        function include_windVectors(container) {
+            var chartData = prepareChartData();
+            
+            var windChart = timeSeriesChart_windVectors()
+                .width(1000)
+                .height(300)
+                .onClickAction(function(d) { 
+                    console.log("Clicked:", d); 
+                    alert("Vent: " + d.Speed.toFixed(2) + " m/s, Direction: " + d.angle + "°");
+                });
+
+            d3.select(container)
+                .datum(chartData)
+                .call(windChart);
+        }
+
+        // Démarrage une fois le DOM chargé
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                include_windVectors('#wind-chart');
+                displayStats();
+            } catch (error) {
+                console.error('Erreur lors de la création du graphique:', error);
+                document.getElementById('wind-chart').innerHTML = 
+                    '<p style="text-align: center; color: #e74c3c;">Erreur lors du chargement du graphique</p>';
+            }
+        });

@@ -45,7 +45,7 @@ const loadStationConfig = (req, res, next) => {
     }
 };
 
-const withStationLamps = (handler) => {
+const talkStationWithLamp = (handler) => {
     return async (req, res) => {
         const stationConfig = req.stationConfig;
         try {
@@ -97,7 +97,59 @@ const withStationLamps = (handler) => {
     };
 };
 
+const talkStationQuickly = (handler) => {
+    return async (req, res) => {
+        const stationConfig = req.stationConfig;
+        try {
+            await getOrCreateSocket(req, stationConfig);
+            try {
+                // Réveiller la console
+                // await wakeUpConsole(req, stationConfig);
+                
+                // Exécuter le handler en lui passant req en premier paramètre
+                const result = await handler(req, res);
+                
+                if (result && typeof result === 'object') {
+                    console.log(`${V.info} ${stationConfig.id} - Réponse:`, result);
+                    res.json({
+                        success: true,
+                        stationId: stationConfig.id,
+                        timestamp: new Date().toISOString(),
+                        data: result
+                    });
+                }
+            } catch (error) {
+                console.error(`${V.error} ${stationConfig.id} - Erreur:`, error.message);
+                res.status(500).json({
+                    success: false,
+                    stationId: stationConfig.id,
+                    error: error.message
+                });
+            } finally {
+                try {
+                    // Éteindre l'écrans à la fin
+                    await wakeUpConsole(req, stationConfig);
+                } catch (error) {
+                    console.error(`${V.error} ${stationConfig.id} - Erreur : ${error.message}`);
+                }
+            }
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                stationId: stationConfig.id,
+                error: error.message
+            });
+        } finally {
+            // Nettoyer le socket de la requête s'il existe
+            if (req.weatherSocket && !req.weatherSocket.destroyed) {
+                req.weatherSocket.destroy();
+                console.log(`${V.BlackFlag} Socket manually closed for ${stationConfig.id}`);
+            }
+        }
+    };
+}
 module.exports = {
     loadStationConfig,
-    withStationLamps
+    talkStationWithLamp,
+    talkStationQuickly
 };

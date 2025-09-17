@@ -250,6 +250,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     initializeFullscreenButton();
 
+    function initializeToggleD3ChartButton() {
+        const toggleBtn = document.getElementById('toggleD3ChartBtn');
+        const chartContainer = document.getElementById('d3-chart-container');
+
+        if (!toggleBtn || !chartContainer) return;
+
+        toggleBtn.addEventListener('click', () => {
+            const isHidden = chartContainer.classList.contains('hidden');
+            if (isHidden) {
+                chartContainer.classList.remove('hidden');
+                toggleBtn.src = 'img/Reduce.png';
+                toggleBtn.alt = 'Réduire';
+                toggleBtn.title = 'Masquer le graphique';
+            } else {
+                chartContainer.classList.add('hidden');
+                toggleBtn.src = 'img/Expand.png';
+                toggleBtn.alt = 'Agrandir';
+                toggleBtn.title = 'Afficher le graphique';
+            }
+        });
+    }
+    initializeToggleD3ChartButton();
+
     const kSlider = document.getElementById('k-slider');
     if (kSlider) {
         kSlider.addEventListener('input', () => {
@@ -298,9 +321,10 @@ function renderD3Chart(stationId) {
     }
 
     async function loadData() {
+        const urlParams = new URLSearchParams(window.location.search);
         const params = {
-            sensors: sensorInfo.name,
-            station: stationId,
+            sensors: urlParams.get('sensor'),
+            stationId: urlParams.get('station'),
             stepCount: '5000',
             endDate: new Date(),
             startDate: new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000) // 7 derniers jours

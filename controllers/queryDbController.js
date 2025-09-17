@@ -353,7 +353,7 @@ exports.getQueryWindVectors = async (req, res) => {
         } else if (data.length < stepCount) {
             msg = '<!> Data missing suspected !';
         }
-        const metadata = getMetadata(stationId, ['speed:Wind', 'direction:Gust', 'speed:Gust', 'direction:Wind'], timeInfo, data);
+        const metadata = getMetadata(stationId, ['speed:'+sensorRef, 'direction:'+sensorRef], timeInfo, data);
         metadata.sensor = sensorRef;
         res.json({
             success: true,
