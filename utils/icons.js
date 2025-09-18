@@ -23,7 +23,7 @@ const V = {
     Gyro:               '🚨', // U+1F6A8 (Siren)
     Megaphone:          '📢', // U+1F4E2 (Loudspeaker)
     Check:              '✅', // U+2705  (Check Mark)
-    Warn:               '⚠️', // U+26A0  (Warning)
+    Warn:               '⚠️ ', // U+26A0  (Warning)
     Ampoule:            '💡', // U+1F526 (Light Bulb)
     connect:            '🔌', // U+1F50C (Outlet)
     Parabol:            '📡', // U+1F512 (Satellite Antenna)
@@ -53,7 +53,7 @@ const V = {
     eu:                 '🇪🇺', // U+1F1EA (Europe)
     sunrise:            '🌅', // U+1F303 (Sunrise)
     error:              '❌',
-    warning:            '⚠️',
+    warning:            '⚠️ ',
     rocket:             '🚀',
     gear:               '⚙️ ',
     database:           '💾',

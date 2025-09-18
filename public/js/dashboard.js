@@ -9,6 +9,25 @@ let dbSensorList = null;
 let previousValues = {};
 let selectedTiles = new Set();
 
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        // If script already exists, resolve immediately
+        if (document.querySelector(`script[src="${src}"]`)) {
+            return resolve();
+        }
+        const scriptElement = document.createElement('script');
+        scriptElement.src = src;
+        scriptElement.onload = () => {
+            resolve();
+        };
+        scriptElement.onerror = (err) => {
+            console.error(`Failed to load script: ${src}`, err);
+            reject(new Error(`Failed to load script: ${src}`));
+        };
+        document.head.appendChild(scriptElement);
+    });
+}
+
 function saveCustomOrder() {
     if (!selectedStation) return;
     const order = Object.fromEntries(allConditions.map(item => [item.key, item.customOrder]));
@@ -19,28 +38,27 @@ function saveCustomOrder() {
 function loadCustomOrder() {
     if (!selectedStation) return {};
     const order = JSON.parse(localStorage.getItem(`${STORAGE_KEY_ORDER}_${selectedStation.id}`) || '{}');
-    console.log(`[DND] Loaded custom order for station ${selectedStation.id}:`, order);
+    // console.log(`[DND] Loaded custom order for station ${selectedStation.id}:`, order);
     return order;
 }
 
 // --- Dashboard Section: Current Conditions ---
 
 function mergeData(data) {
-    if (data.data['SUN.calc']) {
-
+    if (data.data['SUN_calc']) { // remplace 2 tuiles par une seule
         if (data.data.sunrise && data.data.sunset) {
             const sunrise = data.data.sunrise;
             const fn1 = eval(sunrise.toUserUnit);
             const sunset = data.data.sunset;
             const fn2 = eval(sunset.toUserUnit);
 
-            data.data['SUN.calc'].Value = fn1(sunrise.Value) + ' - ' + fn2(sunset.Value);
+            data.data['SUN_calc'].Value = fn1(sunrise.Value) + ' - ' + fn2(sunset.Value);
             delete data.data.sunrise;
             delete data.data.sunset;
         }
     }
-    if (data.data['THSW.calc']) {
-        data.data['THSW.calc'].Value = data.data['THSW'].Value;
+    if (data.data['THSW_calc']) { // remplace 1 tuile
+        data.data['THSW_calc'].Value = data.data['THSW'].Value;
         delete data.data['THSW'];
     }
     return data;
@@ -54,80 +72,77 @@ async function fetchCurrentConditions() {
 
     showConditionsStatus('Chargement des données météo...', 'loading');
 
-    let data;
     try {
-        try {
-            // Create an array of promises for each API call
-            const promises = [
-                fetch(`/api/station/${selectedStation.id}/current-conditions`, { cache: 'no-cache' }),
-                fetch(`/api/station/${selectedStation.id}/additional-conditions`, { cache: 'no-cache' }),
-                fetch(`/query/${selectedStation.id}`),
-                // fetch(`/api/station/${selectedStation.id}/info`)
-            ];
+        // Essayer de récupérer les données actuelles
+        const currentPromise = fetch(`/api/station/${selectedStation.id}/current-conditions`, { cache: 'no-cache' })
+            .catch(error => {
+                console.warn('La requête pour les conditions actuelles a échoué.', error.message);
+                return null; // Échec silencieux
+            });
+        
+        // 1. Démarrer l'appel pour les données additionnelles
+        const additionalPromise = fetch(`/api/station/${selectedStation.id}/additional-conditions`, { cache: 'no-cache' })
+            .catch(e => {
+                console.warn('La requête pour les conditions additionnelles a échoué.', e.message);
+                return null; // Échec silencieux
+            });
 
-            // Use Promise.all to wait for all three promises to resolve
-            const [apiCurrent, apiAdditional, apiSensor] = await Promise.all(
-                promises.map(p => p.catch(e => {
-                    console.warn('Une des requêtes a échoué. Chargement des données de secours.', e.message);
-                    // Return a rejected promise or a specific value to handle the error gracefully within Promise.all
-                    return null;
-                }))
-            );
 
-            // Handle the first response (current-conditions)
-            if (apiCurrent && apiCurrent.ok) {
-                data = await apiCurrent.json();
-                console.log('data', data);
-            } else {
-                console.warn('La requête pour les conditions actuelles a échoué. Chargement des données de secours.');
-                const mockResponse = await fetch(`/mock/station/current-conditions.json`);
-                if (mockResponse.ok) {
-                    data = await mockResponse.json();
-                } else {
-                    console.error('Erreur lors du chargement des données de secours.');
-                }
-            }
 
-            // Handle the second response (add-conditions)
-            if (apiAdditional && apiAdditional.ok) {
-                const additionalData = await apiAdditional.json();
-                Object.entries(additionalData.data).forEach(([key, item]) => {
-                    item.js.forEach(script => {
-                        const scriptElement = document.createElement('script');
-                        scriptElement.src = script;
-                        document.head.appendChild(scriptElement);
-                    });
+        // 2. Gérer les données additionnelles pendant que les données actuelles chargeaient
+        const apiAdditional = await additionalPromise;
+        let additionalData = null;
+        const scriptPromises = [];
+        if (apiAdditional && apiAdditional.ok) {
+            additionalData = await apiAdditional.json();
+            if (additionalData.success && additionalData.data) {
+                Object.values(additionalData.data).forEach(item => {
+                    if (item.js) {
+                        item.js.forEach(script => {
+                            // Collect promises for all scripts to be loaded
+                            scriptPromises.push(loadScript(script));
+                        });
+                    }
                 });
-                data.data = { ...data.data, ...additionalData.data }; // Merge data
-            } else {
-                console.warn('La requête pour les conditions additionnelles a échoué. Aucune donnée additionnelle ne sera ajoutée.');
             }
-
-            // Handle the third response (query)
-            if (apiSensor && apiSensor.ok) {
-                console.log('apiSensor', apiSensor);
-                dbSensorList = await apiSensor.json();
-            } else {
-                console.error('Erreur de récupération des _field');
-            }
-        } catch (error) {
-            console.error('Erreur irrécupérable lors de la récupération des données:', error);
-            // Handle global error if something unexpected happens
+        } else {
+            console.warn('Aucune donnée additionnelle ne sera ajoutée.');
         }
+
+        // 3. Traiter les données actuelles (ou de secours)
+        const apiCurrent = await currentPromise;
+        let data;
+        if (apiCurrent && apiCurrent.ok) {
+            data = await apiCurrent.json();
+        } else {
+            const errorStatus = apiCurrent ? ` (status: ${apiCurrent.status})` : '';
+            throw new Error(`Erreur de chargement des données actuelles et de secours${errorStatus}.`);
+        }
+
+        // 4. Fusionner les données
+        if (additionalData && additionalData.success && additionalData.data) {
+            data.data = { ...data.data, ...additionalData.data };
+        }
+        // 5. Attendre que tous les scripts soient chargés
+        await Promise.all(scriptPromises);
+
+        // 6. Maintenant que les scripts sont chargés, on peut traiter les données qui en dépendent
         data = mergeData(data);
 
-        if (data.success && data.data) {
+        if (data.data) {
             currentConditionsData = data.data;
             processAndDisplayConditions();
             showConditionsStatus('Données actualisées avec succès', 'success');
         } else {
-            throw new Error('Format de données invalide');
+            console.log(data.data);
+            throw new Error(data.error || 'Format de données invalide');
         }
+
     } catch (error) {
-        console.error('Erreur:', error);
+        console.error('Erreur irrécupérable lors de la récupération des données:', error);
         showConditionsStatus(`Erreur: ${error.message}`, 'error');
-        const conditionsList = document.getElementById('conditions-list');
-        if (conditionsList) conditionsList.innerHTML = '';
+        const conditionsContainer = document.getElementById('conditions-container');
+        if (conditionsContainer) conditionsContainer.innerHTML = '';
     }
 }
 
@@ -147,25 +162,27 @@ function processAndDisplayConditions() {
     allConditions = Object.entries(currentConditionsData)
         .filter(([key]) => !excludeKeys.includes(key))
         .map(([key, data]) => {
-            const sensorInfo = sensorMap[key] || {};
+            // si data a une propriete fnCalc 
+            const sensorInfo = data.fnCalc ? data : sensorMap[key] || {};
             const order = customOrder[key];
             if (order !== undefined && order > maxOrder) maxOrder = order;
             return {
                 key,
-                name: sensorInfo.label || data.label,
-                unit: data.Unit,
+                name: sensorInfo.label || data.label || {},
                 value: data.Value,
-                fnToUserUnit: data.toUserUnit,
+                unit: data.Unit,
                 userUnit: data.userUnit,
+                fnToUserUnit: data.toUserUnit || '(_) => _',
+                fnCalc: sensorInfo.fnCalc || null,
+                dataNeeded: sensorInfo.dataNeeded || sensorInfo.sensorDb,
                 measurement: sensorInfo.measurement || 'unknown',
                 groupUsage: sensorInfo.groupUsage || '0',
-                groupCustom: sensorInfo.groupCustom || 0,
+                groupCustom: sensorInfo.groupCustom || '0',
                 customOrder: order,
                 period: sensorInfo.period || '7d',
                 sensorDb: sensorInfo.sensorDb,
-                dataNeeded: sensorInfo.dataNeeded,
                 comment: sensorInfo.comment,
-                searchText: [sensorInfo.label, key, data.label, String(data.Value), data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
+                searchText: [sensorInfo.label, key, data.label, sensorInfo.comment, String(data.Value), data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
             };
         });
 
@@ -179,7 +196,7 @@ function processAndDisplayConditions() {
         }
     });
 
-    console.log('[DND] Conditions with custom order before sort:', allConditions.map(i => ({key: i.key, order: i.customOrder})));
+    // console.log('[DND] Conditions with custom order before sort:', allConditions.map(i => ({key: i.key, order: i.customOrder})));
     console.log('allConditions', allConditions);
     // Afficher les conditions selon le groupement
     displayConditions();
@@ -261,7 +278,7 @@ function displayConditions() {
     const groupBy = document.getElementById('conditions-group')?.value || 'unit';
     
     allConditions.sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0));
-    console.log('[DND] Sorted conditions by customOrder:', allConditions.map(i => i.key));
+    // console.log('[DND] Sorted conditions by customOrder:', allConditions.map(i => i.key));
 
     if (groupBy === 'none') {
         reorganizeConditionsList();
@@ -556,7 +573,14 @@ function createConditionTileHTML(item) {
     const displayValue = item.value;
     const metaInfo = '';
     let unitDisplay = item.userUnit ? `<span class="condition-unit">${item.userUnit}</span>` : '';
-    const fn = eval(item.fnToUserUnit || 'x => x');
+    let fn;
+    try {
+        // console.log(item.key, item.fnToUserUnit);
+        fn = eval(item.fnToUserUnit || 'x => x');
+    } catch (error) {
+        fn = x => {console.log(`erreur eval(${item.fnToUserUnit})`);};
+        console.error('Erreur lors de l\'évaluation de la fonction de conversion:', error);
+    }
     
     let chartContent = '';
     if (item.key === 'ForecastNum') {
@@ -620,13 +644,13 @@ function createConditionTileHTML(item) {
     }
     
     return `
-    <div class="condition-tile" data-key="${item.key}" draggable="false">
+    <div class="condition-tile" id="tuile_${item.key}" data-key="${item.key}" draggable="false">
         <a href="Plots.html?station=${selectedStation.id}&sensors=${item.sensorDb}" class="tile-link" title="Voir le détail du capteur ${item.name}">
             <div class="condition-content">
                 <div class="condition-info">
                     <div class="condition-name">${item.name}</div>
                     <div class="condition-value">
-                        ${fn(displayValue)} ${unitDisplay}
+                        <span id="tuile_${item.key}_value">${fn(displayValue)}</span> ${unitDisplay}
                     </div>
                     ${metaInfo}
                 </div>
@@ -662,14 +686,15 @@ function loadChartForItem(item) {
     const chartId = `chart_${item.key}`;
     const start = `startDate=${getStartDate(item.period)}`;
     const count = `stepCount=${item.measurement === 'rain' ? 24 : 246}`;
+
     if (item.sensorDb.startsWith('vector:')) {
         const sensorRef = item.sensorDb.substring('vector:'.length);
         loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindVectors/${sensorRef}?${count}&${start}`, item.period);
     } else if (item.sensorDb.startsWith('rose:')) {
         const sensorRef = item.sensorDb.substring('rose:'.length);
-        loadRosePlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindRose/${sensorRef}?${count}&${start}`, item.period);
-    } else if (item.sensorDb == 'calc') {
-        loadCalcPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/Raws/${item.dataNeeded.join(',')}?${count}&${start}`, item.period);
+        // loadRosePlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindRose/${sensorRef}?${count}&${start}`, item.period);
+    } else if (item.sensorDb == 'Calc') {
+        loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raws/${item.dataNeeded.join(',')}?${count}&${start}`, item.period, item);
     } else {
         loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${count}&${start}`, item.period);
     }
@@ -742,7 +767,7 @@ function handleDrop(e) {
     allConditions.splice(targetItemIndex, 0, draggedItem);
 
     allConditions.forEach((item, index) => item.customOrder = index);
-    console.log('[DND] New order after drop:', allConditions.map(item => `${item.key}: ${item.customOrder}`));
+    // console.log('[DND] New order after drop:', allConditions.map(item => `${item.key}: ${item.customOrder}`));
     saveCustomOrder();
 
     // Reorder the DOM element directly instead of a full redraw

@@ -1,0 +1,50 @@
+{
+    "THSW_calc": {
+        "label": "Température THSW",
+        "comment": "Température de Sensibilisation, Thermique, Humidité, Soleil et Vent",
+        "Value": 0,
+        "fnCalc": "(data) => calcTHSW(data['temperature:outTemp'], data['humidity:outHumidity'], data['powerRadiation:solarRadiation'], data['speed:Wind'])",
+        "dataNeeded": ["temperature:outTemp", "humidity:outHumidity", "speed:Wind", "powerRadiation:solarRadiation"],
+        "js":["/js/THSW.js"],
+        "period": 604800,
+        "sensorDb":"Calc",
+        "groupUsage":"Calculation",
+        "groupCustom": 1
+    },
+    "AirWater_calc": {
+        "label": "masse d'H2O dans l'air",
+        "comment": "masse d'eau par mettre cube d'air (ou g/l)",
+        "Value": 0,
+        "fnCalc": "(data) => waterInAir(data['temperature:outTemp'], data['humidity:outHumidity'], data['pressure:barometer']).g_per_m3",
+        "dataNeeded": ["temperature:outTemp", "humidity:outHumidity", "pressure:barometer"],
+        "js":["/js/AirWater.js"],
+        "period": 604800,
+        "sensorDb":"Calc",
+        "groupUsage":"Calculation",
+        "groupCustom": 1
+    },
+    "SUN_calc": {
+        "label": "Phase du soleil",
+        "comment": "calcul de la phase du soleil",
+        "Value": null,
+        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => { return SunCalc.getPosition(new Date(data.d), lat, lon); }",
+        "dataNeeded": ["powerRadiation:solarRadiation","uv:UV","rain:ET"],
+        "js":["/js/sunCalc.js"],
+        "period": 604800,
+        "sensorDb":"Calc",
+        "groupUsage":"Calculation",
+        "groupCustom": 1
+    },
+    "MOON_calc": {
+        "label": "Phase de la lune",
+        "comment": "calcul de la phase de la lune",
+        "Value": null,
+        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => { return data.d; }",
+        "dataNeeded": ["powerRadiation:solarRadiation"],
+        "js":["/js/sunCalc.js"],
+        "period": 604800,
+        "sensorDb":"Calc",
+        "groupUsage":"Calculation",
+        "groupCustom": 1
+    }
+}

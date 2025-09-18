@@ -5,6 +5,7 @@ const { calculateCRC } = require('../utils/crc');
 const { sensorTypeMap, mapDegreesToCardinal, mapCardinalToDegrees, parseLOOP1Data, parseLOOP2Data, parseDMPRecord, processWeatherData, convertRawValue2NativeValue, conversionTable, readSignedInt16LE, readUInt16LE, readInt8, readUInt8  } = require('../utils/weatherDataParser');
 const { getLocalTimeFromCoordinates, getTimeZoneFromCoordinates } = require('../utils/timeHelper');
 const { findDavisTimeZoneIndex } = require('../utils/timeZoneMapping');
+const wakeUpConsole = require('../services/vp2NetClient');
 const { V,O } = require('../utils/icons');
 const configManager = require('./configManager');
 const { writePoints, Point } = require('./influxdbService'); // Ajout pour InfluxDB
@@ -484,18 +485,18 @@ async function updateArchiveConfiguration(req, stationConfig) {
 }
 
 async function getCurrentWeatherData(req, stationConfig) {
-    const loop1Bytes = await sendCommand(req, stationConfig, 'LPS 1 1', 2000, "<ACK>97<CRC>");
-    const loop1Data = parseLOOP1Data(loop1Bytes);
-    // console.log(`${V.thermometer} Données LOOP1 récupérées pour ${stationConfig.id}:`, loop1Data);
+    const loop1Bytes = await sendCommand(req, stationConfig, 'LPS 1 1', 1200, "<ACK>97<CRC>"); // 800ms
 
-    const loop2Bytes = await sendCommand(req, stationConfig, 'LPS 2 1', 2000, "<ACK>97<CRC>");
+    const loop1Data = parseLOOP1Data(loop1Bytes);
+
+
+    const loop2Bytes = await sendCommand(req, stationConfig, 'LPS 2 1', 1200, "<ACK>97<CRC>"); // 800ms
+
     const loop2Data = parseLOOP2Data(loop2Bytes);
-    // console.log(`${V.thermometer} Données LOOP2 récupérées pour ${stationConfig.id}:`, loop2Data);
+
 
     const aggregatedData = { ...loop1Data, ...loop2Data };
-    // console.log(`${V.thermometer} Données LOOP1 & LOOP2 récupérées pour ${stationConfig.id}:`, aggregatedData);
     const processedData = processWeatherData(aggregatedData, stationConfig, 'metric');
-
     return processedData;
 }
 

@@ -1,6 +1,30 @@
 // utils/weatherDataParser.js
 const units = require('../config/Units.json');
 
+/**
+ * Retrieves sensor type information from Units.json.
+ * If a sensorName is provided, it returns the full type object for that sensor.
+ * If no sensorName is provided, it returns a map of all sensors to their type.
+ * @param {string} [sensorName] - The name of the sensor to look for.
+ * @returns {object | undefined} The type object or the sensor-to-type map.
+ */
+function getSensorType(sensorName) {
+    if (sensorName) {
+        for (const type in units) {
+            if (units[type].sensors?.includes(sensorName)) {
+                return units[type];
+            }
+        }
+        return undefined; // Not found
+    } else {
+        const map = {};
+        for (const type in units) {
+            if (units[type].sensors) for (const sensor of units[type].sensors) map[sensor] = type;
+        }
+        return map;
+    }
+}
+
 function mapDegreesToCardinal(degrees) {
     if ( degrees > 337.5) return "N/A";
     const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
@@ -193,71 +217,7 @@ function convertRawValue2NativeValue(rawValue, nativeUnit, stationConfig) {
     }
 }
 
-const sensorTypeMap = {
-    // designation du capteur : type de données à convertir
-    // temperature,speed,direction,pressure,rain,rainRate,uv,powerRadiation,humidity,battery
-    barometer: 'pressure',
-    inTemp: 'temperature',
-    inHumidity: 'humidity',
-    outTemp: 'temperature',
-    Wind: 'speed',
-    Gust: 'speed',
-    windSpeed: 'speed',
-    windSpeedMax: 'speed',
-    windDir: 'direction',
-    windDirMax: 'direction',
-    avgWindSpeed10Min: 'speed',
-    outHumidity: 'humidity',
-    rainRate: 'rainRate',
-    rainFall: 'rain',
-    UV: 'uv',
-    solarRadiation: 'powerRadiation',
-    solarRadiationMax: 'powerRadiation',
-    UVMax: 'uv',
-    ForecastClass: 'Forecast',
-    ForecastNum: 'Forecast',
-    stormRain: 'rain',
-    dayRain: 'rain',
-    monthRain: 'rain',
-    yearRain: 'rain',
-    dayET: 'rain',
-    monthET: 'rain',
-    yearET: 'rain',
-    batteryVoltage: 'battery',
-    avgWindSpeed2Min: 'speed',
-    windGust10Min: 'speed',
-    windGustDir10Min: 'direction',
-    dewPoint: 'temperature',
-    heatIndex: 'temperature',
-    windChill: 'temperature',
-    THSW: 'temperature',
-    ET: 'rain',
-    last15MinRain: 'rain',
-    lastHourRain: 'rain',
-    last24HourRain: 'rain',
-    dateStormRain: 'date',
-    date: 'date',
-    time: 'time',
-    sunrise: 'time',
-    sunset: 'time',
-    leafTemp1: 'temperature',
-    leafTemp2: 'temperature',
-    leafWetness1: 'humidity',
-    leafWetness2: 'humidity',
-    soilTemp1: 'temperature',
-    soilTemp2: 'temperature',
-    soilTemp3: 'temperature',
-    soilTemp4: 'temperature',
-    extraHumidity1: 'humidity',
-    extraHumidity2: 'humidity',
-    extraTemp1: 'temperature',
-    extraTemp2: 'temperature',
-    extraTemp3: 'temperature',
-    extraSoilMoisture1: 'humidity',
-    extraSoilMoisture2: 'humidity',
-    extraSoilMoisture3: 'humidity',
-    extraSoilMoisture4: 'humidity'
-};
+const sensorTypeMap = getSensorType();
 
 const conversionTable = {
     // type de données : unités de conversion
@@ -399,6 +359,7 @@ function processWeatherData(weatherData, stationConfig, UnitsType='metric') {
 }
 
 module.exports = {
+    getSensorType,
     sensorTypeMap,
     mapCardinalToDegrees,
     mapDegreesToCardinal,

@@ -1,84 +1,47 @@
-/**
- * Quantité massique (et volumique) d'eau sous forme de vapeur dans l'air
- * -----------------------------------------------------------------------
- *  - T  en °C
- *  - RH en % (0-100)
- *  - P  en hPa (200...5 000 hPa pour travaux en chambre hyper/hypo-barique)
- *
- * Retour
- *   g_per_m3 : grammes d'eau par m³ d'air
- *   L_per_m3 : litres d'eau liquide équivalent par m³ d'air
- *
- * Théorie
- * --------
- * 1) Pression de saturation eₛ (hPa) – formule Magnus-Tetens
- *    eₛ = 6,112 · exp[ 17,67·T / (T + 243,5) ]
- *    (erreur < 0,4 % entre -40 °C et +50 °C)
- *
- * 2) Pression partielle de vapeur e (hPa)
- *    e = (RH / 100) · eₛ
- *
- * 3) Masse volumique de la vapeur (loi des gaz parfaits)
- *    ρᵥ = (Mᵥ · e) / (Rᵥ · T_K)   avec
- *         Mᵥ = 18,015 g/mol       masse molaire eau
- *         R  = 8,314  J·mol⁻¹·K⁻¹
- *         T_K= T + 273,15 K
- *    En remplaçant les constantes et en convertissant e (hPa) → Pa :
- *    ρᵥ = 216,7 · e / T_K        [g/m³]
- *    (216,7 = 10² · Mᵥ / R ; 10² car 1 hPa = 100 Pa)
- *
- * 4) Influence de la pression totale P
- *    La formule ci-dessus est indépendante de P : la concentration
- *    massique en vapeur (g/m³) ne dépend que de e et de T.
- *    En revanche, pour les protocoles expérimentaux on peut souhaiter
- *    connaître la fraction massique ou volumique dans l'air total.
- *    On fournit donc aussi :
- *    - ρ_air  (masse volumique de l'air sec + vapeur) à P et T
- *    - w      rapport massique vapeur/air (g/kg)
- *    - x      fraction volumique (ppm, 0-1)
- *
- * 5) Volume liquide équivalent
- *    1 kg d'eau vapeur ⇔ 1 L d'eau liquide (ρ_liq ≈ 1 kg/L)
- *    L_per_m3 = ρᵥ / 1000
- */
 function waterInAir(T, RH, P = 1013.25) {
-    // 1. pression de saturation (hPa)
-    const es = 6.112 * Math.exp((17.67 * T) / (T + 243.5));
-
-    // 2. pression partielle vapeur (hPa)
-    const e = (RH / 100) * es;
-
-    // 3. masse volumique vapeur (g/m³)
-    const T_K = T + 273.15;
-    const g_per_m3 = (216.7 * e) / T_K;
-
-    // 4. volume liquide équivalent (L/m³)
-    const L_per_m3 = g_per_m3 / 1000;
-
-    // 5. grandeur complémentaires dépendant de P
-    const P_Pa = P * 100; // hPa → Pa
-    const Rd = 287.05;    // J·kg⁻¹·K⁻¹  (air sec)
-    const Rv = 461.5;     // J·kg⁻¹·K⁻¹  (vapeur)
-    const eps = 0.622;    // Mᵥ/M_air
-
-    // masse volumique air sec
-    const rho_d = (P_Pa - e * 100) / (Rd * T_K);
-    // masse volumique vapeur
-    const rho_v = (e * 100) / (Rv * T_K);
-    // air humide total
-    const rho_air = rho_d + rho_v;
-
-    // rapport massique (g/kg)
-    const w = 1000 * rho_v / rho_air;
-
-    // fraction volumique (ppm)
-    const x = rho_v / rho_air;
-
+    // Constantes
+    const R_v = 461.5; // Constante spécifique de la vapeur d'eau (J/kg·K)
+    const R_d = 287.0; // Constante spécifique de l'air sec (J/kg·K)
+    const M_w = 18.016; // Masse molaire de l'eau (g/mol)
+    const M_d = 28.964; // Masse molaire de l'air sec (g/mol)
+    
+    // Calcul de la pression de vapeur saturante selon la formule de Magnus
+    // Valide pour -40°C à +50°C (233K à 323K)
+    const T_celsius = T - 273.15;
+    let e_sat;
+    
+    if (T_celsius >= 0) {
+        // Formule pour T >= 0°C (au-dessus de l'eau)
+        e_sat = 6.112 * Math.exp((17.67 * T_celsius) / (T_celsius + 243.5));
+    } else {
+        // Formule pour T < 0°C (au-dessus de la glace)
+        e_sat = 6.112 * Math.exp((22.46 * T_celsius) / (T_celsius + 272.62));
+    }
+    
+    // Pression de vapeur réelle
+    const e = (RH / 100) * e_sat;
+    
+    // 1. Masse volumique de la vapeur d'eau (g/m³)
+    // Loi des gaz parfaits : ρ_v = e / (R_v * T)
+    // Conversion : e en Pa, résultat en kg/m³, puis en g/m³
+    const rho_v = (e * 100) / (R_v * T); // kg/m³
+    const g_per_m3 = rho_v * 1000; // g/m³
+    
+    // 2. Rapport de mélange (g/kg d'air sec)
+    // w = 0.622 * e / (P - e)
+    // Facteur 0.622 = M_w / M_d
+    const mixing_ratio = 0.622 * e / (P - e);
+    const g_per_kg = mixing_ratio * 1000; // g/kg
+    
+    // 3. Fraction volumique (ppm)
+    // Pour les gaz parfaits : fraction molaire = fraction volumique
+    // x_v = e / P
+    const volume_fraction = e / P;
+    const ppm = volume_fraction * 1e6; // conversion en ppm
+    
     return {
-        g_per_m3: Math.round(g_per_m3 * 100) / 100,
-        L_per_m3: Math.round(L_per_m3 * 1000) / 1000,
-        rho_air: Math.round(rho_air * 100) / 100, // kg/m³, avec prise en compte de la pression
-        w: Math.round(w * 10) / 10,              // g/kg, avec prise en compte de la pression
-        x: Math.round(x * 1e6) / 1e6              // 0-1 (ppm si ×1e6), avec prise en compte de la pression 
+        g_per_m3: Math.round(g_per_m3 * 100) / 100,     // arrondi à 2 décimales
+        g_per_kg: Math.round(g_per_kg * 100) / 100,      // arrondi à 2 décimales
+        ppm: Math.round(ppm * 10) / 10                   // arrondi à 1 décimale
     };
 }

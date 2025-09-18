@@ -124,7 +124,7 @@ class ConfigManager {
         const requiredFields = ['host', 'port'];
         for (const field of requiredFields) {
             if (!config.hasOwnProperty(field) || config[field] === null || config[field] === undefined) {
-                console.error(`${V.error} Champ obligatoire manquant: ${field}`);
+                console.error(`${V.error} Champ obligatoire manquant: ${field}`, config);
                 return false;
             }
         }

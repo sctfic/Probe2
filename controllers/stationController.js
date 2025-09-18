@@ -3,6 +3,7 @@ const stationService = require('../services/stationService');
 const influxdbService = require('../services/influxdbService');
 const configManager = require('../services/configManager');
 const network = require('../services/networkService');
+const fs = require('fs');
 const path = require('path');
 const { V } = require('../utils/icons');
 
@@ -51,22 +52,49 @@ exports.getStationInfo = async (req, res) => {
 };
 exports.getCurrentWeather = async (req, res) => {
     const stationConfig = req.stationConfig;
+    const cacheFilePath = path.join(__dirname, '..', 'config', 'stations', `${stationConfig.id}.currents.last`);
+
     try {
         const weatherData = await stationService.getCurrentWeatherData(req, stationConfig);
-        
-        res.json({
+        const responsePayload = {
             success: true,
             stationId: stationConfig.id,
             timestamp: new Date().toISOString(),
             data: weatherData
-        });
+        };
+        // Enregistrer la réponse réussie dans le fichier cache
+        fs.writeFileSync(cacheFilePath, JSON.stringify(responsePayload, null, 2), 'utf8');
+
+        res.json(responsePayload);
     } catch (error) {
-        console.error(`${V.error} Erreur dans getCurrentWeather pour ${req.stationConfig?.id}:`, error);
-        res.status(500).json({
-            success: false,
-            stationId: req.stationConfig?.id || 'unknown',
-            error: error.message
-        });
+        // En cas d'erreur, essayer de renvoyer les données du fichier cache
+        try {
+            if (fs.existsSync(cacheFilePath)) {
+                console.log(V.Warn, `Récupération des données depuis le cache: ${cacheFilePath}`);
+                const cachedData = fs.readFileSync(cacheFilePath, 'utf8');
+                const responsePayload = JSON.parse(cachedData);
+                
+                // Ajouter un message pour indiquer que les données proviennent du cache
+                responsePayload.message = "Données en cache (erreur de connexion à la station)";
+                responsePayload.fromCache = true;
+                responsePayload.success = false;
+
+                
+                res.json(responsePayload);
+            } else {
+                console.error(V.error,'no file');
+
+                // Si aucun fichier cache n'existe, renvoyer l'erreur originale
+                throw new Error(`Aucun fichier cache disponible et erreur de connexion: ${error.message}`);
+            }
+        } catch {
+            console.error(`${V.error} Erreur lors de la lecture du fichier cache pour ${req.stationConfig?.id}:`, cacheError);
+            res.status(500).json({
+                success: false,
+                stationId: req.stationConfig?.id || 'unknown',
+                error: error.message // Renvoie l'erreur de connexion originale
+            });
+        }
     }
 };
 exports.getArchiveData = async (req, res) => {

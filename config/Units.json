@@ -31,7 +31,29 @@
             "soilTemp4",
             "extraTemp1",
             "extraTemp2",
-            "extraTemp3"
+            "extraTemp3",
+            "THSW_calc"
+        ]
+    },
+    "density": {
+        "user": "g/m³",
+        "metric": "g/m³",
+        "available_units": {
+            "ml/m³": {
+                "title": "milli-litre per cube meter",
+                "fnFromMetric": "(d) => Number((d).toFixed(1))"
+            },
+            "g/m³": {
+                "title": "gramme per cube meter",
+                "fnFromMetric": "(d) => Number((d).toFixed(2))"
+            },
+            "g/l": {
+                "title": "g per litre",
+                "fnFromMetric": "(d) => Number((d/1000).toFixed(4))"
+            }
+        },
+        "sensors": [
+            "AirWater_calc"
         ]
     },
     "speed": {
@@ -285,7 +307,9 @@
             }
         },
         "sensors": [
-            "ForecastIcon"
+            "ForecastIcon",
+            "ForecastClass",
+            "ForecastNum"
         ]
     }
 }

@@ -181,7 +181,7 @@ function timeSeriesChart_histoRose() {
                 this.selectAll('.PointBox')
                     .attr("display", function(d) {return (d.date>=xExtend[0] && d.date<=xExtend[1])?'inline':'none'; });
 
-                this.selectAll('.calm').attr("cx", function(d) { return xScale(d.date); })
+                this.selectAll('_calm').attr("cx", function(d) { return xScale(d.date); })
                     .attr("cy", 0) // function(d) { return yScale(0); })
                     .attr("r", 5);
                 this.selectAll('.sensitive')

@@ -31,7 +31,7 @@ wget -O - https://github.com/OpenMediaVault-Plugin-Developers/installScript/raw/
 ```
 mkdir /home/alban/www/
 cd /home/alban/www/
-git clone https://github.com/sctfic/Probe2.git
+git clone --depth 1 https://github.com/sctfic/Probe2.git
 cd Probe2
 npm install
 sudo npm install -g pm2

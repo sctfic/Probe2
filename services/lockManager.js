@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { V } = require('../utils/icons');
-const network = require('../services/networkService');
+const ping = require('ping');
 
 const LOCK_DIR = path.resolve(__dirname, '../config/stations');
 const LOCK_TIMEOUT_MS = 4000; // 5 secondes
@@ -62,12 +62,26 @@ function release(stationId) {
  * @returns {Promise<void>}
  */
 async function acquire(stationConfig) {
-    // D'abord, on vérifie si la station est joignable.
-    // const telnet = await network.testTCPIP(stationConfig);
-    // if (telnet.status !== 'success') {
-    //     throw new Error(`Cannot acquire lock for ${stationConfig.id}: station is not reachable (${telnet.status}).`);
-    // }
+    // Ping check is now done upfront, before any lock checks.
+    try {
+        const res = await ping.promise.probe(stationConfig.host, { timeout: 1 });
+        if (!res.alive) {
+            // If the host doesn't respond, we abandon the acquisition attempt immediately.
+            const error = new Error(`Host ${stationConfig.host} is not responding to ping. Aborting lock acquisition.`);
+            error.code = 'HOST_UNREACHABLE';
+            console.error(`${V.error} ${error.message}`);
+            throw error;
+        }
+    } catch (pingError) {
+        // This can be the error thrown above or an error from the ping command itself.
+        if (pingError.code !== 'HOST_UNREACHABLE') {
+            console.error(`${V.error} Ping command failed for ${stationConfig.host}: ${pingError.message}`);
+        }
+        // Re-throw to abort the entire process.
+        throw pingError;
+    }
 
+    // If the host is reachable, proceed with the lock acquisition logic.
     for (let attempt = 1; attempt <= LOCK_CHECK_RETRIES; attempt++) {
         if (isFree(stationConfig.id)) {
             touch(stationConfig.id);
@@ -75,7 +89,8 @@ async function acquire(stationConfig) {
             return;
         }
 
-        console.warn(`${V.timeout} Lock busy for ${stationConfig.id}, attempt ${attempt}/${LOCK_CHECK_RETRIES}`);
+        // The lock is busy. Since we know the host is online, we just wait.
+        console.warn(`${V.timeout} Lock busy for ${stationConfig.id}, attempt ${attempt}/${LOCK_CHECK_RETRIES}. Host is online, waiting...`);
 
         if (attempt < LOCK_CHECK_RETRIES) {
             await new Promise(resolve => setTimeout(resolve, LOCK_CHECK_INTERVAL_MS));

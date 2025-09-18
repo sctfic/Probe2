@@ -1239,3 +1239,5 @@
     }
 
 })();
+
+console.log('suncalc.js loaded!');

@@ -15,8 +15,8 @@ async function createSocket(stationConfig) {
     console.log(`${V.satellite} Creating new socket for ${key}`);
     
     const socket = new net.Socket();
-    socket.setTimeout(3000);
-    socket.setKeepAlive(true, 2000);
+    socket.setTimeout(1500);
+    socket.setKeepAlive(true, 1000);
     
     // Stockage de l'ID de la station pour la gestion des verrous
     socket._stationId = stationConfig.id;
@@ -41,7 +41,7 @@ async function createSocket(stationConfig) {
         const connectTimeout = setTimeout(() => {
             socket.destroy();
             reject(new Error(`Connection timeout to ${key}`));
-        }, 5000);
+        }, 2000);
         
         socket.connect(stationConfig.port, stationConfig.host, () => {
             clearTimeout(connectTimeout);
@@ -152,6 +152,7 @@ function parseAnswerFormatString(formatString) {
  */
 function sendAndReceive(weatherSocket, command, timeout, parsedFormat) {
     return new Promise((resolve, reject) => {
+        
         // Vérifier que le socket est toujours valide
         if (weatherSocket.destroyed || weatherSocket.readyState !== 'open') {
             return reject(new Error('Socket is not connected'));
@@ -239,6 +240,7 @@ function sendAndReceive(weatherSocket, command, timeout, parsedFormat) {
  * @returns {Promise<Buffer>} Données de réponse
  */
 async function sendCommand(req, stationConfig, command, timeout = 2000, answerFormat = "") {
+ 
     const parsedFormat = parseAnswerFormatString(answerFormat);
     let commandDescription;
     const commandText = command.toString()
@@ -268,13 +270,13 @@ async function sendCommand(req, stationConfig, command, timeout = 2000, answerFo
         console.log(`${V.send} Sending to ${stationConfig.id} [${stationConfig.host}:${stationConfig.port}] (${attempts}/${maxAttempts}): '${commandText}', AnswerFormat: ${answerFormat}`);
         
         try {
-            await getOrCreateSocket(req, stationConfig);
-            await new Promise(resolve => setTimeout(resolve, 200)); // Petite pause
+            await getOrCreateSocket(req, stationConfig); // 25ms pour le creer
+            // await new Promise(resolve => setTimeout(resolve, 10)); // Petite pause
             
             const payload = await sendAndReceive(req.weatherSocket, command, timeout, parsedFormat);
             
             console.log(`${V.receive} Received from ${stationConfig.id} [${stationConfig.host}:${stationConfig.port}]: data(${payload.toString('hex').length < 20 ? payload.toString('hex') : payload.toString('hex').slice(0, 20) + '... (' + payload.length + ' bytes)' })`);
-
+            
             if (parsedFormat.expectsCrc) {
                 const data = payload.slice(0, parsedFormat.dataLengthForCrc);
                 const receivedCrcBytes = payload.slice(parsedFormat.dataLengthForCrc, parsedFormat.dataLengthForCrc + 2);
@@ -294,7 +296,7 @@ async function sendCommand(req, stationConfig, command, timeout = 2000, answerFo
             if (error.name === 'CRCError' && attempts < maxAttempts) {
                 console.warn(`${V.Radioactive} CRC error for ${stationConfig.id} (attempt ${attempts}). Retrying...`);
             } else {
-                console.error(`${O.red} Command '${commandDescription}' failed for ${stationConfig.id} after ${attempts} attempt(s): ${error.message}`);
+                console.error(V.error, `Command '${commandDescription}' failed for ${stationConfig.id} after ${attempts} attempt(s): ${error.message}`);
                 throw error;
             }
         }
@@ -319,14 +321,14 @@ async function wakeUpConsole(req, stationConfig, screen = null) {
         try {
             const ESC_LF = Buffer.from([0x1B, 0x0A]);
             
-            const response = await sendCommand(req, stationConfig, ESC_LF, 2000, "2");
+            const response = await sendCommand(req, stationConfig, ESC_LF, 1200, "2");
             
             if (response.toString('hex') === '0a0d') {
                 if (screen === true) {
-                    await sendCommand(req, stationConfig, `LAMPS 1`, 2000, "<LF><CR>OK<LF><CR>");
+                    await sendCommand(req, stationConfig, `LAMPS 1`, 1200, "<LF><CR>OK<LF><CR>");
                     console.log(`${O.yellow} ${stationConfig.id} - Screen ON`);
                 } else if (screen === false) {
-                    await sendCommand(req, stationConfig, `LAMPS 0`, 2000, "<LF><CR>OK<LF><CR>");
+                    await sendCommand(req, stationConfig, `LAMPS 0`, 1200, "<LF><CR>OK<LF><CR>");
                     console.log(`${O.black} ${stationConfig.id} - Screen OFF`);
                 } else {
                     console.log(`${O.purple} ${stationConfig.id} - WakeUp!`);

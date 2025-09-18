@@ -14,8 +14,8 @@ function createVectorPlot(data, metadata, id) {
         console.error(`Div with ID ${id} not found`);
         return;
     }
-    const unit = metadata.toUserUnit['speed:Gust'].userUnit;
-    const fn = eval(metadata.toUserUnit['speed:Gust'].fnFromMetric);
+    const unit = metadata.toUserUnit['speed:'+metadata.sensor].userUnit;
+    const fn = eval(metadata.toUserUnit['speed:'+metadata.sensor].fnFromMetric);
 
 
     if (data.length === 0) {

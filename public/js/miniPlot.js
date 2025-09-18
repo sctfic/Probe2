@@ -7,12 +7,27 @@ const requestCache = new Map();
 function formatIsoDate(date) {
     return date.toISOString().split('T')[0];
 }
+function calculateDataForPlot(apiData, metadata) {
+
+    const calc = eval(metadata.fnCalc);
+    const convert = eval(metadata.toUserUnit);
+    // console.log(metadata.fnCalc);
+    // console.log(metadata.toUserUnit);
+
+    return apiData.map(raw => {
+        // console.log(raw.d, calc(raw), convert(calc(raw)));
+        return {
+            Date: new Date(raw.d),
+            Value: convert(calc(raw))
+        }
+    }).filter(item => !isNaN(item.Value) && item.Value !== null);
+}
 
 function transformDataForPlot(apiData, metadata) {
-    const fn = eval(metadata.toUserUnit);
-    return apiData.map(item => ({
-        Date: new Date(item.d),
-        Value: fn(item.v)
+    const convert = eval(metadata.toUserUnit);
+    return apiData.map(raw => ({
+        Date: new Date(raw.d),
+        Value: convert(raw.v)
     })).filter(item => !isNaN(item.Value) && item.Value !== null);
 }
 
@@ -105,9 +120,6 @@ function createPlot(data, metadata, id, period) {
     }
 }
 
-/**
- * Nettoie les entrées expirées du cache
- */
 function cleanCache() {
     const now = Date.now();
     for (const [url, cached] of requestCache.entries()) {
@@ -119,9 +131,6 @@ function cleanCache() {
     }
 }
 
-/**
- * Effectue la requête fetch et gère le cache
- */
 async function fetchWithCache(url) {
     const now = Date.now();
     const cached = requestCache.get(url);
@@ -188,10 +197,7 @@ async function fetchWithCache(url) {
     return fetchPromise;
 }
 
-/**
- * Charge les données depuis l'API avec gestion du cache
- */
-async function loadData(id, url, period) {
+async function loadData(id, url, period, item = null) {
     const loadingText = document.getElementById('loadingText');
     try {
         // Nettoyer périodiquement le cache
@@ -199,16 +205,48 @@ async function loadData(id, url, period) {
         
         // Utiliser la fonction de fetch avec cache
         const apiResponse = await fetchWithCache(url);
-        
+    // { // item
+    //     "key": "AirWater_calc",
+    //     "name": "masse d'H2O dans l'air",
+    //     "value": 0,
+    //     "unit": "g/m³",
+    //     "userUnit": "l/m³",
+    //     "fnToUserUnit": "(d) => Number((d/1000).toFixed(1))",
+    //     "fnCalc": "(data) => waterInAir(data['temperature:outTemp'], data['humidity:outHumidity'], data['pressure:barometer']).L_per_m3",
+    //     "dataNeeded": [
+    //         "temperature:outTemp",
+    //         "humidity:outHumidity",
+    //         "pressure:barometer"
+    //     ],
+    //     "measurement": "unknown",
+    //     "groupUsage": "Calculation",
+    //     "groupCustom": 1,
+    //     "customOrder": 2,
+    //     "period": 604800,
+    //     "sensorDb": "Calc",
+    //     "comment": "masse d'eau par mettre cube d'air (ou g/l)",
+    //     "searchText": "masse d'h2o dans l'air airwater_calc masse d'h2o dans l'air masse d'eau par mettre cube d'air (ou g/l) 0  calc "
+    // }
         // Transformation et affichage
-        const plotData = transformDataForPlot(apiResponse.data, apiResponse.metadata);
+        let plotData;
+        if (url.includes('Raws')){ // cette chaine contien "Raws" 
+            apiResponse.metadata.fnCalc = item.fnCalc
+            apiResponse.metadata.toUserUnit = item.fnToUserUnit
+            apiResponse.metadata.userUnit = item.userUnit
+            apiResponse.metadata.unit = item.unit
+            plotData = calculateDataForPlot(apiResponse.data, apiResponse.metadata);
+            const value = plotData[plotData.length - 1].Value;
+            document.getElementById(`tuile_${item.key}_value`).textContent = value;
+            allConditions.find(condition => condition.key === item.key).value = value;
+        } else {
+            plotData = transformDataForPlot(apiResponse.data, apiResponse.metadata);
+        }
         createPlot(plotData, apiResponse.metadata, id, period);
-        
     } catch (error) {
         // console.error('Erreur lors du chargement:', error);
         // console.error('URL:', url);
     }
 }
 
-// Optionnel : Nettoyer automatiquement le cache toutes les minutes
-setInterval(cleanCache, 3000);
+// Optionnel : Nettoyer automatiquement le cache toutes les 60 seconde
+setInterval(cleanCache, 60 * 1000);

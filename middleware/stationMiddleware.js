@@ -48,47 +48,30 @@ const loadStationConfig = (req, res, next) => {
 const talkStationWithLamp = (handler) => {
     return async (req, res) => {
         const stationConfig = req.stationConfig;
+        let socketAcquired = false;
         try {
-            await getOrCreateSocket(req, stationConfig);
-            try {
-                // Réveiller la console avec les écrans allumés
-                await wakeUpConsole(req, stationConfig, true);
-                
-                // Exécuter le handler en lui passant req en premier paramètre
-                const result = await handler(req, res);
-                
-                if (result && typeof result === 'object') {
-                    console.log(`${V.info} ${stationConfig.id} - Réponse:`, result);
-                    res.json({
-                        success: true,
-                        stationId: stationConfig.id,
-                        timestamp: new Date().toISOString(),
-                        data: result
-                    });
-                }
-            } catch (error) {
-                console.error(`${V.error} ${stationConfig.id} - Erreur:`, error.message);
+            // await getOrCreateSocket(req, stationConfig);
+            await wakeUpConsole(req, stationConfig, true);
+            socketAcquired = true;
+            await handler(req, res); // The handler is now responsible for sending the response
+        } catch (error) {
+            // If the handler has not already sent a response, do it here.
+            if (!res.headersSent) {
+                console.error(`${V.error} ${stationConfig.id} - Error in talkStationWithLamp:`, error.message);
                 res.status(500).json({
                     success: false,
                     stationId: stationConfig.id,
                     error: error.message
                 });
-            } finally {
-                try {
-                    // Éteindre l'écrans à la fin
-                    await wakeUpConsole(req, stationConfig, false);
-                } catch (error) {
-                    console.error(`${V.error} ${stationConfig.id} - Erreur LAMPS OFF: ${error.message}`);
-                }
             }
-        } catch (error) {
-            res.status(500).json({
-                success: false,
-                stationId: stationConfig.id,
-                error: error.message
-            });
         } finally {
-            // Nettoyer le socket de la requête s'il existe
+            if (socketAcquired) {
+                // Turn off the screen at the end
+                await wakeUpConsole(req, stationConfig, false).catch(err => {
+                    console.error(`${V.error} ${stationConfig.id} - Erreur LAMPS OFF: ${err.message}`);
+                });
+            }
+            // Clean up the socket if it exists
             if (req.weatherSocket && !req.weatherSocket.destroyed) {
                 req.weatherSocket.destroy();
                 console.log(`${V.BlackFlag} Socket manually closed for ${stationConfig.id}`);
@@ -101,46 +84,23 @@ const talkStationQuickly = (handler) => {
     return async (req, res) => {
         const stationConfig = req.stationConfig;
         try {
-            await getOrCreateSocket(req, stationConfig);
-            try {
-                // Réveiller la console
-                // await wakeUpConsole(req, stationConfig);
-                
-                // Exécuter le handler en lui passant req en premier paramètre
-                const result = await handler(req, res);
-                
-                if (result && typeof result === 'object') {
-                    console.log(`${V.info} ${stationConfig.id} - Réponse:`, result);
-                    res.json({
-                        success: true,
-                        stationId: stationConfig.id,
-                        timestamp: new Date().toISOString(),
-                        data: result
-                    });
-                }
-            } catch (error) {
-                console.error(`${V.error} ${stationConfig.id} - Erreur:`, error.message);
+            // await wakeUpConsole(req, stationConfig); // empeche le Mock de fonctionner
+
+            // The handler is now responsible for the connection and error handling.
+            // This allows the `getCurrentWeather` controller to use its cache on failure.
+            await handler(req, res);
+        } catch (error) {
+            // This block is a safety net if the handler itself has an unhandled error.
+            console.error(`${V.error} Unhandled error in talkStationQuickly for ${stationConfig.id}:`, error);
+            if (!res.headersSent) {
                 res.status(500).json({
                     success: false,
                     stationId: stationConfig.id,
                     error: error.message
                 });
-            } finally {
-                try {
-                    // Éteindre l'écrans à la fin
-                    await wakeUpConsole(req, stationConfig);
-                } catch (error) {
-                    console.error(`${V.error} ${stationConfig.id} - Erreur : ${error.message}`);
-                }
             }
-        } catch (error) {
-            res.status(500).json({
-                success: false,
-                stationId: stationConfig.id,
-                error: error.message
-            });
         } finally {
-            // Nettoyer le socket de la requête s'il existe
+            // The main role of this middleware is now to ensure cleanup.
             if (req.weatherSocket && !req.weatherSocket.destroyed) {
                 req.weatherSocket.destroy();
                 console.log(`${V.BlackFlag} Socket manually closed for ${stationConfig.id}`);
@@ -148,6 +108,7 @@ const talkStationQuickly = (handler) => {
         }
     };
 }
+
 module.exports = {
     loadStationConfig,
     talkStationWithLamp,
