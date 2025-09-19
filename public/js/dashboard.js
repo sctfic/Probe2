@@ -45,14 +45,32 @@ function loadCustomOrder() {
 // --- Dashboard Section: Current Conditions ---
 
 function mergeData(data) {
-    if (data.data['SUN_calc']) { // remplace 2 tuiles par une seule
+    if (data.data['SUN_V_calc']) { // remplace 2 tuiles par une seule
         if (data.data.sunrise && data.data.sunset) {
             const sunrise = data.data.sunrise;
             const fn1 = eval(sunrise.toUserUnit);
             const sunset = data.data.sunset;
             const fn2 = eval(sunset.toUserUnit);
 
-            data.data['SUN_calc'].Value = fn1(sunrise.Value) + ' - ' + fn2(sunset.Value);
+            // 1. Parse times into Date objects (assuming UTC from 'Z')
+            const sunriseDate = new Date(`1970-01-01T${sunrise.Value}`);
+            const sunsetDate = new Date(`1970-01-01T${sunset.Value}`);
+
+            // 2. Calculate the difference (daylight duration)
+            const diffMs = sunsetDate.getTime() - sunriseDate.getTime();
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffMinutes = Math.round((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            const dayDuration = `${diffHours}h${diffMinutes.toString().padStart(2, '0')}m`;
+
+            // 3. Calculate the average time (solar noon)
+            const solarNoonMs = sunriseDate.getTime() + diffMs / 2;
+            const solarNoonDate = new Date(solarNoonMs);
+            // We use getUTCHours and getUTCMinutes because the original times were UTC.
+            const solarNoonTime = `${solarNoonDate.getUTCHours().toString().padStart(2, '0')}:${solarNoonDate.getUTCMinutes().toString().padStart(2, '0')}`;
+
+            // Update the tile: main value is day duration, 'more' field shows details.
+            data.data['SUN_V_calc'].more = `▲ ${fn1(sunrise.Value)} ☀️ ${solarNoonTime} ▼ ${fn2(sunset.Value)} [${dayDuration}]`;
+
             delete data.data.sunrise;
             delete data.data.sunset;
         }
@@ -170,6 +188,7 @@ function processAndDisplayConditions() {
                 key,
                 name: sensorInfo.label || data.label || {},
                 value: data.Value,
+                more: data.more,
                 unit: data.Unit,
                 userUnit: data.userUnit,
                 fnToUserUnit: data.toUserUnit || '(_) => _',
@@ -345,8 +364,10 @@ function updateExistingTile(tileElement, item) {
         }
         
         // Mettre à jour le contenu
-        valueElement.innerHTML = `${fn(currentValue)} ${unitDisplay}`;
-        
+        valueElement.innerHTML = `
+            <span id="tuile_${item.key}_value">${fn(currentValue)}</span>
+            ${unitDisplay}
+            <span id="tuile_${item.key}_more" class="smallText">${item.more?item.more:''}</span>`;
         // Appliquer l'animation si la valeur a changé
         if (hasChanged) {
             // Retirer les classes d'animation précédentes
@@ -602,7 +623,11 @@ function createConditionTileHTML(item) {
                 <div class="condition-content">
                     <div class="condition-info">
                         <div class="condition-name">${item.name}</div>
-                        <div class="condition-value">${fn(displayValue)} ${unitDisplay}</div>
+                        <div class="condition-value">
+                            <span id="tuile_${item.key}_value">${fn(displayValue)}</span>
+                            ${unitDisplay}
+                            <span id="tuile_${item.key}_more" class="smallText">${item.more?item.more:''}</span>
+                        </div>
                         ${metaInfo}
                     </div>
                     <div class="condition-chart">${chartContent}</div>
@@ -650,7 +675,9 @@ function createConditionTileHTML(item) {
                 <div class="condition-info">
                     <div class="condition-name">${item.name}</div>
                     <div class="condition-value">
-                        <span id="tuile_${item.key}_value">${fn(displayValue)}</span> ${unitDisplay}
+                        <span id="tuile_${item.key}_value">${fn(displayValue)}</span>
+                        ${unitDisplay}
+                        <span id="tuile_${item.key}_more" class="smallText">${item.more?item.more:''}</span>
                     </div>
                     ${metaInfo}
                 </div>

@@ -23,12 +23,12 @@
         "groupUsage":"Calculation",
         "groupCustom": 1
     },
-    "SUN_calc": {
-        "label": "Phase du soleil",
+    "SUN_V_calc": {
+        "label": "Angle vertical du soleil",
         "comment": "calcul de la phase du soleil",
         "Value": null,
-        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => { return SunCalc.getPosition(new Date(data.d), lat, lon); }",
-        "dataNeeded": ["powerRadiation:solarRadiation","uv:UV","rain:ET"],
+        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {const V = SunCalc.getPosition(new Date(data.d), lat, lon).altitudeDegrees; return V > 0 ? Number(V.toFixed(1)) : 0; }",
+        "dataNeeded": ["powerRadiation:solarRadiation"],
         "js":["/js/sunCalc.js"],
         "period": 604800,
         "sensorDb":"Calc",
@@ -39,7 +39,7 @@
         "label": "Phase de la lune",
         "comment": "calcul de la phase de la lune",
         "Value": null,
-        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => { return data.d; }",
+        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {const P = SunCalc.getMoonPhase(new Date(data.d), lat, lon).phase; return P; }",
         "dataNeeded": ["powerRadiation:solarRadiation"],
         "js":["/js/sunCalc.js"],
         "period": 604800,

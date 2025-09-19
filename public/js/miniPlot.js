@@ -205,28 +205,6 @@ async function loadData(id, url, period, item = null) {
         
         // Utiliser la fonction de fetch avec cache
         const apiResponse = await fetchWithCache(url);
-    // { // item
-    //     "key": "AirWater_calc",
-    //     "name": "masse d'H2O dans l'air",
-    //     "value": 0,
-    //     "unit": "g/m³",
-    //     "userUnit": "l/m³",
-    //     "fnToUserUnit": "(d) => Number((d/1000).toFixed(1))",
-    //     "fnCalc": "(data) => waterInAir(data['temperature:outTemp'], data['humidity:outHumidity'], data['pressure:barometer']).L_per_m3",
-    //     "dataNeeded": [
-    //         "temperature:outTemp",
-    //         "humidity:outHumidity",
-    //         "pressure:barometer"
-    //     ],
-    //     "measurement": "unknown",
-    //     "groupUsage": "Calculation",
-    //     "groupCustom": 1,
-    //     "customOrder": 2,
-    //     "period": 604800,
-    //     "sensorDb": "Calc",
-    //     "comment": "masse d'eau par mettre cube d'air (ou g/l)",
-    //     "searchText": "masse d'h2o dans l'air airwater_calc masse d'h2o dans l'air masse d'eau par mettre cube d'air (ou g/l) 0  calc "
-    // }
         // Transformation et affichage
         let plotData;
         if (url.includes('Raws')){ // cette chaine contien "Raws" 
@@ -235,8 +213,10 @@ async function loadData(id, url, period, item = null) {
             apiResponse.metadata.userUnit = item.userUnit
             apiResponse.metadata.unit = item.unit
             plotData = calculateDataForPlot(apiResponse.data, apiResponse.metadata);
-            const value = plotData[plotData.length - 1].Value;
-            document.getElementById(`tuile_${item.key}_value`).textContent = value;
+            // const value = plotData[plotData.length - 1].Value;
+            const value = eval(apiResponse.metadata.fnCalc)(apiResponse.data[apiResponse.data.length - 1]);
+
+            document.getElementById(`tuile_${item.key}_value`).textContent = eval(apiResponse.metadata.toUserUnit)(value);
             allConditions.find(condition => condition.key === item.key).value = value;
         } else {
             plotData = transformDataForPlot(apiResponse.data, apiResponse.metadata);

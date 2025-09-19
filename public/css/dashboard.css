@@ -551,4 +551,11 @@
 .context-menu li:hover {
     background-color: #f0f0f0;
 }
+.smallText {
+    /* position a droite */
+    margin-left: auto;
+    float: right;
+    font-size: 0.6em;
+    color: #666;
+    font-weight: normal !important;
 }
