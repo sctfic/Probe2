@@ -1,7 +1,6 @@
 // controllers/additionalController.js
 const units = require('../config/Units.json');
 const Probes = require('../config/additionalProbes.json');
-const {V, O} = require('../utils/icons');
 const { sensorTypeMap } = require('../utils/weatherDataParser');
 // const additionalProbe = require('../config/aditionnalProbe.json');
 
@@ -19,6 +18,7 @@ async function getAdditionalProbe (req, res){
             .replace("%latitude%", req.stationConfig.latitude.lastReadValue)
             .replace("%altitude%", req.stationConfig.altitude.lastReadValue);
         const measurement = units[sensorTypeMap[key]]
+        // acc[key].value = calculate(acc[key].fnCalc);
         acc[key].userUnit = measurement?.user || null
         acc[key].Unit = measurement?.metric || null
         acc[key].toUserUnit = measurement?.available_units[measurement.user].fnFromMetric || null

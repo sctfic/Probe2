@@ -7,21 +7,6 @@ const requestCache = new Map();
 function formatIsoDate(date) {
     return date.toISOString().split('T')[0];
 }
-function calculateDataForPlot(apiData, metadata) {
-
-    const calc = eval(metadata.fnCalc);
-    const convert = eval(metadata.toUserUnit);
-    // console.log(metadata.fnCalc);
-    // console.log(metadata.toUserUnit);
-
-    return apiData.map(raw => {
-        // console.log(raw.d, calc(raw), convert(calc(raw)));
-        return {
-            Date: new Date(raw.d),
-            Value: convert(calc(raw))
-        }
-    }).filter(item => !isNaN(item.Value) && item.Value !== null);
-}
 
 function transformDataForPlot(apiData, metadata) {
     const convert = eval(metadata.toUserUnit);
@@ -46,7 +31,7 @@ function createPlot(data, metadata, id, period) {
     } else {
         period = '1 day';
     }
-    // console.log(period);
+console.log(data, metadata, id, period);
 
     const chartDiv = document.getElementById(id);
     if (!chartDiv) {
@@ -206,21 +191,8 @@ async function loadData(id, url, period, item = null) {
         // Utiliser la fonction de fetch avec cache
         const apiResponse = await fetchWithCache(url);
         // Transformation et affichage
-        let plotData;
-        if (url.includes('Raws')){ // cette chaine contien "Raws" 
-            apiResponse.metadata.fnCalc = item.fnCalc
-            apiResponse.metadata.toUserUnit = item.fnToUserUnit
-            apiResponse.metadata.userUnit = item.userUnit
-            apiResponse.metadata.unit = item.unit
-            plotData = calculateDataForPlot(apiResponse.data, apiResponse.metadata);
-            // const value = plotData[plotData.length - 1].Value;
-            const value = eval(apiResponse.metadata.fnCalc)(apiResponse.data[apiResponse.data.length - 1]);
-
-            document.getElementById(`tuile_${item.key}_value`).textContent = eval(apiResponse.metadata.toUserUnit)(value);
-            allConditions.find(condition => condition.key === item.key).value = value;
-        } else {
-            plotData = transformDataForPlot(apiResponse.data, apiResponse.metadata);
-        }
+        const plotData = transformDataForPlot(apiResponse.data, apiResponse.metadata);
+        console.log(apiResponse.metadata.sensor);
         createPlot(plotData, apiResponse.metadata, id, period);
     } catch (error) {
         // console.error('Erreur lors du chargement:', error);

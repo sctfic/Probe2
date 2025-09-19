@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graphique de température avec groupement variable</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@latest/dist/plot.umd.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f1f3f4;
+            border-radius: 6px;
+        }
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .control-row:last-child {
+            margin-bottom: 0;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+        }
+        .slider {
+            flex: 1;
+            height: 6px;
+            background: #ddd;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+        .value-display {
+            font-weight: bold;
+            color: #007bff;
+            min-width: 60px;
+            text-align: right;
+        }
+        .interval-display {
+            font-weight: bold;
+            color: #28a745;
+            min-width: 120px;
+            text-align: right;
+        }
+        select, input[type="text"], button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        select {
+            min-width: 200px;
+        }
+        input[type="text"] {
+            min-width: 150px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: 1px solid #007bff;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #0056b3;
+            border-color: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            border-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #dc3545;
+            background: #f8d7da;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .chart-container {
+            margin-top: 20px;
+        }
+        .info {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .stats {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            font-size: 14px;
+        }
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Données de température avec groupement variable</h1>
+        
+        <div class="controls">
+            <div class="control-row">
+                <div class="control-group">
+                    <label for="dataSource">Source de données:</label>
+                    <select id="dataSource">
+                        <option value="alphavantage_intraday_30d" selected>Alpha Vantage Intraday 5min sur 30d</option>
+                        <option value="alphavantage_daily_max">Alpha Vantage Daily Max</option>
+                        <option value="probe2" >Probe2 LPZ</option>
+                        <option value="custom">URL personnalisée</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="symbol">Symbole:</label>
+                    <input type="text" id="symbol" value="IBM" placeholder="Ex: AAPL, inTemp">
+                </div>
+                
+                <div class="control-group">
+                    <input type="text" id="customUrl" placeholder="URL personnalisée avec %symbol%" style="display: none; min-width: 300px;">
+                </div>
+                
+                <button id="loadData">Charger</button>
+            </div>
+            
+            <div class="control-row">
+                <div class="slider-container">
+                    <label for="groupCount">Nombre de groupes:</label>
+                    <input type="range" id="groupCount" class="slider" min="12" max="100" value="24" step="1">
+                    <span class="value-display" id="groupValue">24</span>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <span>Intervalle moyen:</span>
+                    <span class="interval-display" id="intervalValue">-</span>
+                </div>
+                <div class="stat-item">
+                    <span>Total de points:</span>
+                    <span class="value-display" id="totalPoints">-</span>
+                </div>
+            </div>
+            
+            <div class="info">
+                Ajustez le curseur pour regrouper les données en segments temporels différents.
+            </div>
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">Chargement des données...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="chart" class="chart-container"></div>
+    </div>
+
+    <script>
+        let rawData = null;
+        let maxGroupCount = 100;
+        let averageInterval = 0;
+
+        // Gestion de l'affichage de l'URL personnalisée
+        document.getElementById('dataSource').addEventListener('change', function() {
+            const customUrl = document.getElementById('customUrl');
+            if (this.value === 'custom') {
+                customUrl.style.display = 'block';
+            } else {
+                customUrl.style.display = 'none';
+            }
+        });
+
+        // Fonction pour construire l'URL selon la source
+        function buildUrl(source, symbol) {
+            const urls = {
+                'alphavantage_intraday_30d': `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&outputsize=full&apikey=3S5YA5HM0FPCCJXP`,
+                'alphavantage_daily_max': `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&outputsize=full&apikey=3S5YA5HM0FPCCJXP`,
+                'probe2': `http://probe2.lpz.ovh/query/VP2_Serramoune/Raw/${symbol}`,
+                'custom': document.getElementById('customUrl').value.replace('%symbol%', symbol)
+            };
+            return urls[source];
+        }
+
+        // Fonction pour parser les données selon la source
+        function parseDataBySource(data, source) {
+            switch (source) {
+                case 'alphavantage_intraday_30d':
+                case 'alphavantage_daily_max':
+                    return parseAlphaVantageData(data);
+                case 'probe2':
+                    return parseProbe2Data(data);
+                case 'custom':
+                    return parseProbe2Data(data); // Par défaut, assume le format probe2
+                default:
+                    throw new Error('Source inconnue');
+            }
+        }
+
+        // Parser pour Alpha Vantage
+        function parseAlphaVantageData(data) {
+            const timeSeriesKey = Object.keys(data).find(key => key.startsWith('Time Series ('));
+            const timeSeries = data[timeSeriesKey];
+
+            if (!timeSeries) {
+                throw new Error('Données Alpha Vantage invalides');
+            }
+            
+            return Object.entries(timeSeries)
+                .map(([timestamp, values]) => ({
+                    d: timestamp,
+                    v: parseFloat(values['4. close']) // Utilise le prix de clôture
+                }))
+                .sort((a, b) => new Date(a.d) - new Date(b.d));
+        }
+
+        // Parser pour Probe2
+        function parseProbe2Data(data) {
+            if (!data.data || !Array.isArray(data.data)) {
+                throw new Error('Format de données Probe2 invalide');
+            }
+            return data.data;
+        }
+
+        // Fonction pour calculer l'intervalle moyen
+        function calculateAverageInterval(groupCount) {
+            if (!rawData || rawData.length < 2 || groupCount < 1) {
+                return 0;
+            }
+
+            let totalInterval = 0;
+            let intervalCount = 0;
+            
+            // Calculer l'intervalle entre les premiers points de chaque série
+            for (let seriesIndex = 0; seriesIndex < Math.floor(rawData.length / groupCount); seriesIndex++) {
+                const currentIndex = seriesIndex * groupCount;
+                const nextIndex = (seriesIndex + 1) * groupCount;
+                
+                if (nextIndex < rawData.length) {
+                    const currentDate = new Date(rawData[currentIndex].d);
+                    const nextDate = new Date(rawData[nextIndex].d);
+                    const intervalMs = nextDate - currentDate;
+                    
+                    if (intervalMs > 0) {
+                        totalInterval += intervalMs;
+                        intervalCount++;
+                    }
+                }
+            }
+            
+            return intervalCount > 0 ? totalInterval / intervalCount : 0;
+        }
+
+        // Fonction pour formater l'intervalle
+        function formatInterval(intervalMs) {
+            if (intervalMs === 0) return '-';
+            
+            const seconds = intervalMs / 1000;
+            const minutes = seconds / 60;
+            const hours = minutes / 60;
+            const days = hours / 24;
+            
+            if (days >= 1) {
+                return `${days.toFixed(1)} jours`;
+            } else if (hours >= 1) {
+                return `${hours.toFixed(1)} heures`;
+            } else if (minutes >= 1) {
+                return `${minutes.toFixed(1)} min`;
+            } else {
+                return `${seconds.toFixed(1)} sec`;
+            }
+        }
+
+        // Fonction pour charger les données
+        async function loadData() {
+            const source = document.getElementById('dataSource').value;
+            const symbol = document.getElementById('symbol').value.trim();
+            
+            if (!symbol) {
+                alert('Veuillez saisir un symbole');
+                return;
+            }
+
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('error').style.display = 'none';
+                document.getElementById('chart').innerHTML = '';
+                
+                const url = buildUrl(source, symbol);
+                console.log('Chargement depuis:', url);
+                
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const jsonData = await response.json();
+                rawData = parseDataBySource(jsonData, source);
+                
+                if (!rawData || rawData.length === 0) {
+                    throw new Error('Aucune donnée trouvée');
+                }
+                
+                maxGroupCount = Math.floor(rawData.length / 3);
+                
+                // Mettre à jour le slider
+                const slider = document.getElementById('groupCount');
+                slider.max = maxGroupCount;
+                slider.value = maxGroupCount/3;
+                
+                // Mettre à jour les statistiques
+                document.getElementById('totalPoints').textContent = rawData.length;
+                
+                // Masquer le loading
+                document.getElementById('loading').style.display = 'none';
+                
+                // Générer le graphique initial
+                updateChart();
+                
+            } catch (error) {
+                console.error('Erreur lors du chargement:', error);
+                document.getElementById('loading').style.display = 'none';
+                const errorDiv = document.getElementById('error');
+                errorDiv.textContent = `Erreur lors du chargement des données: ${error.message}`;
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        // Fonction pour transformer les données selon le groupCount
+        function transformData(groupCount) {
+            if (!rawData) return [];
+            
+            return rawData.map((item, index) => {
+                // Convertir la température de Kelvin vers Celsius si nécessaire
+                let tempValue = item.v;
+                if (tempValue > 200) { // Assume Kelvin if > 200
+                    tempValue = item.v - 273.15;
+                }
+                
+                return {
+                    x: index % groupCount, // Position dans le groupe
+                    v: tempValue,          // Température ou valeur
+                    z: Math.floor(index / groupCount), // Numéro du groupe
+                    date: new Date(item.d) // Date pour référence
+                };
+            });
+        }
+
+        // Fonction pour créer/mettre à jour le graphique
+        function updateChart() {
+            if (!rawData) return;
+            
+            const groupCount = parseInt(document.getElementById('groupCount').value);
+            const dataWithZ = transformData(groupCount);
+            
+            // Calculer et afficher l'intervalle moyen
+            averageInterval = calculateAverageInterval(groupCount);
+            document.getElementById('intervalValue').textContent = formatInterval(averageInterval);
+            
+            // Créer le graphique avec Plot
+            const plot = Plot.plot({
+                width: 1100,
+                height: 400,
+                marginLeft: 60,
+                marginBottom: 60,
+                grid: true,
+                x: {
+                    label: "Position dans le groupe",
+                    domain: [0, groupCount - 1]
+                },
+                y: {
+                    label: "Valeur",
+                },
+                color: {
+                    type: "ordinal",
+                    scheme: "viridis"
+                },
+                marks: [
+                    Plot.lineY(dataWithZ, {
+                        x: "x",
+                        y: "v", 
+                        z: "z",
+                        strokeWidth: 1,
+                        strokeOpacity: 0.7,
+                        stroke: "blue",
+                    }),
+                    Plot.ruleY([0], {stroke: "#ccc", strokeDasharray: "3,3"})
+                ]
+            });
+            
+            // Remplacer le contenu du conteneur
+            const chartContainer = document.getElementById('chart');
+            chartContainer.innerHTML = '';
+            chartContainer.appendChild(plot);
+            
+            // Mettre à jour l'affichage de la valeur
+            document.getElementById('groupValue').textContent = groupCount;
+        }
+
+        // Event listeners
+        document.getElementById('groupCount').addEventListener('input', updateChart);
+        document.getElementById('loadData').addEventListener('click', loadData);
+        
+        // Permettre le chargement avec Enter dans le champ symbole
+        document.getElementById('symbol').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadData();
+            }
+        });
+        
+        // Permettre le chargement avec Enter dans l'URL personnalisée
+        document.getElementById('customUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadData();
+            }
+        });
+
+        // Charger les données par défaut au démarrage
+        loadData();
+    </script>
+</body>
+</html>

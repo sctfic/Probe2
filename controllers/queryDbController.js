@@ -4,7 +4,11 @@ const { V } = require('../utils/icons');
 const units = require('../config/Units.json');
 const { sensorTypeMap } = require('../utils/weatherDataParser');
 const configManager = require('../services/configManager');
-const stationMiddleware = require('../middleware/stationMiddleware');
+
+const additionalProbes = require('../config/additionalProbes.json');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
 
 // Generic function to handle errors
 const handleError = (res, stationId, error, controllerName) => {
@@ -38,131 +42,6 @@ async function getIntervalSeconds(stationId, sensorRef, startDate, endDate, step
         end: endTime.toISOString().replace('.000Z', 'Z'),
         intervalSeconds: interval
     };
-};
-
-exports.getQueryMetadata = async (req, res) => {
-    const stationId = req.params.stationId;
-    try {
-        console.log(`${V.info} Demande de métadonnées pour la station ${stationId}`);
-        const _measurements = await influxdbService.getMetadata(stationId);
-        const allFields = Object.values(_measurements).flatMap(measurement => measurement.tags.sensor);
-        const dateRange = await influxdbService.queryDateRange(stationId, '', 0, Math.round(new Date().getTime()/1000));
-
-        res.json({
-            success: true,
-            message: 'Success',
-            metadata: {
-                stationId: stationId,
-                sensor: [...new Set(allFields)],
-                queryTime: new Date().toISOString(),
-                first: dateRange.firstUtc,
-                last: dateRange.lastUtc,
-                intervalSeconds: null,
-                count: null,
-                unit: units,
-                userUnit: null,
-                toUserUnit: null
-            },
-            measurements: _measurements
-        });
-    } catch (error) {
-        handleError(res, stationId, error, 'getQueryMetadata');
-    }
-};
-
-function getTypeAndSensor(sensorRef='') {
-    let type, sensor;
-    if (sensorRef.includes(':')) {
-        [type, sensor] = sensorRef.split(':');
-    } else {
-        type = sensorTypeMap[sensorRef];
-        sensor = sensorRef;
-    }
-    return { type, sensor };
-}
-
-exports.getQueryRange = async (req, res) => {
-    const { stationId, sensorRef } = req.params;
-    const { startDate, endDate } = req.query;
-    
-    if (!stationId) {
-        return res.status(400).json({ success: false, error: 'Les paramètres stationId et sensorRef sont requis.' });
-    }
-    
-    const { type, sensor } = getTypeAndSensor(sensorRef);
-    
-    try {
-        console.log(`${V.info} Demande de plage de dates pour ${stationId} - ${sensorRef}`);
-        const data = await influxdbService.queryDateRange(stationId, sensorRef, startDate ? new Date(startDate).getTime()/1000 : null, endDate ? (new Date(endDate).getTime()+1000)/1000 : null);
-        res.json({
-            success: true,
-            message: 'Success',
-            metadata: {
-                stationId: stationId,
-                sensor: sensor,
-                queryTime: new Date().toISOString(),
-                first: data.firstUtc ? new Date(data.firstUtc).toISOString() : null,
-                last: data.lastUtc ? new Date(data.lastUtc).toISOString() : null,
-                intervalSeconds: data.count > 1 ? Math.round((new Date(data.lastUtc).getTime() - new Date(data.firstUtc).getTime()) / (data.count - 1))/1000 : null,
-                count: data.count,
-                unit: data.unit || '',
-                userUnit: units?.[type]?.user || '',
-                toUserUnit: units?.[type]?.available_units?.[units?.[type]?.user]?.fnFromMetric || null
-            },
-            data: []
-        });
-    } catch (error) {
-        handleError(res, stationId, error, 'getQueryRange');
-    }
-};
-
-exports.getQueryRaw = async (req, res) => {
-    const { stationId, sensorRef } = req.params;
-    const { startDate, endDate, stepCount: stepCountStr } = req.query;
-    const stepCount = stepCountStr ? parseInt(stepCountStr, 10) : 100000;
-    
-    const { type, sensor } = getTypeAndSensor(sensorRef);
-    
-    try {
-        // console.log(`${V.info} Demande de données brutes pour ${stationId} - ${sensorRef}`);
-        const {start, end, intervalSeconds } = await getIntervalSeconds(stationId, sensorRef, startDate, endDate, stepCount);
-        // console.log(`${V.info} Intervalle choisi: ${intervalSeconds} secondes`, { start, end, stop: (start+stepCount*intervalSeconds*1000) });
-        const data = await influxdbService.queryRaw(stationId, sensorRef, start, end, intervalSeconds);
-        // formatage des données
-        const Data = data.map(row => {
-            return {
-                d: row._time,
-                v: Math.round(row._value * 100) / 100
-            };
-        });
-        let msg = 'Full data loadded !';
-        if (Data.length==stepCount+1 && new Date(Data[Data.length-1].d).getTime()==end) {
-            // Data.pop(); // supprimer la derniere valeur, qui est la derniere valeur de la plage avant agregation
-            msg = '(!) Last value is current !';
-        } else if (Data.length < stepCount) {
-            msg = '<!> Data missing suspected !';
-        }
-        res.json({
-            success: true,
-            message: msg,
-            metadata: {
-                stationId: stationId,
-                measurement: type,
-                sensor: sensor,
-                queryTime: new Date().toISOString(),
-                first: new Date(start).toISOString(),
-                last: new Date(end).toISOString(),
-                intervalSeconds: intervalSeconds,
-                count: Data.length,
-                unit: data[0]?.unit || '',
-                userUnit: units?.[type]?.user || '',
-                toUserUnit: units?.[type]?.available_units?.[units?.[type]?.user]?.fnFromMetric || null
-            },
-            data: Data
-        });
-    } catch (error) {
-        handleError(res, stationId, error, 'getQueryRaw');
-    }
 };
 
 function getMetadata(stationId, sensorRefs, { start, end, intervalSeconds }, data) {
@@ -204,6 +83,194 @@ function getMetadata(stationId, sensorRefs, { start, end, intervalSeconds }, dat
         toUserUnit: sensorsFnFromMetric
     };
 }
+
+exports.getQueryMetadata = async (req, res) => {
+    const stationId = req.params.stationId;
+    try {
+        console.log(`${V.info} Demande de métadonnées pour la station ${stationId}`);
+        const _measurements = await influxdbService.getMetadata(stationId);
+        const allFields = Object.values(_measurements).flatMap(measurement => measurement.tags.sensor);
+        const dateRange = await influxdbService.queryDateRange(stationId, '', 0, Math.round(new Date().getTime()/1000));
+
+        res.json({
+            success: true,
+            message: 'Success',
+            metadata: {
+                stationId: stationId,
+                sensor: [...new Set(allFields)],
+                queryTime: new Date().toISOString(),
+                first: dateRange.firstUtc,
+                last: dateRange.lastUtc,
+                intervalSeconds: null,
+                count: null,
+                unit: units,
+                userUnit: null,
+                toUserUnit: null
+            },
+            measurements: _measurements
+        });
+    } catch (error) {
+        handleError(res, stationId, error, 'getQueryMetadata');
+    }
+};
+
+function getTypeAndSensor(sensorRef='') {
+    let type, sensor;
+    if (sensorRef.includes(':')) {
+        [type, sensor] = sensorRef.split(':');
+    } else if (sensorTypeMap[sensorRef]) {
+        type = sensorTypeMap[sensorRef];
+        sensor = sensorRef;
+    } else {
+        console.log(`${V.Warn} Sensor reference ${sensorRef} not found in Units.json`);
+        type = null;
+        sensor = sensorRef;
+    }
+    return { type, sensor };
+}
+
+exports.getQueryRange = async (req, res) => {
+    const { stationId, sensorRef } = req.params;
+    const { startDate, endDate } = req.query;
+    
+    if (!stationId) {
+        return res.status(400).json({ success: false, error: 'Les paramètres stationId et sensorRef sont requis.' });
+    }
+    
+    const { type, sensor } = getTypeAndSensor(sensorRef);
+    
+    try {
+        console.log(`${V.info} Demande de plage de dates pour ${stationId} - ${sensorRef}`);
+        const data = await influxdbService.queryDateRange(stationId, sensorRef, startDate ? new Date(startDate).getTime()/1000 : null, endDate ? (new Date(endDate).getTime()+1000)/1000 : null);
+        res.json({
+            success: true,
+            message: 'Success',
+            metadata: {
+                stationId: stationId,
+                sensor: sensor,
+                queryTime: new Date().toISOString(),
+                first: data.firstUtc ? new Date(data.firstUtc).toISOString() : null,
+                last: data.lastUtc ? new Date(data.lastUtc).toISOString() : null,
+                intervalSeconds: data.count > 1 ? Math.round((new Date(data.lastUtc).getTime() - new Date(data.firstUtc).getTime()) / (data.count - 1))/1000 : null,
+                count: data.count,
+                unit: data.unit || '',
+                userUnit: units?.[type]?.user || '',
+                toUserUnit: units?.[type]?.available_units?.[units?.[type]?.user]?.fnFromMetric || null
+            },
+            data: []
+        });
+    } catch (error) {
+        handleError(res, stationId, error, 'getQueryRange');
+    }
+};
+
+async function getCalculatedData(stationConfig, probeConfig, start, end, intervalSeconds) {
+
+    // Prepare script context for calculations
+    const scriptContext = {};
+    const loadedScripts = new Set();
+
+    for (const probeKey in additionalProbes) {
+        const probeConfig = additionalProbes[probeKey];
+        if (probeConfig.scriptJS) {
+            for (const scriptPath of probeConfig.scriptJS) { // charge les scripts specifie dans la config 
+                if (!loadedScripts.has(scriptPath)) { // evite de charger plusieurs fois le même script
+                    const fullPath = path.join(__dirname, '..', 'public', scriptPath);
+                    try {
+                        const requiredModule = require(fullPath); // charge le script
+                        Object.assign(scriptContext, requiredModule); // ajoute les fonctions exportees au contexte
+                        loadedScripts.add(scriptPath); // marque le script comme charge
+                    } catch (e) {
+                        console.error(`${V.error} Failed to load script ${scriptPath} for current conditions:`, e);
+                    }
+                }
+            }
+        }
+    }
+
+    // Prepare calculation function from fnCalc string
+    const fnCalcStr = probeConfig.fnCalc
+        .replace("%longitude%", stationConfig.longitude.lastReadValue)
+        .replace("%latitude%", stationConfig.latitude.lastReadValue)
+        .replace("%altitude%", stationConfig.altitude.lastReadValue);
+
+    const calculate = vm.runInNewContext(`(${fnCalcStr})`, scriptContext);
+    // Fetch needed data from InfluxDB
+    const { dataNeeded } = probeConfig;
+    const rawData = await influxdbService.queryRaws(stationConfig.id, dataNeeded, start, end, intervalSeconds);
+    // Perform calculation for each row
+    return rawData.map(row => {
+        return {
+            d: row._time,
+            v: calculate(row)
+        }
+    }).filter(item => item.v !== null && !isNaN(item.v))
+}
+exports.getQueryRaw = async (req, res) => {
+    const { stationId, sensorRef } = req.params;
+    const { startDate, endDate, stepCount: stepCountStr } = req.query;
+    const stepCount = stepCountStr ? parseInt(stepCountStr, 10) : 100000;
+
+    try {
+        // --- Common setup ---
+        const { type, sensor } = getTypeAndSensor(sensorRef);
+        const timeInfo = await getIntervalSeconds(stationId, 'barometer', startDate, endDate, stepCount);
+        const { start, end, intervalSeconds } = timeInfo;
+
+        let Data;
+        let msg;
+
+        // --- Data Fetching and Processing ---
+        if (sensor.endsWith('_calc')) {
+            const probeConfig = additionalProbes[sensor];
+            if (!probeConfig) {
+                const err = new Error(`Calculated sensor configuration not found for ${sensorRef}`);
+                err.statusCode = 404;
+                throw err;
+            }
+            Data = await getCalculatedData(req.stationConfig, probeConfig, start, end, intervalSeconds);
+            msg = 'Calculated data loaded!';
+        } else {
+            // Handle regular sensor
+            const rawData = await influxdbService.queryRaw(stationId, type+':'+sensor, start, end, intervalSeconds);
+            Data = rawData.map(row => ({
+                d: row._time,
+                v: Math.round(row._value * 100) / 100
+            }));
+
+            msg = 'Full data loadded !';
+            if (Data.length === stepCount + 1 && new Date(Data[Data.length - 1].d).getTime() === new Date(end).getTime()) {
+                msg = '(!) Last value is current !';
+            } else if (Data.length < stepCount) {
+                msg = '<!> Data missing suspected !';
+            }
+        }
+        // Prepare metadata for the response
+        const measurement = units[type];
+        const metadata = {
+            stationId: stationId,
+            measurement: type,
+            sensor: sensor,
+            queryTime: new Date().toISOString(),
+            first: start,
+            last: end,
+            intervalSeconds: intervalSeconds,
+            count: Data.length,
+            unit: measurement?.metric || null,
+            userUnit: measurement?.user || null,
+            toUserUnit: measurement?.available_units?.[measurement.user]?.fnFromMetric || null
+        };
+        // --- Common Response ---
+        res.json({
+            success: true,
+            message: msg,
+            metadata,
+            data: Data
+        });
+    } catch (error) {
+        handleError(res, stationId, error, 'getQueryRaw');
+    }
+};
 
 exports.getQueryRaws = async (req, res) => {
     const { stationId, sensorRefs: sensorRefsStr } = req.params;
@@ -369,10 +436,9 @@ exports.getQueryWindVectors = async (req, res) => {
 exports.clearAllData = async (req, res) => {
     try {
         console.log(`${V.Warn} Demande de suppression de toutes les données du bucket`);
-        const success = await influxdbService.clearBucket();
+        // const success = await influxdbService.clearBucket();
         // force lastArchiveDate au 01/08/2025 et enregistre la conig
         req.params.stationId = 'VP2_Serramoune';
-        stationMiddleware.loadStationConfig(req, res, () => {});
         req.stationConfig.lastArchiveDate = '2025-08-25T00:00:00.000Z';
         configManager.autoSaveConfig(req.stationConfig);
 

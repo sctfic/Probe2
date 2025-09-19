@@ -5,6 +5,10 @@ const configManager = require('../services/configManager');
 const network = require('../services/networkService');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
+const additionalProbes = require('../config/additionalProbes.json');
+const { sensorTypeMap } = require('../utils/weatherDataParser');
+const units = require('../config/Units.json');
 const { V } = require('../utils/icons');
 
 exports.testTcpIp = async (req, res) => {
@@ -50,17 +54,100 @@ exports.getStationInfo = async (req, res) => {
         });
     }
 };
+
+/**
+ * Calculates and appends additional probe data to the weather data object.
+ * This function is designed to be used with both live and cached data.
+ * @param {object} weatherData - The core weather data object.
+ * @param {object} stationConfig - The configuration for the station.
+ * @returns {Promise<object>} The weather data object enriched with calculated values.
+ */
+async function calculateAndAppendAdditionalProbes(weatherData, stationConfig) {
+    try {
+        // 1. Prepare script context (can be cached for performance)
+        const scriptContext = {};
+        const loadedScripts = new Set();
+
+        for (const probeKey in additionalProbes) {
+            const probeConfig = additionalProbes[probeKey];
+            if (probeConfig.scriptJS) {
+                for (const scriptPath of probeConfig.scriptJS) { // charge les scripts specifie dans la config
+                    if (!loadedScripts.has(scriptPath)) { // evite de charger plusieurs fois le même script
+                        const fullPath = path.join(__dirname, '..', 'public', scriptPath);
+                        try {
+                            console.log(`${V.gear} Loading script ${scriptPath} for current conditions`);
+                            const requiredModule = require(fullPath); // charge le script
+                            Object.assign(scriptContext, requiredModule); // ajoute les fonctions exportees au contexte
+                            loadedScripts.add(scriptPath); // marque le script comme charge
+                        } catch (e) {
+                            console.error(`${V.error} Failed to load script ${scriptPath} for current conditions:`, e);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Calculate values for each additional probe
+        for (const probeKey in additionalProbes) {
+            let allDataAvailable = true;
+            const probeConfig = additionalProbes[probeKey];
+            const calcInput = {};
+            for (const key in probeConfig.currentMap) {
+                if (probeConfig.currentMap[key] === 'timestamp') {
+                    calcInput[key] = new Date().toISOString();
+                } else if (!weatherData[probeConfig.currentMap[key]]) {
+                    console.log(V.Warn, `Missing data ${key} for`, probeConfig.currentMap);
+                    allDataAvailable = false;
+                    break;
+                } else {
+                    calcInput[key] = weatherData[probeConfig.currentMap[key]].Value;
+                }
+            }
+            if (allDataAvailable) {
+                const fnCalcStr = probeConfig.fnCalc
+                    .replace("%longitude%", stationConfig.longitude.lastReadValue)
+                    .replace("%latitude%", stationConfig.latitude.lastReadValue)
+                    .replace("%altitude%", stationConfig.altitude.lastReadValue);
+                    
+                const calculate = vm.runInNewContext(`(${fnCalcStr})`, scriptContext);
+                const calculatedValue = calculate(calcInput);
+                const type = sensorTypeMap[probeKey];
+                const measurement = units[type];
+                // console.log('Value', calculatedValue, 'Unit', measurement.metric , 'userUnit', measurement.user , 'toUserUnit', measurement.available_units[measurement.user].fnFromMetric );
+                weatherData[probeKey] = {
+                    label: probeConfig.label,
+                    comment: probeConfig.comment,
+                    Value: calculatedValue,
+                    measurement: sensorTypeMap[probeKey] || null,
+                    Unit: measurement?.metric || null,
+                    userUnit: measurement?.user || null,
+                    toUserUnit: measurement?.available_units?.[measurement.user]?.fnFromMetric || null,
+                    period: probeConfig.period,
+                    sensorDb: probeConfig.sensorDb
+                };
+            }
+        }
+    } catch (calcError) {
+        console.error(`${V.error} Error calculating additional probes for current conditions:`, calcError.message);
+    }
+    return weatherData;
+}
+
 exports.getCurrentWeather = async (req, res) => {
     const stationConfig = req.stationConfig;
     const cacheFilePath = path.join(__dirname, '..', 'config', 'stations', `${stationConfig.id}.currents.last`);
 
     try {
         const weatherData = await stationService.getCurrentWeatherData(req, stationConfig);
+
+        // Calculate and append additional probes
+        const enrichedWeatherData = await calculateAndAppendAdditionalProbes(weatherData, stationConfig);
+        
         const responsePayload = {
             success: true,
             stationId: stationConfig.id,
             timestamp: new Date().toISOString(),
-            data: weatherData
+            data: enrichedWeatherData
         };
         // Enregistrer la réponse réussie dans le fichier cache
         fs.writeFileSync(cacheFilePath, JSON.stringify(responsePayload, null, 2), 'utf8');
@@ -72,22 +159,26 @@ exports.getCurrentWeather = async (req, res) => {
             if (fs.existsSync(cacheFilePath)) {
                 console.log(V.Warn, `Récupération des données depuis le cache: ${cacheFilePath}`);
                 const cachedData = fs.readFileSync(cacheFilePath, 'utf8');
-                const responsePayload = JSON.parse(cachedData);
+                let responsePayload = JSON.parse(cachedData);
                 
+                // Extract weather data from the cached payload
+                let weatherDataFromCache = responsePayload.data;
+
+                // Recalculate additional probes on the cached data
+                weatherDataFromCache = await calculateAndAppendAdditionalProbes(weatherDataFromCache, stationConfig);
+                console.log(weatherDataFromCache.AirWater_calc);
                 // Ajouter un message pour indiquer que les données proviennent du cache
+                responsePayload.data = weatherDataFromCache;
                 responsePayload.message = "Données en cache (erreur de connexion à la station)";
                 responsePayload.fromCache = true;
                 responsePayload.success = false;
-
                 
                 res.json(responsePayload);
             } else {
-                console.error(V.error,'no file');
-
                 // Si aucun fichier cache n'existe, renvoyer l'erreur originale
-                throw new Error(`Aucun fichier cache disponible et erreur de connexion: ${error.message}`);
+                throw new Error(`Aucun fichier cache disponible et erreur de connexion: ${error.message}`); // Re-throw to be caught by the outer catch
             }
-        } catch {
+        } catch (cacheError) {
             console.error(`${V.error} Erreur lors de la lecture du fichier cache pour ${req.stationConfig?.id}:`, cacheError);
             res.status(500).json({
                 success: false,
@@ -97,6 +188,7 @@ exports.getCurrentWeather = async (req, res) => {
         }
     }
 };
+
 exports.getArchiveData = async (req, res) => {
     try {
         const stationConfig = req.stationConfig;
@@ -119,6 +211,7 @@ exports.getArchiveData = async (req, res) => {
         });
     }
 };
+
 exports.syncSettings = async (req, res) => {
     try {
         const stationConfig = req.stationConfig;

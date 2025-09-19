@@ -9,25 +9,6 @@ let dbSensorList = null;
 let previousValues = {};
 let selectedTiles = new Set();
 
-function loadScript(src) {
-    return new Promise((resolve, reject) => {
-        // If script already exists, resolve immediately
-        if (document.querySelector(`script[src="${src}"]`)) {
-            return resolve();
-        }
-        const scriptElement = document.createElement('script');
-        scriptElement.src = src;
-        scriptElement.onload = () => {
-            resolve();
-        };
-        scriptElement.onerror = (err) => {
-            console.error(`Failed to load script: ${src}`, err);
-            reject(new Error(`Failed to load script: ${src}`));
-        };
-        document.head.appendChild(scriptElement);
-    });
-}
-
 function saveCustomOrder() {
     if (!selectedStation) return;
     const order = Object.fromEntries(allConditions.map(item => [item.key, item.customOrder]));
@@ -75,10 +56,6 @@ function mergeData(data) {
             delete data.data.sunset;
         }
     }
-    if (data.data['THSW_calc']) { // remplace 1 tuile
-        data.data['THSW_calc'].Value = data.data['THSW'].Value;
-        delete data.data['THSW'];
-    }
     return data;
 }
 
@@ -91,68 +68,24 @@ async function fetchCurrentConditions() {
     showConditionsStatus('Chargement des données météo...', 'loading');
 
     try {
-        // Essayer de récupérer les données actuelles
-        const currentPromise = fetch(`/api/station/${selectedStation.id}/current-conditions`, { cache: 'no-cache' })
-            .catch(error => {
-                console.warn('La requête pour les conditions actuelles a échoué.', error.message);
-                return null; // Échec silencieux
-            });
-        
-        // 1. Démarrer l'appel pour les données additionnelles
-        const additionalPromise = fetch(`/api/station/${selectedStation.id}/additional-conditions`, { cache: 'no-cache' })
-            .catch(e => {
-                console.warn('La requête pour les conditions additionnelles a échoué.', e.message);
-                return null; // Échec silencieux
-            });
+        // Fetch current conditions, which now includes additional probes from the server.
+        const response = await fetch(`/api/station/${selectedStation.id}/current-conditions`, { cache: 'no-cache' });
 
-
-
-        // 2. Gérer les données additionnelles pendant que les données actuelles chargeaient
-        const apiAdditional = await additionalPromise;
-        let additionalData = null;
-        const scriptPromises = [];
-        if (apiAdditional && apiAdditional.ok) {
-            additionalData = await apiAdditional.json();
-            if (additionalData.success && additionalData.data) {
-                Object.values(additionalData.data).forEach(item => {
-                    if (item.js) {
-                        item.js.forEach(script => {
-                            // Collect promises for all scripts to be loaded
-                            scriptPromises.push(loadScript(script));
-                        });
-                    }
-                });
-            }
-        } else {
-            console.warn('Aucune donnée additionnelle ne sera ajoutée.');
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Erreur de chargement des données actuelles (status: ${response.status}). ${errorText}`);
         }
 
-        // 3. Traiter les données actuelles (ou de secours)
-        const apiCurrent = await currentPromise;
-        let data;
-        if (apiCurrent && apiCurrent.ok) {
-            data = await apiCurrent.json();
-        } else {
-            const errorStatus = apiCurrent ? ` (status: ${apiCurrent.status})` : '';
-            throw new Error(`Erreur de chargement des données actuelles et de secours${errorStatus}.`);
-        }
-
-        // 4. Fusionner les données
-        if (additionalData && additionalData.success && additionalData.data) {
-            data.data = { ...data.data, ...additionalData.data };
-        }
-        // 5. Attendre que tous les scripts soient chargés
-        await Promise.all(scriptPromises);
-
-        // 6. Maintenant que les scripts sont chargés, on peut traiter les données qui en dépendent
-        data = mergeData(data);
+        const data = await response.json();
 
         if (data.data) {
+            // The server now provides all data, including calculated ones.
+            // The mergeData function is still used for UI-specific formatting.
+            const mergedData = mergeData(data);
             currentConditionsData = data.data;
             processAndDisplayConditions();
-            showConditionsStatus('Données actualisées avec succès', 'success');
+            showConditionsStatus(data.message || 'Données actualisées avec succès', data.success ? 'success' : 'warning');
         } else {
-            console.log(data.data);
             throw new Error(data.error || 'Format de données invalide');
         }
 
@@ -180,28 +113,25 @@ function processAndDisplayConditions() {
     allConditions = Object.entries(currentConditionsData)
         .filter(([key]) => !excludeKeys.includes(key))
         .map(([key, data]) => {
-            // si data a une propriete fnCalc 
-            const sensorInfo = data.fnCalc ? data : sensorMap[key] || {};
+            const sensorInfo = { ...sensorMap[key], ...data };
             const order = customOrder[key];
             if (order !== undefined && order > maxOrder) maxOrder = order;
             return {
                 key,
-                name: sensorInfo.label || data.label || {},
-                value: data.Value,
-                more: data.more,
-                unit: data.Unit,
-                userUnit: data.userUnit,
-                fnToUserUnit: data.toUserUnit || '(_) => _',
-                fnCalc: sensorInfo.fnCalc || null,
-                dataNeeded: sensorInfo.dataNeeded || sensorInfo.sensorDb,
+                name: sensorInfo.label || key,
+                value: sensorInfo.Value,
+                more: sensorInfo.more || '',
+                unit: sensorInfo.Unit,
+                userUnit: sensorInfo.userUnit,
+                fnToUserUnit: sensorInfo.toUserUnit || '(_) => _',
                 measurement: sensorInfo.measurement || 'unknown',
                 groupUsage: sensorInfo.groupUsage || '0',
                 groupCustom: sensorInfo.groupCustom || '0',
                 customOrder: order,
                 period: sensorInfo.period || '7d',
-                sensorDb: sensorInfo.sensorDb,
+                sensorDb: sensorInfo.sensorDb || key,
                 comment: sensorInfo.comment,
-                searchText: [sensorInfo.label, key, data.label, sensorInfo.comment, String(data.Value), data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
+                searchText: [sensorInfo.label, key, sensorInfo.comment, String(data.Value), data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
             };
         });
 
@@ -216,7 +146,6 @@ function processAndDisplayConditions() {
     });
 
     // console.log('[DND] Conditions with custom order before sort:', allConditions.map(i => ({key: i.key, order: i.customOrder})));
-    console.log('allConditions', allConditions);
     // Afficher les conditions selon le groupement
     displayConditions();
     
@@ -596,7 +525,6 @@ function createConditionTileHTML(item) {
     let unitDisplay = item.userUnit ? `<span class="condition-unit">${item.userUnit}</span>` : '';
     let fn;
     try {
-        // console.log(item.key, item.fnToUserUnit);
         fn = eval(item.fnToUserUnit || 'x => x');
     } catch (error) {
         fn = x => {console.log(`erreur eval(${item.fnToUserUnit})`);};
@@ -720,8 +648,6 @@ function loadChartForItem(item) {
     } else if (item.sensorDb.startsWith('rose:')) {
         const sensorRef = item.sensorDb.substring('rose:'.length);
         // loadRosePlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindRose/${sensorRef}?${count}&${start}`, item.period);
-    } else if (item.sensorDb == 'Calc') {
-        loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raws/${item.dataNeeded.join(',')}?${count}&${start}`, item.period, item);
     } else {
         loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${count}&${start}`, item.period);
     }

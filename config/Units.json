@@ -45,7 +45,7 @@
             },
             "g/m³": {
                 "title": "gramme per cube meter",
-                "fnFromMetric": "(d) => Number((d).toFixed(2))"
+                "fnFromMetric": "(d) => Number((d).toFixed(4))"
             },
             "g/l": {
                 "title": "g per litre",
@@ -103,7 +103,23 @@
         "sensors": [
             "windDir",
             "windDirMax",
-            "windGustDir10Min",
+            "windGustDir10Min"
+        ]
+    },
+    "angle": {
+        "user": "°",
+        "metric": "°",
+        "available_units": {
+            "°": {
+                "title": "degrees",
+                "fnFromMetric": "(deg) => deg"
+            },
+            "rad": {
+                "title": "radian",
+                "fnFromMetric": "(deg) => (deg * Math.PI / 180).toFixed(2)"
+            }
+        },
+        "sensors": [
             "SUN_V_calc",
             "MOON_calc"
         ]

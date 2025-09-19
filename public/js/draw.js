@@ -17,10 +17,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const sensorInfo = sensorMap[sensorKey] || { label: sensorKey.replace('.calc', '') };
+    const sensorInfo = sensorMap[sensorKey] || { label: sensorKey.replace('_calc', '') };
     titleElement.textContent = `${sensorInfo.label} dans le contexte ${stationId}`;
 
-    if (sensorKey.endsWith('.calc')) {
+    if (sensorKey.endsWith('_calc')) {
         loadCalcData();
     } else {
         loadChartData();

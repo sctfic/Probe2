@@ -2,49 +2,41 @@
     "THSW_calc": {
         "label": "Température THSW",
         "comment": "Température de Sensibilisation, Thermique, Humidité, Soleil et Vent",
-        "Value": 0,
         "fnCalc": "(data) => calcTHSW(data['temperature:outTemp'], data['humidity:outHumidity'], data['powerRadiation:solarRadiation'], data['speed:Wind'])",
         "dataNeeded": ["temperature:outTemp", "humidity:outHumidity", "speed:Wind", "powerRadiation:solarRadiation"],
-        "js":["/js/THSW.js"],
+        "currentMap":{"d":"timestamp","temperature:outTemp":"outTemp", "humidity:outHumidity":"outHumidity", "speed:Wind":"avgWindSpeed10Min", "powerRadiation:solarRadiation":"solarRadiation"},
+        "scriptJS":["/js/THSW.js"],
         "period": 604800,
-        "sensorDb":"Calc",
-        "groupUsage":"Calculation",
-        "groupCustom": 1
+        "sensorDb":"THSW_calc"
     },
     "AirWater_calc": {
         "label": "masse d'H2O dans l'air",
         "comment": "masse d'eau par mettre cube d'air (ou g/l)",
-        "Value": 0,
         "fnCalc": "(data) => waterInAir(data['temperature:outTemp'], data['humidity:outHumidity'], data['pressure:barometer']).g_per_m3",
         "dataNeeded": ["temperature:outTemp", "humidity:outHumidity", "pressure:barometer"],
-        "js":["/js/AirWater.js"],
+        "currentMap":{"d":"timestamp","temperature:outTemp":"outTemp", "humidity:outHumidity":"outHumidity", "pressure:barometer":"barometer"},
+        "scriptJS":["/js/AirWater.js"],
         "period": 604800,
-        "sensorDb":"Calc",
-        "groupUsage":"Calculation",
-        "groupCustom": 1
+        "sensorDb":"AirWater_calc"
     },
     "SUN_V_calc": {
         "label": "Angle vertical du soleil",
         "comment": "calcul de la phase du soleil",
-        "Value": null,
-        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {const V = SunCalc.getPosition(new Date(data.d), lat, lon).altitudeDegrees; return V > 0 ? Number(V.toFixed(1)) : 0; }",
-        "dataNeeded": ["powerRadiation:solarRadiation"],
-        "js":["/js/sunCalc.js"],
+        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {const V = SunCalc.getPosition(new Date(data._time), lat, lon).altitudeDegrees; return V > 0 ? Math.round(V*10)/10 : 0; }",
+        "dataNeeded": ["pressure:barometer"],
+        "currentMap":{"d":"timestamp","pressure:barometer":"barometer"},
+        "scriptJS":["/js/sunCalc.js"],
         "period": 604800,
-        "sensorDb":"Calc",
-        "groupUsage":"Calculation",
-        "groupCustom": 1
+        "sensorDb":"SUN_V_calc"
     },
     "MOON_calc": {
         "label": "Phase de la lune",
         "comment": "calcul de la phase de la lune",
-        "Value": null,
-        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {const P = SunCalc.getMoonPhase(new Date(data.d), lat, lon).phase; return P; }",
-        "dataNeeded": ["powerRadiation:solarRadiation"],
-        "js":["/js/sunCalc.js"],
+        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {const P = SunCalc.getMoonPosition(new Date(data._time), lat, lon).altitudeDegrees; return Math.round(P*10)/10; }",
+        "dataNeeded": ["pressure:barometer"],
+        "currentMap":{"d":"timestamp","pressure:barometer":"barometer"},
+        "scriptJS":["/js/sunCalc.js"],
         "period": 604800,
-        "sensorDb":"Calc",
-        "groupUsage":"Calculation",
-        "groupCustom": 1
+        "sensorDb":"MOON_calc"
     }
 }
