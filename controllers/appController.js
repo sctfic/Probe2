@@ -100,6 +100,55 @@ exports.updateUnitsSettings = (req, res) => {
     }
 };
 
+exports.getAdditionalProbesSettings = (req, res) => {
+    try {
+        console.log(`${V.gear} Récupération de la configuration des sondes additionnelles (additionalProbes.json)`);
+        const probesPath = path.join(__dirname, '..', 'config', 'additionalProbes.json');
+        const probesConfig = JSON.parse(fs.readFileSync(probesPath, 'utf8'));
+        res.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            settings: probesConfig
+        });
+    } catch (error) {
+        console.error(`${V.error} Erreur lors de la récupération de la configuration des sondes additionnelles:`, error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la récupération de la configuration des sondes additionnelles'
+        });
+    }
+};
+
+exports.updateAdditionalProbesSettings = (req, res) => {
+    try {
+        const newSettings = req.body.settings;
+        if (!newSettings || typeof newSettings !== 'object') {
+            return res.status(400).json({
+                success: false,
+                error: 'Données de configuration invalides ou manquantes.'
+            });
+        }
+
+        console.log(`${V.write} Mise à jour de la configuration des sondes additionnelles (additionalProbes.json)`);
+        const probesPath = path.join(__dirname, '..', 'config', 'additionalProbes.json');
+        
+        // Écrire le nouveau contenu dans le fichier, joliment formaté
+        fs.writeFileSync(probesPath, JSON.stringify(newSettings, null, 4), 'utf8');
+
+        res.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            message: 'Configuration des sondes additionnelles mise à jour avec succès.'
+        });
+    } catch (error) {
+        console.error(`${V.error} Erreur lors de la mise à jour de la configuration des sondes additionnelles:`, error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la mise à jour de la configuration des sondes additionnelles.'
+        });
+    }
+};
+
 exports.getAllStations = (req, res) => {
     try {
         console.log(`${V.book} Récupération de la liste des stations`);

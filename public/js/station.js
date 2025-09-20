@@ -43,11 +43,11 @@ function displaySettingsForm() {
             fields: ['host', 'port']
         },
         localisation: {
-            title: 'Localisation',
+            title: 'Localisation (synchronisée dans la Station Davis)',
             fields: ['longitude', 'latitude', 'longitudeEastWest', 'latitudeNorthSouth', 'altitude']
         },
         meteo: {
-            title: 'Station Météo',
+            title: 'Paramètres météo (synchronisés dans la Station Davis)',
             fields: ['archiveInterval','AMPMMode', 'dateFormat', 'windCupSize', 'rainCollectorSize', 'rainSaisonStart']
         }
     };

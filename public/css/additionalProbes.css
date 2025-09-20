@@ -1,0 +1,77 @@
+#additional-probes-container .settings-form {
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+#additional-probes-container h1 {
+    margin-top: 0;
+    margin-bottom: 25px;
+    font-size: 1.8em;
+    color: #333;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+}
+
+#additional-probes-container .settings-group {
+    margin-bottom: 30px;
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background-color: #f9f9f9;
+}
+
+#additional-probes-container .settings-group h3 {
+    margin-top: 0;
+    color: var(--accent-blue);
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+}
+
+#additional-probes-container .probe-fields {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+}
+
+#additional-probes-container .settings-field {
+    display: flex;
+    flex-direction: column;
+}
+
+#additional-probes-container .settings-field label {
+    margin-bottom: 5px;
+    font-weight: bold;
+    font-size: 0.9em;
+    color: #555;
+}
+
+#additional-probes-container .settings-field input[type="text"],
+#additional-probes-container .settings-field input[type="number"],
+#additional-probes-container .settings-field textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+    box-sizing: border-box;
+}
+
+#additional-probes-container .settings-field textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+#additional-probes-container .settings-actions {
+    margin-top: 20px;
+    text-align: right;
+}
+
+#additional-probes-container .settings-actions button {
+    padding: 12px 25px;
+    font-size: 1em;
+    font-weight: bold;
+}

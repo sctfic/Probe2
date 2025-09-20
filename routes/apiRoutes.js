@@ -12,13 +12,14 @@ router.get('/health', appController.getHealth); // http://probe2.lpz.ovh/api/hea
 router.get('/settings', appController.getUnitsSettings); // http://probe2.lpz.ovh/api/settings
 router.put('/settings', appController.updateUnitsSettings); // http://probe2.lpz.ovh/api/settings
 
+// Routes pour la configuration des sondes additionnelles
+router.get('/additional-probes', appController.getAdditionalProbesSettings);
+router.put('/additional-probes', appController.updateAdditionalProbesSettings);
 
 // Route pour lister toutes les stations configurées
 router.get('/stations', appController.getAllStations); // http://probe2.lpz.ovh/api/stations
 
 // Route pour créer une nouvelle configuration de station
 router.post('/new', appController.createStation); // http://probe2.lpz.ovh/api/new
-
-
 
 module.exports = router;

@@ -24,6 +24,7 @@
         border-left: 3px solid #007bff;
     }
 </style>
+<link rel="stylesheet" href="css/additionalProbes.css">
 <link rel="stylesheet" href="css/settings.css">
 <script src="js/miniPlot.js"></script>
 <script src="js/miniVectors.js"></script>
@@ -39,6 +40,7 @@
             <li data-section="dashboard-section" class="active">Dashboard</li>
             <li data-section="historique-section">Historique</li>
             <li data-section="stations-section">Stations</li>
+            <li data-section="additionalProbes-section">Sondes Calculees</li>
             <li data-section="settings-section">Settings</li>
         </ul>
     </nav>
@@ -130,6 +132,12 @@
         </div>
     </section>
     
+    <section id="additionalProbes-section" class="content-section">
+        <div id="additional-probes-container">
+            <!-- Le formulaire pour additionalProbes.json sera chargé ici -->
+        </div>
+    </section>
+
     <!-- Section modifiée dans le HTML principal -->
     <section id="settings-section" class="content-section">
         <div id="preferences-container">
@@ -172,6 +180,7 @@
             'dashboard-section': 'dashboard',
             'historique-section': 'historique', 
             'stations-section': 'stations',
+            'additionalProbes-section': 'additional-probes',
             'settings-section': 'settings'
         };
 
@@ -179,6 +188,7 @@
             'dashboard': 'dashboard-section',
             'historique': 'historique-section',
             'stations': 'stations-section', 
+            'additional-probes': 'additional-probes',
             'settings': 'settings-section'
         };
 
@@ -359,6 +369,8 @@
                 fetchStationSettings();
             } else if (activeSectionId === 'settings-section') {
                 fetchUnitsPreferences();
+            } else if (activeSectionId === 'additionalProbes-section') {
+                fetchAdditionalProbes();
             }
         }
 
@@ -505,5 +517,6 @@
 <script src="js/dashboard.js"></script>
 <script src="js/station.js"></script>
 <script src="js/settings.js"></script>
+<script src="js/additionalProbes.js"></script>
 </body>
 </html>
