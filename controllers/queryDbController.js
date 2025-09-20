@@ -5,7 +5,7 @@ const units = require('../config/Units.json');
 const { sensorTypeMap } = require('../utils/weatherDataParser');
 const configManager = require('../services/configManager');
 
-const additionalProbes = require('../config/additionalProbes.json');
+const compositeProbes = require('../config/compositeProbes.json');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -89,7 +89,7 @@ exports.getQueryMetadata = async (req, res) => {
     try {
         console.log(`${V.info} Demande de métadonnées pour la station ${stationId}`);
         const _measurements = await influxdbService.getMetadata(stationId);
-        const allFields = Object.values(_measurements).flatMap(measurement => measurement.tags.sensor);
+        const allFields = Object.values(_measurements);//.flatMap(measurement => measurement.tags.sensor);
         const dateRange = await influxdbService.queryDateRange(stationId, '', 0, Math.round(new Date().getTime()/1000));
 
         res.json({
@@ -170,8 +170,8 @@ async function getCalculatedData(stationConfig, probeConfig, start, end, interva
     const scriptContext = {};
     const loadedScripts = new Set();
 
-    for (const probeKey in additionalProbes) {
-        const probeConfig = additionalProbes[probeKey];
+    for (const probeKey in compositeProbes) {
+        const probeConfig = compositeProbes[probeKey];
         if (probeConfig.scriptJS) {
             for (const scriptPath of probeConfig.scriptJS) { // charge les scripts specifie dans la config 
                 if (!loadedScripts.has(scriptPath)) { // evite de charger plusieurs fois le même script
@@ -222,7 +222,7 @@ exports.getQueryRaw = async (req, res) => {
 
         // --- Data Fetching and Processing ---
         if (sensor.endsWith('_calc')) {
-            const probeConfig = additionalProbes[sensor];
+            const probeConfig = compositeProbes[sensor];
             if (!probeConfig) {
                 const err = new Error(`Calculated sensor configuration not found for ${sensorRef}`);
                 err.statusCode = 404;

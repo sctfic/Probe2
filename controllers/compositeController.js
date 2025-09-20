@@ -1,10 +1,10 @@
-// controllers/additionalController.js
+// controllers/compositeController.js
 const units = require('../config/Units.json');
-const Probes = require('../config/additionalProbes.json');
+const Probes = require('../config/compositeProbes.json');
 const { sensorTypeMap } = require('../utils/weatherDataParser');
-// const additionalProbe = require('../config/aditionnalProbe.json');
+// const compositeProbes = require('../config/aditionnalProbe.json');
 
-async function getAdditionalProbe (req, res){
+async function getcompositeProbes (req, res){
     const stationConfig = req.stationConfig;
     const sensors = req.params.sensors;
     const timeStamp = new Date().toISOString();
@@ -41,5 +41,5 @@ async function getAdditionalProbe (req, res){
 }
 
 module.exports = {
-    getAdditionalProbe
+    getcompositeProbes
 };

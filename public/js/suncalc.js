@@ -5,7 +5,7 @@
  https://github.com/mourner/suncalc
 
  Reworked and enhanced by Robert Gester
- Additional Copyright (c) 2022 Robert Gester
+ composite Copyright (c) 2022 Robert Gester
  https://github.com/hypnos3/suncalc3
 */
 
@@ -123,7 +123,7 @@
  * @property {number} weight - weight of the phase
  * @property {string} css - a css value of the phase
  * @property {string} [nameAlt] - an alernate name (not used by this library)
- * @property {string} [tag] - additional tag (not used by this library)
+ * @property {string} [tag] - composite tag (not used by this library)
  */
 
 /**

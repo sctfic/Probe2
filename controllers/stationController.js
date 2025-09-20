@@ -6,7 +6,7 @@ const network = require('../services/networkService');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
-const additionalProbes = require('../config/additionalProbes.json');
+const compositeProbes = require('../config/compositeProbes.json');
 const { sensorTypeMap } = require('../utils/weatherDataParser');
 const units = require('../config/Units.json');
 const { V } = require('../utils/icons');
@@ -56,20 +56,20 @@ exports.getStationInfo = async (req, res) => {
 };
 
 /**
- * Calculates and appends additional probe data to the weather data object.
+ * Calculates and appends composite probe data to the weather data object.
  * This function is designed to be used with both live and cached data.
  * @param {object} weatherData - The core weather data object.
  * @param {object} stationConfig - The configuration for the station.
  * @returns {Promise<object>} The weather data object enriched with calculated values.
  */
-async function calculateAndAppendAdditionalProbes(weatherData, stationConfig) {
+async function calculateAndAppendcompositeProbes(weatherData, stationConfig) {
     try {
         // 1. Prepare script context (can be cached for performance)
         const scriptContext = {};
         const loadedScripts = new Set();
 
-        for (const probeKey in additionalProbes) {
-            const probeConfig = additionalProbes[probeKey];
+        for (const probeKey in compositeProbes) {
+            const probeConfig = compositeProbes[probeKey];
             if (probeConfig.scriptJS) {
                 for (const scriptPath of probeConfig.scriptJS) { // charge les scripts specifie dans la config
                     if (!loadedScripts.has(scriptPath)) { // evite de charger plusieurs fois le même script
@@ -87,10 +87,10 @@ async function calculateAndAppendAdditionalProbes(weatherData, stationConfig) {
             }
         }
 
-        // 2. Calculate values for each additional probe
-        for (const probeKey in additionalProbes) {
+        // 2. Calculate values for each composite probe
+        for (const probeKey in compositeProbes) {
             let allDataAvailable = true;
-            const probeConfig = additionalProbes[probeKey];
+            const probeConfig = compositeProbes[probeKey];
             const calcInput = {};
             for (const key in probeConfig.currentMap) {
                 if (probeConfig.currentMap[key] === 'timestamp') {
@@ -108,7 +108,7 @@ async function calculateAndAppendAdditionalProbes(weatherData, stationConfig) {
                     .replace("%longitude%", stationConfig.longitude.lastReadValue)
                     .replace("%latitude%", stationConfig.latitude.lastReadValue)
                     .replace("%altitude%", stationConfig.altitude.lastReadValue);
-                    
+
                 const calculate = vm.runInNewContext(`(${fnCalcStr})`, scriptContext);
                 const calculatedValue = calculate(calcInput);
                 const type = sensorTypeMap[probeKey];
@@ -128,7 +128,7 @@ async function calculateAndAppendAdditionalProbes(weatherData, stationConfig) {
             }
         }
     } catch (calcError) {
-        console.error(`${V.error} Error calculating additional probes for current conditions:`, calcError.message);
+        console.error(`${V.error} Error calculating composite probes for current conditions:`, calcError.message);
     }
     return weatherData;
 }
@@ -140,8 +140,8 @@ exports.getCurrentWeather = async (req, res) => {
     try {
         const weatherData = await stationService.getCurrentWeatherData(req, stationConfig);
 
-        // Calculate and append additional probes
-        const enrichedWeatherData = await calculateAndAppendAdditionalProbes(weatherData, stationConfig);
+        // Calculate and append composite probes
+        const enrichedWeatherData = await calculateAndAppendcompositeProbes(weatherData, stationConfig);
         
         const responsePayload = {
             success: true,
@@ -164,8 +164,8 @@ exports.getCurrentWeather = async (req, res) => {
                 // Extract weather data from the cached payload
                 let weatherDataFromCache = responsePayload.data;
 
-                // Recalculate additional probes on the cached data
-                weatherDataFromCache = await calculateAndAppendAdditionalProbes(weatherDataFromCache, stationConfig);
+                // Recalculate composite probes on the cached data
+                weatherDataFromCache = await calculateAndAppendcompositeProbes(weatherDataFromCache, stationConfig);
                 console.log(weatherDataFromCache.AirWater_calc);
                 // Ajouter un message pour indiquer que les données proviennent du cache
                 responsePayload.data = weatherDataFromCache;

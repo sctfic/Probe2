@@ -68,7 +68,7 @@ async function fetchCurrentConditions() {
     showConditionsStatus('Chargement des données météo...', 'loading');
 
     try {
-        // Fetch current conditions, which now includes additional probes from the server.
+        // Fetch current conditions, which now includes composite probes from the server.
         const response = await fetch(`/api/station/${selectedStation.id}/current-conditions`, { cache: 'no-cache' });
 
         if (!response.ok) {
@@ -129,7 +129,7 @@ function processAndDisplayConditions() {
                 groupCustom: sensorInfo.groupCustom || '0',
                 customOrder: order,
                 period: sensorInfo.period || '7d',
-                sensorDb: sensorInfo.sensorDb || key,
+                sensorDb: sensorInfo.sensorDb,
                 comment: sensorInfo.comment,
                 searchText: [sensorInfo.label, key, sensorInfo.comment, String(data.Value), data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
             };

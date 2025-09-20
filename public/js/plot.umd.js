@@ -1747,7 +1747,7 @@ function inferChannelScale(name, channel) {
 
 // Note: mutates channel.domain! This is set to a function so that it is lazily
 // computed; i.e., if the scale’s domain is set explicitly, that takes priority
-// over the sort option, and we don’t need to do additional work.
+// over the sort option, and we don’t need to do composite work.
 function channelDomain(data, facets, channels, facetChannels, options) {
   const {order: defaultOrder, reverse: defaultReverse, reduce: defaultReduce = true, limit: defaultLimit} = options;
   for (const x in options) {
@@ -3433,7 +3433,7 @@ function createProjection(
   let domain;
   let clip = "frame";
 
-  // If the projection was specified as an object with additional options,
+  // If the projection was specified as an object with composite options,
   // extract those. The order of precedence for insetTop (and other insets) is:
   // projection.insetTop, projection.inset, (global) insetTop, (global) inset.
   // Any other options on this object will be passed through to the initializer.
@@ -10297,7 +10297,7 @@ function autoSpec(data, options) {
     }
   }
 
-  // When using the bin transform, pass through additional options (e.g., thresholds).
+  // When using the bin transform, pass through composite options (e.g., thresholds).
   if (transformImpl === bin || transformImpl === binX) markOptions.x = {value: X, ...xOptions};
   if (transformImpl === bin || transformImpl === binY) markOptions.y = {value: Y, ...yOptions};
 
@@ -12443,7 +12443,7 @@ function differenceK(
     stroke,
     strokeOpacity,
     z = maybeColorChannel(stroke)[0],
-    clip, // optional additional clip for area
+    clip, // optional composite clip for area
     tip,
     render,
     ...options
@@ -13858,7 +13858,7 @@ function waffleRender({render, ...options}) {
 // 4/3/2-----5
 //
 // Waffles can also represent fractional intervals (e.g., 2.4–10.1). These
-// require additional corner cuts, so the implementation below generates a few
+// require composite corner cuts, so the implementation below generates a few
 // more points.
 //
 // The last point describes the centroid (used for pointing)
@@ -14715,7 +14715,7 @@ function select(selector, options = {}) {
     return selectChannel(null, selector, options);
   }
   // Otherwise the selector is an option {name: value} where name is a channel
-  // name and value is a selector definition that additionally takes the given
+  // name and value is a selector definition that compositely takes the given
   // channel values as input. The selector object must have exactly one key.
   let key, value;
   for (key in selector) {

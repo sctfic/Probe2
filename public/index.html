@@ -24,7 +24,7 @@
         border-left: 3px solid #007bff;
     }
 </style>
-<link rel="stylesheet" href="css/additionalProbes.css">
+<link rel="stylesheet" href="css/compositeProbes.css">
 <link rel="stylesheet" href="css/settings.css">
 <script src="js/miniPlot.js"></script>
 <script src="js/miniVectors.js"></script>
@@ -40,7 +40,7 @@
             <li data-section="dashboard-section" class="active">Dashboard</li>
             <li data-section="historique-section">Historique</li>
             <li data-section="stations-section">Stations</li>
-            <li data-section="additionalProbes-section">Sondes Calculees</li>
+            <li data-section="compositeProbes-section">Sondes Composites</li>
             <li data-section="settings-section">Settings</li>
         </ul>
     </nav>
@@ -100,6 +100,28 @@
             </div>
         </div>
     </div>
+    <!-- Modale pour ajouter une sonde calculée -->
+    <div id="add-probe-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Ajouter une nouvelle sonde calculée</h2>
+                <span class="close-probe-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="add-probe-form">
+                    <div class="form-group required">
+                        <label for="new-probe-key">Clé de la sonde (identifiant unique)</label>
+                        <input type="text" id="new-probe-key" required placeholder="Ex: ma_sonde_calc">
+                        <div class="error-message-add" id="probe-key-error"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancel-probe-btn">Annuler</button>
+                <button type="submit" class="btn btn-primary" id="submit-probe-btn" form="add-probe-form">Ajouter</button>
+            </div>
+        </div>
+    </div>
 <main id="content-container" class="content-container">
     <section id="dashboard-section" class="content-section active">
         <!-- Contrôles de filtre réorganisés -->
@@ -132,9 +154,9 @@
         </div>
     </section>
     
-    <section id="additionalProbes-section" class="content-section">
-        <div id="additional-probes-container">
-            <!-- Le formulaire pour additionalProbes.json sera chargé ici -->
+    <section id="compositeProbes-section" class="content-section">
+        <div id="composite-probes-container">
+            <!-- Le formulaire pour compositeProbes.json sera chargé ici -->
         </div>
     </section>
 
@@ -180,7 +202,7 @@
             'dashboard-section': 'dashboard',
             'historique-section': 'historique', 
             'stations-section': 'stations',
-            'additionalProbes-section': 'additional-probes',
+            'compositeProbes-section': 'composite-probes',
             'settings-section': 'settings'
         };
 
@@ -188,7 +210,7 @@
             'dashboard': 'dashboard-section',
             'historique': 'historique-section',
             'stations': 'stations-section', 
-            'additional-probes': 'additional-probes',
+            'composite-probes': 'composite-probes',
             'settings': 'settings-section'
         };
 
@@ -369,8 +391,8 @@
                 fetchStationSettings();
             } else if (activeSectionId === 'settings-section') {
                 fetchUnitsPreferences();
-            } else if (activeSectionId === 'additionalProbes-section') {
-                fetchAdditionalProbes();
+            } else if (activeSectionId === 'compositeProbes-section') {
+                fetchcompositeProbes();
             }
         }
 
@@ -404,6 +426,21 @@
             if (updateUrl) {
                 updateURL(sections[currentIndex].id);
             }
+
+            // Gérer la visibilité du sélecteur de station et ajuster la mise en page
+            const stationSelectorDiv = document.querySelector('.station-selector');
+            const activeSectionId = sections[currentIndex].id;
+
+            if (activeSectionId === 'compositeProbes-section' || activeSectionId === 'settings-section') {
+                stationSelectorDiv.style.display = 'none';
+                contentContainer.style.paddingTop = '60px'; // Hauteur de la navbar uniquement
+                contentContainer.style.height = 'calc(100vh - 100px)'; // 60px navbar + 40px footer
+            } else {
+                stationSelectorDiv.style.display = 'flex';
+                contentContainer.style.paddingTop = '120px'; // Hauteur navbar + sélecteur
+                contentContainer.style.height = 'calc(100vh - 160px)'; // 120px header + 40px footer
+            }
+
 
             refreshActiveSection();
         }
@@ -517,6 +554,6 @@
 <script src="js/dashboard.js"></script>
 <script src="js/station.js"></script>
 <script src="js/settings.js"></script>
-<script src="js/additionalProbes.js"></script>
+<script src="js/compositeProbes.js"></script>
 </body>
 </html>

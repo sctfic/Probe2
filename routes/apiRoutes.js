@@ -13,8 +13,8 @@ router.get('/settings', appController.getUnitsSettings); // http://probe2.lpz.ov
 router.put('/settings', appController.updateUnitsSettings); // http://probe2.lpz.ovh/api/settings
 
 // Routes pour la configuration des sondes additionnelles
-router.get('/additional-probes', appController.getAdditionalProbesSettings);
-router.put('/additional-probes', appController.updateAdditionalProbesSettings);
+router.get('/composite-probes', appController.getcompositeProbesSettings);
+router.put('/composite-probes', appController.updatecompositeProbesSettings);
 
 // Route pour lister toutes les stations configurées
 router.get('/stations', appController.getAllStations); // http://probe2.lpz.ovh/api/stations

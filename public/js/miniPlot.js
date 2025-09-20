@@ -31,7 +31,7 @@ function createPlot(data, metadata, id, period) {
     } else {
         period = '1 day';
     }
-console.log(data, metadata, id, period);
+// console.log(data, metadata, id, period);
 
     const chartDiv = document.getElementById(id);
     if (!chartDiv) {
@@ -192,7 +192,7 @@ async function loadData(id, url, period, item = null) {
         const apiResponse = await fetchWithCache(url);
         // Transformation et affichage
         const plotData = transformDataForPlot(apiResponse.data, apiResponse.metadata);
-        console.log(apiResponse.metadata.sensor);
+        // console.log(apiResponse.metadata.sensor);
         createPlot(plotData, apiResponse.metadata, id, period);
     } catch (error) {
         // console.error('Erreur lors du chargement:', error);

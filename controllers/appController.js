@@ -100,10 +100,10 @@ exports.updateUnitsSettings = (req, res) => {
     }
 };
 
-exports.getAdditionalProbesSettings = (req, res) => {
+exports.getcompositeProbesSettings = (req, res) => {
     try {
-        console.log(`${V.gear} Récupération de la configuration des sondes additionnelles (additionalProbes.json)`);
-        const probesPath = path.join(__dirname, '..', 'config', 'additionalProbes.json');
+        console.log(`${V.gear} Récupération de la configuration des sondes additionnelles (compositeProbes.json)`);
+        const probesPath = path.join(__dirname, '..', 'config', 'compositeProbes.json');
         const probesConfig = JSON.parse(fs.readFileSync(probesPath, 'utf8'));
         res.json({
             success: true,
@@ -119,7 +119,7 @@ exports.getAdditionalProbesSettings = (req, res) => {
     }
 };
 
-exports.updateAdditionalProbesSettings = (req, res) => {
+exports.updatecompositeProbesSettings = (req, res) => {
     try {
         const newSettings = req.body.settings;
         if (!newSettings || typeof newSettings !== 'object') {
@@ -129,8 +129,8 @@ exports.updateAdditionalProbesSettings = (req, res) => {
             });
         }
 
-        console.log(`${V.write} Mise à jour de la configuration des sondes additionnelles (additionalProbes.json)`);
-        const probesPath = path.join(__dirname, '..', 'config', 'additionalProbes.json');
+        console.log(`${V.write} Mise à jour de la configuration des sondes additionnelles (compositeProbes.json)`);
+        const probesPath = path.join(__dirname, '..', 'config', 'compositeProbes.json');
         
         // Écrire le nouveau contenu dans le fichier, joliment formaté
         fs.writeFileSync(probesPath, JSON.stringify(newSettings, null, 4), 'utf8');
