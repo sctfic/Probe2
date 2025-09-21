@@ -2,7 +2,7 @@
     "id": "VP2_Serramoune",
     "name": "VP2 chantier Serramoune",
     "comment": "Cabled Plus, alban",
-    "host": "vp2",
+    "host": "vp2.lan",
     "port": 22222,
     "location": "Serramoune, 64290 Lasseube, FR",
     "longitude": {
@@ -65,7 +65,12 @@
         "desired": 5,
         "lastReadValue": 5
     },
-    "lastArchiveDate": "2025-09-18T21:40:00.000Z",
+    "lastArchiveDate": "2025-09-21T16:45:00.000Z",
+    "cron": {
+        "comment": "Cron interval de collecte des données de la station",
+        "enabled": true,
+        "value": 5
+    },
     "deltaTimeSeconds": 0.083,
     "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\VP2_Serramoune.json"
 }

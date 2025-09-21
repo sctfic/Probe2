@@ -3,6 +3,7 @@ const configManager = require('../services/configManager');
 const { V } = require('../utils/icons');
 const fs = require('fs');
 const path = require('path');
+const probeVersion = require('../package.json').version;
 
 exports.getAppInfo = (req, res) => { // http://probe2.lpz.ovh/api/info
     try {
@@ -13,7 +14,7 @@ exports.getAppInfo = (req, res) => { // http://probe2.lpz.ovh/api/info
 
         const info = {
             name: 'Probe2 API',
-            version: require('../package.json').version,
+            version: probeVersion,
             description: 'API pour la surveillance de stations météorologiques Davis Vantage Pro 2',
             status: 'running',
             timestamp: new Date().toISOString(),
@@ -58,6 +59,7 @@ exports.getUnitsSettings = (req, res) => {
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
+            version: probeVersion,
             settings: unitsConfig
         });
     } catch (error) {
@@ -89,6 +91,7 @@ exports.updateUnitsSettings = (req, res) => {
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
+            version: probeVersion,
             message: 'Configuration des unités mise à jour avec succès.'
         });
     } catch (error) {
@@ -108,6 +111,7 @@ exports.getcompositeProbesSettings = (req, res) => {
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
+            version: probeVersion,
             settings: probesConfig
         });
     } catch (error) {
@@ -138,6 +142,7 @@ exports.updatecompositeProbesSettings = (req, res) => {
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
+            version: probeVersion,
             message: 'Configuration des sondes additionnelles mise à jour avec succès.'
         });
     } catch (error) {
@@ -164,6 +169,7 @@ exports.getAllStations = (req, res) => {
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
+            version: probeVersion,
             stations: stationsList
         });
     } catch (error) {
@@ -186,7 +192,7 @@ exports.getHealth = (req, res) => {
             status: 'healthy',
             timestamp: new Date().toISOString(),
             uptime: process.uptime(),
-            version: require('../package.json').version,
+            version: probeVersion,
             system: {
                 nodeVersion: process.version,
                 platform: process.platform,
@@ -322,6 +328,8 @@ exports.createStation = (req, res) => {
             res.status(201).json({
                 success: true,
                 message: `Configuration créée avec succès pour la station ${stationId}`,
+                version: probeVersion,
+                timestamp: new Date().toISOString(),
                 stationId: stationId,
                 data: newConfigObject
             });

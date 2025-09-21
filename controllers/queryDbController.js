@@ -168,7 +168,7 @@ exports.getQueryRange = async (req, res) => {
 };
 
 async function getCalculatedData(stationConfig, probeConfig, start, end, intervalSeconds) {
-console.log(V.info, stationConfig, probeConfig, start, end, intervalSeconds);
+// console.log(V.info, stationConfig, probeConfig, start, end, intervalSeconds);
     // Prepare script context for calculations
     const scriptContext = {};
     const loadedScripts = new Set();

@@ -114,36 +114,19 @@ app.listen(PORT, () => {
     console.log(stations);
     stations.forEach((station) => {
         const stationConfig = configManager.loadConfig(station);
-        const archiveInterval = stationConfig.archiveInterval?.lastReadValue;
+        const cronIntervale = stationConfig.cron.value;
 
-        if (!archiveInterval || typeof archiveInterval !== 'number' || archiveInterval <= 0) {
+        if (!cronIntervale || typeof cronIntervale !== 'number' || cronIntervale <= 0) {
             console.log(`${V.warning} [CRON] Intervalle d'archivage invalide ou manquant pour la station ${stationConfig.id}. Tâche non planifiée.`);
+            return; // Passe à la station suivante
+        }
+        if ( stationConfig.cron.enabled === false) {
+            console.log(`${V.warning} [CRON] Collecte des données non activée pour la station ${stationConfig.id}. Tâche non planifiée.`);
             return; // Passe à la station suivante
         }
 
         let cronPattern;
-
-        // const validIntervals = [1, 5, 10, 15, 30, 60, 120];
-        switch (archiveInterval) {
-            case 10:
-                cronPattern = `1-59/10 * * * *`;
-                break;
-            case 15:
-                cronPattern = `1-59/15 * * * *`;
-                break;
-            case 30:
-                cronPattern = `1-59/30 * * * *`;
-                break;
-            case 60:
-                cronPattern = `1 * * * *`; // Toutes les heures décalées de 1 minute
-                break;
-            case 120:
-                cronPattern = `1 */2 * * *`; // Toutes les 2 heures décalées de 1 minute
-                break;
-            default:
-                cronPattern = `1-59/5 * * * *`; // pour 1 et 5 minutes
-                break;
-        }
+        cronIntervale / 60 < 1 ? cronPattern = `1-59/${cronIntervale} * * * *` : cronPattern = `1 */${Math.round(cronIntervale/60)} * * * *`;
 
         cron.schedule(cronPattern, async () => {
             const url = `http://localhost:${PORT}/api/station/${stationConfig.id}/collect`;

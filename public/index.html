@@ -54,6 +54,10 @@
     <div class="station-info" id="station-info"></div>
     <div class="status-message" id="status-bar" style="display: none;"></div>
     <div class="station-selector-container">
+        <button id="collect-data-btn" class="btn-collect" title="Lancer une collecte de données">
+            <span class="btn-text">Collecter</span>
+            <div class="btn-spinner"></div>
+        </button>
         <select id="global-station-select">
             <option value="">Chargement des stations...</option>
         </select>
@@ -185,11 +189,14 @@
     <ul>
         <li id="compare-selected">Comparer la sélection</li>
     </ul>
+</div>
+
+<!-- Footer -->
 </main>
 
 <footer class="footer">
     <div class="footer-bottom">
-        <p>&copy; 2025 Probe Météo v0.1.35 - Développé par Alban LOPEZ</p>
+        <p>&copy; 2025 Probe Météo <b id="version"></b> - Développé par Alban LOPEZ</p>
     </div>
 </footer>
 
@@ -332,6 +339,7 @@
                 selectedStation = globalStations.find(s => s.id === stationToSelect) || null;
                 if (selectedStation) {
                     stationInfo.textContent = `${selectedStation.location} (${selectedStation.host}:${selectedStation.port})`;
+                    updateCollectButtonTitle(selectedStation.id);
                     updateAllSectionInfo();
                 }
             }
@@ -366,8 +374,334 @@
                 const data = await response.json();
                 if (data.success && data.stations) {
                     globalStations = data.stations;
+                    document.getElementById('version').textContent = data.version;
                     populateStationSelector();
                     showStationStatus('', '');
+                    fetchStationSettings();
+                    fetchcompositeProbes();
+                } else {
+                    throw new Error('Format de réponse invalide');
+                }
+            } catch (error) {
+                console.error('Erreur de chargement des stations:', error);
+                showStationStatus('Erreur de chargement des stations', 'error');
+                globalStationSelect.innerHTML = '<option value="">Erreur de chargement</option>';
+            }
+        }
+
+        function populateStationSelector() {
+            globalStationSelect.innerHTML = '<option value="">Sélectionner une station...</option>';
+            
+            globalStations.forEach(station => {
+                const option = document.createElement('option');
+                option.value = station.id;
+                option.textContent = station.name;
+                option.dataset.location = station.location;
+                option.dataset.host = station.host;
+                option.dataset.port = station.port;
+                globalStationSelect.appendChild(option);
+            });
+
+            // La station sera sélectionnée par loadFromURL
+        }
+
+        async function updateCollectButtonTitle(stationId) {
+            const collectBtn = document.getElementById('collect-data-btn');
+            let title = 'Lancer une collecte de données'; // Default title
+
+            if (!stationId) {
+                collectBtn.title = title;
+                return;
+            }
+
+            try {
+                // Utilise le cache si disponible, sinon fetch
+                const config = stationsConfig[stationId] || (await (await fetch(`/api/station/${stationId}`)).json()).settings;
+                
+                if (config) {
+                    stationsConfig[stationId] = config; // Met à jour le cache
+                    const cronInfo = config.cron;
+                    if (cronInfo && cronInfo.enabled && cronInfo.value) {
+                        title += ` (automatique toutes les ${cronInfo.value} minutes)`;
+                    }
+                }
+            } catch (e) {
+                console.warn('Impossible de récupérer la configuration de la station pour les informations cron', e);
+            } finally {
+                collectBtn.title = title;
+            }
+        }
+
+        function onStationChange() {
+            const selectedId = globalStationSelect.value;
+            selectedStation = globalStations.find(s => s.id === selectedId) || null;
+            
+            if (selectedStation) {
+                stationInfo.textContent = `${selectedStation.location} (${selectedStation.host}:${selectedStation.port})`;
+                updateCollectButtonTitle(selectedStation.id);
+                updateAllSectionInfo();
+                refreshActiveSection();
+                updateDashboardURL(); // Mettre à jour l'URL avec la nouvelle station
+            } else {
+                stationInfo.textContent = '';
+                clearAllSectionInfo();
+                updateCollectButtonTitle(null);
+            }
+        }
+
+        function updateAllSectionInfo() {
+            // Fonction pour mettre à jour les informations de toutes les sections
+        }
+
+        function clearAllSectionInfo() {
+            // Fonction pour effacer les informations de toutes les sections
+        }
+
+        function showStationStatus(message, type) {
+            if (message) {
+                console.log(`Station status [${type}]: ${message}`);
+            }
+        }
+
+        function refreshActiveSection() {
+            const activeSectionId = sections[currentIndex].id;
+            
+            if (activeSectionId === 'dashboard-section') {
+                fetchCurrentConditions();
+            } else if (activeSectionId === 'stations-section') {
+                fetchStationSettings();
+            } else if (activeSectionId === 'settings-section') {
+                fetchUnitsPreferences();
+            } else if (activeSectionId === 'compositeProbes-section') {
+                // fetchcompositeProbes();
+                // on va plutot le precharger
+            }
+        }
+
+        // --- Navigation Logic ---
+        
+        function updateView(updateUrl = true) {
+            if (contentContainer) {
+                contentContainer.style.transform = `translateX(-${currentIndex * 100}vw)`;
+            }
+
+            navItems.forEach((item, index) => {
+                if (index === currentIndex) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+
+            // Mettre à jour les liens du footer
+            footerNavLinks.forEach(link => {
+                const linkSection = link.dataset.section;
+                const currentSection = sections[currentIndex].id;
+                if (linkSection === currentSection) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+
+            // Mettre à jour l'URL si demandé
+            if (updateUrl) {
+                updateURL(sections[currentIndex].id);
+            }
+
+            // Gérer la visibilité du sélecteur de station et ajuster la mise en page
+            const stationSelectorDiv = document.querySelector('.station-selector');
+            const activeSectionId = sections[currentIndex].id;
+
+            if (activeSectionId === 'compositeProbes-section' || activeSectionId === 'settings-section') {
+                stationSelectorDiv.style.display = 'none';
+                contentContainer.style.paddingTop = '60px'; // Hauteur de la navbar uniquement
+                contentContainer.style.height = 'calc(100vh - 100px)'; // 60px navbar + 40px footer
+            } else {
+                stationSelectorDiv.style.display = 'flex';
+                contentContainer.style.paddingTop = '120px'; // Hauteur navbar + sélecteur
+                contentContainer.style.height = 'calc(100vh - 160px)'; // 120px header + 40px footer
+            }
+
+
+            refreshActiveSection();
+        }
+
+        function navigateToSection(sectionId) {
+            const sectionIndex = Array.from(sections).findIndex(section => section.id === sectionId);
+            if (sectionIndex !== -1) {
+                currentIndex = sectionIndex;
+                if (contentContainer) {
+                    contentContainer.style.transition = 'transform 0.3s ease-out';
+                    updateView();
+                    setTimeout(() => { contentContainer.style.transition = ''; }, 300);
+                }
+            }
+        }
+
+        navItems.forEach((item, index) => {
+            item.addEventListener('click', () => {
+                currentIndex = index;
+                if (contentContainer) {
+                    contentContainer.style.transition = 'transform 0.3s ease-out';
+                    updateView();
+                    setTimeout(() => { contentContainer.style.transition = ''; }, 300);
+                }
+                updateDashboardURL();
+            });
+        });
+
+        // Event listeners pour les liens du footer - supprimé car footer simplifié
+
+        // --- Gestion du swipe ---
+        let startX = 0;
+        let endX = 0;
+        let isSwiping = false;
+
+        if (contentContainer) {
+            contentContainer.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+                isSwiping = true;
+            });
+
+            contentContainer.addEventListener('touchmove', (e) => {
+                if (!isSwiping) return;
+                e.preventDefault();
+                endX = e.touches[0].clientX;
+                const diffX = startX - endX;
+                contentContainer.style.transform = `translateX(calc(-${currentIndex * 100}vw - ${diffX}px))`;
+            });
+
+            contentContainer.addEventListener('touchend', () => {
+                if (!isSwiping) return;
+                isSwiping = false;
+                const diffX = startX - endX;
+
+                if (diffX > 50 && currentIndex < sections.length - 1) {
+                    currentIndex++;
+                } else if (diffX < -50 && currentIndex > 0) {
+                    currentIndex--;
+                }
+                
+                if (contentContainer) {
+                    contentContainer.style.transition = 'transform 0.3s ease-out';
+                    updateView();
+                    setTimeout(() => {
+                        contentContainer.style.transition = '';
+                    }, 300);
+                }
+            });
+        }
+
+        // --- Event Listeners ---
+        
+        if (globalStationSelect) {
+            globalStationSelect.addEventListener('change', onStationChange);
+        }
+
+        const refreshConditionsBtn = document.getElementById('refresh-conditions');
+        if (refreshConditionsBtn) {
+            refreshConditionsBtn.addEventListener('click', fetchCurrentConditions);
+        }
+
+        const conditionsFilter = document.getElementById('conditions-filter');
+        const conditionsGroup = document.getElementById('conditions-group');
+
+        if (conditionsFilter) {
+            let filterTimeout;
+            conditionsFilter.addEventListener('input', () => {
+                applyCurrentFilter();
+                clearTimeout(filterTimeout);
+                // Utilise un debounce pour ne pas surcharger l'historique du navigateur
+                filterTimeout = setTimeout(() => updateDashboardURL(true), 300);
+            });
+        }
+
+        if (conditionsGroup) {
+            conditionsGroup.addEventListener('change', () => {
+                displayConditions();
+                applyCurrentFilter();
+                updateDashboardURL();
+            });
+        }
+
+        const collectBtn = document.getElementById('collect-data-btn');
+        if (collectBtn) {
+            collectBtn.addEventListener('click', async () => {
+                if (!selectedStation) {
+                    showGlobalStatus('Aucune station sélectionnée', 'warning');
+                    return;
+                }
+
+                showGlobalStatus(`Lancement de la collecte pour ${selectedStation.name}...`, 'loading');
+                collectBtn.disabled = true;
+                collectBtn.classList.add('loading');
+
+                try {
+                    const response = await fetch(`/api/station/${selectedStation.id}/collect`);
+                    const result = await response.json();
+
+                    if (response.ok && result.success) {
+                        showGlobalStatus(result.message || `Collecte pour ${selectedStation.name} terminée avec succès.`, 'success');
+                        setTimeout(() => refreshActiveSection(), 2000);
+                    } else {
+                        throw new Error(result.error || 'Erreur lors de la collecte.');
+                    }
+                } catch (error) {
+                    showGlobalStatus(`Erreur de collecte: ${error.message}`, 'error');
+                } finally {
+                    collectBtn.disabled = false;
+                    collectBtn.classList.remove('loading');
+                }
+            });
+        }
+
+        // --- Initialisation ---
+        loadGlobalStations().then(() => {
+            loadFromURL(); // Charger l'état complet depuis l'URL (y compris la station)
+        });
+    });
+
+</script>
+<!-- For Textarea Editor -->
+<script src="js/highlight.js"></script>
+<script src="js/textareaEditor.js"></script>
+<script src="js/newStation.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/station.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/compositeProbes.js"></script>
+</body>
+</html>
+            if (event.state && event.state.section) {
+                const sectionId = reverseSectionMap[event.state.section];
+                if (sectionId) {
+                    const sectionIndex = Array.from(sections).findIndex(section => section.id === sectionId);
+                    if (sectionIndex !== -1) {
+                        currentIndex = sectionIndex;
+                        loadFromURL(); // Recharger l'état complet depuis l'URL
+                    }
+                }
+            } else {
+                loadFromURL();
+            }
+        });
+
+        // --- Gestion du sélecteur global de stations ---
+        
+        async function loadGlobalStations() {
+            try {
+                showStationStatus('Chargement des stations...', 'loading');
+                const response = await fetch('/api/stations');
+                if (!response.ok) throw new Error('Erreur de chargement des stations');
+                
+                const data = await response.json();
+                if (data.success && data.stations) {
+                    globalStations = data.stations;
+                    document.getElementById('version').textContent = data.version;
+                    populateStationSelector();
+                    showStationStatus('', '');
+                    fetchStationSettings();
                     fetchcompositeProbes();
                 } else {
                     throw new Error('Format de réponse invalide');
@@ -583,6 +917,35 @@
                 displayConditions();
                 applyCurrentFilter();
                 updateDashboardURL();
+            });
+        }
+
+        const collectBtn = document.getElementById('collect-data-btn');
+        if (collectBtn) {
+            collectBtn.addEventListener('click', async () => {
+                if (!selectedStation) {
+                    showGlobalStatus('Aucune station sélectionnée', 'warning');
+                    return;
+                }
+
+                showGlobalStatus(`Lancement de la collecte pour ${selectedStation.name}...`, 'loading');
+                collectBtn.disabled = true;
+
+                try {
+                    const response = await fetch(`/api/station/${selectedStation.id}/collect`);
+                    const result = await response.json();
+
+                    if (response.ok && result.success) {
+                        showGlobalStatus(result.message || `Collecte pour ${selectedStation.name} terminée avec succès.`, 'success');
+                        setTimeout(() => refreshActiveSection(), 2000);
+                    } else {
+                        throw new Error(result.error || 'Erreur lors de la collecte.');
+                    }
+                } catch (error) {
+                    showGlobalStatus(`Erreur de collecte: ${error.message}`, 'error');
+                } finally {
+                    collectBtn.disabled = false;
+                }
             });
         }
 

@@ -81,20 +81,14 @@ async function fetchcompositeProbes() {
     try {
         // --- Fetch sensors for autocompletion ---
         try {
-            const stationsResponse = await fetch('/api/stations');
-            if (stationsResponse.ok) {
-                const stationsData = await stationsResponse.json();
-                if (stationsData.success && stationsData.stations.length > 0) {
-                    const firstStationId = stationsData.stations[0].id;
-                    const metadataResponse = await fetch(`/query/${firstStationId}`);
-                    if (metadataResponse.ok) {
-                        const metadataPayload = await metadataResponse.json();
-                        if (metadataPayload.success && metadataPayload.metadata.sensor) {
-                            const sensorCompletions = metadataPayload.metadata.sensor.map(s => `data['${s}']`);
-                            const newCompletions = [...sensorCompletions, 'data.d'];
-                            jsCompletions.push(...newCompletions.filter(c => !jsCompletions.includes(c)));
-                        }
-                    }
+            console.log(selectedStation);
+            const metadataResponse = await fetch(`/query/${selectedStation}`);
+            if (metadataResponse.ok) {
+                const metadataPayload = await metadataResponse.json();
+                if (metadataPayload.success && metadataPayload.metadata.sensor) {
+                    const sensorCompletions = metadataPayload.metadata.sensor.map(s => `data['${s}']`);
+                    const newCompletions = [...sensorCompletions, 'data.d'];
+                    jsCompletions.push(...newCompletions.filter(c => !jsCompletions.includes(c)));
                 }
             }
         } catch (e) {

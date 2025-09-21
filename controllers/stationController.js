@@ -97,6 +97,7 @@ async function calculateAndAppendcompositeProbes(weatherData, stationConfig) {
                     calcInput[key] = new Date().toISOString();
                 } else if (!weatherData[probeConfig.currentMap[key]]) {
                     console.log(V.Warn, `Missing data ${key} for`, probeConfig.currentMap);
+                    console.log(V.Warn, `verrifier ${probeKey}.currentMap['${key}'] la valeur est inconnue dans les current-conditions`);
                     allDataAvailable = false;
                     break;
                 } else {
@@ -166,7 +167,7 @@ exports.getCurrentWeather = async (req, res) => {
 
                 // Recalculate composite probes on the cached data
                 weatherDataFromCache = await calculateAndAppendcompositeProbes(weatherDataFromCache, stationConfig);
-                console.log(weatherDataFromCache.AirWater_calc);
+                // console.log(weatherDataFromCache.AirWater_calc);
                 // Ajouter un message pour indiquer que les données proviennent du cache
                 responsePayload.data = weatherDataFromCache;
                 responsePayload.message = "Données en cache (erreur de connexion à la station)";

@@ -60,17 +60,20 @@ sudo systemctl restart nginx
 ```
 
 ## 6/ Tests
+
 ```
 curl -sI http://probe/favicon.ico | grep 'Content-Type: image/x-icon' && echo '[  OK  ] nginx OK' || echo '[error!] nginx KO'
 curl -s http://probe/api | grep 'application/json' && echo '[  OK  ] nodejs OK' || echo '[error!] nodejs KO'
 ```
 
 ## 7/ mise a jour de Probe
+
 ```
 cd /home/alban/www/Probe2
 pm2 stop Probe2
 git fetch && git reset --hard origin/main
-npm install
+sudo npm install
 pm2 restart ecosystem.config.js
 pm2 save
+pm2 log Probe2
 ```
