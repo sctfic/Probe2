@@ -15,8 +15,8 @@ async function createSocket(stationConfig) {
     console.log(`${V.satellite} Creating new socket for ${key}`);
     
     const socket = new net.Socket();
-    socket.setTimeout(1500);
-    socket.setKeepAlive(true, 1000);
+    socket.setTimeout(3000);
+    socket.setKeepAlive(true, 2000);
     
     // Stockage de l'ID de la station pour la gestion des verrous
     socket._stationId = stationConfig.id;

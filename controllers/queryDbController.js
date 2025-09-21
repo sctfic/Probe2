@@ -438,13 +438,15 @@ exports.getQueryWindVectors = async (req, res) => {
 };
 
 exports.clearAllData = async (req, res) => {
+    const { stationId } = req.params;
+
     try {
         console.log(`${V.Warn} Demande de suppression de toutes les données du bucket`);
         // const success = await influxdbService.clearBucket();
         // force lastArchiveDate au 01/08/2025 et enregistre la conig
-        req.params.stationId = 'VP2_Serramoune';
+        // req.params.stationId = 'VP2_Serramoune';
         req.stationConfig.lastArchiveDate = '2025-08-25T00:00:00.000Z';
-        configManager.autoSaveConfig(req.stationConfig);
+        configManager.autoSaveConfig(stationId);
 
         if (success) {
             res.json({
