@@ -81,8 +81,8 @@ async function fetchcompositeProbes() {
     try {
         // --- Fetch sensors for autocompletion ---
         try {
-            console.log(selectedStation);
-            const metadataResponse = await fetch(`/query/${selectedStation}`);
+            console.log(selectedStation.id);
+            const metadataResponse = await fetch(`/query/${selectedStation.id}`);
             if (metadataResponse.ok) {
                 const metadataPayload = await metadataResponse.json();
                 if (metadataPayload.success && metadataPayload.metadata.sensor) {
