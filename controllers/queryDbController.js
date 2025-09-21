@@ -89,7 +89,10 @@ exports.getQueryMetadata = async (req, res) => {
     try {
         console.log(`${V.info} Demande de métadonnées pour la station ${stationId}`);
         const _measurements = await influxdbService.getMetadata(stationId);
-        const allFields = Object.values(_measurements);//.flatMap(measurement => measurement.tags.sensor);
+        const allFields = Object.entries(_measurements)
+            .flatMap(([measurementType, measurement]) => 
+                (measurement.tags?.sensor || []).map(sensor => `${measurementType}:${sensor}`)
+            );
         const dateRange = await influxdbService.queryDateRange(stationId, '', 0, Math.round(new Date().getTime()/1000));
 
         res.json({

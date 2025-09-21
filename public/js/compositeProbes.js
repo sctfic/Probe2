@@ -1,5 +1,76 @@
 let currentProbesSettings = {};
-let sensorList = [];
+
+let jsCompletions = [
+    'function () {}', 'const  = ;', 'let  = ;', 'var  = ;',
+    'if () {}', 'else if () {}', 'else {}', 'for (i = 0; i < 10; i++) {}', 'while (i < 10) {}', 'do {}', 'switch (i) {\ncase 1: break;\ndefault: \n}', 'case :', 'break;', 'continue;', 'return;',
+    'return', 'try {}', 'catch {}', 'finally {}', 'throw', 'class', 'extends', 'import', 'export', 'default', 'async', 'await',
+    'console.log();', 'console.error();', 'console.warn();', 'console.info();', 'console.table();',
+    'document.getElementById();', 'document.querySelector();', 'document.querySelectorAll();', 'document.createElement();',
+    'addEventListener();', 'removeEventListener();', 'preventDefault();', 'stopPropagation();',
+    'setTimeout();', 'setInterval();', 'clearTimeout();', 'clearInterval();',
+    'JSON.stringify();', 'JSON.parse();', 'Object.keys();', 'Object.values();', 'Object.entries();', 'Array.isArray();',
+    'fetch();', 'Promise();', 'try {}\ncatch {}\nfinally {}', 'resolve () {}', 'reject () {}',
+    'alert();', 'prompt();', 'confirm();',
+    'localStorage();', 'sessionStorage();', 'getItem();', 'setItem();', 'removeItem();',
+    'Math.random();', 'Math.floor();', 'Math.ceil();', 'Math.round();', 'Math.max();', 'Math.min();'
+];
+
+const HELP_CONTENT_HTML = `
+    <p>La fonction doit retourner la valeur calculée. Vous avez accès à l'objet <code>data</code> qui contient les valeurs des capteurs nécessaires.</p>
+    <h4>Paramètres disponibles</h4>
+    <ul>
+        <li><code>data['measurement:sensor']</code> : valeur d'un capteur</li>
+        <li><code>data.d</code> : Timestamp de la donnée au format ISO 8601.</li>
+        <li><code>%longitude%</code>, <code>%latitude%</code>, <code>%altitude%</code> : Seront remplacés à l'exécution par les coordonnées de la station.</li>
+    </ul>
+    <h4>Raccourcis de l'éditeur</h4>
+    <ul>
+        <li><code>Tab</code> : Indenter ou valider l'autocomplétion.</li>
+        <li><code>Shift + Tab</code> : Désindenter.</li>
+        <li><code>Ctrl + /</code> : Commenter/décommenter la ligne.</li>
+        <li><code>↑ / ↓</code> : Naviguer dans les suggestions d'autocomplétion.</li>
+        <li><code>Enter</code> : Valider la suggestion sélectionnée.</li>
+        <li><code>Escape</code> : Fermer la liste de suggestions.</li>
+    </ul>
+`;
+
+function hideHelpModal() {
+    const modal = document.getElementById('help-modal');
+    modal.classList.remove('show');
+    window.removeEventListener('click', outsideModalClickHandler);
+    document.removeEventListener('keydown', escapeKeyHandler);
+}
+
+function outsideModalClickHandler(event) {
+    if (event.target == document.getElementById('help-modal')) {
+        hideHelpModal();
+    }
+}
+
+function escapeKeyHandler(event) {
+    if (event.key === 'Escape') {
+        hideHelpModal();
+    }
+}
+
+function showHelpModal() {
+    document.getElementById('help-modal-body').innerHTML = HELP_CONTENT_HTML;
+    document.getElementById('help-modal').classList.add('show');
+    window.addEventListener('click', outsideModalClickHandler);
+    document.addEventListener('keydown', escapeKeyHandler);
+}
+
+function outsideAddProbeModalClickHandler(event) {
+    if (event.target == document.getElementById('add-probe-modal')) {
+        hideAddProbeModal();
+    }
+}
+
+function escapeAddProbeModalKeyHandler(event) {
+    if (event.key === 'Escape') {
+        hideAddProbeModal();
+    }
+}
 
 /**
  * Fetches the list of calculated probes from the server.
@@ -8,6 +79,29 @@ async function fetchcompositeProbes() {
     showProbesStatus('Chargement des sondes calculées...', 'loading');
 
     try {
+        // --- Fetch sensors for autocompletion ---
+        try {
+            const stationsResponse = await fetch('/api/stations');
+            if (stationsResponse.ok) {
+                const stationsData = await stationsResponse.json();
+                if (stationsData.success && stationsData.stations.length > 0) {
+                    const firstStationId = stationsData.stations[0].id;
+                    const metadataResponse = await fetch(`/query/${firstStationId}`);
+                    if (metadataResponse.ok) {
+                        const metadataPayload = await metadataResponse.json();
+                        if (metadataPayload.success && metadataPayload.metadata.sensor) {
+                            const sensorCompletions = metadataPayload.metadata.sensor.map(s => `data['${s}']`);
+                            const newCompletions = [...sensorCompletions, 'data.d'];
+                            jsCompletions.push(...newCompletions.filter(c => !jsCompletions.includes(c)));
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn("Impossible de récupérer la liste des capteurs pour l'autocomplétion.", e);
+        }
+        // --- End fetch sensors ---
+
         const response = await fetch('/api/composite-probes');
         if (!response.ok) throw new Error('Erreur de chargement des sondes');
 
@@ -36,7 +130,7 @@ function displayProbesList(settings) {
     let listHTML = `
         <div class="probes-header">
             <h1>Configuration des Sondes Calculées</h1>
-            <button id="add-probe-btn" class="btn btn-primary">Ajouter une Sonde</button>
+            <button id="add-probe-btn" class="btn btn-primary add-station-btn">Ajouter une Sonde</button>
         </div>
         <div id="probes-list" class="settings-form">
     `;
@@ -48,8 +142,16 @@ function displayProbesList(settings) {
     listHTML += '</div>';
     container.innerHTML = listHTML;
 
-    // Add event listeners
     document.getElementById('add-probe-btn').addEventListener('click', showAddProbeModal);
+
+    // Initialize code editors for all textareas
+    Object.keys(settings).forEach(probeKey => {
+        const textareaId = `probe-${probeKey}-fnCalc`;
+        if (document.getElementById(textareaId)) {
+            createCodeEditor(textareaId, jsCompletions);
+        }
+    });
+
     container.querySelectorAll('.probe-header').forEach(header => {
         header.addEventListener('click', (e) => {
             if (e.target.classList.contains('btn-delete-probe')) return;
@@ -64,7 +166,12 @@ function displayProbesList(settings) {
         button.addEventListener('click', handleDeleteProbe);
     });
 
-    container.querySelectorAll('textarea[name$=".fnCalc"]').forEach(setupFnCalcAutocompletion);
+    // Use event delegation for help buttons for better performance and simplicity
+    container.addEventListener('click', function(event) {
+        if (event.target.matches('.btn-show-help')) {
+            showHelpModal();
+        }
+    });
     container.addEventListener('submit', handleProbesFormSubmit);
 }
 
@@ -76,6 +183,7 @@ function displayProbesList(settings) {
  * @returns {string} The HTML string for the probe item.
  */
 function createProbeItemHTML(probeKey, probeData, isOpen = false) {
+    const fnCalcValue = probeData.fnCalc || '';
     return `
         <div class="settings-group probe-item" data-probe-key="${probeKey}">
             <div class="probe-header">
@@ -92,7 +200,13 @@ function createProbeItemHTML(probeKey, probeData, isOpen = false) {
                             ${generateProbeField(probeKey, 'label', probeData.label, 'text', 'Label affiché')}
                             ${generateProbeField(probeKey, 'comment', probeData.comment, 'text', 'Commentaire')}
                         </div>
-                        ${generateProbeField(probeKey, 'fnCalc', probeData.fnCalc, 'textarea', 'Fonction de calcul')}
+                        <div class="settings-field">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                <label for="probe-${probeKey}-fnCalc">Fonction de calcul</label>
+                                <button type="button" class="btn-help btn-show-help">Aide</button>
+                            </div>
+                            <textarea id="probe-${probeKey}-fnCalc" name="${probeKey}.fnCalc" placeholder="Fonction de calcul" rows="10">${fnCalcValue}</textarea>
+                        </div>
                         <div class="form-row">
                             ${generateProbeField(probeKey, 'scriptJS', (probeData.scriptJS || []).join(','), 'text', 'Scripts JS (séparés par une virgule)')}
                             ${generateProbeField(probeKey, 'period', probeData.period, 'number', 'Période (secondes)')}
@@ -111,6 +225,7 @@ function createProbeItemHTML(probeKey, probeData, isOpen = false) {
 function generateProbeField(probeKey, fieldKey, value, type = 'text', label = '') {
     const inputId = `probe-${probeKey}-${fieldKey}`;
     let inputHTML = '';
+
     if (type === 'textarea') {
         inputHTML = `<textarea id="${inputId}" name="${probeKey}.${fieldKey}" placeholder="${label}" rows="4">${value || ''}</textarea>`;
     } else {
@@ -129,9 +244,10 @@ function showAddProbeModal() {
     const modal = document.getElementById('add-probe-modal');
     modal.classList.add('show');
     document.getElementById('new-probe-key').focus();
-    document.querySelector('#add-probe-modal .close-probe-modal').onclick = hideAddProbeModal;
     document.getElementById('cancel-probe-btn').onclick = hideAddProbeModal;
     document.getElementById('add-probe-form').onsubmit = handleAddProbe;
+    window.addEventListener('click', outsideAddProbeModalClickHandler);
+    document.addEventListener('keydown', escapeAddProbeModalKeyHandler);
 }
 
 function hideAddProbeModal() {
@@ -145,7 +261,7 @@ function hideAddProbeModal() {
 function handleAddProbe(event) {
     event.preventDefault();
     const keyInput = document.getElementById('new-probe-key');
-    const probeKey = keyInput.value.trim();
+    let probeKey = keyInput.value.trim();
     const errorDiv = document.getElementById('probe-key-error');
 
     if (!probeKey) {
@@ -153,11 +269,14 @@ function handleAddProbe(event) {
         errorDiv.style.display = 'block';
         return;
     }
-    if (!/^[a-zA-Z0-9_]+_calc$/.test(probeKey)) {
-        errorDiv.textContent = 'La clé doit être alphanumérique, utiliser des underscores, et se terminer par "_calc".';
+    // Valider les caractères et ajouter "_calc" si manquant.
+    const baseKey = probeKey.endsWith('_calc') ? probeKey.slice(0, -5) : probeKey;
+    if (!/^[a-zA-Z0-9_]+$/.test(baseKey) || !baseKey) {
+        errorDiv.textContent = 'La clé doit être alphanumérique et peut contenir des underscores.';
         errorDiv.style.display = 'block';
         return;
     }
+    probeKey = baseKey + '_calc';
     if (currentProbesSettings[probeKey]) {
         errorDiv.textContent = 'Cette clé de sonde existe déjà.';
         errorDiv.style.display = 'block';
@@ -167,7 +286,7 @@ function handleAddProbe(event) {
     errorDiv.style.display = 'none';
 
     const newProbeData = {
-        label: "", comment: "", fnCalc: "(data) => {\n  return null;\n}",
+        label: "", comment: "", fnCalc: "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  return null;\n}",
         dataNeeded: [], currentMap: {}, scriptJS: [],
         period: 604800, sensorDb: probeKey
     };
@@ -185,7 +304,12 @@ function handleAddProbe(event) {
         icon.textContent = content.classList.contains('open') ? '▼' : '▶';
     });
     newItem.querySelector('.btn-delete-probe').addEventListener('click', handleDeleteProbe);
-    setupFnCalcAutocompletion(newItem.querySelector(`textarea[name$=".fnCalc"]`));
+
+    // Initialize code editor for the new textarea
+    const textareaId = `probe-${probeKey}-fnCalc`;
+    if (document.getElementById(textareaId)) {
+        createCodeEditor(textareaId, jsCompletions);
+    }
 
     hideAddProbeModal();
     newItem.scrollIntoView({ behavior: 'smooth' });
@@ -263,7 +387,7 @@ async function saveAllProbesSettings(settings) {
         const response = await fetch('/api/composite-probes', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ settings: updatedSettings })
+            body: JSON.stringify({ settings: settings })
         });
         if (!response.ok) {
             const errorData = await response.json();
@@ -281,80 +405,6 @@ async function saveAllProbesSettings(settings) {
         showProbesStatus(`Erreur: ${error.message}`, 'error');
     }
 }
-
-async function fetchSensorList() {
-    if (!selectedStation || sensorList.length > 0) return;
-    try {
-        const response = await fetch(`/query/${selectedStation.id}`);
-        if (!response.ok) return;
-        const data = await response.json();
-        if (data.success && data.metadata && data.metadata.sensor) {
-            sensorList = data.metadata.sensor;
-        }
-    } catch (error) {
-        console.error('Failed to fetch sensor list for autocompletion:', error);
-    }
-}
-
-function setupFnCalcAutocompletion(textarea) {
-    textarea.addEventListener('input', (e) => {
-        const text = e.target.value;
-        const cursorPos = e.target.selectionStart;
-        const trigger = "data['";
-        const triggerIndex = text.lastIndexOf(trigger, cursorPos);
-        if (triggerIndex !== -1 && text.slice(triggerIndex + trigger.length, cursorPos).indexOf("'") === -1) {
-            const currentInput = text.slice(triggerIndex + trigger.length, cursorPos);
-            showAutocomplete(e.target, currentInput);
-        } else {
-            hideAutocomplete();
-        }
-    });
-}
-
-function showAutocomplete(textarea, filter) {
-    hideAutocomplete();
-    fetchSensorList();
-    const suggestions = sensorList.filter(s => s.toLowerCase().includes(filter.toLowerCase()));
-    if (suggestions.length === 0) return;
-
-    const list = document.createElement('ul');
-    list.id = 'fncalc-autocomplete';
-    list.className = 'autocomplete-list';
-    
-    suggestions.forEach(suggestion => {
-        const item = document.createElement('li');
-        item.textContent = suggestion;
-        item.onclick = () => {
-            const text = textarea.value;
-            const cursorPos = textarea.selectionStart;
-            const trigger = "data['";
-            const triggerIndex = text.lastIndexOf(trigger, cursorPos);
-            const prefix = text.substring(0, triggerIndex + trigger.length);
-            const suffix = text.substring(cursorPos);
-            textarea.value = `${prefix}${suggestion}']${suffix}`;
-            hideAutocomplete();
-            textarea.focus();
-        };
-        list.appendChild(item);
-    });
-
-    document.body.appendChild(list);
-    const rect = textarea.getBoundingClientRect();
-    list.style.left = `${rect.left}px`;
-    list.style.top = `${rect.bottom}px`;
-    list.style.width = `${rect.width}px`;
-}
-
-function hideAutocomplete() {
-    const list = document.getElementById('fncalc-autocomplete');
-    if (list) list.remove();
-}
-
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.probe-fields')) {
-        hideAutocomplete();
-    }
-});
 
 function showProbesStatus(message, type) {
     const statusElement = document.getElementById('status-bar');

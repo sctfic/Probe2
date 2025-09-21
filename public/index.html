@@ -4,13 +4,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Probe Météo</title>
 <!-- Observable Plot -->
-<script src="js/d3.min.js"></script>
-<script src="js/plot.umd.js"></script>
+<script src="js/drawing/d3.min.js"></script>
+<script src="js/drawing/plot.umd.js"></script>
+<script src="js/drawing/miniPlot.js"></script>
+<script src="js/drawing/miniVectors.js"></script>
+<script src="js/sensorsMap.js"></script>
 <!-- External CSS and JS -->
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/newStation.css">
 <link rel="stylesheet" href="css/dashboard.css">
 <link rel="stylesheet" href="css/station.css">
+<link rel="stylesheet" href="css/compositeProbes.css">
+<link rel="stylesheet" href="css/settings.css">
+<!-- For Textarea Editor -->
+<link rel="stylesheet" href="css/monokai-sublime.css">
+<link rel="stylesheet" href="css/textareaEditor.css">
 <style>
     /* Styles pour le drag & drop */
     .conditions-container.sortable .condition-tile {
@@ -24,11 +32,6 @@
         border-left: 3px solid #007bff;
     }
 </style>
-<link rel="stylesheet" href="css/compositeProbes.css">
-<link rel="stylesheet" href="css/settings.css">
-<script src="js/miniPlot.js"></script>
-<script src="js/miniVectors.js"></script>
-<script src="js/sensorsMap.js"></script>
 </head>
 <body>
 <header class="navbar">
@@ -61,8 +64,7 @@
     <div id="station-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Ajouter une nouvelle station</h2>
-                <span class="close">&times;</span>
+                <h3>Ajouter une nouvelle station</h3>
             </div>
             <div class="modal-body">
                 <div id="success-msg" class="success-message-add"></div>
@@ -104,8 +106,7 @@
     <div id="add-probe-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Ajouter une nouvelle sonde calculée</h2>
-                <span class="close-probe-modal">&times;</span>
+                <h3>Ajouter une nouvelle sonde calculée</h3>
             </div>
             <div class="modal-body">
                 <form id="add-probe-form">
@@ -119,6 +120,17 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" id="cancel-probe-btn">Annuler</button>
                 <button type="submit" class="btn btn-primary" id="submit-probe-btn" form="add-probe-form">Ajouter</button>
+            </div>
+        </div>
+    </div>
+    <!-- Modale pour l'aide -->
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Aide sur la fonction de calcul</h3>
+            </div>
+            <div class="modal-body" id="help-modal-body">
+                <!-- Le contenu de l'aide sera injecté ici par JavaScript -->
             </div>
         </div>
     </div>
@@ -550,6 +562,9 @@
     });
 
 </script>
+<!-- For Textarea Editor -->
+<script src="js/highlight.js"></script>
+<script src="js/textareaEditor.js"></script>
 <script src="js/newStation.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/station.js"></script>

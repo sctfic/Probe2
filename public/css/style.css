@@ -135,9 +135,13 @@ body {
 }
 
 /* Styles pour les titres */
-h1 {
+.content-section h1 {
+    margin-top: 0;
+    margin-bottom: 25px;
+    font-size: 1.8em;
     color: var(--accent-blue);
-    margin-bottom: 20px;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
 }
 
 /* Modal */

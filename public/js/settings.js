@@ -108,8 +108,11 @@ function displayPreferencesForm(settings) {
         'Système': ['battery', 'date', 'time']
     };
 
-    let formHTML = '<form id="units-preferences-form" class="settings-form">';
-    formHTML += '<h1>Configuration des Unités de Mesure</h1>';
+    let formHTML = `
+    <div class="probes-header">
+        <h1>Configuration des Unités de Mesure</h1>
+    </div>
+    <form id="units-preferences-form" class="settings-form">`;
 
     Object.entries(groupedCategories).forEach(([groupName, categoryKeys]) => {
         formHTML += `

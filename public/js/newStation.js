@@ -2,7 +2,6 @@ class StationManager {
     constructor() {
         this.modal = document.getElementById('station-modal');
         this.addBtn = document.getElementById('add-station-btn');
-        this.closeBtn = document.querySelector('.close');
         this.cancelBtn = document.getElementById('cancel-btn');
         this.form = document.getElementById('station-form');
         this.submitBtn = document.getElementById('submit-btn');
@@ -18,7 +17,6 @@ class StationManager {
         this.addBtn.addEventListener('click', () => this.openModal());
 
         // Fermer la modale
-        this.closeBtn.addEventListener('click', () => this.closeModal());
         this.cancelBtn.addEventListener('click', () => this.closeModal());
 
         // Fermer en cliquant à l'extérieur

@@ -5,7 +5,7 @@
         "fnCalc": "(data) => calcTHSW(data['temperature:outTemp'], data['humidity:outHumidity'], data['powerRadiation:solarRadiation'], data['speed:Wind'])",
         "dataNeeded": ["temperature:outTemp", "humidity:outHumidity", "speed:Wind", "powerRadiation:solarRadiation"],
         "currentMap":{"d":"timestamp","temperature:outTemp":"outTemp", "humidity:outHumidity":"outHumidity", "speed:Wind":"avgWindSpeed10Min", "powerRadiation:solarRadiation":"solarRadiation"},
-        "scriptJS":["/js/THSW.js"],
+        "scriptJS":["/js/composite/THSW.js"],
         "period": 604800,
         "sensorDb":"THSW_calc"
     },
@@ -15,7 +15,7 @@
         "fnCalc": "(data) => waterInAir(data['temperature:outTemp'], data['humidity:outHumidity'], data['pressure:barometer']).g_per_m3",
         "dataNeeded": ["temperature:outTemp", "humidity:outHumidity", "pressure:barometer"],
         "currentMap":{"d":"timestamp","temperature:outTemp":"outTemp", "humidity:outHumidity":"outHumidity", "pressure:barometer":"barometer"},
-        "scriptJS":["/js/AirWater.js"],
+        "scriptJS":["/js/composite/AirWater.js"],
         "period": 604800,
         "sensorDb":"AirWater_calc"
     },
@@ -25,7 +25,7 @@
         "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {const V = SunCalc.getPosition(new Date(data._time), lat, lon).altitudeDegrees; return V > 0 ? Math.round(V*10)/10 : 0; }",
         "dataNeeded": ["pressure:barometer"],
         "currentMap":{"d":"timestamp","pressure:barometer":"barometer"},
-        "scriptJS":["/js/sunCalc.js"],
+        "scriptJS":["/js/composite/sunCalc.js"],
         "period": 604800,
         "sensorDb":"SUN_V_calc"
     },
@@ -35,7 +35,7 @@
         "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {const P = SunCalc.getMoonPosition(new Date(data._time), lat, lon).altitudeDegrees; return Math.round(P*10)/10; }",
         "dataNeeded": ["pressure:barometer"],
         "currentMap":{"d":"timestamp","pressure:barometer":"barometer"},
-        "scriptJS":["/js/sunCalc.js"],
+        "scriptJS":["/js/composite/sunCalc.js"],
         "period": 604800,
         "sensorDb":"MOON_calc"
     }
