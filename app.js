@@ -126,7 +126,7 @@ app.listen(PORT, () => {
         }
 
         let cronPattern;
-        cronIntervale / 60 < 1 ? cronPattern = `1-59/${cronIntervale} * * * *` : cronPattern = `1 */${Math.round(cronIntervale/60)} * * * *`;
+        cronIntervale / 60 < 1 ? cronPattern = `15 1-59/${cronIntervale} * * * *` : cronPattern = `15 1 */${Math.round(cronIntervale/60)} * * *`;
 
         cron.schedule(cronPattern, async () => {
             const url = `http://localhost:${PORT}/api/station/${stationConfig.id}/collect`;
