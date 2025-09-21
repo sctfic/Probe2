@@ -326,7 +326,7 @@
 
         async function loadDataAndUpdate(startDate, endDate) {
             try {
-                let url = `http://probe2.lpz.ovh/query/VP2_Serramoune/WindVectors?stepCount=300`;
+                let url = `/query/VP2_Serramoune/WindVectors?stepCount=300`;
                 if (startDate) url += `&startDate=${startDate.toISOString()}`;
                 if (endDate) url += `&endDate=${endDate.toISOString()}`;
 

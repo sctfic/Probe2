@@ -274,7 +274,7 @@
         // Initialisation
         async function init() {
             try {
-                const response = await fetch('http://probe2.lpz.ovh/query/VP2_Serramoune/WindVectors?stepCount=200');
+                const response = await fetch('/query/VP2_Serramoune/WindVectors?stepCount=200');
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }

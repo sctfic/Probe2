@@ -109,7 +109,7 @@
         }
 
         // Chargement des données
-        d3.json('http://probe2.lpz.ovh/query/VP2_Serramoune/Raws/ET,UV,inTemp,outTemp?stepCount=1200').then(raw => {
+        d3.json('/query/VP2_Serramoune/Raws/ET,UV,inTemp,outTemp?stepCount=1200').then(raw => {
             // Nettoyage des données
             // const parseTime = d3.timeParse("%Y-%m-%dT%H:%M:%SZ");
             raw.metadata.sensor[0]

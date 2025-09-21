@@ -65,7 +65,7 @@
         "desired": 5,
         "lastReadValue": 5
     },
-    "lastArchiveDate": "2025-09-21T17:10:00.000Z",
+    "lastArchiveDate": "2025-09-21T17:35:00.000Z",
     "cron": {
         "comment": "Cron interval de collecte des données de la station",
         "enabled": true,

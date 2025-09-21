@@ -1,5 +1,5 @@
 // Variables for dashboard section
-const API_BASE_URL = 'http://probe2.lpz.ovh/query';
+const API_BASE_URL = '/query';
 const STORAGE_KEY_ORDER = 'dashboardTileOrder';
 
 

@@ -236,7 +236,7 @@
             showStatus('Chargement des données...');
             
             try {
-                let url = `http://probe2.lpz.ovh/query/VP2_Serramoune/Raws/${sensors}?stepCount=${stepCount}`;
+                let url = `/query/VP2_Serramoune/Raws/${sensors}?stepCount=${stepCount}`;
                 
                 // Ajouter les paramètres de date si présents
                 if (startDate) {
