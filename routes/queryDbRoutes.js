@@ -10,13 +10,13 @@ module.exports = router;
 // ["_measurement"] == [temperature, speed, direction, pressure, rain, rainRate, uv, powerRadiation, humidity, battery]
 // ["sensor_ref"] == [barometer, inTemp, inHumidity, outTemp, windSpeed, avgWindSpeed10Min, windDir, outHumidity, rainRate, rainFall, UV, solarRadiation, stormRain, dateStormRain, dayRain, monthRain, yearRain, dayET, monthET, yearET, batteryVoltage, avgWindSpeed2Min, windGust10Min, windGustDir10Min, dewPoint, heatIndex, windChill, THSW, last15MinRain, lastHourRain, last24HourRain, ForecastIcon, sunrise, sunset, date, time]
 
+// Middleware pour toutes les routes de query
+router.use('/:stationId', loadStationConfig);
 
 // Route to clear all data from the bucket
 router.get('/clear', queryDbController.clearAllData); // http://probe2.lpz.ovh/query/clear
 // .\influx-client.exe delete --bucket Probe --start '2025-09-02T20:30:00Z'  --stop '2025-09-02T23:00:00Z'
 
-// Middleware pour toutes les routes de query
-router.use('/:stationId', loadStationConfig);
 
 // Route to get metadata for a station
 router.get('/:stationId', queryDbController.getQueryMetadata); // http://probe2.lpz.ovh/query/VP2_Serramoune

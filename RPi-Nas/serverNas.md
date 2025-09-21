@@ -70,10 +70,8 @@ curl -s http://probe/api | grep 'application/json' && echo '[  OK  ] nodejs OK' 
 
 ```
 cd /home/alban/www/Probe2
-pm2 stop Probe2
-git fetch && git reset --hard origin/main
-sudo npm install
-pm2 restart ecosystem.config.js
+pm2 stop Probe2; git fetch && git reset --hard origin/main; sudo chmod -R 755 /home/alban/www/Probe2; pm2 restart ecosystem.config.js; pm2 log
 pm2 save
 pm2 log Probe2
 ```
+
