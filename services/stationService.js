@@ -621,7 +621,7 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
     const fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
 
     // on envoit la date de la 1er archive souhaitée
-    const pageInfo = await sendCommand(req, stationConfig, fullPayload, 5000, "<ACK>4<CRC>");
+    const pageInfo = await sendCommand(req, stationConfig, fullPayload, 2000, "<ACK>4<CRC>");
     const numberOfPages = pageInfo.readUInt16LE(0);
     let firstReccord = pageInfo.readUInt8(2);
     console.log(`${V.books} ${numberOfPages} pages d'archives`, `${V.book} debute au ${firstReccord}ieme enregistrement de la 1er page`);
@@ -638,11 +638,11 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
     sendProgress(0, numberOfPages);
 
     const allRecords = {};
-    // on se limite a 10 archive a la fois pour laisser la station aquerir les nouvelles données
-    for (let i = 0; i < numberOfPages && i < 100; i++) {
+    // on se limite a 50 archives a la fois pour laisser la station aquerir les nouvelles données
+    for (let i = 0; i < numberOfPages && i < 50; i++) {
         const ACK = Buffer.from([0x06]);
         // on envoit l'ACK, demande de la suivante
-        const pageData = await sendCommand(req, stationConfig, ACK, 2000, "265<CRC>");
+        const pageData = await sendCommand(req, stationConfig, ACK, 3000, "265<CRC>");
         const pageNumber = pageData.readUInt8(0);
         const pageDataOnly = pageData.slice(1, pageData.length-4);
         

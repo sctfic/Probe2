@@ -6,21 +6,22 @@
         "dataNeeded": [
             "temperature:outTemp",
             "humidity:outHumidity",
-            "speed:Wind",
-            "powerRadiation:solarRadiation"
+            "powerRadiation:solarRadiation",
+            "speed:Wind"
         ],
         "currentMap": {
             "d": "timestamp",
             "temperature:outTemp": "outTemp",
             "humidity:outHumidity": "outHumidity",
-            "speed:Wind": "avgWindSpeed10Min",
-            "powerRadiation:solarRadiation": "solarRadiation"
+            "powerRadiation:solarRadiation": "solarRadiation",
+            "speed:Wind": "Wind"
         },
         "scriptJS": [
             "/js/composite/THSW.js"
         ],
         "period": 604800,
-        "sensorDb": "THSW_calc"
+        "sensorDb": "THSW_calc",
+        "measurement": "temperature"
     },
     "AirWater_calc": {
         "label": "masse d'H2O dans l'air",
@@ -41,7 +42,8 @@
             "/js/composite/AirWater.js"
         ],
         "period": 604800,
-        "sensorDb": "AirWater_calc"
+        "sensorDb": "AirWater_calc",
+        "measurement": "density"
     },
     "SUN_V_calc": {
         "label": "Angle vertical du soleil",
@@ -58,7 +60,8 @@
             "/js/composite/sunCalc.js"
         ],
         "period": 604800,
-        "sensorDb": "SUN_V_calc"
+        "sensorDb": "SUN_V_calc",
+        "measurement": "angle"
     },
     "MOON_calc": {
         "label": "Phase de la lune",
@@ -75,12 +78,13 @@
             "/js/composite/sunCalc.js"
         ],
         "period": 604800,
-        "sensorDb": "MOON_calc"
+        "sensorDb": "MOON_calc",
+        "measurement": "angle"
     },
     "truc_calc": {
         "label": "test",
         "comment": "machin",
-        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n    data['direction:Gust']\n    data['direction:Gust']\n    data['humidity:outHumidity']    \n  return null;\n}",
+        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n    return data['direction:Gust']+data['direction:Gust']+data['humidity:outHumidity']\n}",
         "dataNeeded": [
             "direction:Gust",
             "humidity:outHumidity"
@@ -92,6 +96,7 @@
         },
         "scriptJS": [],
         "period": 604800,
-        "sensorDb": "truc_calc"
+        "sensorDb": "truc_calc",
+        "measurement": "pressure"
     }
 }

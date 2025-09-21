@@ -40,7 +40,7 @@ function displaySettingsForm() {
         },
         network: {
             title: 'Configuration Réseau',
-            fields: ['host', 'port']
+            fields: ['host', 'port', 'cron']
         },
         localisation: {
             title: 'Localisation (synchronisée dans la Station Davis)',
@@ -96,9 +96,24 @@ function displaySettingsForm() {
             displaySettingsForm();
         });
     }
+
+    const cronToggleSwitch = document.getElementById('setting-cron-enabled');
+    if (cronToggleSwitch) {
+        cronToggleSwitch.addEventListener('change', () => {
+            const cronValueSelect = document.getElementById('setting-cron-value');
+            const isActive = cronToggleSwitch.checked;
+            if (cronValueSelect) {
+                cronValueSelect.disabled = !isActive;
+            }
+        });
+    }
 }
 
 function createSettingFieldHTML(key, field) {
+    if (key === 'cron') {
+        return createCronFieldHTML(key, field);
+    }
+
     const label = formatSettingLabel(key);
     let value = '';
     let tooltip = '';
@@ -124,6 +139,42 @@ function createSettingFieldHTML(key, field) {
                 ${tooltipHTML}
             </label>
             ${createInputHTML(key, value, inputType)}
+        </div>
+    `;
+}
+
+function createCronFieldHTML(key, field) {
+    const label = formatSettingLabel(key);
+    const tooltip = field.comment || '';
+    const tooltipHTML = tooltip ? `<span class="tooltip" data-tooltip="${tooltip}">?</span>` : '';
+    const isEnabled = field.enabled;
+    const currentValue = field.value;
+    const options = [5, 10, 15, 30, 60, 120, 240, 480];
+
+    let optionsHTML = options.map(opt => 
+        `<option value="${opt}" ${opt == currentValue ? 'selected' : ''}>${opt} minutes</option>`
+    ).join('');
+
+    // If current value is not in options, add it.
+    if (currentValue && !options.includes(currentValue)) {
+        optionsHTML = `<option value="${currentValue}" selected>${currentValue} minutes (custom)</option>` + optionsHTML;
+    }
+
+    return `
+        <div class="settings-field condition-tile">
+            <label for="setting-${key}-value">
+                ${label}
+                ${tooltipHTML}
+            </label>
+            <div class="cron-container">
+                <label class="switch">
+                    <input type="checkbox" id="setting-${key}-enabled" ${isEnabled ? 'checked' : ''}>
+                    <span class="slider round"></span>
+                </label>
+                <select id="setting-${key}-value" name="cron-value" ${!isEnabled ? 'disabled' : ''}>
+                    ${optionsHTML}
+                </select>
+            </div>
         </div>
     `;
 }
@@ -215,7 +266,8 @@ function formatSettingLabel(key) {
         'rainCollectorSize': 'Taille pluviomètre',
         'rainSaisonStart': 'Mois début saison pluie',
         'latitudeNorthSouth': 'Latitude Nord/Sud',
-        'longitudeEastWest': 'Longitude Est/Ouest'
+        'longitudeEastWest': 'Longitude Est/Ouest',
+        'cron': 'Collecte automatique'
     };
     
     return labelMap[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
@@ -229,6 +281,8 @@ async function handleSettingsSubmit(e) {
     const settings = {};
 
     for (let [key, value] of formData.entries()) {
+        if (key.startsWith('cron-')) continue; // Skip cron fields for now
+
         const currentField = currentStationSettings[key];
         
         if (typeof currentField === 'object' && currentField !== null) {
@@ -241,6 +295,19 @@ async function handleSettingsSubmit(e) {
         }
     }
 
+    // Handle special cron field
+    if (currentStationSettings.cron) {
+        const cronToggleSwitch = document.getElementById('setting-cron-enabled');
+        const cronValueSelect = document.getElementById('setting-cron-value');
+        
+        if (cronToggleSwitch && cronValueSelect) {
+            settings.cron = {
+                ...currentStationSettings.cron,
+                enabled: cronToggleSwitch.checked,
+                value: Number(cronValueSelect.value)
+            };
+        }
+    }
     showGlobalStatus('Enregistrement des paramètres...', 'loading');
 
     try {

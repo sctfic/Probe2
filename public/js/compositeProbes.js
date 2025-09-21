@@ -1,4 +1,5 @@
 let currentProbesSettings = {};
+let unitCategories = {};
 
 let jsCompletions = [
     'function () {\n|\n}', '(x)=>{|}', 'const  = ;', 'let  = ;', 'var  = ;',
@@ -79,6 +80,19 @@ async function fetchcompositeProbes() {
     showGlobalStatus('Chargement des sondes calculées...', 'loading');
 
     try {
+        // --- Fetch units settings first for the measurement dropdown ---
+        try {
+            const unitsResponse = await fetch('/api/settings');
+            if (unitsResponse.ok) {
+                const unitsData = await unitsResponse.json();
+                if (unitsData.success) {
+                    unitCategories = unitsData.settings;
+                }
+            }
+        } catch (e) {
+            console.warn("Impossible de charger les catégories d'unités pour les sondes composites.", e);
+        }
+
         // --- Fetch sensors for autocompletion ---
         try {
             console.log(selectedStation.id);
@@ -178,20 +192,25 @@ function displayProbesList(settings) {
  */
 function createProbeItemHTML(probeKey, probeData, isOpen = false) {
     const fnCalcValue = probeData.fnCalc || '';
+    const measurementSelectHTML = generateMeasurementSelect(probeKey, probeData.measurement);
     return `
         <div class="settings-group probe-item" data-probe-key="${probeKey}">
             <div class="probe-header">
                 <h3>
                     <span class="toggle-icon">${isOpen ? '▼' : '▶'}</span>
-                    Sonde : ${probeKey} <em class="probe-label-preview">(${probeData.label || 'N/A'})</em>
+                    Sonde : ${probeKey} <em class="probe-label-preview">(${probeData.label || 'N/A'})</em> 
+                    <em class="probe-measurement-preview">(${probeData.measurement || 'N/A'})</em>
                 </h3>
-                <button type="button" class="btn-delete-probe" data-probe-key="${probeKey}" title="Supprimer la sonde">&times;</button>
+                <button type="button" class="btn-delete-probe" data-probe-key="${probeKey}" title="Supprimer ce Composite">×</button>
             </div>
             <div class="probe-content ${isOpen ? 'open' : ''}">
                 <form data-probe-key="${probeKey}">
                     <div class="probe-fields">
                         <div class="form-row">
                             ${generateProbeField(probeKey, 'label', probeData.label, 'text', 'Label affiché')}
+                            ${measurementSelectHTML}
+                        </div>
+                        <div class="form-row">
                             ${generateProbeField(probeKey, 'comment', probeData.comment, 'text', 'Commentaire')}
                         </div>
                         <div class="settings-field">
@@ -212,6 +231,34 @@ function createProbeItemHTML(probeKey, probeData, isOpen = false) {
                     </div>
                 </form>
             </div>
+        </div>
+    `;
+}
+
+function generateMeasurementSelect(probeKey, selectedMeasurement) {
+    if (Object.keys(unitCategories).length === 0) {
+        console.error("unitCategories is not populated. Make sure unit settings are fetched.");
+        return `
+            <div class="settings-field">
+                <label>Type de mesure</label>
+                <input type="text" value="Erreur: Impossible de charger les types" disabled>
+            </div>
+        `;
+    }
+
+    let optionsHTML = `<option value="">-- Non défini --</option>`;
+    for (const key in unitCategories) {
+        if (unitCategories[key].title) { // N'afficher que les catégories avec un titre
+            optionsHTML += `<option value="${key}" ${key === selectedMeasurement ? 'selected' : ''}>${unitCategories[key].title}</option>`;
+        }
+    }
+
+    return `
+        <div class="settings-field">
+            <label for="probe-${probeKey}-measurement">Type de mesure</label>
+            <select id="probe-${probeKey}-measurement" name="${probeKey}.measurement">
+                ${optionsHTML}
+            </select>
         </div>
     `;
 }
@@ -371,6 +418,7 @@ async function handleProbesFormSubmit(event) {
         const item = document.querySelector(`.probe-item[data-probe-key="${probeKey}"]`);
         if (item) {
             item.querySelector('.probe-label-preview').textContent = `(${probeData.label || 'N/A'})`;
+            item.querySelector('.probe-measurement-preview').textContent = `(${probeData.measurement || 'N/A'})`;
         }
     } catch (error) {
         console.error('Erreur:', error);

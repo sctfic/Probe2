@@ -1,16 +1,16 @@
 {
   "success": true,
   "stationId": "VP2_Serramoune",
-  "timestamp": "2025-09-21T15:28:41.679Z",
+  "timestamp": "2025-09-21T17:33:10.067Z",
   "data": {
     "monthRain": {
-      "Value": 91.8,
+      "Value": 94,
       "Unit": "mm",
       "userUnit": "l/m²",
       "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
     },
     "yearRain": {
-      "Value": 1250,
+      "Value": 1252,
       "Unit": "mm",
       "userUnit": "l/m²",
       "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
@@ -40,7 +40,7 @@
       "toUserUnit": "(f) => f"
     },
     "sunrise": {
-      "Value": "07:48:00.000Z",
+      "Value": "07:49:00.000Z",
       "Unit": "iso8601",
       "userUnit": "hh:mm",
       "toUserUnit": "(t) => (t.includes('T') ? t.split('T')[1] : t).substring(0, 5)"
@@ -52,25 +52,25 @@
       "toUserUnit": "(t) => (t.includes('T') ? t.split('T')[1] : t).substring(0, 5)"
     },
     "barometer": {
-      "Value": 1017.4,
+      "Value": 1017.8,
       "Unit": "hpa",
       "userUnit": "hpa",
       "toUserUnit": "(hpa) => Number(hpa.toFixed(1))"
     },
     "inTemp": {
-      "Value": 289.9,
+      "Value": 289,
       "Unit": "K",
       "userUnit": "°C",
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
     },
     "inHumidity": {
-      "Value": 71,
+      "Value": 70,
       "Unit": "%",
       "userUnit": "%",
       "toUserUnit": "(h) => Number(h.toFixed(1))"
     },
     "outTemp": {
-      "Value": 287.2,
+      "Value": 286,
       "Unit": "K",
       "userUnit": "°C",
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
@@ -82,7 +82,7 @@
       "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
     },
     "windDir": {
-      "Value": 156,
+      "Value": 258,
       "Unit": "°",
       "userUnit": "°",
       "toUserUnit": "(deg) => deg"
@@ -106,13 +106,13 @@
       "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
     },
     "windGustDir10Min": {
-      "Value": 201,
+      "Value": 359,
       "Unit": "°",
       "userUnit": "°",
       "toUserUnit": "(deg) => deg"
     },
     "dewPoint": {
-      "Value": 284.3,
+      "Value": 282.6,
       "Unit": "K",
       "userUnit": "°C",
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
@@ -124,25 +124,25 @@
       "toUserUnit": "(h) => Number(h.toFixed(1))"
     },
     "heatIndex": {
-      "Value": 287,
+      "Value": 285.9,
       "Unit": "K",
       "userUnit": "°C",
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
     },
     "windChill": {
-      "Value": 287,
+      "Value": 285.9,
       "Unit": "K",
       "userUnit": "°C",
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
     },
     "THSW": {
-      "Value": 287.6,
+      "Value": 284.8,
       "Unit": "K",
       "userUnit": "°C",
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
     },
     "rainRate": {
-      "Value": 0,
+      "Value": 60.96,
       "Unit": "mm/h",
       "userUnit": "l/m²/h",
       "toUserUnit": "(mmh) => Number((mmh*10).toFixed(2))"
@@ -154,13 +154,13 @@
       "toUserUnit": "(uv, dem=32) => Number(Math.min(180, dem*6.5/((uv*Math.exp(uv/dem)))).toFixed(0))"
     },
     "solarRadiation": {
-      "Value": 90,
+      "Value": 5,
       "Unit": "w/m²",
       "userUnit": "w/m²",
       "toUserUnit": "(w) => Number(w.toFixed(1))"
     },
     "stormRain": {
-      "Value": 48,
+      "Value": 50.2,
       "Unit": "mm",
       "userUnit": "l/m²",
       "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
@@ -172,78 +172,78 @@
       "toUserUnit": "(d) => (d.includes('T') ? d.split('T')[0] : d).substring(0, 10)"
     },
     "dayRain": {
-      "Value": 40.2,
+      "Value": 42.4,
       "Unit": "mm",
       "userUnit": "l/m²",
       "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
     },
     "last15MinRain": {
-      "Value": 0,
+      "Value": 0.6,
       "Unit": "mm",
       "userUnit": "l/m²",
       "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
     },
     "lastHourRain": {
-      "Value": 0,
+      "Value": 2.2,
       "Unit": "mm",
       "userUnit": "l/m²",
       "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
     },
     "dayET": {
-      "Value": 0.02,
+      "Value": 0.023,
       "Unit": "mm",
       "userUnit": "l/m²",
       "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
     },
     "last24HourRain": {
-      "Value": 48,
+      "Value": 50.2,
       "Unit": "mm",
       "userUnit": "l/m²",
       "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
     },
-    "THSW_calc": {
-      "label": "Température THSW",
-      "comment": "Température de Sensibilisation, Thermique, Humidité, Soleil et Vent",
-      "Value": 287.6,
-      "measurement": "temperature",
-      "Unit": "K",
-      "userUnit": "°C",
-      "toUserUnit": "(k) => Number((k-273.15).toFixed(1))",
-      "period": 604800,
-      "sensorDb": "THSW_calc"
-    },
     "AirWater_calc": {
       "label": "masse d'H2O dans l'air",
       "comment": "masse d'eau par mettre cube d'air (ou g/l)",
-      "Value": 9.79,
-      "measurement": "density",
-      "Unit": "g/m³",
-      "userUnit": "g/m³",
-      "toUserUnit": "(d) => Number((d).toFixed(4))",
+      "Value": 9.1,
+      "measurement": null,
+      "Unit": null,
+      "userUnit": null,
+      "toUserUnit": null,
       "period": 604800,
       "sensorDb": "AirWater_calc"
     },
     "SUN_V_calc": {
       "label": "Angle vertical du soleil",
       "comment": "calcul de la phase du soleil",
-      "Value": 26.3,
-      "measurement": "angle",
-      "Unit": "°",
-      "userUnit": "°",
-      "toUserUnit": "(deg) => deg",
+      "Value": 4.4,
+      "measurement": null,
+      "Unit": null,
+      "userUnit": null,
+      "toUserUnit": null,
       "period": 604800,
       "sensorDb": "SUN_V_calc"
     },
     "MOON_calc": {
       "label": "Phase de la lune",
       "comment": "calcul de la phase de la lune",
-      "Value": 25.7,
-      "measurement": "angle",
-      "Unit": "°",
-      "userUnit": "°",
-      "toUserUnit": "(deg) => deg",
+      "Value": 4.2,
+      "measurement": null,
+      "Unit": null,
+      "userUnit": null,
+      "toUserUnit": null,
       "period": 604800,
       "sensorDb": "MOON_calc"
+    },
+    "truc_calc": {
+      "label": "test",
+      "comment": "machin",
+      "Value": 81,
+      "measurement": null,
+      "Unit": null,
+      "userUnit": null,
+      "toUserUnit": null,
+      "period": 604800,
+      "sensorDb": "truc_calc"
     }
   }
 }

@@ -1,5 +1,7 @@
 {
     "temperature": {
+        "title": "Temperature",
+        "description": "Unités de mesure de la température",
         "user": "°C",
         "metric": "K",
         "available_units": {
@@ -36,6 +38,8 @@
         ]
     },
     "density": {
+        "title": "Density",
+        "description": "Unités de mesure de la densité",
         "user": "g/m³",
         "metric": "g/m³",
         "available_units": {
@@ -57,6 +61,8 @@
         ]
     },
     "speed": {
+        "title": "Speed",
+        "description": "Unités de mesure de la vitesse",
         "user": "km/h",
         "metric": "m/s",
         "available_units": {
@@ -88,6 +94,8 @@
         ]
     },
     "direction": {
+        "title": "Direction",
+        "description": "Unités de mesure de la direction cardinales",
         "user": "°",
         "metric": "°",
         "available_units": {
@@ -107,6 +115,8 @@
         ]
     },
     "angle": {
+        "title": "Angle",
+        "description": "Unités de mesure de l'angle",
         "user": "°",
         "metric": "°",
         "available_units": {
@@ -125,6 +135,8 @@
         ]
     },
     "pressure": {
+        "title": "Pression",
+        "description": "Unités de mesure de la pression atmosphérique",
         "user": "hpa",
         "metric": "hpa",
         "available_units": {
@@ -146,10 +158,13 @@
             }
         },
         "sensors": [
-            "barometer"
+            "barometer",
+            "truc_calc"
         ]
     },
     "rain": {
+        "title": "Précipitations",
+        "description": "Unités de mesure des précipitations",
         "user": "l/m²",
         "metric": "mm",
         "available_units": {
@@ -182,6 +197,8 @@
         ]
     },
     "rainRate": {
+        "title": "Intensité de pluie",
+        "description": "Unités de mesure de l'intensité des précipitations",
         "user": "l/m²/h",
         "metric": "mm/h",
         "available_units": {
@@ -203,6 +220,8 @@
         ]
     },
     "uv": {
+        "title": "Rayonnement UV",
+        "description": "Unités de mesure du rayonnement UV",
         "user": "min",
         "metric": "index",
         "available_units": {
@@ -222,6 +241,8 @@
         ]
     },
     "powerRadiation": {
+        "title": "Iradiance",
+        "description": "Unités de mesure du rayonnement solaire",
         "user": "w/m²",
         "metric": "w/m²",
         "available_units": {
@@ -236,6 +257,8 @@
         ]
     },
     "humidity": {
+        "title": "Density",
+        "description": "",
         "user": "%",
         "metric": "%",
         "available_units": {
@@ -258,6 +281,8 @@
         ]
     },
     "battery": {
+        "title": "Battery",
+        "description": "Unités de mesure du niveau de batterie",
         "user": "%",
         "metric": "V",
         "available_units": {
@@ -275,6 +300,8 @@
         ]
     },
     "date": {
+        "title": "Date",
+        "description": "Unités de mesure de la date",
         "user": "yyyy-mm-dd",
         "metric": "iso8601",
         "available_units": {
@@ -293,6 +320,8 @@
         ]
     },
     "time": {
+        "title": "Time",
+        "description": "Unités de mesure de l'heure",
         "user": "hh:mm",
         "metric": "iso8601",
         "available_units": {
@@ -312,6 +341,8 @@
         ]
     },
     "Forecast": {
+        "title": null,
+        "description": null,
         "user": "ForecastClass",
         "metric": "ForecastClass",
         "available_units": {

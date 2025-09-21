@@ -8,62 +8,6 @@ const SKIN_TYPES = {
     6: { name: "Type 6", description: "Peau noire, extrêmement résistante au soleil.", dem: 98 }
 };
 
-// Catégories d'unités avec leurs icônes et descriptions
-const UNIT_CATEGORIES = {
-    temperature: {
-        title: 'Température',
-        description: 'Unités de mesure de la température'
-    },
-    speed: {
-        title: 'Vitesse du vent',
-        description: 'Unités de mesure de la vitesse du vent'
-    },
-    direction: {
-        title: 'Direction du vent',
-        description: 'Format d\'affichage de la direction du vent'
-    },
-    pressure: {
-        title: 'Pression atmosphérique',
-        description: 'Unités de mesure de la pression barométrique'
-    },
-    rain: {
-        title: 'Précipitations',
-        description: 'Unités de mesure des précipitations'
-    },
-    rainRate: {
-        title: 'Intensité de pluie',
-        description: 'Unités de mesure de l\'intensité des précipitations'
-    },
-    uv: {
-        title: 'Rayonnement UV',
-        description: 'Format d\'affichage de l\'index UV'
-    },
-    powerRadiation: {
-        title: 'Rayonnement solaire',
-        description: 'Unités de mesure du rayonnement solaire'
-    },
-    humidity: {
-        title: 'Humidité',
-        description: 'Unités de mesure de l\'humidité'
-    },
-    battery: {
-        title: 'Batterie',
-        description: 'Format d\'affichage de l\'état de la batterie'
-    },
-    date: {
-        title: 'Date',
-        description: 'Format d\'affichage des dates'
-    },
-    time: {
-        title: 'Heure',
-        description: 'Format d\'affichage de l\'heure'
-    },
-    Forecast: {
-        title: 'Prévisions météo',
-        description: 'Format d\'affichage des prévisions'
-    }
-};
-
 let currentUnitsSettings = {};
 let currentSkinType = 2; // Type par défaut
 
@@ -165,19 +109,18 @@ function displayPreferencesForm(settings) {
 }
 
 function generateUnitField(categoryKey, categoryData) {
-    const category = UNIT_CATEGORIES[categoryKey];
-    if (!category) return '';
+    if (!categoryData.title) return ''; // Ne pas afficher si la catégorie n'a pas de titre
 
     const currentUnit = categoryData.user;
     const availableUnits = categoryData.available_units;
     const sensors = categoryData.sensors || [];
 
-    const tooltip = `${category.description}${sensors.length > 0 ? '\nCapteurs: ' + sensors.join(', ') : ''}`;
+    const tooltip = `${categoryData.description || ''}${sensors.length > 0 ? '\nCapteurs: ' + sensors.join(', ') : ''}`;
 
     let fieldHTML = `
         <div class="settings-field condition-tile">
             <label for="unit-select-${categoryKey}">
-                ${category.title}
+                ${categoryData.title}
                 <span class="tooltip" data-tooltip="${tooltip}">?</span>
             </label>
             <select id="unit-select-${categoryKey}" name="${categoryKey}">

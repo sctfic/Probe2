@@ -133,11 +133,48 @@ exports.updatecompositeProbesSettings = (req, res) => {
             });
         }
 
-        console.log(`${V.write} Mise à jour de la configuration des sondes additionnelles (compositeProbes.json)`);
         const probesPath = path.join(__dirname, '..', 'config', 'compositeProbes.json');
         
         // Écrire le nouveau contenu dans le fichier, joliment formaté
         fs.writeFileSync(probesPath, JSON.stringify(newSettings, null, 4), 'utf8');
+        console.log(`${V.write} Fichier compositeProbes.json mis à jour.`);
+
+        // Mettre à jour Units.json avec les nouvelles sondes
+        try {
+            const unitsPath = path.join(__dirname, '..', 'config', 'Units.json');
+            const unitsConfig = JSON.parse(fs.readFileSync(unitsPath, 'utf8'));
+
+            const allCompositeProbeKeys = Object.keys(newSettings);
+
+            // 1. Nettoyer les anciennes références de sondes calculées dans Units.json
+            for (const measurementKey in unitsConfig) {
+                if (unitsConfig[measurementKey].sensors) {
+                    unitsConfig[measurementKey].sensors = unitsConfig[measurementKey].sensors.filter(
+                        sensorKey => !sensorKey.endsWith('_calc')
+                    );
+                }
+            }
+
+            // 2. Ajouter les nouvelles références
+            for (const probeKey of allCompositeProbeKeys) {
+                const probeData = newSettings[probeKey];
+                const measurementType = probeData.measurement;
+
+                if (measurementType && unitsConfig[measurementType]) {
+                    if (!unitsConfig[measurementType].sensors) {
+                        unitsConfig[measurementType].sensors = [];
+                    }
+                    if (!unitsConfig[measurementType].sensors.includes(probeKey)) {
+                        unitsConfig[measurementType].sensors.push(probeKey);
+                    }
+                }
+            }
+            fs.writeFileSync(unitsPath, JSON.stringify(unitsConfig, null, 4), 'utf8');
+            console.log(`${V.write} Fichier Units.json mis à jour avec les sondes calculées.`);
+        } catch (unitsError) {
+            console.error(`${V.error} Erreur lors de la mise à jour de Units.json:`, unitsError);
+            // Ne pas bloquer la réponse principale pour une erreur sur Units.json
+        }
 
         res.json({
             success: true,

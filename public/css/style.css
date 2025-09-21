@@ -218,16 +218,24 @@ button:hover, input[type="submit"]:hover, input[type="button"]:hover {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 85px; /* Largeur de base pour éviter le décalage */
+    width: 40px;
     height: 40px;
-    box-sizing: border-box;
-    background-color: #28a745;
-    padding: 8px 12px;
+    background-color: rgba(255,255,255,0.2);
+    border: 2px solid white;
+    color: white;
+    border-radius: 50%;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
     transition: all 0.3s ease;
+    padding: 0;
+    line-height: 1;
 }
 
 .btn-collect:hover {
-    background-color: #218838;
+    background-color: white;
+    color: var(--accent-blue);
+    transform: scale(1.1);
 }
 
 .btn-collect .btn-text {
@@ -250,8 +258,15 @@ button:hover, input[type="submit"]:hover, input[type="button"]:hover {
 }
 
 .btn-collect.loading {
-    width: 40px; /* S'aligne sur le bouton "+" */
-    border-radius: 50%; /* Devient un cercle */
+    cursor: wait;
+    transform: none;
+}
+
+/* Prevent hover effect when loading */
+.btn-collect.loading:hover {
+    background-color: rgba(255,255,255,0.2);
+    color: white;
+    transform: none;
 }
 
 .btn-collect.loading .btn-text {
@@ -350,4 +365,82 @@ label {
     margin: 0;
     font-size: 0.8em;
     color: #ccc;
+}
+
+/* Styles for cron settings in station.js */
+.cron-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.cron-container select {
+    flex-grow: 1;
+}
+
+/* Switch toggle styles */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--primary-dark);
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: var(--accent-blue);
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px var(--accent-blue);
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+/* Styles for composite probes preview */
+.probe-label-preview, .probe-measurement-preview {
+    font-size: 0.8em;
+    color: #6c757d; /* secondary text color */
+    font-style: italic;
+    font-weight: normal;
+}
 }
