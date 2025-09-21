@@ -168,7 +168,7 @@ exports.getQueryRange = async (req, res) => {
 };
 
 async function getCalculatedData(stationConfig, probeConfig, start, end, intervalSeconds) {
-
+console.log(V.info, stationConfig, probeConfig, start, end, intervalSeconds);
     // Prepare script context for calculations
     const scriptContext = {};
     const loadedScripts = new Set();
@@ -197,15 +197,16 @@ async function getCalculatedData(stationConfig, probeConfig, start, end, interva
         .replace("%latitude%", stationConfig.latitude.lastReadValue)
         .replace("%altitude%", stationConfig.altitude.lastReadValue);
 
-    const calculate = vm.runInNewContext(`(${fnCalcStr})`, scriptContext);
+    const fnCalc = vm.runInNewContext(`(${fnCalcStr})`, scriptContext);
     // Fetch needed data from InfluxDB
     const { dataNeeded } = probeConfig;
     const rawData = await influxdbService.queryRaws(stationConfig.id, dataNeeded, start, end, intervalSeconds);
     // Perform calculation for each row
     return rawData.map(row => {
+        row.d = row._time;
         return {
             d: row._time,
-            v: calculate(row)
+            v: fnCalc(row) // d et _time sont disponible pour fnCalc()
         }
     }).filter(item => item.v !== null && !isNaN(item.v))
 }

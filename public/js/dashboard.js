@@ -61,11 +61,11 @@ function mergeData(data) {
 
 async function fetchCurrentConditions() {
     if (!selectedStation) {
-        showConditionsStatus('Aucune station sélectionnée', 'error');
+        showGlobalStatus('Aucune station sélectionnée', 'error');
         return;
     }
 
-    showConditionsStatus('Chargement des données météo...', 'loading');
+    showGlobalStatus('Chargement des données météo...', 'loading');
 
     try {
         // Fetch current conditions, which now includes composite probes from the server.
@@ -84,14 +84,14 @@ async function fetchCurrentConditions() {
             const mergedData = mergeData(data);
             currentConditionsData = data.data;
             processAndDisplayConditions();
-            showConditionsStatus(data.message || 'Données actualisées avec succès', data.success ? 'success' : 'warning');
+            showGlobalStatus(data.message || 'Données actualisées avec succès', data.success ? 'success' : 'warning');
         } else {
             throw new Error(data.error || 'Format de données invalide');
         }
 
     } catch (error) {
         console.error('Erreur irrécupérable lors de la récupération des données:', error);
-        showConditionsStatus(`Erreur: ${error.message}`, 'error');
+        showGlobalStatus(`Erreur: ${error.message}`, 'error');
         const conditionsContainer = document.getElementById('conditions-container');
         if (conditionsContainer) conditionsContainer.innerHTML = '';
     }
@@ -650,21 +650,6 @@ function loadChartForItem(item) {
         // loadRosePlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindRose/${sensorRef}?${count}&${start}`, item.period);
     } else {
         loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${count}&${start}`, item.period);
-    }
-}
-
-function showConditionsStatus(message, type) {
-    const statusEl = document.getElementById('status-bar');
-    if (!statusEl) return;
-
-    statusEl.textContent = message;
-    statusEl.className = `status-message status-${type}`;
-    statusEl.style.display = message ? 'block' : 'none';
-
-    if (type === 'success') {
-        setTimeout(() => {
-            statusEl.style.display = 'none';
-        }, 3000);
     }
 }
 

@@ -1,9 +1,9 @@
 let currentProbesSettings = {};
 
 let jsCompletions = [
-    'function () {}', 'const  = ;', 'let  = ;', 'var  = ;',
-    'if () {}', 'else if () {}', 'else {}', 'for (i = 0; i < 10; i++) {}', 'while (i < 10) {}', 'do {}', 'switch (i) {\ncase 1: break;\ndefault: \n}', 'case :', 'break;', 'continue;', 'return;',
-    'return', 'try {}', 'catch {}', 'finally {}', 'throw', 'class', 'extends', 'import', 'export', 'default', 'async', 'await',
+    'function () {\n|\n}', '(x)=>{|}', 'const  = ;', 'let  = ;', 'var  = ;',
+    'if (|) {}', 'else if (|) {}', 'else {|}', 'for (i = 0; i < 10; i++) {|}', 'while (i < 10) {|}', 'do {|}', 'switch (i) {\ncase 1: break;\ndefault: \n}', 'case :', 'break;', 'continue;', 'return;',
+    'return', 'try {|}\ncatch {}\nfinally {}', 'try {|}', 'catch {|}', 'finally {|}', 'throw', 'class', 'extends', 'import', 'export', 'default', 'async', 'await',
     'console.log();', 'console.error();', 'console.warn();', 'console.info();', 'console.table();',
     'document.getElementById();', 'document.querySelector();', 'document.querySelectorAll();', 'document.createElement();',
     'addEventListener();', 'removeEventListener();', 'preventDefault();', 'stopPropagation();',
@@ -76,7 +76,7 @@ function escapeAddProbeModalKeyHandler(event) {
  * Fetches the list of calculated probes from the server.
  */
 async function fetchcompositeProbes() {
-    showProbesStatus('Chargement des sondes calculées...', 'loading');
+    showGlobalStatus('Chargement des sondes calculées...', 'loading');
 
     try {
         // --- Fetch sensors for autocompletion ---
@@ -109,13 +109,13 @@ async function fetchcompositeProbes() {
         if (data.success && data.settings) {
             currentProbesSettings = data.settings;
             displayProbesList(data.settings);
-            showProbesStatus('Sondes chargées avec succès', 'success');
+            showGlobalStatus('Sondes chargées avec succès', 'success');
         } else {
             throw new Error('Format de données invalide pour les sondes');
         }
     } catch (error) {
         console.error('Erreur:', error);
-        showProbesStatus(`Erreur: ${error.message}`, 'error');
+        showGlobalStatus(`Erreur: ${error.message}`, 'error');
         document.getElementById('composite-probes-container').innerHTML = '';
     }
 }
@@ -328,8 +328,11 @@ function parseFnCalc(fnCalcStr) {
     const regex = /data\['([^']+)'\]/g;
     const matches = [...fnCalcStr.matchAll(regex)];
     const dataNeeded = [...new Set(matches.map(m => m[1]))];
-    
+    if (dataNeeded.length === 0) {
+        dataNeeded.push('pressure:barometer');
+    }
     const currentMap = { d: "timestamp" };
+
     dataNeeded.forEach(key => {
         const parts = key.split(':');
         currentMap[key] = parts.length > 1 ? parts[1] : parts[0];
@@ -346,7 +349,7 @@ async function handleProbesFormSubmit(event) {
     const probeKey = form.dataset.probeKey;
     if (!probeKey) return;
 
-    showProbesStatus(`Enregistrement de ${probeKey}...`, 'loading');
+    showGlobalStatus(`Enregistrement de ${probeKey}...`, 'loading');
 
     try {
         const formData = new FormData(form);
@@ -377,12 +380,12 @@ async function handleProbesFormSubmit(event) {
         }
     } catch (error) {
         console.error('Erreur:', error);
-        showProbesStatus(`Erreur: ${error.message}`, 'error');
+        showGlobalStatus(`Erreur: ${error.message}`, 'error');
     }
 }
 
 async function saveAllProbesSettings(settings) {
-    showProbesStatus('Enregistrement des sondes...', 'loading');
+    showGlobalStatus('Enregistrement des sondes...', 'loading');
     try {
         const response = await fetch('/api/composite-probes', {
             method: 'PUT',
@@ -396,31 +399,12 @@ async function saveAllProbesSettings(settings) {
         const result = await response.json();
         if (result.success) {
             currentProbesSettings = settings;
-            showProbesStatus('Sondes enregistrées avec succès !', 'success');
+            showGlobalStatus('Sondes enregistrées avec succès !', 'success');
         } else {
             throw new Error(result.message || 'Erreur lors de la sauvegarde');
         }
     } catch (error) {
         console.error('Erreur:', error);
-        showProbesStatus(`Erreur: ${error.message}`, 'error');
-    }
-}
-
-function showProbesStatus(message, type) {
-    const statusElement = document.getElementById('status-bar');
-    if (!statusElement) return;
-
-    if (message) {
-        statusElement.textContent = message;
-        statusElement.className = `status-message status-${type}`;
-        statusElement.style.display = 'block';
-        
-        if (type === 'success') {
-            setTimeout(() => {
-                statusElement.style.display = 'none';
-            }, 5000);
-        }
-    } else {
-        statusElement.style.display = 'none';
+        showGlobalStatus(`Erreur: ${error.message}`, 'error');
     }
 }

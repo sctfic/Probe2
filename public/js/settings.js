@@ -70,7 +70,7 @@ let currentSkinType = 2; // Type par défaut
 // --- Preferences Section: Units Settings ---
 
 async function fetchUnitsPreferences() {
-    showPreferencesStatus('Chargement des unités...', 'loading');
+    showGlobalStatus('Chargement des unités...', 'loading');
 
     try {
         const response = await fetch('/api/settings');
@@ -80,13 +80,13 @@ async function fetchUnitsPreferences() {
         if (data.success && data.settings) {
             currentUnitsSettings = data.settings;
             displayPreferencesForm(data.settings);
-            showPreferencesStatus('Unités chargées avec succès', 'success');
+            showGlobalStatus('Unités chargées avec succès', 'success');
         } else {
             throw new Error('Format de données invalide pour les unités');
         }
     } catch (error) {
         console.error('Erreur:', error);
-        showPreferencesStatus(`Erreur: ${error.message}`, 'error');
+        showGlobalStatus(`Erreur: ${error.message}`, 'error');
         document.getElementById('preferences-container').innerHTML = '';
     }
 }
@@ -263,7 +263,7 @@ function updateSkinTypeDEM() {
 async function handleUnitsFormSubmit(event) {
     event.preventDefault();
     
-    showPreferencesStatus('Enregistrement des Unités...', 'loading');
+    showGlobalStatus('Enregistrement des Unités...', 'loading');
 
     try {
         const formData = new FormData(event.target);
@@ -303,7 +303,7 @@ async function handleUnitsFormSubmit(event) {
         
         if (result.success) {
             currentUnitsSettings = updatedSettings;
-            showPreferencesStatus('Unités enregistrées avec succès !', 'success');
+            showGlobalStatus('Unités enregistrées avec succès !', 'success');
             
             // Rafraîchir l'affichage si on est sur le dashboard
             if (typeof fetchCurrentConditions === 'function') {
@@ -319,7 +319,7 @@ async function handleUnitsFormSubmit(event) {
 
     } catch (error) {
         console.error('Erreur:', error);
-        showPreferencesStatus(`Erreur: ${error.message}`, 'error');
+        showGlobalStatus(`Erreur: ${error.message}`, 'error');
     }
 }
 
@@ -328,7 +328,7 @@ async function resetUnitsToDefault() {
         return;
     }
 
-    showPreferencesStatus('Réinitialisation des Unités...', 'loading');
+    showGlobalStatus('Réinitialisation des Unités...', 'loading');
 
     try {
         // Créer un objet avec les unités par défaut
@@ -365,7 +365,7 @@ async function resetUnitsToDefault() {
         if (result.success) {
             currentUnitsSettings = defaultSettings;
             currentSkinType = 3;
-            showPreferencesStatus('Unités réinitialisées avec succès !', 'success');
+            showGlobalStatus('Unités réinitialisées avec succès !', 'success');
             
             // Recharger le formulaire avec les nouvelles valeurs
             setTimeout(() => {
@@ -377,26 +377,6 @@ async function resetUnitsToDefault() {
 
     } catch (error) {
         console.error('Erreur:', error);
-        showPreferencesStatus(`Erreur: ${error.message}`, 'error');
-    }
-}
-
-function showPreferencesStatus(message, type) {
-    const statusElement = document.getElementById('status-bar');
-    if (!statusElement) return;
-
-    if (message) {
-        statusElement.textContent = message;
-        statusElement.className = `status-message status-${type}`;
-        statusElement.style.display = 'block';
-        
-        // Masquer automatiquement les messages de succès après 5 secondes (cohérent avec station.js)
-        if (type === 'success') {
-            setTimeout(() => {
-                statusElement.style.display = 'none';
-            }, 5000);
-        }
-    } else {
-        statusElement.style.display = 'none';
+        showGlobalStatus(`Erreur: ${error.message}`, 'error');
     }
 }

@@ -267,7 +267,7 @@ const sensorMap = {
         period: 60*60*24*7,
         groupUsage: '1/ Outdoor',
         groupCustom: 1,
-        sensorDb: 'outTemp'
+        sensorDb: 'THSW_calc'
     },
     'dateStormRain': {
         label: 'Date de début des dernieres averces',

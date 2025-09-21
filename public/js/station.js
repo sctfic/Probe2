@@ -2,11 +2,11 @@ let currentStationSettings = null;
 
 async function fetchStationSettings() {
     if (!selectedStation) {
-        showSettingsStatus('Aucune station sélectionnée', 'error');
+        showGlobalStatus('Aucune station sélectionnée', 'error');
         return;
     }
 
-    showSettingsStatus('Chargement des paramètres...', 'loading');
+    showGlobalStatus('Chargement des paramètres...', 'loading');
 
     try {
         const response = await fetch(`/api/station/${selectedStation.id}`);
@@ -16,13 +16,13 @@ async function fetchStationSettings() {
         if (data.success && data.settings) {
             currentStationSettings = data.settings;
             displaySettingsForm();
-            showSettingsStatus('Paramètres chargés avec succès', 'success');
+            showGlobalStatus('Paramètres chargés avec succès', 'success');
         } else {
             throw new Error('Format de données invalide');
         }
     } catch (error) {
         console.error('Erreur:', error);
-        showSettingsStatus(`Erreur: ${error.message}`, 'error');
+        showGlobalStatus(`Erreur: ${error.message}`, 'error');
         document.getElementById('settings-container').innerHTML = '';
     }
 }
@@ -241,7 +241,7 @@ async function handleSettingsSubmit(e) {
         }
     }
 
-    showSettingsStatus('Enregistrement des paramètres...', 'loading');
+    showGlobalStatus('Enregistrement des paramètres...', 'loading');
 
     try {
         const response = await fetch(`/api/station/${selectedStation.id}`, {
@@ -255,7 +255,7 @@ async function handleSettingsSubmit(e) {
         const result = await response.json();
         if (!result.success) throw new Error('Erreur lors de la sauvegarde');
 
-        showSettingsStatus('Synchronisation avec la station...', 'loading');
+        showGlobalStatus('Synchronisation avec la station...', 'loading');
 
         const syncResponse = await fetch(`/api/station/${selectedStation.id}/sync-settings`);
         const syncResult = await syncResponse.json();
@@ -263,7 +263,7 @@ async function handleSettingsSubmit(e) {
             console.warn('Avertissement synchronisation:', syncResult.message || 'Erreur inconnue');
         }
 
-        showSettingsStatus('Mise à jour de la date/heure...', 'loading');
+        showGlobalStatus('Mise à jour de la date/heure...', 'loading');
 
         const datetimeResponse = await fetch(`/api/station/${selectedStation.id}/update-datetime`);
         const datetimeResult = await datetimeResponse.json();
@@ -271,7 +271,7 @@ async function handleSettingsSubmit(e) {
             console.warn('Avertissement mise à jour date/heure:', datetimeResult.message || 'Erreur inconnue');
         }
 
-        showSettingsStatus('Paramètres sauvegardés et synchronisés avec succès', 'success');
+        showGlobalStatus('Paramètres sauvegardés et synchronisés avec succès', 'success');
         
         setTimeout(() => {
             fetchStationSettings();
@@ -279,21 +279,6 @@ async function handleSettingsSubmit(e) {
 
     } catch (error) {
         console.error('Erreur:', error);
-        showSettingsStatus(`Erreur: ${error.message}`, 'error');
-    }
-}
-
-function showSettingsStatus(message, type) {
-    const statusEl = document.getElementById('status-bar');
-    if (!statusEl) return;
-
-    statusEl.textContent = message;
-    statusEl.className = `status-message status-${type}`;
-    statusEl.style.display = message ? 'block' : 'none';
-
-    if (type === 'success') {
-        setTimeout(() => {
-            statusEl.style.display = 'none';
-        }, 5000);
+        showGlobalStatus(`Erreur: ${error.message}`, 'error');
     }
 }

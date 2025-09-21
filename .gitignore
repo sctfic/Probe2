@@ -7,6 +7,8 @@ coverage/
 logs/
 docs/
 config/influxDb.json
+config/influx.json
+config/influx.save
 public/plot/
 config/VP2_Serramoune.lock
 public/img/batterie-25.png
