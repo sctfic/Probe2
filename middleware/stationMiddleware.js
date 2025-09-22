@@ -51,7 +51,7 @@ const talkStationWithLamp = (handler) => {
         let socketAcquired = false;
         try {
             // await getOrCreateSocket(req, stationConfig);
-            await wakeUpConsole(req, stationConfig, true);
+            // await wakeUpConsole(req, stationConfig, true);
             socketAcquired = true;
             await handler(req, res); // The handler is now responsible for sending the response
         } catch (error) {

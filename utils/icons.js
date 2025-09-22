@@ -2,6 +2,8 @@
  * @fileoverview Fichier centralisant les constantes d'icônes et d'emojis pour l'application.
  */
 
+const { login } = require("../controllers/authController");
+
 // Emojis de cercles de couleur (Levels)
 const O = {
     RED:      '🔴', // U+1F534
@@ -69,7 +71,13 @@ const V = {
     droplet:            '💧',
     wind:               '💨',
     eye:                '👁️ ',
-    chart:              '📊'
+    chart:              '📊',
+    auth:               '🔑',
+    lock:               '🔒',
+    unlock:             '🔓',
+    user:               '👤',
+    password:           '🔒',
+    signup:             '👋',
 };
 
 const forecast = {

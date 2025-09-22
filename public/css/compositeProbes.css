@@ -6,6 +6,7 @@
     padding: 10px 20px;
     background-color: var(--accent-blue);
     border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
 }
 
 #composite-probes-container .settings-form {
@@ -51,6 +52,7 @@
     border-radius: 6px;
     background-color: #f9f9f9;
     overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
 }
 
 .probe-header {
@@ -116,12 +118,17 @@
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.3s ease-out, padding 0.3s ease-out;
-    padding: 0 20px;
+    padding: 10px 10px 0px 10px;
+
+}
+.probe-content form {
+    padding: 0px;
+    margin: 0px;
 }
 
 .probe-content.open {
     max-height: 1000px; /* Large enough value */
-    padding: 20px;
+    padding: 10px 10px 0px 10px;
     transition: max-height 0.5s ease-in, padding 0.5s ease-in;
 }
 
@@ -129,6 +136,7 @@
     display: grid;
     grid-template-columns: 1fr;
     gap: 15px;
+    margin-bottom: 10px;
 }
 
 .probe-fields .form-row {
@@ -166,7 +174,7 @@
 }
 
 .settings-actions {
-    margin-top: 20px;
+    margin-top: 0px;
     text-align: right;
 }
 

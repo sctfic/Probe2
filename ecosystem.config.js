@@ -8,7 +8,9 @@ module.exports = {
       ignore_watch: [
         'node_modules',
         './node_modules',
-        './config/stations',
+        './config/compositeProbes.json',
+        './config/Units.json',
+        './config/credential.json',
         './public',
         './docs',
         './.git',

@@ -1,0 +1,38 @@
+/* public/css/auth.css */
+
+.auth-container {
+    margin-left: 20px;
+}
+
+.auth-btn {
+    background: none;
+    border: 3px solid var(--accent-blue);
+    color: var(--background-white);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    padding: 0px;
+    margin: 4px 0 4px 10px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.auth-btn:hover {
+    background-color: var(--background-white);
+    color: var(--primary-dark);
+}
+
+.auth-btn.logged-in {
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+}
+
+.auth-btn.logged-in:hover {
+    background-color: var(--accent-blue);
+    color: var(--background-white);
+}
+
+.auth-modal-content {
+    max-width: 400px;
+}

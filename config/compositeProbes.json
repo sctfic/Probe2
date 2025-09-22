@@ -77,7 +77,7 @@
         "scriptJS": [
             "/js/composite/sunCalc.js"
         ],
-        "period": 604800,
+        "period": 2592000,
         "sensorDb": "MOON_calc",
         "measurement": "angle"
     },

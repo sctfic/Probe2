@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="css/station.css">
 <link rel="stylesheet" href="css/compositeProbes.css">
 <link rel="stylesheet" href="css/settings.css">
+<link rel="stylesheet" href="css/auth.css">
 <!-- For Textarea Editor -->
 <link rel="stylesheet" href="css/monokai-sublime.css">
 <link rel="stylesheet" href="css/textareaEditor.css">
@@ -39,25 +40,31 @@
         <img src="img/probe-logo.png" alt="Probe Logo">
     </div>
     <nav>
-        <ul>
+        <input type="checkbox" id="nav-toggle" class="nav-toggle">
+        <label for="nav-toggle" class="nav-toggle-label">
+            <span></span>
+        </label>
+        <ul class="nav-menu">
             <li data-section="dashboard-section" class="active">Dashboard</li>
-            <li data-section="historique-section">Historique</li>
             <li data-section="stations-section">Stations</li>
             <li data-section="compositeProbes-section">Sondes Composites</li>
             <li data-section="settings-section">Settings</li>
+            <li class="no_style"><button id="auth-btn" class="auth-btn" title="Connexion">🔑</button></li>
         </ul>
     </nav>
 </header>
 
 <!-- Sélecteur global de station -->
 <div class="station-selector">
-    <div class="station-info" id="station-info"></div>
-    <div class="status-message" id="status-bar" style="display: none;"></div>
     <div class="station-selector-container">
         <button id="collect-data-btn" class="btn-collect" title="Lancer une collecte de données">
             <span class="btn-text">⤓</span>
             <div class="btn-spinner"></div>
         </button>
+        <span class="station-info" id="station-info"></span>
+    </div>
+    <div class="status-message" id="status-bar" style="display: none;"></div>
+    <div class="station-selector-container">
         <select id="global-station-select">
             <option value="">Chargement des stations...</option>
         </select>
@@ -138,6 +145,58 @@
             </div>
         </div>
     </div>
+    <!-- Modale d'authentification -->
+    <div id="auth-modal" class="modal">
+        <div class="modal-content auth-modal-content">
+            <div class="modal-header">
+                <h3 id="auth-modal-title">Authentification requise</h3>
+            </div>
+            <div class="modal-body">
+                <div id="auth-error-msg" class="error-message-add" style="display: none;"></div>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="auth-login">Login</label>
+                        <input type="text" id="auth-login" value="admin" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="auth-password">Mot de passe</label>
+                        <input type="password" id="auth-password" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary" id="login-submit-btn" form="login-form">Connexion</button>
+            </div>
+        </div>
+    </div>
+    <!-- Modale pour changer le mot de passe -->
+    <div id="password-modal" class="modal">
+        <div class="modal-content auth-modal-content">
+            <div class="modal-header">
+                <h3 id="password-modal-title">Changer le mot de passe</h3>
+            </div>
+            <div class="modal-body">
+                <div id="password-error-msg" class="error-message-add" style="display: none;"></div>
+                <form id="password-form">
+                    <div class="form-group" id="old-password-group" style="display: none;">
+                        <label for="old-password">Ancien mot de passe</label>
+                        <input type="password" id="old-password">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-password">Nouveau mot de passe</label>
+                        <input type="password" id="new-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm-password">Confirmer le mot de passe</label>
+                        <input type="password" id="confirm-password" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary" id="password-submit-btn" form="password-form">Enregistrer</button>
+            </div>
+        </div>
+    </div>
 <main id="content-container" class="content-container">
     <section id="dashboard-section" class="content-section active">
         <!-- Contrôles de filtre réorganisés -->
@@ -159,9 +218,6 @@
         <div class="conditions-container" id="conditions-container">
             <!-- Les données météo seront chargées ici -->
         </div>
-    </section>
-    
-    <section id="historique-section" class="content-section">
     </section>
     
     <section id="stations-section" class="content-section">
@@ -231,6 +287,21 @@
         }
     }
 
+    // --- Authentication: Override fetch to handle 401 Unauthorized ---
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+        const response = await originalFetch(...args);
+
+        if (response.status === 401) {
+            // Ne pas afficher la modale pour les vérifications de statut ou les tentatives de connexion
+            if (!args[0].includes('/api/auth/status') && !args[0].includes('/api/login')) {
+                console.warn('Action non autorisée. Affichage de la modale de connexion.');
+                if (typeof showLoginModal === 'function') showLoginModal();
+            }
+        }
+        return response;
+    };
+
     document.addEventListener('DOMContentLoaded', () => {
         // Variables globales
         let globalStations = [];
@@ -248,7 +319,6 @@
         // Mapping des sections pour l'URL
         const sectionMap = {
             'dashboard-section': 'dashboard',
-            'historique-section': 'historique', 
             'stations-section': 'stations',
             'compositeProbes-section': 'composite-probes',
             'settings-section': 'settings'
@@ -256,9 +326,8 @@
 
         const reverseSectionMap = {
             'dashboard': 'dashboard-section',
-            'historique': 'historique-section',
             'stations': 'stations-section', 
-            'composite-probes': 'composite-probes',
+            'composite-probes': 'compositeProbes-section',
             'settings': 'settings-section'
         };
 
@@ -453,10 +522,12 @@
 
         function updateAllSectionInfo() {
             // Fonction pour mettre à jour les informations de toutes les sections
+            document.getElementById('collect-data-btn').style.display = 'block';
         }
 
         function clearAllSectionInfo() {
             // Fonction pour effacer les informations de toutes les sections
+            document.getElementById('collect-data-btn').style.display = 'none';
         }
 
         function showStationStatus(message, type) {
@@ -541,8 +612,12 @@
             }
         }
 
+        const navToggle = document.getElementById('nav-toggle');
         navItems.forEach((item, index) => {
             item.addEventListener('click', () => {
+                // Ne pas changer de section si on clique sur le bouton d'authentification
+                if (item.contains(document.getElementById('auth-btn'))) return;
+
                 currentIndex = index;
                 if (contentContainer) {
                     contentContainer.style.transition = 'transform 0.3s ease-out';
@@ -550,6 +625,10 @@
                     setTimeout(() => { contentContainer.style.transition = ''; }, 300);
                 }
                 updateDashboardURL();
+                // Fermer le menu mobile après un clic
+                if (navToggle && navToggle.checked) {
+                    navToggle.checked = false;
+                }
             });
         });
 
@@ -557,26 +636,52 @@
 
         // --- Gestion du swipe ---
         let startX = 0;
-        let endX = 0;
+        let startY = 0;
+        let endX = 0; // endX est utilisé pour suivre le mouvement horizontal
         let isSwiping = false;
+        let swipeDirection = null; // 'horizontal', 'vertical', ou null
 
         if (contentContainer) {
             contentContainer.addEventListener('touchstart', (e) => {
                 startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                endX = startX; // Initialiser endX
                 isSwiping = true;
+                swipeDirection = null;
             });
 
             contentContainer.addEventListener('touchmove', (e) => {
                 if (!isSwiping) return;
-                e.preventDefault();
-                endX = e.touches[0].clientX;
-                const diffX = startX - endX;
-                contentContainer.style.transform = `translateX(calc(-${currentIndex * 100}vw - ${diffX}px))`;
+                
+                const currentX = e.touches[0].clientX;
+                const currentY = e.touches[0].clientY;
+
+                if (swipeDirection === null) {
+                    // Déterminer la direction après un petit seuil pour éviter les faux positifs
+                    if (Math.abs(currentX - startX) > 10 || Math.abs(currentY - startY) > 10) {
+                        swipeDirection = Math.abs(currentX - startX) > Math.abs(currentY - startY) ? 'horizontal' : 'vertical';
+                    }
+                }
+
+                if (swipeDirection === 'horizontal') {
+                    e.preventDefault(); // Empêche le scroll vertical UNIQUEMENT si on swipe horizontalement
+                    endX = currentX;
+                    const diffX = startX - endX;
+                    contentContainer.style.transform = `translateX(calc(-${currentIndex * 100}vw - ${diffX}px))`;
+                }
             });
 
             contentContainer.addEventListener('touchend', () => {
-                if (!isSwiping) return;
+                if (!isSwiping || swipeDirection !== 'horizontal') {
+                    isSwiping = false;
+                    swipeDirection = null;
+                    // Rétablir la vue si le swipe n'était pas concluant
+                    updateView(false);
+                    return;
+                }
                 isSwiping = false;
+                swipeDirection = null;
+                
                 const diffX = startX - endX;
 
                 if (diffX > 50 && currentIndex < sections.length - 1) {
@@ -660,8 +765,11 @@
 
         // --- Initialisation ---
         loadGlobalStations().then(() => {
-            loadFromURL(); // Charger l'état complet depuis l'URL (y compris la station)
+            loadFromURL(); // Charger l'état complet depuis l'URL
         });
+
+        // Vérifier le statut d'authentification au chargement
+        if (typeof checkAuthStatus === 'function') checkAuthStatus();
     });
 
 </script>
@@ -671,6 +779,7 @@
 <script src="js/newStation.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/station.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/compositeProbes.js"></script>
 </body>

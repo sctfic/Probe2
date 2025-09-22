@@ -5,6 +5,8 @@ const configManager = require('./services/configManager');
 const cron = require('node-cron');
 const axios = require('axios');
 const { V,O } = require('./utils/icons');
+const session = require('express-session');
+const crypto = require('crypto');
 console.log(`${O.green} Starting !`);
 
 const app = express();
@@ -12,6 +14,14 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware pour parser le JSON
 app.use(express.json());
+
+// Middleware de session (DOIT être avant les routes qui l'utilisent)
+app.use(session({
+    secret: crypto.randomBytes(64).toString('hex'), // Secret de production, généré aléatoirement
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false } // Mettre à `true` si vous utilisez HTTPS
+}));
 
 // Middleware pour les logs des requêtes
 app.use((req, res, next) => {

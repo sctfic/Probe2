@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { loadStationConfig, talkStationWithLamp, talkStationQuickly } = require('../middleware/stationMiddleware');
+const { isAuthenticated } = require('../middleware/authMiddleware');
 const stationController = require('../controllers/stationController');
 const compositeController = require('../controllers/compositeController');
 const V = require('../utils/icons');
@@ -10,7 +11,7 @@ const V = require('../utils/icons');
 router.use('/:stationId', loadStationConfig);
 
 // Route pour supprimer une configuration de station
-router.delete('/:stationId', stationController.deleteStation);
+router.delete('/:stationId', isAuthenticated, stationController.deleteStation);
 
 // Route pour récupérer les données d'archive depuis la station (GET)
 router.get('/:stationId/collect', talkStationWithLamp(stationController.getArchiveData)); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/collect
@@ -35,7 +36,7 @@ router.get('/:stationId/composite-conditions/:sensors', compositeController.getc
 router.get('/:stationId', (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune
     try {
         const stationConfig = req.stationConfig;
-        console.log(`${V.gear} Récupération de la configuration pour la station ${stationConfig.id}`);
+        console.log(`${V.info} Récupération de la configuration pour la station ${stationConfig.id}`);
         
         res.json({
             success: true,
@@ -54,13 +55,13 @@ router.get('/:stationId', (req, res) => { //http://probe2.lpz.ovh/api/station/VP
 });
 
 // Route pour mettre à jour la configuration d'une station
-router.put('/:stationId', (req, res) => {
+router.put('/:stationId', isAuthenticated, (req, res) => {
     try {
         const stationConfig = req.stationConfig;
         const updates = req.body;
         const configManager = require('../services/configManager');
         
-        console.log(`${V.gear} Mise à jour de la configuration pour la station ${stationConfig.id}`, updates);
+        // console.log(`${V.gear} Mise à jour de la configuration pour la station ${stationConfig.id}`, updates);
         
         // Fusionner les modifications avec la configuration existante
         const updatedConfig = { ...stationConfig, ...updates };

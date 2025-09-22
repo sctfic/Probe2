@@ -596,10 +596,10 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
 async function downloadArchiveData(req, stationConfig, startDate, res) {
     let effectiveStartDate;
     if (startDate) {
-        effectiveStartDate = startDate;
-    } else if (stationConfig.lastArchiveDate) {
-        effectiveStartDate = new Date(stationConfig.lastArchiveDate);
-        effectiveStartDate.setMinutes(effectiveStartDate.getMinutes());
+        effectiveStartDate = new Date(startDate);
+    // } else if (stationConfig.lastArchiveDate) {
+        // effectiveStartDate = new Date(stationConfig.lastArchiveDate);
+        // effectiveStartDate.setMinutes(effectiveStartDate.getMinutes());
     } else {
         effectiveStartDate = (new Date(new Date().getTime() - 4 * 24 * 60 * 60 * 1000));
     }
@@ -661,7 +661,7 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
                     if (WriteToDB){
                         console.log(`${V.package} Pages ${pageNumber+1}.${j+1}/${numberOfPages} Archives / Write ${WriteToDB} points influxDb for [${datetime}] ✅`);
                         stationConfig.lastArchiveDate = datetime;
-                        configManager.autoSaveConfig(stationConfig);
+                        // configManager.autoSaveConfig(stationConfig);
                     } else {
                         console.warn(`${V.package} Pages ${pageNumber+1}.${j+1}/${numberOfPages} Archives / Error writing points influxDb for [${datetime}] ${V.error}`);
                     }

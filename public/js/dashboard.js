@@ -618,10 +618,10 @@ function createConditionTileHTML(item) {
     `;
 }
 function getStartDate (period){
-let date;
+    let date;
     if (period === 'dateStormRain') {
         const str = currentConditionsData.dateStormRain?.Value;
-        const stormDate = (str?.endsWith('T') ? str.slice(0, -1) : str)
+        const stormDate = (new Date(str?.endsWith('T') ? str.slice(0, -1) : str)).getTime();
         date = new Date((stormDate || Math.round((new Date()).getTime()/1000) - 60*60*24*7)*1000);
     } else {
         date = new Date((Math.round((new Date()).getTime()/1000) - period)*1000);

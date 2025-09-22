@@ -4,6 +4,7 @@ const { V } = require('../utils/icons');
 const fs = require('fs');
 const path = require('path');
 const probeVersion = require('../package.json').version;
+const ping = require('ping');
 
 exports.getAppInfo = (req, res) => { // http://probe2.lpz.ovh/api/info
     try {
@@ -191,18 +192,34 @@ exports.updatecompositeProbesSettings = (req, res) => {
     }
 };
 
-exports.getAllStations = (req, res) => {
+exports.getAllStations = async (req, res) => {
     try {
         console.log(`${V.book} Récupération de la liste des stations`);
         const allConfigs = configManager.loadAllConfigs();
         
-        const stationsList = Object.keys(allConfigs).map(stationId => ({
-            id: stationId,
-            name: allConfigs[stationId].name || stationId,
-            location: allConfigs[stationId].location || 'Non défini',
-            host: allConfigs[stationId].host,
-            port: allConfigs[stationId].port
-        }));
+        const stationPingPromises = Object.keys(allConfigs).map(async (stationId) => {
+            const config = allConfigs[stationId];
+            let pingTime = 'unreachable!';
+            try {
+                // Using a short timeout to not block the response for too long
+                const pingResult = await ping.promise.probe(config.host, { timeout: 1 });
+                if (pingResult.alive) {
+                    pingTime = Math.round(pingResult.time);
+                }
+            } catch (pingError) {
+                console.warn(`${V.warning} Ping failed for ${config.host}: ${pingError.message}`);
+            }
+
+            return {
+                id: stationId,
+                name: config.name || stationId,
+                location: config.location || 'Non défini',
+                host: config.host,
+                port: config.port,
+                ping: pingTime
+            };
+        });
+        const stationsList = await Promise.all(stationPingPromises);
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
@@ -229,7 +246,6 @@ exports.getHealth = (req, res) => {
             status: 'healthy',
             timestamp: new Date().toISOString(),
             uptime: process.uptime(),
-            version: probeVersion,
             system: {
                 nodeVersion: process.version,
                 platform: process.platform,

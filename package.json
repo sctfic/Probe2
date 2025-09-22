@@ -1,6 +1,6 @@
 {
   "name": "probe2-api",
-  "version": "0.2.24",
+  "version": "0.2.26",
   "description": "API pour récupérer des informations sur l'application Probe2",
   "main": "app.js",
   "scripts": {
@@ -19,9 +19,11 @@
     "@influxdata/influxdb-client": "^1.35.0",
     "@influxdata/influxdb-client-apis": "^1.35.0",
     "axios": "^1.12.2",
+    "bcrypt": "^6.0.0",
     "crc": "^4.3.2",
     "date-fns-tz": "^3.2.0",
     "express": "^5.1.0",
+    "express-session": "^1.18.2",
     "moment-timezone": "^0.6.0",
     "net": "^1.0.2",
     "node-cron": "^4.2.1",

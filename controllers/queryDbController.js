@@ -4,6 +4,7 @@ const { V } = require('../utils/icons');
 const units = require('../config/Units.json');
 const { sensorTypeMap } = require('../utils/weatherDataParser');
 const configManager = require('../services/configManager');
+const probeVersion = require('../package.json').version;
 
 const compositeProbes = require('../config/compositeProbes.json');
 const fs = require('fs');
@@ -98,17 +99,14 @@ exports.getQueryMetadata = async (req, res) => {
         res.json({
             success: true,
             message: 'Success',
+            version: probeVersion,
             metadata: {
                 stationId: stationId,
                 sensor: [...new Set(allFields)],
                 queryTime: new Date().toISOString(),
                 first: dateRange.firstUtc,
                 last: dateRange.lastUtc,
-                intervalSeconds: null,
-                count: null,
                 unit: units,
-                userUnit: null,
-                toUserUnit: null
             },
             measurements: _measurements
         });

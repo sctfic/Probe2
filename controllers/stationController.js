@@ -3,6 +3,7 @@ const stationService = require('../services/stationService');
 const influxdbService = require('../services/influxdbService');
 const configManager = require('../services/configManager');
 const network = require('../services/networkService');
+const { queryDateRange } = require('../services/influxdbService');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -194,8 +195,9 @@ exports.getArchiveData = async (req, res) => {
     try {
         const stationConfig = req.stationConfig;
         console.log(`${V.Parabol} Demande de données d'archive pour la station ${stationConfig.id}`);
-        
-        const archiveData = await stationService.downloadArchiveData(req, stationConfig);
+            
+        const endDate = new Date((await queryDateRange(stationConfig.id)).lastUtc).toLocaleString();
+        const archiveData = await stationService.downloadArchiveData(req, stationConfig, endDate);
         
         res.json({
             success: true,
@@ -203,6 +205,7 @@ exports.getArchiveData = async (req, res) => {
             timestamp: new Date().toISOString(),
             data: archiveData
         });
+        configManager.autoSaveConfig(stationConfig);
     } catch (error) {
         console.error(`${V.error} Erreur dans getArchiveData pour ${req.stationConfig?.id}:`, error);
         res.status(500).json({
@@ -219,8 +222,7 @@ exports.syncSettings = async (req, res) => {
         console.log(`${V.gear} Demande de synchronisation des paramètres pour la station ${stationConfig.id}`);
         
         const result = await stationService.syncStationSettings(req, stationConfig);
-        // autosave config
-        configManager.autoSaveConfig(stationConfig);
+
         
         res.json({
             success: true,
@@ -229,6 +231,8 @@ exports.syncSettings = async (req, res) => {
             data: result,
             settings: stationConfig
         });
+        // autosave config
+        configManager.autoSaveConfig(stationConfig);
     } catch (error) {
         console.error(`${V.error} Erreur dans syncSettings pour ${req.stationConfig?.id}:`, error);
         res.status(500).json({
