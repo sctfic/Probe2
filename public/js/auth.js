@@ -175,25 +175,15 @@ async function handleChangePassword(event) {
 }
 
 // Event Listeners
-function closeMobileMenu() {
-    const navToggle = document.getElementById('nav-toggle');
-    if (navToggle && navToggle.checked) {
-        navToggle.checked = false;
-    }
-}
-
 loginBtn.addEventListener('click', () => {
-    closeMobileMenu();
     showLoginModal();
 });
 logoutBtn.addEventListener('click', () => {
-    closeMobileMenu();
     if (confirm("Voulez-vous vous déconnecter ?")) {
         handleLogout();
     }
 });
 changePasswordBtn.addEventListener('click', () => {
-    closeMobileMenu();
     showPasswordModal();
 });
 loginForm.addEventListener('submit', handleLogin);

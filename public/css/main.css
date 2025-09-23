@@ -19,7 +19,7 @@ body {
     justify-content: space-between;
     align-items: center;
     background-color: var(--primary-dark);
-    padding: 5px 20px;
+    padding: 5px 10px 5px 20px;
     color: var(--background-white);
     position: fixed;
     position: absolute;
@@ -43,17 +43,17 @@ body {
 .nav-menu {
     list-style: none;
     margin: 0;
-    padding: 0;
+    padding: 0 20px 0 0;
     display: flex
 }
 
-.navbar nav ul li:not(.no_style) {
-    padding: 5px 5px 0px 5px;
+.navbar nav ul li {
+    padding: 5px 2px 0px 2px;
     cursor: pointer;
     transition: background-color .3s ease,color .3s ease
 }
 
-.navbar nav ul li:not(.no_style):hover {
+.navbar nav ul li:hover {
     background-color: rgba(255,255,255,.1)
 }
 
@@ -62,92 +62,12 @@ body {
     border-bottom: 2px solid var(--accent-blue)
 }
 
-.nav-toggle {
-    display: none
-}
-
-.nav-toggle-label {
-    display: none;
-    cursor: pointer;
-    width: 30px;
-    height: 30px;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    margin-left: 20px
-}
-
-.nav-toggle-label span,.nav-toggle-label span::after,.nav-toggle-label span::before {
-    display: block;
-    background-color: #fff;
-    height: 2px;
-    width: 25px;
-    border-radius: 2px;
-    position: relative;
-    transition: all .3s ease-in-out
-}
-
-.nav-toggle-label span::after,.nav-toggle-label span::before {
-    content: '';
-    position: absolute
-}
-
-.nav-toggle-label span::before {
-    top: -8px
-}
-
-.nav-toggle-label span::after {
-    top: 8px
-}
-
-@media (max-width: 768px) {
-    .nav-menu {
-        display:none;
-        position: absolute;
-        top: 100%;
-        right: 0;
-        background-color: var(--primary-dark);
-        flex-direction: column;
-        width: 200px;
-        padding: 10px 0;
-        border-radius: 0 0 0 5px;
-        box-shadow: 0 4px 8px rgba(0,0,0,.3)
-    }
-
-    .nav-menu li {
-        width: 100%;
-        text-align: center
-    }
-
-    .nav-toggle-label {
-        display: flex
-    }
-
-    .nav-toggle:checked~.nav-menu {
-        display: flex
-    }
-
-    .nav-toggle:checked~.nav-toggle-label span {
-        background-color: transparent
-    }
-
-    .nav-toggle:checked~.nav-toggle-label span::before {
-        transform: rotate(45deg);
-        top: 0
-    }
-
-    .nav-toggle:checked~.nav-toggle-label span::after {
-        transform: rotate(-45deg);
-        top: 0
-    }
-}
-
 .station-selector {
     background-color: var(--accent-blue);
     padding: 10px 20px;
     position: fixed;
     position: absolute;
-    top: 60px;
+    top: 53px;
     width: 100%;
     box-sizing: border-box;
     z-index: 900;
@@ -192,15 +112,6 @@ body {
     transform: scale(1.1)
 }
 
-#global-station-select {
-    background-color: #fff;
-    color: var(--primary-dark);
-    border: 1px solid #ddd;
-    padding: 8px;
-    border-radius: 4px;
-    width: 300px;
-    box-sizing: border-box
-}
 
 .content-container {
     display: flex;
@@ -294,36 +205,36 @@ button:hover,input[type=button]:hover,input[type=submit]:hover {
     background-color: #5a6268
 }
 
-.btn-collect {
+.station-icon-btn {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 40px;
     height: 40px;
-    background-color: rgba(255,255,255,.2);
-    border: 2px solid #fff;
-    color: #fff;
+    opacity: .5;
     border-radius: 50%;
-    font-size: 32px;
-    font-weight: 700;
+    background-color: var(--primary-dark);
+    /* border: 2px solid #fff; */
+    border-radius: 50%;
     cursor: pointer;
     transition: all .3s ease;
     padding: 0;
     line-height: 1
 }
 
-.btn-collect:hover {
-    background-color: #fff;
-    color: var(--accent-blue);
+.station-icon-btn:hover {
+    background-color: var(--primary-dark);
+    opacity: .8;
     transform: scale(1.1)
 }
 
-.btn-collect .btn-text {
+
+.btn-text {
     transition: opacity .2s ease
 }
 
-.btn-collect .btn-spinner {
+.btn-spinner {
     display: none;
     width: 20px;
     height: 20px;
@@ -347,7 +258,6 @@ button:hover,input[type=button]:hover,input[type=submit]:hover {
 
 .btn-collect.loading:hover {
     background-color: rgba(255,255,255,.2);
-    color: #fff;
     transform: none
 }
 
@@ -393,8 +303,27 @@ label {
 .status-message {
     padding: 8px;
     margin: 0;
-    border-radius: 4px;
-    font-weight: 700
+    border-radius: 0 0 6px 6px;
+    font-weight: 700;
+    position: absolute;
+    top: -2px;
+    left: 50%;
+    transform: translate(-50%, -10px);
+    z-index: 1001;
+    min-width: 300px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0,0,0,.3);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform .3s ease-out,opacity .3s ease-out
+}
+
+.status-message.show {
+    transform: translate(-50%, 0);
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto
 }
 
 .status-loading {
@@ -427,12 +356,16 @@ label {
 .footer {
     background-color: var(--primary-dark);
     color: var(--background-white);
-    position: fixed;
-    position: absolute;
+    position: fixed; /* Use fixed to keep it at the bottom, removed duplicate 'absolute' */
     bottom: 0;
     width: 100%;
     z-index: 800;
-    box-shadow: 0 -2px 4px rgba(0,0,0,.1)
+    box-shadow: 0 -2px 4px rgba(0,0,0,.1);
+    transition: transform .5s ease-in-out; /* Add transition for hiding */
+}
+
+.footer.hidden-animated {
+    transform: translateY(100%); /* Slide the footer down to hide it */
 }
 
 .footer-bottom {
@@ -528,13 +461,15 @@ input:checked+.slider:before {
 }
 
 #global-station-select {
-    padding: 8px 12px;
-    border: 1px solid #ddd;
+    padding: 8px;
     border-radius: 4px;
     font-size: 14px;
-    min-width: 200px
+    background-color: #fff;
+    color: var(--primary-dark);
+    border: 1px solid #ddd;
+    width: 220px;
+    box-sizing: border-box
 }
-
 .add-station-btn {
     color: #fff;
     border: 1px solid #ddd;
@@ -1173,11 +1108,22 @@ input:checked+.slider:before {
 }
 
 @media (max-width: 768px) {
-    .weather-icon {
-        width:50px;
-        height: 50px
+    .station-info {
+        display: none;
     }
-
+    .nav-menu {
+        padding: 0 5px 0 0;
+    }
+    #conditions-stats-display {
+        display: none !important
+    }
+    .weather-icon {
+        width: 46px;
+        height: 46px
+    }
+    .view-group, .conditions-filter {
+        width: 50%;
+    }
     .weather-name {
         font-size: .7em
     }
@@ -1414,30 +1360,6 @@ input:checked+.slider:before {
     display: flex;
     align-items: center;
     gap: 10px
-}
-
-.add-station-btn {
-    background-color: rgba(255,255,255,.2);
-    border: 2px solid #fff;
-    color: #fff;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    font-size: 36px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all .3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    line-height: 1
-}
-
-.add-station-btn:hover {
-    background-color: #fff;
-    color: var(--accent-blue);
-    transform: scale(1.1)
 }
 
 .btn-secondary {
@@ -1732,12 +1654,13 @@ input:checked+.slider:before {
     filter: brightness(30%) invert(70%);
     width: 32px;
     height: 32px;
+    margin-inline: 2px;
+    transition: all .2s ease;
 }
 
 .brightness:hover {
     filter: brightness(0) invert(1);
-    width: 32px;
-    height: 32px;
+    transform: scale(1.2)
 }
 
 .access-control-icon {
@@ -2023,4 +1946,3 @@ input:checked+.slider:before {
     font-weight: bold;
     color: var(--accent-blue);
 }
-

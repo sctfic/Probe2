@@ -137,7 +137,7 @@ function displayProbesList(settings) {
 
     let listHTML = `
         <div class="probes-header">
-            <h1>Configuration des Sondes Calculées</h1>
+            <h1>Sondes Composite</h1>
             <button id="add-probe-btn" class="btn btn-primary add-station-btn">Ajouter une Sonde</button>
         </div>
         <div id="probes-list" class="settings-form">

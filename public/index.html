@@ -10,24 +10,10 @@
 <script src="js/drawing/miniVectors.js"></script>
 <script src="js/sensorsMap.js"></script>
 <!-- External CSS and JS -->
-<link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/main.css">
 <!-- For Textarea Editor -->
 <link rel="stylesheet" href="css/monokai-sublime.css">
 <link rel="stylesheet" href="css/textareaEditor.css">
-<style>
-    /* Styles pour le drag & drop */
-    .conditions-container.sortable .condition-tile {
-        cursor: move;
-    }
-    .condition-tile.dragging {
-        opacity: 0.5;
-        border: 2px dashed #007bff;
-    }
-    .condition-tile.drag-over {
-        border-left: 3px solid #007bff;
-    }
-</style>
 </head>
 <body>
 <header class="navbar">
@@ -35,39 +21,34 @@
         <img src="img/probe-logo.png" alt="Probe Logo">
     </div>
     <nav>
-        <input type="checkbox" id="nav-toggle" class="nav-toggle">
-        <label for="nav-toggle" class="nav-toggle-label">
-            <span></span>
-        </label>
         <ul class="nav-menu">
             <li data-section="dashboard-section" class="active" title="Dashboard"><img src="img/dashboard.png" class="brightness"></li>
             <li data-section="stations-section" title="Stations"><img src="img/weather-stations.png" class="brightness"></li>
             <li data-section="compositeProbes-section" title="Sondes Composites"><img src="img/composite.png" class="brightness"></li>
             <li data-section="settings-section" title="Settings"><img src="img/settings.png" class="brightness"></li>
-            <li class="no_style" id="auth-container">
-                <button id="login-btn" class="auth-btn" title="Connexion" style="display: none;"><img src="img/login.png" class="brightness"></button>
-                <button id="change-password-btn" class="auth-btn" title="Changer le mot de passe" style="display: none;"><img src="img/change-password.png" class="brightness"></button>
-                <button id="logout-btn" class="auth-btn" title="Déconnexion" style="display: none;"><img src="img/logout.png" class="brightness"></button>
-            </li>
         </ul>
+        <div id="login-btn"><img src="img/login.png" class="brightness"></div>
+        <div id="change-password-btn"><img src="img/change-password.png" class="brightness"></div>
+        <div id="logout-btn"><img src="img/logout.png" class="brightness"></div>
     </nav>
 </header>
 
 <!-- Sélecteur global de station -->
 <div class="station-selector">
     <div class="station-selector-container">
-        <button id="collect-data-btn" class="btn-collect" title="Lancer une collecte de données">
+        <button id="collect-data-btn" class="station-icon-btn" title="Lancer une collecte de données">
             <img src="img/data-collecting.png" class="brightness">
             <div class="btn-spinner"></div>
         </button>
         <span class="station-info" id="station-info"></span>
     </div>
-    <div class="status-message" id="status-bar" style="display: none;"></div>
+    <div class="status-message" id="status-bar"></div>
     <div class="station-selector-container">
         <select id="global-station-select">
             <option value="">Chargement des stations...</option>
         </select>
-        <button class="add-station-btn" id="add-station-btn" title="Ajouter une nouvelle station"><img src="img/add.png" class="brightness"></button>
+        <button id="add-station-btn" class="station-icon-btn" title="Ajouter une nouvelle station">
+            <img src="img/add.png" class="brightness"></button>
     </div>
 </div>
     <!-- Modale pour ajouter une station -->
@@ -206,7 +187,7 @@
             <div class="filter-group">
                 <input type="text" id="conditions-filter" placeholder="Rechercher une mesure..." value="">
             </div>
-            <div class="conditions-stats" id="conditions-stats-display" style="display: none;"></div>
+            <div class="conditions-stats" id="conditions-stats-display"></div>
             <div class="view-group">
                 <select id="conditions-group">
                     <option value="groupUsage" selected>Regroupement Fonctionnel</option>
@@ -275,17 +256,16 @@
 
         if (message) {
             statusEl.textContent = message;
-            statusEl.className = `status-message status-${type}`;
-            statusEl.style.display = 'block';
+            statusEl.className = `status-message status-${type} show`;
 
             // Automatically hide after 5 seconds for non-loading messages
             if (type !== 'loading') {
                 statusTimeout = setTimeout(() => {
-                    statusEl.style.display = 'none';
+                    statusEl.classList.remove('show');
                 }, 5000);
             }
         } else {
-            statusEl.style.display = 'none';
+            statusEl.classList.remove('show');
         }
     }
 
@@ -614,12 +594,8 @@
             }
         }
 
-        const navToggle = document.getElementById('nav-toggle');
         navItems.forEach((item, index) => {
             item.addEventListener('click', () => {
-                // Ne pas changer de section si on clique sur le bouton d'authentification
-                if (item.contains(document.getElementById('auth-btn'))) return;
-
                 currentIndex = index;
                 if (contentContainer) {
                     contentContainer.style.transition = 'transform 0.3s ease-out';
@@ -627,10 +603,6 @@
                     setTimeout(() => { contentContainer.style.transition = ''; }, 300);
                 }
                 updateDashboardURL();
-                // Fermer le menu mobile après un clic
-                if (navToggle && navToggle.checked) {
-                    navToggle.checked = false;
-                }
             });
         });
 
