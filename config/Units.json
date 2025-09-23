@@ -178,7 +178,7 @@
             },
             "l/m²": {
                 "title": "litre per square meter",
-                "fnFromMetric": "(mm) => Number((mm*10).toFixed(2))"
+                "fnFromMetric": "(mm) => Number((mm).toFixed(2))"
             }
         },
         "sensors": [

@@ -160,13 +160,12 @@ function displayProbesList(settings) {
         }
     });
 
-    container.querySelectorAll('.probe-header').forEach(header => {
+    container.querySelectorAll('.settings-group-header').forEach(header => {
         header.addEventListener('click', (e) => {
             if (e.target.classList.contains('btn-delete-probe')) return;
             const content = header.nextElementSibling;
-            const icon = header.querySelector('.toggle-icon');
             content.classList.toggle('open');
-            icon.textContent = content.classList.contains('open') ? '▼' : '▶';
+            header.classList.toggle('open');
         });
     });
 
@@ -194,16 +193,16 @@ function createProbeItemHTML(probeKey, probeData, isOpen = false) {
     const fnCalcValue = probeData.fnCalc || '';
     const measurementSelectHTML = generateMeasurementSelect(probeKey, probeData.measurement);
     return `
-        <div class="settings-group probe-item" data-probe-key="${probeKey}">
-            <div class="probe-header">
+        <div class="settings-group" data-probe-key="${probeKey}">
+            <div class="settings-group-header ${isOpen ? 'open' : ''}">
                 <h3>
-                    <span class="toggle-icon">${isOpen ? '▼' : '▶'}</span>
+                    <span class="toggle-icon">▶</span>
                     Sonde : ${probeKey} <em class="probe-label-preview">(${probeData.label || 'N/A'})</em> 
                     <em class="probe-measurement-preview">(${probeData.measurement || 'N/A'})</em>
                 </h3>
                 <button type="button" class="btn-delete-probe" data-probe-key="${probeKey}" title="Supprimer ce Composite">×</button>
             </div>
-            <div class="probe-content ${isOpen ? 'open' : ''}">
+            <div class="collapsible-content ${isOpen ? 'open' : ''}">
                 <form data-probe-key="${probeKey}">
                     <div class="probe-fields">
                         <div class="form-row">
@@ -227,7 +226,9 @@ function createProbeItemHTML(probeKey, probeData, isOpen = false) {
                         <input type="hidden" name="${probeKey}.sensorDb" value="${probeData.sensorDb || probeKey}">
                     </div>
                     <div class="settings-actions">
-                        <button type="submit">Enregistrer</button>
+                        <button type="submit">
+                            <img src="img/access-control.png" class="access-control-icon" style="display: none;">Enregistrer
+                        </button>
                     </div>
                 </form>
             </div>
@@ -336,15 +337,15 @@ function handleAddProbe(event) {
     const list = document.getElementById('probes-list');
     list.insertAdjacentHTML('beforeend', createProbeItemHTML(probeKey, newProbeData, true));
     
-    const newItem = list.lastElementChild;
-    newItem.querySelector('.probe-header').addEventListener('click', (e) => {
+    const newGroup = list.lastElementChild;
+    const newHeader = newGroup.querySelector('.settings-group-header');
+    newHeader.addEventListener('click', (e) => {
         if (e.target.classList.contains('btn-delete-probe')) return;
-        const content = newItem.querySelector('.probe-content');
-        const icon = newItem.querySelector('.toggle-icon');
+        const content = newHeader.nextElementSibling;
         content.classList.toggle('open');
-        icon.textContent = content.classList.contains('open') ? '▼' : '▶';
+        newHeader.classList.toggle('open');
     });
-    newItem.querySelector('.btn-delete-probe').addEventListener('click', handleDeleteProbe);
+    newHeader.querySelector('.btn-delete-probe').addEventListener('click', handleDeleteProbe);
 
     // Initialize code editor for the new textarea
     const textareaId = `probe-${probeKey}-fnCalc`;
@@ -353,14 +354,14 @@ function handleAddProbe(event) {
     }
 
     hideAddProbeModal();
-    newItem.scrollIntoView({ behavior: 'smooth' });
+    newGroup.scrollIntoView({ behavior: 'smooth' });
 }
 
 function handleDeleteProbe(event) {
     const probeKey = event.target.dataset.probeKey;
     if (confirm(`Êtes-vous sûr de vouloir supprimer la sonde "${probeKey}" ? Cette action est irréversible.`)) {
         delete currentProbesSettings[probeKey];
-        document.querySelector(`.probe-item[data-probe-key="${probeKey}"]`).remove();
+        document.querySelector(`.settings-group[data-probe-key="${probeKey}"]`).remove();
         saveAllProbesSettings(currentProbesSettings);
     }
 }
@@ -415,7 +416,7 @@ async function handleProbesFormSubmit(event) {
 
         await saveAllProbesSettings(currentProbesSettings);
 
-        const item = document.querySelector(`.probe-item[data-probe-key="${probeKey}"]`);
+        const item = document.querySelector(`.settings-group[data-probe-key="${probeKey}"]`);
         if (item) {
             item.querySelector('.probe-label-preview').textContent = `(${probeData.label || 'N/A'})`;
             item.querySelector('.probe-measurement-preview').textContent = `(${probeData.measurement || 'N/A'})`;

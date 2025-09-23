@@ -37,15 +37,16 @@ async function getIntervalSeconds(stationId, sensorRef, startDate, endDate, step
     const endTime = new Date(dateRange.lastUtc);
     // 3. Calcule l'intervalle optimal
     const totalSeconds  = (endTime.getTime() - startTime.getTime()) / 1000;
-    const interval = Math.max(1, Math.round(totalSeconds / parseInt(stepCount)));
+    const interval = Math.max(1, Math.round(totalSeconds / parseInt(stepCount) / 300)*300);
+    console.log(interval);
     return {
         start: startTime.toISOString().replace('.000Z', 'Z'),
         end: endTime.toISOString().replace('.000Z', 'Z'),
-        intervalSeconds: interval
+        intervalSeconds: interval // arrondi à 5min
     };
 };
 
-function getMetadata(stationId, sensorRefs, { start, end, intervalSeconds }, data) {
+function getMetadata(req, sensorRefs, { start, end, intervalSeconds }, data) {
     const measurements = [];
     const sensors = [];
     const mix = {};
@@ -71,7 +72,12 @@ function getMetadata(stationId, sensorRefs, { start, end, intervalSeconds }, dat
     });
 
     return {
-        stationId: stationId,
+        stationId: req.stationConfig.id,
+        gps: {
+            latitude: req.stationConfig.latitude.lastReadValue,
+            longitude: req.stationConfig.longitude.lastReadValue,
+            altitude: req.stationConfig.altitude.lastReadValue,
+        },
         measurement: mix,
         sensor: sensors,
         queryTime: new Date().toISOString(),
@@ -89,7 +95,7 @@ exports.getQueryMetadata = async (req, res) => {
     const stationId = req.params.stationId;
     try {
         console.log(`${V.info} Demande de métadonnées pour la station ${stationId}`);
-        const _measurements = await influxdbService.getMetadata(stationId);
+        const _measurements = await influxdbService.getInfluxMetadata(stationId);
         const allFields = Object.entries(_measurements)
             .flatMap(([measurementType, measurement]) => 
                 (measurement.tags?.sensor || []).map(sensor => `${measurementType}:${sensor}`)
@@ -102,6 +108,11 @@ exports.getQueryMetadata = async (req, res) => {
             version: probeVersion,
             metadata: {
                 stationId: stationId,
+                gps:{
+                    latitude: req.stationConfig.latitude.lastReadValue,
+                    longitude: req.stationConfig.longitude.lastReadValue,
+                    altitude: req.stationConfig.altitude.lastReadValue,
+                },
                 sensor: [...new Set(allFields)],
                 queryTime: new Date().toISOString(),
                 first: dateRange.firstUtc,
@@ -148,6 +159,11 @@ exports.getQueryRange = async (req, res) => {
             message: 'Success',
             metadata: {
                 stationId: stationId,
+                gps:{
+                    latitude: req.stationConfig.latitude.lastReadValue,
+                    longitude: req.stationConfig.longitude.lastReadValue,
+                    altitude: req.stationConfig.altitude.lastReadValue,
+                },
                 sensor: sensor,
                 queryTime: new Date().toISOString(),
                 first: data.firstUtc ? new Date(data.firstUtc).toISOString() : null,
@@ -251,6 +267,11 @@ exports.getQueryRaw = async (req, res) => {
         const measurement = units[type];
         const metadata = {
             stationId: stationId,
+            gps: {
+                latitude: req.stationConfig.latitude.lastReadValue,
+                longitude: req.stationConfig.longitude.lastReadValue,
+                altitude: req.stationConfig.altitude.lastReadValue,
+            },
             measurement: type,
             sensor: sensor,
             queryTime: new Date().toISOString(),
@@ -304,7 +325,7 @@ exports.getQueryRaws = async (req, res) => {
             msg = '<!> Data missing suspected !';
         }
 
-        const metadata = getMetadata(stationId, sensorRefs, timeInfo, Data);
+        const metadata = getMetadata(req, sensorRefs, timeInfo, Data);
 
         res.json({
             success: true,
@@ -353,6 +374,11 @@ exports.getQueryCandle = async (req, res) => {
             message: msg,
             metadata: {
                 stationId: stationId,
+                gps: {
+                    latitude: req.stationConfig.latitude.lastReadValue,
+                    longitude: req.stationConfig.longitude.lastReadValue,
+                    altitude: req.stationConfig.altitude.lastReadValue,
+                },
                 measurement: type,
                 sensor: sensor,
                 queryTime: new Date().toISOString(),
@@ -389,7 +415,7 @@ exports.getQueryWindRose = async (req, res) => { // https://observablehq.com/@ju
         } else if (data.length < stepCount) {
             msg = '<!> Data missing suspected !';
         }
-        const metadata = getMetadata(stationId, ['speed:Wind', 'direction:Gust', 'speed:Gust', 'direction:Wind'], timeInfo, data);
+        const metadata = getMetadata(req, ['speed:Wind', 'direction:Gust', 'speed:Gust', 'direction:Wind'], timeInfo, data);
 
         res.json({
             success: true,
@@ -422,7 +448,7 @@ exports.getQueryWindVectors = async (req, res) => {
         } else if (data.length < stepCount) {
             msg = '<!> Data missing suspected !';
         }
-        const metadata = getMetadata(stationId, ['speed:'+sensorRef, 'direction:'+sensorRef], timeInfo, data);
+        const metadata = getMetadata(req, ['speed:'+sensorRef, 'direction:'+sensorRef], timeInfo, data);
         metadata.sensor = sensorRef;
         res.json({
             success: true,

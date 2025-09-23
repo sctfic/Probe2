@@ -4,7 +4,9 @@ let isAuthenticated = false;
 let isPasswordSet = false;
 
 // DOM Elements
-const authBtn = document.getElementById('auth-btn');
+const loginBtn = document.getElementById('login-btn');
+const logoutBtn = document.getElementById('logout-btn');
+const changePasswordBtn = document.getElementById('change-password-btn');
 const authModal = document.getElementById('auth-modal');
 const passwordModal = document.getElementById('password-modal');
 const loginForm = document.getElementById('login-form');
@@ -44,15 +46,24 @@ function hidePasswordModal() {
 }
 
 function updateAuthUI() {
+    const accessIcons = document.querySelectorAll('.access-control-icon');
     if (isAuthenticated) {
-        authBtn.textContent = '🔓';
-        authBtn.title = 'Déconnexion / Changer le mot de passe';
-        authBtn.classList.add('logged-in');
+        loginBtn.style.display = 'none';
+        logoutBtn.style.display = 'inline-block';
+        changePasswordBtn.style.display = 'inline-block';
+        accessIcons.forEach(icon => icon.style.display = 'none');
     } else {
-        authBtn.textContent = '🔑';
-        authBtn.title = 'Connexion';
-        authBtn.classList.remove('logged-in');
+        loginBtn.style.display = 'inline-block';
+        logoutBtn.style.display = 'none';
+        changePasswordBtn.style.display = 'none';
+        accessIcons.forEach(icon => icon.style.display = 'inline-block');
     }
+}
+
+function toggleAccessIcons(show) {
+    document.querySelectorAll('.access-control-icon').forEach(icon => {
+        icon.style.display = show ? 'inline-block' : 'none';
+    });
 }
 
 async function checkAuthStatus() {
@@ -164,25 +175,27 @@ async function handleChangePassword(event) {
 }
 
 // Event Listeners
-authBtn.addEventListener('click', () => {
-    // Fermer le menu mobile si ouvert
+function closeMobileMenu() {
     const navToggle = document.getElementById('nav-toggle');
     if (navToggle && navToggle.checked) {
         navToggle.checked = false;
     }
+}
 
-    if (isAuthenticated) {
-        // Menu contextuel simple pour déconnexion ou changement de mdp
-        if (confirm("Voulez-vous vous déconnecter ?\nCliquez sur 'Annuler' pour changer votre mot de passe.")) {
-            handleLogout();
-        } else {
-            showPasswordModal();
-        }
-    } else {
-        showLoginModal();
+loginBtn.addEventListener('click', () => {
+    closeMobileMenu();
+    showLoginModal();
+});
+logoutBtn.addEventListener('click', () => {
+    closeMobileMenu();
+    if (confirm("Voulez-vous vous déconnecter ?")) {
+        handleLogout();
     }
 });
-
+changePasswordBtn.addEventListener('click', () => {
+    closeMobileMenu();
+    showPasswordModal();
+});
 loginForm.addEventListener('submit', handleLogin);
 passwordForm.addEventListener('submit', handleChangePassword);
 

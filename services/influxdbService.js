@@ -100,7 +100,7 @@ async function executeQuery(fluxQuery) {
  * @param {string} stationId - Identifiant de la station.
  * @returns {Promise<Object>} Un objet contenant les métadonnées de la station.
  */
-async function getMetadata(stationId) {
+async function getInfluxMetadata(stationId) {
     const bucketStructure = {};
 
     try {
@@ -649,7 +649,7 @@ module.exports = {
     writePoints,
     Point,
     // queryData,
-    getMetadata,
+    getInfluxMetadata  ,
     queryDateRange,
     queryRaw,
     queryRaws,

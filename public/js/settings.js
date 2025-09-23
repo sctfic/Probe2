@@ -80,7 +80,9 @@ function displayPreferencesForm(settings) {
     formHTML += `
         <div class="settings-actions">
             <button type="button" class="btn-secondary" id="reset-preferences">Réinitialiser</button>
-            <button type="submit">Enregistrer les modifications</button>
+            <button type="submit">
+                <img src="img/access-control.png" class="access-control-icon" style="display: none;">Enregistrer les modifications
+            </button>
         </div>
     </form>
     `;

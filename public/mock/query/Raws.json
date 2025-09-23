@@ -3,105 +3,1157 @@
     "message": "Full data loadded !",
     "metadata": {
         "stationId": "VP2_Serramoune",
+        "gps": {
+            "latitude": 43.2,
+            "longitude": -0.5,
+            "altitude": 242.01
+        },
         "measurement": {
-            "direction": [
-                "direction:Gust"
+            "temperature": [
+                "temperature:outTemp"
             ],
-            "speed": [
-                "speed:Gust"
-            ],
-            "uv": [
-                "uv:UV"
+            "powerRadiation": [
+                "powerRadiation:solarRadiation"
             ],
             "rain": [
-                "rain:ET"
+                "rain:ET",
+                "rain:rainFall"
+            ],
+            "humidity": [
+                "humidity:outHumidity"
+            ],
+            "speed": [
+                "speed:Wind"
             ]
         },
         "sensor": [
-            "direction:Gust",
-            "speed:Gust",
-            "uv:UV",
-            "rain:ET"
+            "temperature:outTemp",
+            "powerRadiation:solarRadiation",
+            "rain:ET",
+            "humidity:outHumidity",
+            "rain:rainFall",
+            "speed:Wind"
         ],
-        "queryTime": "2025-09-10T17:05:43.505Z",
-        "first": "2025-08-27T16:40:00.000Z",
-        "last": "2025-09-10T17:05:00.000Z",
-        "intervalSeconds": 201850,
-        "count": 7,
+        "queryTime": "2025-09-23T18:36:24.494Z",
+        "first": "2025-09-15T00:00:00.000Z",
+        "last": "2025-09-19T23:55:00.000Z",
+        "intervalSeconds": 3600,
+        "count": 120,
         "unit": null,
         "userUnit": null,
         "toUserUnit": {
-            "direction:Gust": {
-                "unit": "°",
-                "userUnit": "cardinal",
-                "fnFromMetric": "(deg) => ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][Math.round(deg / 22.5) % 16]"
+            "temperature:outTemp": {
+                "unit": "K",
+                "userUnit": "°C",
+                "fnFromMetric": "(k) => Number((k-273.15).toFixed(1))"
             },
-            "speed:Gust": {
-                "unit": "m/s",
-                "userUnit": "km/h",
-                "fnFromMetric": "(ms) => Number((ms*3.6).toFixed(1))"
-            },
-            "uv:UV": {
-                "unit": "index",
-                "userUnit": "min",
-                "fnFromMetric": "(uv, dem=24) => Number(Math.min(300, (6.5*dem)/((uv*Math.exp(uv/dem)))).toFixed(0))"
+            "powerRadiation:solarRadiation": {
+                "unit": "w/m²",
+                "userUnit": "w/m²",
+                "fnFromMetric": "(w) => Number(w.toFixed(1))"
             },
             "rain:ET": {
                 "unit": "mm",
                 "userUnit": "l/m²",
-                "fnFromMetric": "(mm) => Number((mm*10).toFixed(2))"
+                "fnFromMetric": "(mm) => Number((mm).toFixed(2))"
+            },
+            "humidity:outHumidity": {
+                "unit": "%",
+                "userUnit": "%",
+                "fnFromMetric": "(h) => Number(h.toFixed(1))"
+            },
+            "rain:rainFall": {
+                "unit": "mm",
+                "userUnit": "l/m²",
+                "fnFromMetric": "(mm) => Number((mm).toFixed(2))"
+            },
+            "speed:Wind": {
+                "unit": "m/s",
+                "userUnit": "km/h",
+                "fnFromMetric": "(ms) => Number((ms*3.6).toFixed(1))"
             }
         }
     },
     "data": [
         {
-            "d": "2025-08-29T20:18:20Z",
-            "direction:Gust": 137.37,
-            "rain:ET": 1.23,
-            "speed:Gust": 0.75,
-            "uv:UV": 0.42
+            "d": "2025-09-15T01:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 291.28
         },
         {
-            "d": "2025-09-01T04:22:30Z",
-            "direction:Gust": 118.15,
-            "rain:ET": 2.25,
-            "speed:Gust": 0.72,
-            "uv:UV": 0.81
+            "d": "2025-09-15T02:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 291.27
         },
         {
-            "d": "2025-09-03T12:26:40Z",
-            "direction:Gust": 101.54,
-            "rain:ET": 2.44,
-            "speed:Gust": 0.63,
-            "uv:UV": 0.97
+            "d": "2025-09-15T03:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 291.18
         },
         {
-            "d": "2025-09-05T20:30:50Z",
-            "direction:Gust": 98.65,
-            "rain:ET": 2.82,
-            "speed:Gust": 0.74,
-            "uv:UV": 1
+            "d": "2025-09-15T04:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 291.03
         },
         {
-            "d": "2025-09-08T04:35:00Z",
-            "direction:Gust": 146.55,
-            "rain:ET": 2.62,
-            "speed:Gust": 0.35,
-            "uv:UV": 0.88
+            "d": "2025-09-15T05:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 290.2
         },
         {
-            "d": "2025-09-10T12:39:10Z",
-            "direction:Gust": 100.71,
-            "rain:ET": 1.03,
-            "speed:Gust": 0.14,
-            "uv:UV": 0.42
+            "d": "2025-09-15T06:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 289.24
         },
         {
-            "d": "2025-09-10T17:05:00Z",
-            "direction:Gust": 157.5,
-            "rain:ET": 0.37,
-            "speed:Gust": 0.76,
-            "uv:UV": 2.15
+            "d": "2025-09-15T07:00:00Z",
+            "humidity:outHumidity": 81.17,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 289.64
+        },
+        {
+            "d": "2025-09-15T08:00:00Z",
+            "humidity:outHumidity": 81,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 289.88
+        },
+        {
+            "d": "2025-09-15T09:00:00Z",
+            "humidity:outHumidity": 81,
+            "powerRadiation:solarRadiation": 12.33,
+            "rain:ET": 0,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 289.91
+        },
+        {
+            "d": "2025-09-15T10:00:00Z",
+            "humidity:outHumidity": 81,
+            "powerRadiation:solarRadiation": 66.58,
+            "rain:ET": 0,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 290.76
+        },
+        {
+            "d": "2025-09-15T11:00:00Z",
+            "humidity:outHumidity": 81,
+            "powerRadiation:solarRadiation": 78.75,
+            "rain:ET": 0.02,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 291.27
+        },
+        {
+            "d": "2025-09-15T12:00:00Z",
+            "humidity:outHumidity": 81,
+            "powerRadiation:solarRadiation": 82.11,
+            "rain:ET": 0.02,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 291.6
+        },
+        {
+            "d": "2025-09-15T13:00:00Z",
+            "humidity:outHumidity": 81.5,
+            "powerRadiation:solarRadiation": 195.67,
+            "rain:ET": 0.03,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 292.25
+        },
+        {
+            "d": "2025-09-15T14:00:00Z",
+            "humidity:outHumidity": 81.67,
+            "powerRadiation:solarRadiation": 370.08,
+            "rain:ET": 0.05,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 293.65
+        },
+        {
+            "d": "2025-09-15T15:00:00Z",
+            "humidity:outHumidity": 79,
+            "powerRadiation:solarRadiation": 425.58,
+            "rain:ET": 0.09,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 295.69
+        },
+        {
+            "d": "2025-09-15T16:00:00Z",
+            "humidity:outHumidity": 76.92,
+            "powerRadiation:solarRadiation": 229.67,
+            "rain:ET": 0.1,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 296.68
+        },
+        {
+            "d": "2025-09-15T17:00:00Z",
+            "humidity:outHumidity": 79.5,
+            "powerRadiation:solarRadiation": 61.42,
+            "rain:ET": 0.05,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 295.73
+        },
+        {
+            "d": "2025-09-15T18:00:00Z",
+            "humidity:outHumidity": 80.83,
+            "powerRadiation:solarRadiation": 34.33,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0.4,
+            "speed:Wind": 0,
+            "temperature:outTemp": 294.57
+        },
+        {
+            "d": "2025-09-15T19:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 26.08,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0.4,
+            "speed:Wind": 0,
+            "temperature:outTemp": 293.35
+        },
+        {
+            "d": "2025-09-15T20:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 4.42,
+            "rain:ET": 0.01,
+            "rain:rainFall": 1.6,
+            "speed:Wind": 0.04,
+            "temperature:outTemp": 292.52
+        },
+        {
+            "d": "2025-09-15T21:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0,
+            "rain:rainFall": 1.4,
+            "speed:Wind": 0,
+            "temperature:outTemp": 291.53
+        },
+        {
+            "d": "2025-09-15T22:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 290.63
+        },
+        {
+            "d": "2025-09-15T23:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 290.22
+        },
+        {
+            "d": "2025-09-16T00:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 289.83
+        },
+        {
+            "d": "2025-09-16T01:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0.4,
+            "speed:Wind": 0,
+            "temperature:outTemp": 289.09
+        },
+        {
+            "d": "2025-09-16T02:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 288.78
+        },
+        {
+            "d": "2025-09-16T03:00:00Z",
+            "humidity:outHumidity": 81.67,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 288.67
+        },
+        {
+            "d": "2025-09-16T04:00:00Z",
+            "humidity:outHumidity": 81.58,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 288.67
+        },
+        {
+            "d": "2025-09-16T05:00:00Z",
+            "humidity:outHumidity": 81.58,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 288.32
+        },
+        {
+            "d": "2025-09-16T06:00:00Z",
+            "humidity:outHumidity": 81.17,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0.4,
+            "speed:Wind": 0,
+            "temperature:outTemp": 288.12
+        },
+        {
+            "d": "2025-09-16T07:00:00Z",
+            "humidity:outHumidity": 81.42,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0.4,
+            "speed:Wind": 0,
+            "temperature:outTemp": 287.53
+        },
+        {
+            "d": "2025-09-16T08:00:00Z",
+            "humidity:outHumidity": 81,
+            "powerRadiation:solarRadiation": 0.25,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 287.26
+        },
+        {
+            "d": "2025-09-16T09:00:00Z",
+            "humidity:outHumidity": 81,
+            "powerRadiation:solarRadiation": 24.5,
+            "rain:ET": 0,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 287.31
+        },
+        {
+            "d": "2025-09-16T10:00:00Z",
+            "humidity:outHumidity": 81,
+            "powerRadiation:solarRadiation": 107,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.04,
+            "temperature:outTemp": 287.67
+        },
+        {
+            "d": "2025-09-16T11:00:00Z",
+            "humidity:outHumidity": 81.17,
+            "powerRadiation:solarRadiation": 245.25,
+            "rain:ET": 0.03,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 288.7
+        },
+        {
+            "d": "2025-09-16T12:00:00Z",
+            "humidity:outHumidity": 81.67,
+            "powerRadiation:solarRadiation": 461.58,
+            "rain:ET": 0.05,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.07,
+            "temperature:outTemp": 290.18
+        },
+        {
+            "d": "2025-09-16T13:00:00Z",
+            "humidity:outHumidity": 79.17,
+            "powerRadiation:solarRadiation": 369.08,
+            "rain:ET": 0.1,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.37,
+            "temperature:outTemp": 291.49
+        },
+        {
+            "d": "2025-09-16T14:00:00Z",
+            "humidity:outHumidity": 77.17,
+            "powerRadiation:solarRadiation": 367.83,
+            "rain:ET": 0.08,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.3,
+            "temperature:outTemp": 292.12
+        },
+        {
+            "d": "2025-09-16T15:00:00Z",
+            "humidity:outHumidity": 76,
+            "powerRadiation:solarRadiation": 317.17,
+            "rain:ET": 0.08,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.04,
+            "temperature:outTemp": 292.58
+        },
+        {
+            "d": "2025-09-16T16:00:00Z",
+            "humidity:outHumidity": 75.67,
+            "powerRadiation:solarRadiation": 315.67,
+            "rain:ET": 0.07,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.11,
+            "temperature:outTemp": 292.91
+        },
+        {
+            "d": "2025-09-16T17:00:00Z",
+            "humidity:outHumidity": 75.5,
+            "powerRadiation:solarRadiation": 254.92,
+            "rain:ET": 0.07,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.04,
+            "temperature:outTemp": 293.08
+        },
+        {
+            "d": "2025-09-16T18:00:00Z",
+            "humidity:outHumidity": 75.33,
+            "powerRadiation:solarRadiation": 164.42,
+            "rain:ET": 0.06,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.19,
+            "temperature:outTemp": 293.28
+        },
+        {
+            "d": "2025-09-16T19:00:00Z",
+            "humidity:outHumidity": 77.42,
+            "powerRadiation:solarRadiation": 101.83,
+            "rain:ET": 0.04,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 292.87
+        },
+        {
+            "d": "2025-09-16T20:00:00Z",
+            "humidity:outHumidity": 78.92,
+            "powerRadiation:solarRadiation": 34.08,
+            "rain:ET": 0.02,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 292.46
+        },
+        {
+            "d": "2025-09-16T21:00:00Z",
+            "humidity:outHumidity": 80.92,
+            "powerRadiation:solarRadiation": 0.83,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 291.45
+        },
+        {
+            "d": "2025-09-16T22:00:00Z",
+            "humidity:outHumidity": 81.92,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 289.64
+        },
+        {
+            "d": "2025-09-16T23:00:00Z",
+            "humidity:outHumidity": 82.25,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 288.13
+        },
+        {
+            "d": "2025-09-17T00:00:00Z",
+            "humidity:outHumidity": 82.5,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 287.41
+        },
+        {
+            "d": "2025-09-17T01:00:00Z",
+            "humidity:outHumidity": 82.25,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 286.62
+        },
+        {
+            "d": "2025-09-17T02:00:00Z",
+            "humidity:outHumidity": 82.08,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 286.05
+        },
+        {
+            "d": "2025-09-17T03:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 285.46
+        },
+        {
+            "d": "2025-09-17T04:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 285.05
+        },
+        {
+            "d": "2025-09-17T05:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 284.46
+        },
+        {
+            "d": "2025-09-17T06:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 284.14
+        },
+        {
+            "d": "2025-09-17T07:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0.2,
+            "speed:Wind": 0,
+            "temperature:outTemp": 283.85
+        },
+        {
+            "d": "2025-09-17T08:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0.67,
+            "rain:ET": 0,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 283.45
+        },
+        {
+            "d": "2025-09-17T09:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 27.33,
+            "rain:ET": 0,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 283.81
+        },
+        {
+            "d": "2025-09-17T10:00:00Z",
+            "humidity:outHumidity": 81.25,
+            "powerRadiation:solarRadiation": 171.92,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 286.45
+        },
+        {
+            "d": "2025-09-17T11:00:00Z",
+            "humidity:outHumidity": 81,
+            "powerRadiation:solarRadiation": 310.17,
+            "rain:ET": 0.04,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 290.22
+        },
+        {
+            "d": "2025-09-17T12:00:00Z",
+            "humidity:outHumidity": 81.08,
+            "powerRadiation:solarRadiation": 462.17,
+            "rain:ET": 0.07,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 293.88
+        },
+        {
+            "d": "2025-09-17T13:00:00Z",
+            "humidity:outHumidity": 69.83,
+            "powerRadiation:solarRadiation": 611.92,
+            "rain:ET": 0.11,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 297.77
+        },
+        {
+            "d": "2025-09-17T14:00:00Z",
+            "humidity:outHumidity": 56.25,
+            "powerRadiation:solarRadiation": 631.92,
+            "rain:ET": 0.15,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 300.5
+        },
+        {
+            "d": "2025-09-17T15:00:00Z",
+            "humidity:outHumidity": 56,
+            "powerRadiation:solarRadiation": 616.17,
+            "rain:ET": 0.16,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.34,
+            "temperature:outTemp": 301.03
+        },
+        {
+            "d": "2025-09-17T16:00:00Z",
+            "humidity:outHumidity": 52.33,
+            "powerRadiation:solarRadiation": 633.83,
+            "rain:ET": 0.16,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.19,
+            "temperature:outTemp": 301.88
+        },
+        {
+            "d": "2025-09-17T17:00:00Z",
+            "humidity:outHumidity": 52.83,
+            "powerRadiation:solarRadiation": 546.17,
+            "rain:ET": 0.17,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.26,
+            "temperature:outTemp": 302.33
+        },
+        {
+            "d": "2025-09-17T18:00:00Z",
+            "humidity:outHumidity": 51.42,
+            "powerRadiation:solarRadiation": 412.08,
+            "rain:ET": 0.14,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 302.57
+        },
+        {
+            "d": "2025-09-17T19:00:00Z",
+            "humidity:outHumidity": 57.33,
+            "powerRadiation:solarRadiation": 94.67,
+            "rain:ET": 0.11,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 301.38
+        },
+        {
+            "d": "2025-09-17T20:00:00Z",
+            "humidity:outHumidity": 68.25,
+            "powerRadiation:solarRadiation": 21.08,
+            "rain:ET": 0.02,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 298.31
+        },
+        {
+            "d": "2025-09-17T21:00:00Z",
+            "humidity:outHumidity": 79.67,
+            "powerRadiation:solarRadiation": 1.25,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 294.83
+        },
+        {
+            "d": "2025-09-17T22:00:00Z",
+            "humidity:outHumidity": 81,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 292.48
+        },
+        {
+            "d": "2025-09-17T23:00:00Z",
+            "humidity:outHumidity": 81.83,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 290.88
+        },
+        {
+            "d": "2025-09-18T00:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 289.73
+        },
+        {
+            "d": "2025-09-18T01:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 288.96
+        },
+        {
+            "d": "2025-09-18T02:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 288.28
+        },
+        {
+            "d": "2025-09-18T03:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 287.58
+        },
+        {
+            "d": "2025-09-18T04:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 287.01
+        },
+        {
+            "d": "2025-09-18T05:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0.2,
+            "speed:Wind": 0,
+            "temperature:outTemp": 286.54
+        },
+        {
+            "d": "2025-09-18T06:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 285.95
+        },
+        {
+            "d": "2025-09-18T07:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 285.5
+        },
+        {
+            "d": "2025-09-18T08:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0.5,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 286.08
+        },
+        {
+            "d": "2025-09-18T09:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 32.75,
+            "rain:ET": 0,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 286.26
+        },
+        {
+            "d": "2025-09-18T10:00:00Z",
+            "humidity:outHumidity": 81.75,
+            "powerRadiation:solarRadiation": 117.92,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 287.16
+        },
+        {
+            "d": "2025-09-18T11:00:00Z",
+            "humidity:outHumidity": 81,
+            "powerRadiation:solarRadiation": 291.5,
+            "rain:ET": 0.03,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 288.86
+        },
+        {
+            "d": "2025-09-18T12:00:00Z",
+            "humidity:outHumidity": 81.25,
+            "powerRadiation:solarRadiation": 502.42,
+            "rain:ET": 0.06,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 291.81
+        },
+        {
+            "d": "2025-09-18T13:00:00Z",
+            "humidity:outHumidity": 78.08,
+            "powerRadiation:solarRadiation": 626.33,
+            "rain:ET": 0.11,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 296.34
+        },
+        {
+            "d": "2025-09-18T14:00:00Z",
+            "humidity:outHumidity": 66.58,
+            "powerRadiation:solarRadiation": 631.42,
+            "rain:ET": 0.15,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.04,
+            "temperature:outTemp": 300.03
+        },
+        {
+            "d": "2025-09-18T15:00:00Z",
+            "humidity:outHumidity": 55.5,
+            "powerRadiation:solarRadiation": 689.33,
+            "rain:ET": 0.16,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.22,
+            "temperature:outTemp": 302.75
+        },
+        {
+            "d": "2025-09-18T16:00:00Z",
+            "humidity:outHumidity": 53.25,
+            "powerRadiation:solarRadiation": 637,
+            "rain:ET": 0.18,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.22,
+            "temperature:outTemp": 304.1
+        },
+        {
+            "d": "2025-09-18T17:00:00Z",
+            "humidity:outHumidity": 47,
+            "powerRadiation:solarRadiation": 538.75,
+            "rain:ET": 0.17,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.22,
+            "temperature:outTemp": 305.04
+        },
+        {
+            "d": "2025-09-18T18:00:00Z",
+            "humidity:outHumidity": 41.58,
+            "powerRadiation:solarRadiation": 400,
+            "rain:ET": 0.15,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.15,
+            "temperature:outTemp": 305.98
+        },
+        {
+            "d": "2025-09-18T19:00:00Z",
+            "humidity:outHumidity": 47.75,
+            "powerRadiation:solarRadiation": 81.58,
+            "rain:ET": 0.11,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 303.87
+        },
+        {
+            "d": "2025-09-18T20:00:00Z",
+            "humidity:outHumidity": 61.42,
+            "powerRadiation:solarRadiation": 21.08,
+            "rain:ET": 0.02,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 299.34
+        },
+        {
+            "d": "2025-09-18T21:00:00Z",
+            "humidity:outHumidity": 71.67,
+            "powerRadiation:solarRadiation": 0.83,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 295.74
+        },
+        {
+            "d": "2025-09-18T22:00:00Z",
+            "humidity:outHumidity": 78.67,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 293.63
+        },
+        {
+            "d": "2025-09-18T23:00:00Z",
+            "humidity:outHumidity": 80.58,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 292.26
+        },
+        {
+            "d": "2025-09-19T00:00:00Z",
+            "humidity:outHumidity": 81,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 291.26
+        },
+        {
+            "d": "2025-09-19T01:00:00Z",
+            "humidity:outHumidity": 81.83,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 290.37
+        },
+        {
+            "d": "2025-09-19T02:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 289.73
+        },
+        {
+            "d": "2025-09-19T03:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 289.18
+        },
+        {
+            "d": "2025-09-19T04:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 288.69
+        },
+        {
+            "d": "2025-09-19T05:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 288.26
+        },
+        {
+            "d": "2025-09-19T06:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 287.89
+        },
+        {
+            "d": "2025-09-19T07:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 287.56
+        },
+        {
+            "d": "2025-09-19T08:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0.67,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 287.19
+        },
+        {
+            "d": "2025-09-19T09:00:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 26.33,
+            "rain:ET": 0,
+            "rain:rainFall": 0.2,
+            "speed:Wind": 0,
+            "temperature:outTemp": 287.38
+        },
+        {
+            "d": "2025-09-19T10:00:00Z",
+            "humidity:outHumidity": 81,
+            "powerRadiation:solarRadiation": 170.58,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 289.88
+        },
+        {
+            "d": "2025-09-19T11:00:00Z",
+            "humidity:outHumidity": 81.42,
+            "powerRadiation:solarRadiation": 292.75,
+            "rain:ET": 0.04,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 294.56
+        },
+        {
+            "d": "2025-09-19T12:00:00Z",
+            "humidity:outHumidity": 76.25,
+            "powerRadiation:solarRadiation": 486.67,
+            "rain:ET": 0.07,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 299.53
+        },
+        {
+            "d": "2025-09-19T13:00:00Z",
+            "humidity:outHumidity": 60.08,
+            "powerRadiation:solarRadiation": 600.83,
+            "rain:ET": 0.13,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 303
+        },
+        {
+            "d": "2025-09-19T14:00:00Z",
+            "humidity:outHumidity": 57.83,
+            "powerRadiation:solarRadiation": 601.58,
+            "rain:ET": 0.16,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.6,
+            "temperature:outTemp": 304.47
+        },
+        {
+            "d": "2025-09-19T15:00:00Z",
+            "humidity:outHumidity": 55.17,
+            "powerRadiation:solarRadiation": 658.17,
+            "rain:ET": 0.17,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.48,
+            "temperature:outTemp": 304.73
+        },
+        {
+            "d": "2025-09-19T16:00:00Z",
+            "humidity:outHumidity": 52.17,
+            "powerRadiation:solarRadiation": 614.08,
+            "rain:ET": 0.18,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.34,
+            "temperature:outTemp": 305.13
+        },
+        {
+            "d": "2025-09-19T17:00:00Z",
+            "humidity:outHumidity": 50.42,
+            "powerRadiation:solarRadiation": 514.58,
+            "rain:ET": 0.17,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.19,
+            "temperature:outTemp": 305.63
+        },
+        {
+            "d": "2025-09-19T18:00:00Z",
+            "humidity:outHumidity": 51.42,
+            "powerRadiation:solarRadiation": 355,
+            "rain:ET": 0.14,
+            "rain:rainFall": 0,
+            "speed:Wind": 0.26,
+            "temperature:outTemp": 306.28
+        },
+        {
+            "d": "2025-09-19T19:00:00Z",
+            "humidity:outHumidity": 62.17,
+            "powerRadiation:solarRadiation": 59.25,
+            "rain:ET": 0.09,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 303.46
+        },
+        {
+            "d": "2025-09-19T20:00:00Z",
+            "humidity:outHumidity": 72.5,
+            "powerRadiation:solarRadiation": 18.5,
+            "rain:ET": 0.02,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 299.82
+        },
+        {
+            "d": "2025-09-19T21:00:00Z",
+            "humidity:outHumidity": 79.42,
+            "powerRadiation:solarRadiation": 0.17,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 297.15
+        },
+        {
+            "d": "2025-09-19T22:00:00Z",
+            "humidity:outHumidity": 81,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 295.7
+        },
+        {
+            "d": "2025-09-19T23:00:00Z",
+            "humidity:outHumidity": 81.5,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 295.08
+        },
+        {
+            "d": "2025-09-19T23:55:00Z",
+            "humidity:outHumidity": 82,
+            "powerRadiation:solarRadiation": 0,
+            "rain:ET": 0.01,
+            "rain:rainFall": 0,
+            "speed:Wind": 0,
+            "temperature:outTemp": 294.66
         }
     ]
 }
