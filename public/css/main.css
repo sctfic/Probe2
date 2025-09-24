@@ -28,11 +28,17 @@ body {
     box-sizing: border-box;
     z-index: 1000
 }
+.navbar {
+    touch-action: pan-y; /* Bloque le swipe horizontal sur la navbar */
+}
 
 .navbar .logo img {
     height: 40px;
     vertical-align: middle;
     filter: drop-shadow(0 0 3px #fff)
+}
+.navbar .logo {
+    cursor: pointer;
 }
 
 .navbar nav {
@@ -67,13 +73,16 @@ body {
     padding: 10px 20px;
     position: fixed;
     position: absolute;
-    top: 53px;
+    top: 52px;
     width: 100%;
     box-sizing: border-box;
     z-index: 900;
     display: flex;
     justify-content: space-between;
     align-items: center
+}
+.station-selector {
+    touch-action: pan-y; /* Bloque le swipe horizontal sur le sélecteur de station */
 }
 
 .station-info {
@@ -116,10 +125,10 @@ body {
 .content-container {
     display: flex;
     width: 400vw;
-    transform: translateX(0);
-    transition: transform .3s ease-out;
-    padding-top: 120px;
-    height: calc(100vh - 120px)
+    transform: translateX(0); /* This will be managed by JS */
+    transition: transform .3s ease-out, height .5s ease-in-out; /* Added height transition */
+    padding-top: 113px;
+    height: calc(100vh - 113px)
 }
 
 .content-section {
@@ -283,7 +292,7 @@ input,select,textarea {
     background-color: #fff;
     color: var(--primary-dark);
     border: 1px solid #ddd;
-    padding: 8px;
+    padding: 4px;
     border-radius: 4px;
     width: 100%;
     box-sizing: border-box
@@ -688,10 +697,7 @@ input:checked+.slider:before {
 }
 
 .conditions-controls input[type=text],.conditions-controls select {
-    min-width: 150px;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px
+    min-width: 120px;
 }
 
 .conditions-container {
@@ -709,7 +715,7 @@ input:checked+.slider:before {
     background: var(--accent-blue);
     color: #fff;
     margin: 0 0 15px 0;
-    padding: 12px 20px;
+    padding: 6px 12px;
     font-size: 1.1em;
     border-radius: 6px;
     display: flex;
@@ -1121,8 +1127,14 @@ input:checked+.slider:before {
         width: 46px;
         height: 46px
     }
-    .view-group, .conditions-filter {
-        width: 50%;
+    .conditions-controls {
+        flex-wrap: nowrap; /* Garde les contrôles sur une seule ligne */
+        gap: 10px; /* Réduit l'espacement sur mobile */
+    }
+    .conditions-controls .filter-group,
+    .conditions-controls .view-group {
+        flex: 1; /* Partage l'espace équitablement */
+        min-width: 0; /* Permet aux éléments de rétrécir si nécessaire */
     }
     .weather-name {
         font-size: .7em
@@ -1143,6 +1155,43 @@ input:checked+.slider:before {
     .wind-compass {
         min-height: 200px;
         margin-top: -15px
+    }
+    .condition-chart {
+        margin: 0;
+    }
+    .conditions-grid {
+        grid-template-columns: repeat(auto-fill,minmax(180px,1fr));
+        gap: 5px;
+        margin-bottom: 5px
+    }
+    .unit-group {
+        margin-bottom: 5px;
+    }
+    .condition-tile {
+        padding: 5px;
+    }
+    /* --- Font size reductions for mobile --- */
+    /* "le reste" -25% */
+    body {
+        font-size: 12px; /* Base 16px * 0.75 = 12px */
+    }
+
+    /* h1 -50% */
+    .content-section h1 {
+        font-size: 1.2em; /* (1.8em * 16px) * 0.5 / 12px */
+    }
+    .probes-header h1, .section-header h1 {
+        font-size: 1em; /* (1.5em * 16px) * 0.5 / 12px */
+    }
+
+    /* h2 -40% */
+    .modal-header h2 {
+        font-size: 1.2em; /* Assuming 1.5em base: (1.5em * 16px) * 0.6 / 12px */
+    }
+
+    /* h3 -30% */
+    .unit-group h3, .settings-group > h3, .settings-group-header h3 {
+        font-size: 1.1em; /* Approx (1.2em * 16px) * 0.7 / 12px */
     }
 }
 
@@ -1727,7 +1776,7 @@ input:checked+.slider:before {
     color: var(--primary-dark);
 }
 
-.settings-field input, .settings-field select, .settings-field textarea {
+.settings-field input, .settings-field select {
     width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
@@ -1737,7 +1786,7 @@ input:checked+.slider:before {
     font-family: inherit;
 }
 
-.settings-field input:focus, .settings-field select:focus, .settings-field textarea:focus {
+.settings-field input:focus, .settings-field select:focus:focus {
     outline: none;
     border-color: var(--accent-blue);
     box-shadow: 0 0 0 2px rgba(77, 192, 224, 0.2);
@@ -1902,12 +1951,7 @@ input:checked+.slider:before {
     gap: 20px;
 }
 
-#compositeProbes-section .settings-field textarea {
-    resize: vertical;
-    min-height: 80px;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 0.9em;
-}
+
 
 #compositeProbes-section .settings-actions {
     text-align: right;

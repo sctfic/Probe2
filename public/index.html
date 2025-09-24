@@ -313,6 +313,23 @@
             'settings': 'settings-section'
         };
 
+        // --- Gestion du plein écran ---
+        const logoDiv = document.querySelector('.navbar .logo');
+        if (logoDiv) {
+            logoDiv.title = 'Passer en mode plein écran (F11)';
+            logoDiv.addEventListener('click', () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.error(`Erreur lors du passage en plein écran: ${err.message}`, err);
+                    });
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    }
+                }
+            });
+        }
+
         // --- Gestion de l'URL et de l'historique ---
         
         function updateURL(sectionId, params = {}, replace = false) {
@@ -535,7 +552,7 @@
 
         // --- Navigation Logic ---
         
-        function updateView(updateUrl = true) {
+        function updateView(updateUrl = true, doRefresh = true) {
             if (contentContainer) {
                 contentContainer.style.transform = `translateX(-${currentIndex * 100}vw)`;
             }
@@ -578,8 +595,9 @@
                 contentContainer.style.height = 'calc(100vh - 160px)'; // 120px header + 40px footer
             }
 
-
-            refreshActiveSection();
+            if (doRefresh) {
+                refreshActiveSection();
+            }
         }
 
         function navigateToSection(sectionId) {
@@ -587,7 +605,7 @@
             if (sectionIndex !== -1) {
                 currentIndex = sectionIndex;
                 if (contentContainer) {
-                    contentContainer.style.transition = 'transform 0.3s ease-out';
+                    contentContainer.style.transition = 'transform 0.3s ease-out'; // La transition est gérée par updateView
                     updateView();
                     setTimeout(() => { contentContainer.style.transition = ''; }, 300);
                 }
@@ -598,7 +616,7 @@
             item.addEventListener('click', () => {
                 currentIndex = index;
                 if (contentContainer) {
-                    contentContainer.style.transition = 'transform 0.3s ease-out';
+                    contentContainer.style.transition = 'transform 0.3s ease-out'; // La transition est gérée par updateView
                     updateView();
                     setTimeout(() => { contentContainer.style.transition = ''; }, 300);
                 }
@@ -646,31 +664,30 @@
             });
 
             contentContainer.addEventListener('touchend', () => {
-                if (!isSwiping || swipeDirection !== 'horizontal') {
+                if (!isSwiping) return;
+
+                // Pour un swipe vertical, on laisse le navigateur gérer le scroll et on ne fait rien d'autre.
+                if (swipeDirection === 'vertical') {
                     isSwiping = false;
                     swipeDirection = null;
-                    // Rétablir la vue si le swipe n'était pas concluant
-                    updateView(false);
                     return;
                 }
+
+                // Pour les swipes horizontaux (petits ou grands) et les taps.
                 isSwiping = false;
                 swipeDirection = null;
                 
                 const diffX = startX - endX;
+                const oldIndex = currentIndex;
 
                 if (diffX > 50 && currentIndex < sections.length - 1) {
                     currentIndex++;
                 } else if (diffX < -50 && currentIndex > 0) {
                     currentIndex--;
                 }
-                
-                if (contentContainer) {
-                    contentContainer.style.transition = 'transform 0.3s ease-out';
-                    updateView();
-                    setTimeout(() => {
-                        contentContainer.style.transition = '';
-                    }, 300);
-                }
+
+                // On met à jour la vue. Le refresh ne se fera que si l'index a changé.
+                updateView(true, oldIndex !== currentIndex);
             });
         }
 
@@ -748,6 +765,11 @@
         // Cacher le footer après 10 secondes
         setTimeout(() => {
             document.querySelector('footer.footer').classList.add('hidden-animated');
+            // Ajuster la hauteur du contenu lorsque le footer est caché
+            const activeSectionId = sections[currentIndex].id;
+            if (activeSectionId !== 'compositeProbes-section' && activeSectionId !== 'settings-section') {
+                contentContainer.style.height = 'calc(100vh - 120px)'; // Hauteur navbar + sélecteur
+            }
         }, 10000);
     });
 

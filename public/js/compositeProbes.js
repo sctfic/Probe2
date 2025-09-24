@@ -217,7 +217,7 @@ function createProbeItemHTML(probeKey, probeData, isOpen = false) {
                                 <label for="probe-${probeKey}-fnCalc">Fonction de calcul</label>
                                 <button type="button" class="btn-help btn-show-help">Aide</button>
                             </div>
-                            <textarea id="probe-${probeKey}-fnCalc" name="${probeKey}.fnCalc" placeholder="Fonction de calcul" rows="10">${fnCalcValue}</textarea>
+                            <textarea id="probe-${probeKey}-fnCalc" name="${probeKey}.fnCalc" placeholder="Fonction de calcul" rows="30">${fnCalcValue}</textarea>
                         </div>
                         <div class="form-row">
                             ${generateProbeField(probeKey, 'scriptJS', (probeData.scriptJS || []).join(','), 'text', 'Scripts JS (séparés par une virgule)')}
