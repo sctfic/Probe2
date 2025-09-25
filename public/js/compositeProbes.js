@@ -200,7 +200,9 @@ function createProbeItemHTML(probeKey, probeData, isOpen = false) {
                     Sonde : ${probeKey} <em class="probe-label-preview">(${probeData.label || 'N/A'})</em> 
                     <em class="probe-measurement-preview">(${probeData.measurement || 'N/A'})</em>
                 </h3>
-                <button type="button" class="btn-delete-probe" data-probe-key="${probeKey}" title="Supprimer ce Composite">×</button>
+                <button type="button" class="btn-delete-probe" data-probe-key="${probeKey}" title="Supprimer ce Composite">
+                    <img src="img/delete.svg" class="nav-icon" alt="Supprimer">
+                </button>
             </div>
             <div class="collapsible-content ${isOpen ? 'open' : ''}">
                 <form data-probe-key="${probeKey}">
@@ -411,6 +413,7 @@ async function handleProbesFormSubmit(event) {
         const { dataNeeded, currentMap } = parseFnCalc(probeData.fnCalc);
         probeData.dataNeeded = dataNeeded;
         probeData.currentMap = currentMap;
+        probeData.groupUsage = "Composites";
         
         currentProbesSettings[probeKey] = probeData;
 

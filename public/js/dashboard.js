@@ -58,6 +58,10 @@ function mergeData(data) {
             delete data.data.sunset;
         }
     }
+    if (data.data['stormRain']) {
+        data.data.stormRain.more = data.data.dateStormRain?.Value.split('T')[0];
+        delete data.data.dateStormRain;
+    }
     return data;
 }
 
@@ -126,8 +130,8 @@ function processAndDisplayConditions() {
                 userUnit: sensorInfo.userUnit,
                 fnToUserUnit: sensorInfo.toUserUnit || '(_) => _',
                 measurement: sensorInfo.measurement || 'unknown',
-                groupUsage: sensorInfo.groupUsage || '0',
-                groupCustom: sensorInfo.groupCustom || '0',
+                groupUsage: sensorInfo.groupUsage || null,
+                groupCustom: sensorInfo.groupCustom || null,
                 customOrder: sensorInfo.order,
                 hidden: !!sensorInfo.hidden,
                 period: sensorInfo.period || '7d',
@@ -185,6 +189,17 @@ function applyCurrentFilter() {
     updateGroupVisibility();
 }
 
+function updateViewAllButtonVisibility() {
+    const viewAllBtn = document.getElementById('view-all-btn');
+    if (!viewAllBtn) return;
+
+    const filterText = document.getElementById('conditions-filter')?.value || '';
+    const hasHiddenTiles = allConditions.some(c => c.hidden);
+
+    // Le bouton est visible s'il y a un filtre ou si des tuiles sont cachées
+    viewAllBtn.style.visibility = (filterText !== '' || hasHiddenTiles) ? 'visible' : 'hidden';
+}
+
 function updateGroupVisibility() {
     const groups = document.querySelectorAll('.unit-group');
 
@@ -238,6 +253,7 @@ function displayConditions() {
     }
 
     applyCurrentFilter();
+    updateViewAllButtonVisibility();
 }
 
 // Fonction pour détecter si le changement est majeur
@@ -627,9 +643,9 @@ function createConditionTileHTML(item) {
 function getStartDate (period){
     let date;
     if (period === 'dateStormRain') {
-        const str = currentConditionsData.dateStormRain?.Value;
-        const stormDate = (new Date(str?.endsWith('T') ? str.slice(0, -1) : str)).getTime();
-        date = new Date((stormDate || Math.round((new Date()).getTime()/1000) - 60*60*24*7)*1000);
+        const str = currentConditionsData.stormRain?.more;
+        console.log(str);
+        date = new Date((new Date(`${str}T00:00:00.000Z`)).getTime());
     } else {
         date = new Date((Math.round((new Date()).getTime()/1000) - period)*1000);
     }
@@ -662,6 +678,10 @@ function loadChartForItem(item) {
 
 let dragKey = null;
 let draggedDOMElement = null;
+let longPressTimer = null;
+let isDraggingTouch = false;
+let touchStartX, touchStartY;
+let draggedElementRect;
 
 function handleDragStart(e) {
     const tile = e.target.closest('.condition-tile');
@@ -718,6 +738,108 @@ function handleDrop(e) {
     targetTile.parentNode.insertBefore(draggedDOMElement, targetTile);
 }
 
+function handleTouchStart(e) {
+    const tile = e.target.closest('.condition-tile');
+    if (!tile || e.touches.length !== 1) return;
+
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    draggedDOMElement = tile;
+
+    longPressTimer = setTimeout(() => {
+        isDraggingTouch = true;
+        dragKey = tile.dataset.key;
+        tile.classList.add('dragging');
+        
+        // Empêcher le défilement pendant le drag
+        document.body.style.overflow = 'hidden';
+
+        // Pour un positionnement correct lors du déplacement
+        draggedElementRect = tile.getBoundingClientRect();
+        
+        // Haptique pour indiquer le début du drag
+        if (navigator.vibrate) {
+            navigator.vibrate(50);
+        }
+
+    }, 500); // 500ms pour un appui long
+}
+
+function handleTouchMove(e) {
+    if (longPressTimer) {
+        const touchX = e.touches[0].clientX;
+        const touchY = e.touches[0].clientY;
+        // Annuler l'appui long si le doigt bouge trop
+        if (Math.abs(touchX - touchStartX) > 10 || Math.abs(touchY - touchStartY) > 10) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    }
+
+    if (!isDraggingTouch || !draggedDOMElement) return;
+
+    e.preventDefault(); // Empêche le scroll
+
+    const touchX = e.touches[0].clientX;
+    const touchY = e.touches[0].clientY;
+
+    // Déplacer l'élément visuellement
+    const dx = touchX - touchStartX;
+    const dy = touchY - touchStartY;
+    draggedDOMElement.style.transform = `translate(${dx}px, ${dy}px)`;
+    draggedDOMElement.style.zIndex = '1000';
+
+    // Déterminer la cible du drop
+    const targetElement = document.elementFromPoint(touchX, touchY);
+    const targetTile = targetElement ? targetElement.closest('.condition-tile') : null;
+
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+
+    if (targetTile && targetTile !== draggedDOMElement) {
+        targetTile.classList.add('drag-over');
+    }
+}
+
+function handleTouchEnd(e) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+
+    if (!isDraggingTouch || !draggedDOMElement) return;
+
+    // Réactiver le scroll
+    document.body.style.overflow = '';
+
+    const touchX = e.changedTouches[0].clientX;
+    const touchY = e.changedTouches[0].clientY;
+
+    const targetElement = document.elementFromPoint(touchX, touchY);
+    const targetTile = targetElement ? targetElement.closest('.condition-tile') : null;
+
+    if (targetTile && targetTile !== draggedDOMElement) {
+        const targetKey = targetTile.dataset.key;
+        const draggedItemIndex = allConditions.findIndex(c => c.key === dragKey);
+        const targetItemIndex = allConditions.findIndex(c => c.key === targetKey);
+
+        if (draggedItemIndex !== -1 && targetItemIndex !== -1) {
+            const [draggedItem] = allConditions.splice(draggedItemIndex, 1);
+            allConditions.splice(targetItemIndex, 0, draggedItem);
+            allConditions.forEach((item, index) => item.customOrder = index);
+            saveTileState();
+            targetTile.parentNode.insertBefore(draggedDOMElement, targetTile);
+        }
+    }
+
+    // Nettoyage
+    draggedDOMElement.classList.remove('dragging');
+    draggedDOMElement.style.transform = '';
+    draggedDOMElement.style.zIndex = '';
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+
+    isDraggingTouch = false;
+    draggedDOMElement = null;
+    dragKey = null;
+}
+
 function initDragAndDrop() {
     const container = document.getElementById('conditions-container');
     if (!container) return;
@@ -727,6 +849,11 @@ function initDragAndDrop() {
     container.addEventListener('dragend', handleDragEnd);
     container.addEventListener('dragover', handleDragOver);
     container.addEventListener('drop', handleDrop);
+    // Ajout des écouteurs pour le tactile
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd);
+    container.addEventListener('touchcancel', handleTouchEnd);
 }
 
 function deinitDragAndDrop() {
@@ -738,6 +865,11 @@ function deinitDragAndDrop() {
     container.removeEventListener('dragend', handleDragEnd);
     container.removeEventListener('dragover', handleDragOver);
     container.removeEventListener('drop', handleDrop);
+    // Retrait des écouteurs pour le tactile
+    container.removeEventListener('touchstart', handleTouchStart);
+    container.removeEventListener('touchmove', handleTouchMove);
+    container.removeEventListener('touchend', handleTouchEnd);
+    container.removeEventListener('touchcancel', handleTouchEnd);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -825,27 +957,66 @@ document.addEventListener('DOMContentLoaded', () => {
         hideContextMenu();
     };
 
-    const handleHideTile = (key) => {
+    function hideToTrash(element, trashIcon) {
+        const elRect = element.getBoundingClientRect();
+        const trashRect = trashIcon.getBoundingClientRect();
+      
+        // Centre la tuile sur l'icône pour un effet plus naturel
+        const deltaX = (trashRect.left + trashRect.width / 2) - (elRect.left + elRect.width / 2);
+        const deltaY = (trashRect.top + trashRect.height / 2) - (elRect.top + elRect.height / 2);
+      
+        return element.animate([
+          { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+          { transform: `translate(${deltaX}px, ${deltaY}px) scale(0)`, opacity: 0 }
+        ], {
+          duration: 500, // Durée de l'animation
+          easing: 'ease-in', // Accélération au début
+          fill: 'forwards'
+        });
+    }
+
+    async function handleHideTile(key) {
+        const tile = document.querySelector(`.condition-tile[data-key="${key}"]`);
+        const trashIcon = document.getElementById('view-all-btn');
+        if (!tile || !trashIcon) return;
+
+        trashIcon.style.visibility = 'visible'; // Assure que l'icône est visible pour le calcul
+        const animation = hideToTrash(tile, trashIcon);
+        await animation.finished; // Attend la fin de l'animation
+        onHideAnimationEnd(key);
+    }
+    
+    function onHideAnimationEnd(key) {
         const condition = allConditions.find(c => c.key === key);
         if (condition) {
             condition.hidden = true;
             saveTileState();
+            updateViewAllButtonVisibility();
             applyCurrentFilter();
+            
+            // Annuler l'animation et nettoyer les styles pour que la tuile puisse se réafficher
+            const tile = document.querySelector(`.condition-tile[data-key="${key}"]`);
+            if (tile) {
+                const animations = tile.getAnimations();
+                animations.forEach(animation => animation.cancel());
+            }
         }
-    };
+    }
 
-    const showAllTiles = () => {
+    function showAllTilesAndClearFilter() {
         document.getElementById('conditions-filter').value = '';
         allConditions.forEach(c => c.hidden = false);
         saveTileState();
+        updateViewAllButtonVisibility();
+        if (typeof updateDashboardURL === 'function') updateDashboardURL();
         applyCurrentFilter();
-    };
+    }
 
     container.addEventListener('click', handleTileClick);
     container.addEventListener('contextmenu', handleContextMenu);
     compareMenuItem.addEventListener('click', compareSelectedItems);
     if (viewAllBtn) {
-        viewAllBtn.addEventListener('click', showAllTiles);
+        viewAllBtn.addEventListener('click', showAllTilesAndClearFilter);
     }
 
     window.addEventListener('click', () => hideContextMenu());

@@ -7,25 +7,25 @@
       "Value": 95,
       "Unit": "mm",
       "userUnit": "l/m²",
-      "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
+      "toUserUnit": "(mm) => Number((mm).toFixed(2))"
     },
     "yearRain": {
       "Value": 1253,
       "Unit": "mm",
       "userUnit": "l/m²",
-      "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
+      "toUserUnit": "(mm) => Number((mm).toFixed(2))"
     },
     "monthET": {
       "Value": 1.75,
       "Unit": "mm",
       "userUnit": "l/m²",
-      "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
+      "toUserUnit": "(mm) => Number((mm).toFixed(2))"
     },
     "yearET": {
       "Value": 36.82,
       "Unit": "mm",
       "userUnit": "l/m²",
-      "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
+      "toUserUnit": "(mm) => Number((mm).toFixed(2))"
     },
     "batteryVoltage": {
       "Value": 4.816,
@@ -163,7 +163,7 @@
       "Value": 51.2,
       "Unit": "mm",
       "userUnit": "l/m²",
-      "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
+      "toUserUnit": "(mm) => Number((mm).toFixed(2))"
     },
     "dateStormRain": {
       "Value": "2025-09-20T",
@@ -175,31 +175,31 @@
       "Value": 43.4,
       "Unit": "mm",
       "userUnit": "l/m²",
-      "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
+      "toUserUnit": "(mm) => Number((mm).toFixed(2))"
     },
     "last15MinRain": {
       "Value": 0.8,
       "Unit": "mm",
       "userUnit": "l/m²",
-      "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
+      "toUserUnit": "(mm) => Number((mm).toFixed(2))"
     },
     "lastHourRain": {
       "Value": 2.8,
       "Unit": "mm",
       "userUnit": "l/m²",
-      "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
+      "toUserUnit": "(mm) => Number((mm).toFixed(2))"
     },
     "dayET": {
       "Value": 0.023,
       "Unit": "mm",
       "userUnit": "l/m²",
-      "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
+      "toUserUnit": "(mm) => Number((mm).toFixed(2))"
     },
     "last24HourRain": {
       "Value": 51.2,
       "Unit": "mm",
       "userUnit": "l/m²",
-      "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
+      "toUserUnit": "(mm) => Number((mm).toFixed(2))"
     },
     "AirWater_calc": {
       "label": "masse d'H2O dans l'air",

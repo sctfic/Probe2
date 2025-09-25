@@ -4,9 +4,9 @@
     <meta charset="utf-8">
     <title>Comparaison de capteurs météo</title>
     <!-- Observable Plot -->
-    <script src="js/d3.min.js"></script>
-    <script src="js/plot.umd.js"></script>
-    <link rel="stylesheet" href="css/style.css">
+    <script src="js/drawing/d3.min.js"></script>
+    <script src="js/drawing/plot.umd.js"></script>
+    <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/draw.css">
 
     <style>
@@ -149,10 +149,7 @@
 
     <main class="draw-container">
         <div class="chart-wrapper">
-            <h2>
-                <span>Graphique D3 multi-capteurs</span>
-                <span id="toggleD3ChartBtn" class="toggle-chevron open" title="Masquer le graphique">▶</span>
-            </h2>
+            <span id="toggleD3ChartBtn" class="toggle-chevron open" title="Masquer le graphique">▶</span>
             <div id="d3-chart-container" class="chart-container">
                 <div id="chart"></div>
             </div>
