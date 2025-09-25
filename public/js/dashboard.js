@@ -1,6 +1,6 @@
 // Variables for dashboard section
 const API_BASE_URL = '/query';
-const STORAGE_KEY_ORDER = 'dashboardTileOrder';
+const STORAGE_KEY_STATE = 'dashboardTileState';
 
 
 let currentConditionsData = null;
@@ -9,18 +9,20 @@ let dbSensorList = null;
 let previousValues = {};
 let selectedTiles = new Set();
 
-function saveCustomOrder() {
+function saveTileState() {
     if (!selectedStation) return;
-    const order = Object.fromEntries(allConditions.map(item => [item.key, item.customOrder]));
-    console.log(`[DND] Saving custom order for station ${selectedStation.id}:`, order);
-    localStorage.setItem(`${STORAGE_KEY_ORDER}_${selectedStation.id}`, JSON.stringify(order));
+    const state = Object.fromEntries(
+        allConditions.map(item => [item.key, { order: item.customOrder, hidden: !!item.hidden }])
+    );
+    // console.log(`Saving tile state for station ${selectedStation.id}:`, state);
+    localStorage.setItem(`${STORAGE_KEY_STATE}_${selectedStation.id}`, JSON.stringify(state));
 }
 
-function loadCustomOrder() {
+function loadTileState() {
     if (!selectedStation) return {};
-    const order = JSON.parse(localStorage.getItem(`${STORAGE_KEY_ORDER}_${selectedStation.id}`) || '{}');
-    // console.log(`[DND] Loaded custom order for station ${selectedStation.id}:`, order);
-    return order;
+    const state = JSON.parse(localStorage.getItem(`${STORAGE_KEY_STATE}_${selectedStation.id}`) || '{}');
+    // console.log(`Loaded tile state for station ${selectedStation.id}:`, state);
+    return state;
 }
 
 // --- Dashboard Section: Current Conditions ---
@@ -105,7 +107,7 @@ function processAndDisplayConditions() {
         initializePreviousValues();
     }
 
-    const customOrder = loadCustomOrder();
+    const tileState = loadTileState();
     let maxOrder = 0;
 
     // Convertir les données en tableau et exclure certains champs
@@ -113,9 +115,8 @@ function processAndDisplayConditions() {
     allConditions = Object.entries(currentConditionsData)
         .filter(([key]) => !excludeKeys.includes(key))
         .map(([key, data]) => {
-            const sensorInfo = { ...sensorMap[key], ...data };
-            const order = customOrder[key];
-            if (order !== undefined && order > maxOrder) maxOrder = order;
+            const sensorInfo = { ...sensorMap[key], ...data, ...tileState[key] };
+            if (sensorInfo.order !== undefined && sensorInfo.order > maxOrder) maxOrder = sensorInfo.order;
             return {
                 key,
                 name: sensorInfo.label || key,
@@ -127,7 +128,8 @@ function processAndDisplayConditions() {
                 measurement: sensorInfo.measurement || 'unknown',
                 groupUsage: sensorInfo.groupUsage || '0',
                 groupCustom: sensorInfo.groupCustom || '0',
-                customOrder: order,
+                customOrder: sensorInfo.order,
+                hidden: !!sensorInfo.hidden,
                 period: sensorInfo.period || '7d',
                 sensorDb: sensorInfo.sensorDb,
                 comment: sensorInfo.comment,
@@ -157,17 +159,17 @@ function processAndDisplayConditions() {
 function applyCurrentFilter() {
     const filterText = document.getElementById('conditions-filter')?.value?.toLowerCase() || '';
     const tiles = document.querySelectorAll('.condition-tile');
-    
+
     let visibleCount = 0;
-    
+
     tiles.forEach(tile => {
         const conditionKey = tile.dataset.key;
         const condition = allConditions.find(c => c.key === conditionKey);
-        
+
         if (!condition) return;
-        
-        const isVisible = filterText === '' || condition.searchText.includes(filterText);
-        
+
+        const isVisible = !condition.hidden && (filterText === '' || condition.searchText.includes(filterText));
+
         if (isVisible) {
             tile.style.display = '';
             visibleCount++;
@@ -178,20 +180,20 @@ function applyCurrentFilter() {
 
     // Mise à jour de la bare de stats
     updateConditionsStats(visibleCount);
-    
+
     // Gestion des groupes vides
     updateGroupVisibility();
 }
 
 function updateGroupVisibility() {
     const groups = document.querySelectorAll('.unit-group');
-    
+
     groups.forEach(group => {
         const visibleTiles = group.querySelectorAll('.condition-tile[style=""], .condition-tile:not([style*="display: none"])');
-        const hasVisibleTiles = Array.from(group.querySelectorAll('.condition-tile')).some(tile => 
+        const hasVisibleTiles = Array.from(group.querySelectorAll('.condition-tile')).some(tile =>
             tile.style.display !== 'none'
         );
-        
+
         if (hasVisibleTiles) {
             group.style.display = '';
             // Mettre à jour le compteur du groupe
@@ -207,7 +209,7 @@ function updateGroupVisibility() {
 
 function updateConditionsStats(visibleCount) {
     const statsEl = document.getElementById('conditions-stats-display');
-    
+
     if (statsEl && currentConditionsData) {
         const totalCount = Object.keys(currentConditionsData).length;
         const visibleConditions = allConditions.filter((_, index) => {
@@ -215,7 +217,7 @@ function updateConditionsStats(visibleCount) {
             return tile && tile.style.display !== 'none';
         });
         const unitsCount = new Set(visibleConditions.map(item => item.unit)).size;
-        
+
         statsEl.innerHTML = `${visibleCount} / ${totalCount} mesures • ${unitsCount} types`;
         statsEl.style.display = 'block';
     }
@@ -224,9 +226,8 @@ function updateConditionsStats(visibleCount) {
 
 function displayConditions() {
     const groupBy = document.getElementById('conditions-group')?.value || 'unit';
-    
+
     allConditions.sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0));
-    // console.log('[DND] Sorted conditions by customOrder:', allConditions.map(i => i.key));
 
     if (groupBy === 'none') {
         reorganizeConditionsList();
@@ -242,24 +243,24 @@ function displayConditions() {
 // Fonction pour détecter si le changement est majeur
 function isMajorChange(oldValue, newValue, unit) {
     if (oldValue === undefined || oldValue === null) return false;
-    
+
     const old = parseFloat(oldValue);
     const current = parseFloat(newValue);
-    
+
     if (isNaN(old) || isNaN(current)) return false;
-    
+
     const percentChange = Math.abs((current - old) / old) * 100;
-    
+
     // Seuils pour considérer un changement comme majeur selon le type de mesure
     const majorThresholds = {
         'temperature': 2,     // 2°C
-        'pressure': 1,        // 1% 
+        'pressure': 1,        // 1%
         'humidity': 5,        // 5%
         'wind': 10,          // 10 km/h ou 10%
         'rain': 0.1,         // 0.1mm
         'default': 5         // 5% par défaut
     };
-    
+
     // Déterminer le seuil selon l'unité
     let threshold = majorThresholds.default;
     if (unit && (unit.includes('°C') || unit.includes('°F'))) threshold = majorThresholds.temperature;
@@ -267,7 +268,7 @@ function isMajorChange(oldValue, newValue, unit) {
     else if (unit && unit.includes('%')) threshold = majorThresholds.humidity;
     else if (unit && (unit.includes('km/h') || unit.includes('m/s'))) threshold = majorThresholds.wind;
     else if (unit && unit.includes('mm')) threshold = majorThresholds.rain;
-    
+
     return percentChange > threshold;
 }
 
@@ -275,23 +276,23 @@ function isMajorChange(oldValue, newValue, unit) {
 function updateExistingTile(tileElement, item) {
     const fn = eval(item.fnToUserUnit || 'x => x');
     const valueElement = tileElement.querySelector('.condition-value');
-    
+
     if (valueElement) {
         // Récupérer l'ancienne valeur pour comparaison
         const previousValue = previousValues[item.key];
         const currentValue = item.value;
-        
+
         // Vérifier si la valeur a changé
         const hasChanged = previousValue !== undefined && previousValue !== currentValue;
         const isMajor = hasChanged && isMajorChange(previousValue, currentValue, item.userUnit);
-        
+
         let unitDisplay = item.userUnit ? `<span class="condition-unit">${item.userUnit}</span>` : '';
-        
+
         // Cas spéciaux pour certains types de données
         if (['dateStormRain','ForecastClass','iso8601','cardinal'].includes(item.unit)) {
             unitDisplay = '';
         }
-        
+
         // Mettre à jour le contenu
         valueElement.innerHTML = `
             <span id="tuile_${item.key}_value">${fn(currentValue)}</span>
@@ -301,27 +302,27 @@ function updateExistingTile(tileElement, item) {
         if (hasChanged) {
             // Retirer les classes d'animation précédentes
             tileElement.classList.remove('value-changed', 'major-change');
-            
+
             // Forcer un reflow pour s'assurer que les classes sont bien retirées
             tileElement.offsetHeight;
-            
+
             // Ajouter la classe appropriée selon l'ampleur du changement
             if (isMajor) {
                 tileElement.classList.add('major-change');
             } else {
                 tileElement.classList.add('value-changed');
             }
-            
+
             // Retirer la classe après l'animation pour permettre les futures animations
             setTimeout(() => {
                 tileElement.classList.remove('value-changed', 'major-change');
             }, isMajor ? 800 : 600);
         }
-        
+
         // Mettre à jour la valeur précédente
         previousValues[item.key] = currentValue;
     }
-    
+
     // Mettre à jour les cas spéciaux avec animation si nécessaire
     if (item.key === 'ForecastNum') {
         const chartElement = tileElement.querySelector('.condition-chart');
@@ -329,8 +330,8 @@ function updateExistingTile(tileElement, item) {
             const weatherImages = item.value.split(' ');
             chartElement.innerHTML = `
                 <div class="weather-forecast-container">
-                    ${weatherImages.map(weather => `
-                        <img src="img/${weather}.png" 
+                    ${weatherImages.map(weather => ` 
+                        <img src="img/${weather}.png"
                              alt="${weather}" 
                              class="weather-icon weather-${weather.toLowerCase()} ${item.value === weather ? 'active' : ''}"
                              style="z-index: ${weather === 'Cloud' ? 3 : weather === 'Rain' ? 4 : weather === 'Snow' ? 5 : 2}">
@@ -346,11 +347,11 @@ function updateExistingTile(tileElement, item) {
             const radius = 64;
             const x = Math.cos(angleRad) * radius;
             const y = Math.sin(angleRad) * radius;
-            
+
             chartElement.innerHTML = `
                 <div class="wind-compass">
                     <img src="img/windRose.png" alt="Rose des vents" class="wind-rose">
-                    <img src="img/windArrow.png" alt="Direction du vent" class="wind-arrow" 
+                    <img src="img/windArrow.png" alt="Direction du vent" class="wind-arrow"
                         style="transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${windDirection}deg)">
                 </div>
             `;
@@ -478,7 +479,7 @@ function reorganizeConditionsList() {
     conditionsContainer.innerHTML = newHTML;
 
     const grid = conditionsContainer.querySelector('[data-ungrouped="true"]');
-    
+
     // Réinsérer les tuiles
     allConditions.forEach(item => {
         if (existingTiles[item.key]) {
@@ -495,7 +496,7 @@ function reorganizeConditionsList() {
 }
 
 function getBatteryImageAndClass(batteryValue) {
-   
+
     const value = parseFloat(batteryValue);
     let level, className = '';
     if (value > 102) {
@@ -527,18 +528,18 @@ function createConditionTileHTML(item) {
     try {
         fn = eval(item.fnToUserUnit || 'x => x');
     } catch (error) {
-        fn = x => {console.log(`erreur eval(${item.fnToUserUnit})`);};
+        fn = x => { console.log(`erreur eval(${item.fnToUserUnit})`); };
         console.error('Erreur lors de l\'évaluation de la fonction de conversion:', error);
     }
-    
+
     let chartContent = '';
     if (item.key === 'ForecastNum') {
         // Cas spécial pour ForecastIcon - afficher des images météo (pas de lien)
         const weatherImages = displayValue.split(' ');
         chartContent = `
             <div class="weather-forecast-container">
-                ${weatherImages.map(weather => `
-                    <img src="img/${weather}.png" 
+                ${weatherImages.map(weather => ` 
+                    <img src="img/${weather}.png"
                          alt="${weather}" 
                          class="weather-icon weather-${weather.toLowerCase()} ${displayValue === weather ? 'active' : ''}"
                          style="z-index: ${weather === 'Cloud' ? 3 : weather === 'Rain' ? 4 : weather === 'Snow' ? 5 : 2}">
@@ -548,6 +549,9 @@ function createConditionTileHTML(item) {
         unitDisplay = '';
         return `
             <div class="condition-tile" data-key="${item.key}" draggable="false">
+                <svg class="hide-tile-btn nav-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
+                </svg>
                 <div class="condition-content">
                     <div class="condition-info">
                         <div class="condition-name">${item.name}</div>
@@ -570,11 +574,11 @@ function createConditionTileHTML(item) {
         const radius = 64;
         const x = Math.cos(angleRad) * radius;
         const y = Math.sin(angleRad) * radius;
-        
+
         chartContent = `
             <div class="wind-compass">
                 <img src="img/windRose.png" alt="Rose des vents" class="wind-rose">
-                <img src="img/windArrow.png" alt="Direction du vent" class="wind-arrow" 
+                <img src="img/windArrow.png" alt="Direction du vent" class="wind-arrow"
                     style="transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${windDirection}deg)">
             </div>
         `;
@@ -586,7 +590,7 @@ function createConditionTileHTML(item) {
         const batteryInfo = getBatteryImageAndClass(fn(displayValue));
         chartContent = `
             <div class="battery-container">
-                <img src="img/${batteryInfo.image}" 
+                <img src="img/${batteryInfo.image}"
                      alt="Niveau de batterie" 
                      class="battery-icon ${batteryInfo.className}">
             </div>
@@ -595,9 +599,12 @@ function createConditionTileHTML(item) {
     } else {
         chartContent = `<div id="chart_${item.key}" class="plot-container"></div>`;
     }
-    
+
     return `
     <div class="condition-tile" id="tuile_${item.key}" data-key="${item.key}" draggable="false">
+        <svg class="hide-tile-btn nav-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
+        </svg>
         <a href="Plots.html?station=${selectedStation.id}&sensors=${item.sensorDb}" class="tile-link" title="Voir le détail du capteur ${item.name}">
             <div class="condition-content">
                 <div class="condition-info">
@@ -681,7 +688,7 @@ function handleDragOver(e) {
     e.preventDefault();
     const targetTile = e.target.closest('.condition-tile');
     if (!targetTile || targetTile === draggedDOMElement) return;
-    
+
     document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
     targetTile.classList.add('drag-over');
 }
@@ -705,8 +712,7 @@ function handleDrop(e) {
     allConditions.splice(targetItemIndex, 0, draggedItem);
 
     allConditions.forEach((item, index) => item.customOrder = index);
-    // console.log('[DND] New order after drop:', allConditions.map(item => `${item.key}: ${item.customOrder}`));
-    saveCustomOrder();
+    saveTileState();
 
     // Reorder the DOM element directly instead of a full redraw
     targetTile.parentNode.insertBefore(draggedDOMElement, targetTile);
@@ -738,6 +744,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const contextMenu = document.getElementById('custom-context-menu');
     const compareMenuItem = document.getElementById('compare-selected');
     const container = document.getElementById('conditions-container');
+    const viewAllBtn = document.getElementById('view-all-btn');
+
 
     if (!container || !contextMenu || !compareMenuItem) {
         console.warn("Dashboard interaction elements not found.");
@@ -755,6 +763,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const handleTileClick = (event) => {
         const tile = event.target.closest('.condition-tile');
+        const hideBtn = event.target.closest('.hide-tile-btn');
+
+        if (hideBtn) {
+            event.preventDefault();
+            handleHideTile(tile.dataset.key);
+            return;
+        }
         if (!tile) return;
 
         if (event.ctrlKey) {
@@ -810,9 +825,28 @@ document.addEventListener('DOMContentLoaded', () => {
         hideContextMenu();
     };
 
+    const handleHideTile = (key) => {
+        const condition = allConditions.find(c => c.key === key);
+        if (condition) {
+            condition.hidden = true;
+            saveTileState();
+            applyCurrentFilter();
+        }
+    };
+
+    const showAllTiles = () => {
+        document.getElementById('conditions-filter').value = '';
+        allConditions.forEach(c => c.hidden = false);
+        saveTileState();
+        applyCurrentFilter();
+    };
+
     container.addEventListener('click', handleTileClick);
     container.addEventListener('contextmenu', handleContextMenu);
     compareMenuItem.addEventListener('click', compareSelectedItems);
+    if (viewAllBtn) {
+        viewAllBtn.addEventListener('click', showAllTiles);
+    }
 
     window.addEventListener('click', () => hideContextMenu());
     document.addEventListener('keydown', (e) => e.key === 'Escape' && (clearSelection(), hideContextMenu()));

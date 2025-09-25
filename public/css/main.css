@@ -238,6 +238,12 @@ button:hover,input[type=button]:hover,input[type=submit]:hover {
     transform: scale(1.1)
 }
 
+.filter-group {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
 
 .btn-text {
     transition: opacity .2s ease
@@ -686,7 +692,7 @@ input:checked+.slider:before {
 
 .conditions-controls .filter-group,.conditions-controls .view-group {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 5px
 }
 
@@ -755,6 +761,25 @@ input:checked+.slider:before {
     box-shadow: 0 4px 12px rgba(0,0,0,.3);
     border-color: var(--accent-blue)
 }
+.condition-tile .hide-tile-btn, .condition-tile .hide-tile-btn svg {
+    height: 24px;
+    width: 24px;
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    opacity: 0.2;
+    transition: opacity 0.2s ease-in-out;
+    z-index: 10;
+    background: none;
+    border: none;
+    padding: 0;
+    color: #888;
+}
+
+.condition-tile:hover .hide-tile-btn {
+    opacity: 1;
+}
+
 
 .condition-content {
     display: flex;
@@ -1699,16 +1724,19 @@ input:checked+.slider:before {
 /* ---
    1. Generic & Shared Styles
    --------------------------- */
-.brightness {
-    filter: brightness(30%) invert(70%);
+.nav-icon {
+    color: #a0a0a0; /* Couleur grise par défaut pour les icônes */
     width: 32px;
     height: 32px;
+    vertical-align: middle;
+    margin-right: 5px;
     margin-inline: 2px;
     transition: all .2s ease;
+    cursor: pointer;
 }
 
-.brightness:hover {
-    filter: brightness(0) invert(1);
+.nav-icon:hover, .nav-menu li.active .nav-icon {
+    color: var(--accent-blue); /* Icône blanche au survol ou si active */
     transform: scale(1.2)
 }
 
