@@ -46,17 +46,22 @@ function hidePasswordModal() {
 }
 
 function updateAuthUI() {
-    const accessIcons = document.querySelectorAll('.access-control-icon');
+    // const accessIcons = document.querySelectorAll('.access-control-icon');
+
     if (isAuthenticated) {
         loginBtn.style.display = 'none';
         logoutBtn.style.display = 'inline-block';
         changePasswordBtn.style.display = 'inline-block';
-        accessIcons.forEach(icon => icon.style.display = 'none');
+        // modification de la classe '.access-control-icon' elle meme l'attribut display devient 'none'
+        overrideCssRule('.access-control-icon', 'display: none');
     } else {
         loginBtn.style.display = 'inline-block';
         logoutBtn.style.display = 'none';
         changePasswordBtn.style.display = 'none';
-        accessIcons.forEach(icon => icon.style.display = 'inline-block');
+        // modification de la classe '.access-control-icon' elle meme l'attribut display devient 'inline-block'
+        overrideCssRule('.access-control-icon', 'display: inline-block');
+
+        // accessIcons.forEach(icon => icon.style.display = 'inline-block');
     }
 }
 

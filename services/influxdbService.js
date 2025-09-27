@@ -1,5 +1,5 @@
 const { InfluxDB, Point } = require('@influxdata/influxdb-client');
-const { DeleteAPI } = require('@influxdata/influxdb-client-apis');
+const { DeleteAPI, HealthAPI } = require('@influxdata/influxdb-client-apis');
 const fs = require('fs');
 const path = require('path');
 const { V } = require('../utils/icons');
@@ -24,6 +24,31 @@ const queryApi = influxDB.getQueryApi(org);
 const deleteApi = new DeleteAPI(influxDB);
 
 console.log(`${V.database} Service InfluxDB initialisé pour l'organisation '${org}' et le bucket '${bucket}'.`);
+
+/**
+ * Teste la connexion à une instance InfluxDB avec une configuration donnée.
+ * @param {object} config - L'objet de configuration contenant { url, token, org }.
+ * @returns {Promise<{success: boolean, message?: string}>}
+ */
+async function testInfluxConnection(config) {
+    console.log(`${V.info} Test de la connexion à InfluxDB avec l'URL: ${config.url}`);
+    try {
+        const testInfluxDB = new InfluxDB({ url: config.url, token: config.token });
+        const healthApi = new HealthAPI(testInfluxDB);
+
+        const health = await healthApi.getHealth();
+
+        if (health.status === 'pass') {
+            console.log(`${V.Check} Connexion à InfluxDB réussie. Statut: ${health.status}`);
+            return { success: true, message: health.message || 'Connexion réussie.' };
+        } else {
+            throw new Error(`Le statut de santé d'InfluxDB est '${health.status}'. Message: ${health.message}`);
+        }
+    } catch (error) {
+        console.error(`${V.error} Échec du test de connexion à InfluxDB:`, error.message);
+        return { success: false, message: `Échec de la connexion: ${error.message}` };
+    }
+}
 
 /**
  * Supprime toutes les données d'un bucket dans une plage de temps donnée.
@@ -646,6 +671,7 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
 
 
 module.exports = {
+    testInfluxConnection,
     writePoints,
     Point,
     // queryData,

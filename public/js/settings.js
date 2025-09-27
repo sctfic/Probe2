@@ -11,31 +11,148 @@ const SKIN_TYPES = {
 let currentUnitsSettings = {};
 let currentSkinType = 2; // Type par défaut
 
-// --- Preferences Section: Units Settings ---
+let currentInfluxSettings = {};
 
-async function fetchUnitsPreferences() {
-    showGlobalStatus('Chargement des unités...', 'loading');
+// --- Preferences Section ---
+
+async function fetchSettings() {
+    showGlobalStatus('Chargement des paramètres...', 'loading');
+    const container = document.getElementById('preferences-container');
+    container.innerHTML = ''; // Clear previous content
 
     try {
-        const response = await fetch('/api/settings');
-        if (!response.ok) throw new Error('Erreur de chargement des unités');
+        const [unitsResponse, influxResponse] = await Promise.all([
+            fetch('/api/settings'),
+            fetch('/api/influxdb')
+        ]);
 
-        const data = await response.json();
-        if (data.success && data.settings) {
-            currentUnitsSettings = data.settings;
-            displayPreferencesForm(data.settings);
-            showGlobalStatus('Unités chargées avec succès', 'success');
+        if (!unitsResponse.ok) throw new Error('Erreur de chargement des unités');
+        if (!influxResponse.ok) throw new Error('Erreur de chargement de la configuration InfluxDB');
+
+        const unitsData = await unitsResponse.json();
+        const influxData = await influxResponse.json();
+
+        if (unitsData.success && unitsData.settings) {
+            currentUnitsSettings = unitsData.settings;
+            displayUnitsForm(unitsData.settings);
         } else {
             throw new Error('Format de données invalide pour les unités');
         }
+
+        if (influxData.success && influxData.settings) {
+            currentInfluxSettings = influxData.settings;
+            displayInfluxForm(influxData.settings);
+        } else {
+            throw new Error('Format de données invalide pour la configuration InfluxDB');
+        }
+
+        displayUpdateForm();
+
+        showGlobalStatus('Paramètres chargés avec succès', 'success');
+
     } catch (error) {
         console.error('Erreur:', error);
         showGlobalStatus(`Erreur: ${error.message}`, 'error');
-        document.getElementById('preferences-container').innerHTML = '';
     }
 }
 
-function displayPreferencesForm(settings) {
+function displayUpdateForm() {
+    const container = document.getElementById('preferences-container');
+    const updateFormHTML = `
+        <div class="settings-group">
+            <h3>Mise à jour de l'application V<b id="current-version-display"></b></h3>
+            <div class="settings-form">
+                <div class="settings-field condition-tile">
+                    <button type="button" id="verify-update-btn">
+                        Vérifier les mises à jour
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', updateFormHTML);
+
+    const localVersion = document.getElementById('version').textContent;
+    document.getElementById('current-version-display').textContent = localVersion;
+
+    document.getElementById('verify-update-btn').addEventListener('click', handleVerifyUpdate);
+}
+
+async function handleVerifyUpdate(event) {
+    const button = event.target;
+    const localVersion = document.getElementById('version').textContent;
+
+    button.disabled = true;
+    button.innerHTML = '<div class="spinner" style="display: inline-block; margin-right: 8px;"></div>Vérification...';
+
+    try {
+        const response = await fetch('https://raw.githubusercontent.com/sctfic/Probe2/main/package.json', { cache: 'no-cache' });
+        if (!response.ok) throw new Error('Impossible de contacter le serveur de mise à jour.');
+
+        const remotePackage = await response.json();
+        const remoteVersion = remotePackage.version;
+
+        if (remoteVersion > localVersion) {
+            button.textContent = `<img src="svg/access-control.svg" class="access-control-icon">Nouvelle version disponible : V${remoteVersion} => Mettre à jour maintenant !`;
+            button.onclick = handleApplyUpdate;
+        } else {
+            button.textContent = 'À jour';
+        }
+    } catch (error) {
+        button.textContent = `Erreur : ${error.message}`;
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function handleApplyUpdate() {
+    if (!confirm("Êtes-vous sûr de vouloir lancer la mise à jour ? Le serveur redémarrera.")) return;
+
+    showGlobalStatus('Lancement de la mise à jour...', 'loading');
+    document.getElementById('verify-update-btn').disabled = true;
+    document.getElementById('verify-update-btn').textContent = 'Mise à jour en cours...';
+
+    await fetch('/api/update', { method: 'POST' });
+    showGlobalStatus('La mise à jour a été lancée. La page va se recharger...', 'success');
+    setTimeout(() => window.location.reload(), 5000); // Recharger la page après un délai
+}
+
+function displayInfluxForm(settings) {
+    const container = document.getElementById('preferences-container');
+    const influxFormHTML = `
+        <div class="settings-group">
+            <h3>Configuration InfluxDB</h3>
+            <form id="influx-settings-form" class="settings-form">
+            <div class="settings-row">
+            ${generateInfluxField('url', 'URL du serveur InfluxDB', settings.url, 'url')}
+                ${generateInfluxField('org', 'Organisation InfluxDB', settings.org, 'text')}
+                ${generateInfluxField('bucket', 'Bucket de données', settings.bucket, 'text')}
+            </div>
+            <div class="settings-row">
+                ${generateInfluxField('token', 'Token d\'authentification', settings.token, 'text')}
+            </div>
+                <div class="settings-actions">
+                    <button type="submit">
+                        <img src="svg/access-control.svg" class="access-control-icon">Enregistrer la configuration InfluxDB
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', influxFormHTML);
+    document.getElementById('influx-settings-form').addEventListener('submit', handleInfluxFormSubmit);
+}
+
+function generateInfluxField(key, label, value, type) {
+    return `
+        <div class="settings-field condition-tile">
+            <label for="influx-${key}">${label}</label>
+            <input type="${type}" id="influx-${key}" name="${key}" value="${value || ''}" ${type === 'password' ? 'placeholder="Laisser vide pour ne pas changer"' : ''}>
+        </div>
+    `;
+}
+
+function displayUnitsForm(settings) {
     const container = document.getElementById('preferences-container');
     
     // Récupérer le skin type actuel depuis les settings UV
@@ -53,11 +170,11 @@ function displayPreferencesForm(settings) {
     };
 
     let formHTML = `
-    <div class="probes-header">
-        <h1>Configuration des Unités de Mesure</h1>
-    </div>
-    <form id="units-preferences-form" class="settings-form">`;
-
+    <div class="settings-group">
+        <h3>Configuration des Unités de Mesure</h3>
+        <form id="units-preferences-form" class="settings-form">
+    `;
+    
     Object.entries(groupedCategories).forEach(([groupName, categoryKeys]) => {
         formHTML += `
             <div class="settings-group">
@@ -79,19 +196,20 @@ function displayPreferencesForm(settings) {
 
     formHTML += `
         <div class="settings-actions">
-            <button type="button" class="btn-secondary" id="reset-preferences">Réinitialiser</button>
+            <button type="button" class="btn-secondary" id="reset-units-preferences">Réinitialiser les unités</button>
             <button type="submit">
-                <img src="img/access-control.png" class="access-control-icon" style="display: none;">Enregistrer les modifications
+                <img src="svg/access-control.svg" class="access-control-icon">Enregistrer les unités
             </button>
         </div>
     </form>
-    `;
+    </div>
+    `; // Close settings-group
 
     container.innerHTML = formHTML;
 
     // Ajouter les event listeners
     const form = document.getElementById('units-preferences-form');
-    const resetBtn = document.getElementById('reset-preferences');
+    const resetBtn = document.getElementById('reset-units-preferences');
 
     if (form) {
         form.addEventListener('submit', handleUnitsFormSubmit);
@@ -205,6 +323,37 @@ function updateSkinTypeDEM() {
     currentSkinType = selectedType;
 }
 
+async function handleInfluxFormSubmit(event) {
+    event.preventDefault();
+    showGlobalStatus('Enregistrement de la configuration InfluxDB...', 'loading');
+
+    try {
+        const formData = new FormData(event.target);
+        const settings = {};
+        for (const [key, value] of formData.entries()) {
+            settings[key] = value;
+        }
+
+        const response = await fetch('/api/influxdb', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ settings })
+        });
+
+        if (!response.ok) throw new Error('Erreur lors de la sauvegarde de la configuration InfluxDB');
+
+        const result = await response.json();
+        if (result.success) {
+            showGlobalStatus('Configuration InfluxDB enregistrée avec succès !', 'success');
+            setTimeout(() => fetchSettings(), 1500); // Recharger pour afficher le token masqué
+        } else {
+            throw new Error(result.error || 'Erreur inconnue');
+        }
+    } catch (error) {
+        showGlobalStatus(`Erreur: ${error.message}`, 'error');
+    }
+}
+
 async function handleUnitsFormSubmit(event) {
     event.preventDefault();
     
@@ -314,7 +463,7 @@ async function resetUnitsToDefault() {
             
             // Recharger le formulaire avec les nouvelles valeurs
             setTimeout(() => {
-                displayPreferencesForm(defaultSettings);
+                displayUnitsForm(defaultSettings);
             }, 2000);
         } else {
             throw new Error(result.message || 'Erreur lors de la réinitialisation');

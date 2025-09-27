@@ -103,10 +103,10 @@ body {
 .content-container {
     display: flex;
     width: 400vw;
-    transform: translateX(0); /* This will be managed by JS */
-    transition: transform .3s ease-out, height .5s ease-in-out; /* Added height transition */
-    padding-top: 113px;
-    height: calc(100vh - 113px)
+    transform: translateX(0);
+    transition: transform 0.3s ease-out;
+    padding-top: 110px;
+    padding-bottom: 80px; /* Espace pour le footer et éviter que le dernier contenu soit masqué */
 }
 
 .content-section {
@@ -350,15 +350,29 @@ label {
     background-color: var(--primary-dark);
     color: var(--background-white);
     position: fixed; /* Use fixed to keep it at the bottom, removed duplicate 'absolute' */
-    bottom: 0;
-    width: 100%;
-    z-index: 800;
+    bottom: 0vw;
+    left: 0vw;
+    width: 100vw;
+    height: 40px;
+    z-index: 1100; /* Augmenté pour être au-dessus du contenu principal */
     box-shadow: 0 -2px 4px rgba(0,0,0,.1);
-    transition: transform .5s ease-in-out; /* Add transition for hiding */
+    transition: all .4s ease-in-out; /* Transition pour hauteur et transformation */
+    display: flex;
+    flex-direction: column;
 }
 
 .footer.hidden-animated {
     transform: translateY(100%); /* Slide the footer down to hide it */
+}
+
+/* Styles pour le footer quand il est ouvert en panneau de détail */
+.footer.details-open {
+    height: 40vh; /* 40% de la hauteur de la vue */
+}
+
+.footer:not(.details-open) .details-footer-header,
+.footer:not(.details-open) .chart-container {
+    display: none;
 }
 
 .footer-bottom {
@@ -371,6 +385,10 @@ label {
     margin: 0;
     font-size: .8em;
     color: #ccc
+}
+
+.footer.details-open .footer-bottom {
+    display: none;
 }
 
 .cron-container {
@@ -486,25 +504,6 @@ input:checked+.slider:before {
     color: var(--accent-blue);
     transform: scale(1.1)
 }
-/* 
-.add-station-btn {
-    color: #fff;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    width: 32px;
-    height: 32px;
-    font-size: 18px;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color .2s
-}
-
-.add-station-btn:hover {
-    background-color: #5ba4b7
-} */
 
 .modal {
     display: none;
@@ -1143,6 +1142,9 @@ input:checked+.slider:before {
     .station-info {
         display: none;
     }
+    #add-station-btn {
+        display: none;
+    }
     .nav-menu {
         padding: 0 5px 0 0;
     }
@@ -1471,9 +1473,9 @@ input:checked+.slider:before {
     font-size: 1.5em
 }
 
-.probes-header .add-station-btn {
+/* .probes-header .add-station-btn {
     display: none;
-}
+} */
 
 .probe-item {
     margin-bottom: 15px;
@@ -1520,23 +1522,6 @@ input:checked+.slider:before {
     color: #666
 }
 
-.btn-delete-probe {
-    background-color: transparent;
-    border: 2px solid var(--accent-blue);
-    color: var(--primary-dark);
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    font-size: 20px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all .3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    line-height: 1
-}
 
 .btn-delete-probe:hover {
     background-color: var(--accent-blue);
@@ -1690,6 +1675,32 @@ input:checked+.slider:before {
     border-left: 3px solid #007bff
 }
 
+.details-footer-header {
+    display: flex;
+    justify-content: flex-end;
+    padding: 5px 10px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    flex-shrink: 0; /* Empêche l'en-tête de rétrécir */
+}
+
+.details-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.details-close-btn .nav-icon {
+    color: #888;
+}
+
+.chart-container {
+    flex-grow: 1;
+    padding: 10px;
+    overflow: auto;
+}
+
 :where(.plot-d6a7b5) {
     --plot-background: white;
     display: block;
@@ -1710,7 +1721,7 @@ input:checked+.slider:before {
    1. Generic & Shared Styles
    --------------------------- */
 .nav-icon {
-    color: #a0a0a0; /* Couleur grise par défaut pour les icônes */
+    color: #eee; /* Couleur grise par défaut pour les icônes */
     width: 32px;
     height: 32px;
     vertical-align: middle;
@@ -1730,6 +1741,8 @@ input:checked+.slider:before {
     height: 16px;
     vertical-align: middle;
     margin-right: 5px;
+    transform: scale(1.5);
+    color: white;
 }
 
 .section-header {
@@ -1915,7 +1928,6 @@ input:checked+.slider:before {
 
 .btn-delete-probe {
     background-color: transparent;
-    border: 2px solid var(--accent-blue);
     color: var(--primary-dark);
     width: 28px;
     height: 28px;
@@ -1931,11 +1943,15 @@ input:checked+.slider:before {
     line-height: 1;
     flex-shrink: 0;
 }
-
-.btn-delete-probe:hover {
+/* .btn-delete-probe:hover {
     background-color: var(--accent-blue);
     color: white;
     transform: scale(1.1);
+} */
+
+.btn-delete-probe:hover {
+    color: var(--accent-blue);
+    transform: scale(1.2);
 }
 
 .collapsible-content {
@@ -1980,6 +1996,12 @@ input:checked+.slider:before {
     gap: 10px;
     margin-bottom: 5px;
     padding: 0 9px;
+}
+
+#settings-section .settings-group {
+    padding: 10px 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    margin-bottom: 20px;
 }
 
 #settings-section .skin-type-field {

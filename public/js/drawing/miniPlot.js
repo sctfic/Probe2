@@ -4,6 +4,9 @@ const CACHE_DURATION = 10000; // 10 secondes en millisecondes
 // Cache pour stocker les promesses et les réponses
 const requestCache = new Map();
 
+// Stocke l'état actuel (données, métadonnées, options) de chaque graphique affiché
+const plotStates = {};
+
 function formatIsoDate(date) {
     return date.toISOString().split('T')[0];
 }
@@ -18,7 +21,7 @@ function transformDataForPlot(apiData, metadata) {
 
 function createPlot(data, metadata, id, period) {
     // console.log(period);
-    if (typeof period !== 'number') {
+    if (typeof period !== 'number') { // gere le decalage
         period = '0 day';
     } else if(period <= 24*3600) {
         period = '1 hour';
@@ -42,11 +45,11 @@ function createPlot(data, metadata, id, period) {
         chartDiv.innerHTML = `<div class="error-message">No data!</div>`;
         return;
     }
-    
+
     try {
         const plot = Plot.plot({
-            width: 286,
-            height: 100,
+            width: chartDiv.clientWidth,
+            height: chartDiv.clientHeight || 100,
             marginLeft: 0,
             marginTop: 16,
             marginBottom: 17,
@@ -61,16 +64,14 @@ function createPlot(data, metadata, id, period) {
                 grid: true, 
                 nice: true,
                 domain: metadata.measurement === 'rain' 
-                    ? [0, Math.max(...data.map(d => d.Value))] 
-                    : [Math.min(...data.map(d => d.Value)), Math.max(...data.map(d => d.Value))]
+                    ? [0, d3.max(data, d => d.Value)] 
+                    : d3.extent(data, d => d.Value)
             },
             marks: [
-                // Plot.lineY(data, {
-                //     x: "Date", 
-                //     y: "Value", 
-                //     stroke: "#4dc0e0", 
-                //     curve: metadata.measurement === 'rain' ? "step" : "monotone-x"
-                // }),
+                Plot.lineY(data, {
+                    x: "Date", y: "Value", z: "series", stroke: "series",
+                    curve: metadata.measurement === 'rain' ? "step" : "monotone-x"
+                }),
                 Plot.differenceY(data, Plot.shiftX(`+${period}`, {
                     x: "Date",
                     y: "Value",
@@ -199,6 +200,5 @@ async function loadData(id, url, period, item = null) {
         // console.error('URL:', url);
     }
 }
-
 // Optionnel : Nettoyer automatiquement le cache toutes les 60 seconde
 setInterval(cleanCache, 60 * 1000);

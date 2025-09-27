@@ -133,7 +133,7 @@ class StationManager {
         } else {
             this.spinner.style.display = 'none';
             this.submitBtn.disabled = false;
-            this.submitBtn.innerHTML = '<div class="spinner" id="spinner"></div>Ajouter la station';
+            this.submitBtn.innerHTML = '<div class="spinner" id="spinner"></div><img src="svg/access-control.svg" class="access-control-icon">Ajouter la station';
             this.spinner = document.getElementById('spinner'); // Re-référencer le spinner
         }
     }

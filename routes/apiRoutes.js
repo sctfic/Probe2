@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const appController = require('../controllers/appController');
 const authController = require('../controllers/authController');
+const updateController = require('../controllers/updateController');
 const { isAuthenticated } = require('../middleware/authMiddleware');
 
 // Route pour les informations générales de l'application
@@ -23,10 +24,17 @@ router.put('/settings', isAuthenticated, appController.updateUnitsSettings); // 
 router.get('/composite-probes', appController.getcompositeProbesSettings);
 router.put('/composite-probes', isAuthenticated, appController.updatecompositeProbesSettings);
 
+// Routes pour la configuration d'InfluxDB
+router.get('/influxdb', appController.getInfluxDbSettings);
+router.put('/influxdb', isAuthenticated, appController.updateInfluxDbSettings);
+
 // Route pour lister toutes les stations configurées
 router.get('/stations', appController.getAllStations); // http://probe2.lpz.ovh/api/stations
 
 // Route pour créer une nouvelle configuration de station
 router.post('/new', isAuthenticated, appController.createStation); // http://probe2.lpz.ovh/api/new
+
+// Route pour la mise à jour de l'application
+router.post('/update', isAuthenticated, updateController.applyUpdate);
 
 module.exports = router;

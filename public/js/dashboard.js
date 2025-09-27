@@ -621,22 +621,20 @@ function createConditionTileHTML(item) {
         <svg class="hide-tile-btn nav-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
         </svg>
-        <a href="Plots.html?station=${selectedStation.id}&sensors=${item.sensorDb}" class="tile-link" title="Voir le détail du capteur ${item.name}">
-            <div class="condition-content">
-                <div class="condition-info">
-                    <div class="condition-name">${item.name}</div>
-                    <div class="condition-value">
-                        <span id="tuile_${item.key}_value">${fn(displayValue)}</span>
-                        ${unitDisplay}
-                        <span id="tuile_${item.key}_more" class="smallText">${item.more?item.more:''}</span>
-                    </div>
-                    ${metaInfo}
+        <div class="condition-content" title="Voir le détail du capteur ${item.name}">
+            <div class="condition-info">
+                <div class="condition-name">${item.name}</div>
+                <div class="condition-value">
+                    <span id="tuile_${item.key}_value">${fn(displayValue)}</span>
+                    ${unitDisplay}
+                    <span id="tuile_${item.key}_more" class="smallText">${item.more?item.more:''}</span>
                 </div>
-                <div class="condition-chart">
-                    ${chartContent}
-                </div>
+                ${metaInfo}
             </div>
-        </a>
+            <div class="condition-chart">
+                ${chartContent}
+            </div>
+        </div>
     </div>
     `;
 }
@@ -647,7 +645,12 @@ function getStartDate (period){
         console.log(str);
         date = new Date((new Date(`${str}T00:00:00.000Z`)).getTime());
     } else {
-        date = new Date((Math.round((new Date()).getTime()/1000) - period)*1000);
+        if(typeof period === 'string'){
+            const P = eval(period.replace('w', '*24*60*60*7').replace('d', '*24*60*60').replace('h', '*60*60').replace('m', '*60'));
+            date = new Date((Math.round((new Date()).getTime()/1000) - P)*1000);
+        }else{
+            date = new Date((Math.round((new Date()).getTime()/1000) - period)*1000);
+        }
     }
     return date.toISOString().split('.')[0] + 'Z';
 }
@@ -706,17 +709,29 @@ function handleDragEnd(e) {
 
 function handleDragOver(e) {
     e.preventDefault();
-    const targetTile = e.target.closest('.condition-tile');
-    if (!targetTile || targetTile === draggedDOMElement) return;
+    
+    // Cacher temporairement l'élément déplacé pour trouver ce qui est en dessous
+    if (draggedDOMElement) draggedDOMElement.style.visibility = 'hidden';
+    
+    // Trouver l'élément sous le curseur
+    const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
+    
+    // Rendre l'élément déplacé visible à nouveau
+    if (draggedDOMElement) draggedDOMElement.style.visibility = '';
+
+    const targetTile = elementUnder ? elementUnder.closest('.condition-tile') : null;
 
     document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-    targetTile.classList.add('drag-over');
+    if (targetTile && targetTile !== draggedDOMElement) {
+        targetTile.classList.add('drag-over');
+    }
 }
 
 function handleDrop(e) {
     e.preventDefault();
     const targetTile = e.target.closest('.condition-tile');
     document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+
     if (!targetTile || !draggedDOMElement || targetTile === draggedDOMElement) {
         return;
     }
@@ -843,6 +858,7 @@ function handleTouchEnd(e) {
 function initDragAndDrop() {
     const container = document.getElementById('conditions-container');
     if (!container) return;
+    console.log('initDragAndDrop');
     container.classList.add('sortable');
     container.querySelectorAll('.condition-tile').forEach(tile => tile.setAttribute('draggable', 'true'));
     container.addEventListener('dragstart', handleDragStart);
@@ -850,10 +866,12 @@ function initDragAndDrop() {
     container.addEventListener('dragover', handleDragOver);
     container.addEventListener('drop', handleDrop);
     // Ajout des écouteurs pour le tactile
-    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
     container.addEventListener('touchmove', handleTouchMove, { passive: false });
     container.addEventListener('touchend', handleTouchEnd);
     container.addEventListener('touchcancel', handleTouchEnd);
+    // Empêche le menu contextuel du navigateur d'apparaître lors d'un appui long sur mobile
+    container.addEventListener('contextmenu', (e) => {consolee.preventDefault()});
 }
 
 function deinitDragAndDrop() {
@@ -870,6 +888,60 @@ function deinitDragAndDrop() {
     container.removeEventListener('touchmove', handleTouchMove);
     container.removeEventListener('touchend', handleTouchEnd);
     container.removeEventListener('touchcancel', handleTouchEnd);
+    container.removeEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+function showDetailsFooter(keys) {
+    const detailsFooter = document.querySelector('footer.footer');
+    const contentContainer = document.getElementById('d3-chart-container');
+    if (!detailsFooter || !contentContainer) return;
+
+    const keysArray = Array.isArray(keys) ? keys : [keys];
+    if (keysArray.length === 0) return;
+
+    const items = keysArray.map(key => allConditions.find(c => c.key === key)).filter(Boolean);
+    console.log(items)
+    if (items.length === 0) return;
+
+    // S'assurer que le footer n'est pas caché par l'animation initiale
+    detailsFooter.classList.remove('hidden-animated');
+
+    // Affiche le footer
+    detailsFooter.classList.add('details-open');
+    
+    // Utilise le premier item pour les propriétés communes comme la période
+    const firstItem = items[0];
+    const chartId = `details_chart_`;
+    contentContainer.innerHTML = `<div id="${chartId}" style="width: 100%; height: 100%;"></div>`;
+
+    const sensorDbs = items.map(i => i.sensorDb).filter(Boolean);
+    if (sensorDbs.length === 0) {
+        contentContainer.innerHTML = `<div class="error-message">Aucun capteur avec historique dans la sélection.</div>`;
+        return;
+    }
+
+    const start = `startDate=${getStartDate('100d')}`;
+    const count = `stepCount=500`;
+    console.log(sensorDbs, sensorDbs.length);
+
+        const sensorsQuery = sensorDbs.join(',');
+        loadDatas(chartId, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}?${count}&${start}`, firstItem.period);
+    
+}
+
+function hideDetailsFooter() {
+    const detailsFooter = document.querySelector('footer.footer');
+    const contentContainer = document.getElementById('d3-chart-container');
+    if (!detailsFooter || !contentContainer) return;
+
+    // Fonction pour nettoyer le contenu
+    const cleanup = () => {
+        contentContainer.innerHTML = '';
+        detailsFooter.removeEventListener('transitionend', cleanup);
+    }
+
+    detailsFooter.addEventListener('transitionend', cleanup, { once: true });
+    detailsFooter.classList.remove('details-open');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -902,6 +974,7 @@ document.addEventListener('DOMContentLoaded', () => {
             handleHideTile(tile.dataset.key);
             return;
         }
+
         if (!tile) return;
 
         if (event.ctrlKey) {
@@ -910,14 +983,29 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectedTiles.has(key)) {
                 selectedTiles.delete(key);
                 tile.classList.remove('selected');
+                // Si la sélection est vide, on cache le footer, sinon on met à jour le graphique
+                if (selectedTiles.size === 0) {
+                    hideDetailsFooter();
+                } else {
+                    showDetailsFooter([...selectedTiles]);
+                }
             } else {
                 selectedTiles.add(key);
                 tile.classList.add('selected');
+                // Met à jour le graphique avec la nouvelle sélection
+                showDetailsFooter([...selectedTiles]);
             }
+
         } else {
-            // On a normal click, if the tile is not selected, clear the previous selection.
-            if (!tile.classList.contains('selected')) {
+            const key = tile.dataset.key;
+            const item = allConditions.find(c => c.key === key);
+
+            if (item && item.sensorDb) {
+                // Un clic simple désélectionne tout, puis sélectionne l'élément cliqué.
                 clearSelection();
+                selectedTiles.add(key);
+                tile.classList.add('selected');
+                showDetailsFooter(key);
             }
         }
     };

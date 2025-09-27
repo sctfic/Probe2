@@ -1,5 +1,6 @@
 // controllers/appController.js
 const configManager = require('../services/configManager');
+const influxdbService = require('../services/influxdbService');
 const { V } = require('../utils/icons');
 const fs = require('fs');
 const path = require('path');
@@ -101,6 +102,80 @@ exports.updateUnitsSettings = (req, res) => {
             success: false,
             error: 'Erreur lors de la mise à jour de la configuration des unités.'
         });
+    }
+};
+
+exports.getInfluxDbSettings = (req, res) => {
+    try {
+        console.log(`${V.gear} Récupération de la configuration InfluxDB (influx.json)`);
+        const influxPath = path.join(__dirname, '..', 'config', 'influx.json');
+        if (!fs.existsSync(influxPath)) {
+            return res.json({ success: true, settings: { url: '', token: '', org: '', bucket: '' } });
+        }
+        const influxConfig = JSON.parse(fs.readFileSync(influxPath, 'utf8'));
+
+        // Ne pas renvoyer le token au client
+        const settingsToSend = { ...influxConfig };
+        if (settingsToSend.token) {
+            settingsToSend.token = '*********************************************************************';
+        }
+
+        res.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            version: probeVersion,
+            settings: settingsToSend
+        });
+    } catch (error) {
+        console.error(`${V.error} Erreur lors de la récupération de la configuration InfluxDB:`, error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la récupération de la configuration InfluxDB'
+        });
+    }
+};
+
+exports.updateInfluxDbSettings = async (req, res) => {
+    try {
+        const newSettings = req.body.settings;
+        if (!newSettings || typeof newSettings !== 'object') {
+            return res.status(400).json({ success: false, error: 'Données de configuration invalides.' });
+        }
+
+        console.log(`${V.write} Mise à jour de la configuration InfluxDB (influx.json)`);
+        const influxPath = path.join(__dirname, '..', 'config', 'influx.json');
+        
+        let currentConfig = {};
+        if (fs.existsSync(influxPath)) {
+            currentConfig = JSON.parse(fs.readFileSync(influxPath, 'utf8'));
+        }
+
+        // Préparer la configuration à tester (et potentiellement à sauvegarder)
+        const configToTest = { ...currentConfig };
+        configToTest.url = newSettings.url;
+        configToTest.org = newSettings.org;
+        configToTest.bucket = newSettings.bucket;
+        // Ne met à jour le token que s'il est explicitement fourni et non masqué
+        if (newSettings.token && !/^\*+$/.test(newSettings.token)) {
+            configToTest.token = newSettings.token;
+        }
+
+        // Tester la connexion avant de sauvegarder
+        const connectionTest = await influxdbService.testInfluxConnection(configToTest);
+        if (!connectionTest.success) {
+            return res.status(400).json({
+                success: false,
+                error: `La connexion à InfluxDB a échoué. Veuillez vérifier vos paramètres. Détails: ${connectionTest.message}`
+            });
+        }
+
+        // Si le test réussit, sauvegarder la configuration
+        fs.writeFileSync(influxPath, JSON.stringify(configToTest, null, 4), 'utf8');
+
+        res.json({ success: true, message: 'Configuration InfluxDB mise à jour avec succès.' });
+    } catch (error) {
+        console.error(`${V.error} Erreur lors de la mise à jour de la configuration InfluxDB:`, error);
+        res.status(500).json({ success: false, error: 'Erreur lors de la mise à jour de la configuration InfluxDB.' });
     }
 };
 
