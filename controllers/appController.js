@@ -321,6 +321,7 @@ exports.getHealth = (req, res) => {
             status: 'healthy',
             timestamp: new Date().toISOString(),
             uptime: process.uptime(),
+            version: probeVersion,
             system: {
                 nodeVersion: process.version,
                 platform: process.platform,

@@ -78,9 +78,66 @@ function displayUpdateForm() {
     document.getElementById('verify-update-btn').addEventListener('click', handleVerifyUpdate);
 }
 
+async function handleApplyUpdate() {
+    if (!confirm("Êtes-vous sûr de vouloir lancer la mise à jour ? Le serveur va redémarrer et l'interface sera bloquée momentanément.")) return;
+
+    const updateButton = document.getElementById('verify-update-btn');
+    const localVersion = document.getElementById('version').textContent;
+
+    // Geler l'interface
+    updateButton.disabled = true;
+    updateButton.textContent = 'Mise à jour lancée, en attente du redémarrage...';
+    showGlobalStatus('Mise à jour en cours... Le serveur va redémarrer.', 'loading');
+
+    const overlay = document.createElement('div');
+    overlay.id = 'update-overlay';
+    Object.assign(overlay.style, {
+        position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: '9998', cursor: 'wait'
+    });
+    document.body.appendChild(overlay);
+
+    // Lancer la mise à jour sans attendre la réponse
+    fetch('/api/update', { method: 'POST' });
+
+    // Démarrer la boucle de vérification
+    const maxAttempts = 12; // 12 tentatives * 5 secondes = 60 secondes max
+    let attempt = 0;
+
+    const poll = setInterval(async () => {
+        attempt++;
+        updateButton.textContent = `Vérification du redémarrage... (${attempt}/${maxAttempts})`;
+
+        if (attempt >= maxAttempts) {
+            clearInterval(poll);
+            showGlobalStatus('La mise à jour a expiré. Le serveur n\'a peut-être pas redémarré correctement.', 'error');
+            updateButton.textContent = 'La mise à jour a échoué';
+            document.body.removeChild(overlay);
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/health', { cache: 'no-cache' });
+            if (response.ok) {
+                const healthData = await response.json();
+                if (healthData.version && healthData.version !== localVersion) {
+                    clearInterval(poll);
+                    showGlobalStatus(`Mise à jour vers la version ${healthData.version} réussie ! Rechargement...`, 'success');
+                    updateButton.textContent = 'Mise à jour terminée !';
+                    setTimeout(() => window.location.reload(), 2000);
+                }
+                // Si la version est la même, on continue de boucler
+            }
+            // Si response.ok est faux (ex: 502 Bad Gateway pendant le redémarrage), on continue de boucler
+        } catch (error) {
+            // Erreur réseau, le serveur est probablement en train de redémarrer, on continue de boucler
+            console.warn(`Tentative de vérification ${attempt} échouée (normal pendant le redémarrage):`, error.message);
+        }
+    }, 5000);
+}
+
 async function handleVerifyUpdate(event) {
     const button = event.target;
-    const localVersion = document.getElementById('version').textContent;
 
     button.disabled = true;
     button.innerHTML = '<div class="spinner" style="display: inline-block; margin-right: 8px;"></div>Vérification...';
@@ -91,6 +148,7 @@ async function handleVerifyUpdate(event) {
 
         const remotePackage = await response.json();
         const remoteVersion = remotePackage.version;
+        const localVersion = document.getElementById('version').textContent;
 
         if (remoteVersion > localVersion) {
             button.innerHTML = `<img src="svg/access-control.svg" title="authentification requise!" class="access-control-icon">Nouvelle version disponible : V${remoteVersion} => Mettre à jour maintenant !`;
@@ -103,18 +161,6 @@ async function handleVerifyUpdate(event) {
     } finally {
         button.disabled = false;
     }
-}
-
-async function handleApplyUpdate() {
-    if (!confirm("Êtes-vous sûr de vouloir lancer la mise à jour ? Le serveur redémarrera.")) return;
-
-    showGlobalStatus('Lancement de la mise à jour...', 'loading');
-    document.getElementById('verify-update-btn').disabled = true;
-    document.getElementById('verify-update-btn').textContent = 'Mise à jour en cours...';
-
-    await fetch('/api/update', { method: 'POST' });
-    showGlobalStatus('La mise à jour a été lancée. La page va se recharger...', 'success');
-    setTimeout(() => window.location.reload(), 5000); // Recharger la page après un délai
 }
 
 function displayInfluxForm(settings) {
