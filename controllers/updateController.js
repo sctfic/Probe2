@@ -2,6 +2,7 @@
 const axios = require('axios');
 const AdmZip = require('adm-zip');
 const fs = require('fs-extra');
+const { exec } = require('child_process');
 const path = require('path');
 const { V } = require('../utils/icons');
 
@@ -72,11 +73,29 @@ exports.applyUpdate = async (req, res) => {
         console.log(`${V.trash} Nettoyage du répertoire temporaire...`);
         await fs.remove(TEMP_DIR);
 
-        console.log(`${V.StartFlag} Mise à jour terminée. PM2 devrait redémarrer l'application.`);
-        
-        // Le serveur sera redémarré par PM2, donc pas de réponse à envoyer ici.
-        // Si PM2 n'est pas utilisé, il faudrait le redémarrer manuellement.
-        // Par exemple : process.exit(1);
+        console.log(`${V.StartFlag} Mise à jour des fichiers terminée. Lancement de l'installation des dépendances...`);
+
+        // 6. Exécuter npm install, puis redémarrer PM2
+        // On exécute ces commandes dans le répertoire racine du projet.
+        exec('npm install', { cwd: ROOT_DIR }, (npmError, npmStdout, npmStderr) => {
+            if (npmError) {
+                console.error(`${V.error} Erreur lors de 'npm install':`, npmError);
+                console.error(`npm stderr: ${npmStderr}`);
+                // Même en cas d'erreur npm, on tente de redémarrer pour appliquer les autres changements.
+            }
+            console.log(`${V.Check} 'npm install' terminé.`);
+            console.log(`npm stdout: ${npmStdout}`);
+
+            console.log(`${V.restart} Redémarrage de l'application via PM2...`);
+            // Utiliser 'restart' est plus sûr que 'stop' puis 'start' depuis le script lui-même.
+            // PM2 gérera le redémarrage de l'application.
+            exec(`pm2 restart ecosystem.config.js`, { cwd: ROOT_DIR }, (pm2Error, pm2Stdout, pm2Stderr) => {
+                if (pm2Error) {
+                    console.error(`${V.error} Erreur lors du redémarrage avec PM2:`, pm2Error);
+                    console.error(`pm2 stderr: ${pm2Stderr}`);
+                }
+            });
+        });
 
     } catch (error) {
         console.error(`${V.error} Le processus de mise à jour a échoué :`, error.message);

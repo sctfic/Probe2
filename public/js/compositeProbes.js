@@ -228,7 +228,7 @@ function createProbeItemHTML(probeKey, probeData, isOpen = false) {
                     </div>
                     <div class="settings-actions">
                         <button type="submit">
-                            <img src="svg/access-control.svg" class="access-control-icon">Enregistrer
+                            <img src="svg/access-control.svg" title="authentification requise!" class="access-control-icon">Enregistrer
                         </button>
                     </div>
                 </form>

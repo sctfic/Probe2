@@ -1,6 +1,6 @@
 {
   "name": "probe2-api",
-  "version": "0.2.32",
+  "version": "0.2.35",
   "description": "API pour récupérer des informations sur l'application Probe2",
   "main": "app.js",
   "scripts": {
@@ -21,6 +21,7 @@
     "adm-zip": "^0.5.16",
     "axios": "^1.12.2",
     "bcrypt": "^6.0.0",
+    "child_process": "^1.0.2",
     "crc": "^4.3.2",
     "date-fns-tz": "^3.2.0",
     "express": "^5.1.0",

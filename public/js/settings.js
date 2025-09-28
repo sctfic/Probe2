@@ -93,7 +93,7 @@ async function handleVerifyUpdate(event) {
         const remoteVersion = remotePackage.version;
 
         if (remoteVersion > localVersion) {
-            button.textContent = `<img src="svg/access-control.svg" class="access-control-icon">Nouvelle version disponible : V${remoteVersion} => Mettre à jour maintenant !`;
+            button.innerHTML = `<img src="svg/access-control.svg" title="authentification requise!" class="access-control-icon">Nouvelle version disponible : V${remoteVersion} => Mettre à jour maintenant !`;
             button.onclick = handleApplyUpdate;
         } else {
             button.textContent = 'À jour';
@@ -133,7 +133,7 @@ function displayInfluxForm(settings) {
             </div>
                 <div class="settings-actions">
                     <button type="submit">
-                        <img src="svg/access-control.svg" class="access-control-icon">Enregistrer la configuration InfluxDB
+                        <img src="svg/access-control.svg" title="authentification requise!" class="access-control-icon">Enregistrer la configuration InfluxDB
                     </button>
                 </div>
             </form>
@@ -198,7 +198,7 @@ function displayUnitsForm(settings) {
         <div class="settings-actions">
             <button type="button" class="btn-secondary" id="reset-units-preferences">Réinitialiser les unités</button>
             <button type="submit">
-                <img src="svg/access-control.svg" class="access-control-icon">Enregistrer les unités
+                <img src="svg/access-control.svg" title="authentification requise!" class="access-control-icon">Enregistrer les unités
             </button>
         </div>
     </form>

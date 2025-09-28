@@ -78,7 +78,7 @@ function displaySettingsForm() {
         <div class="settings-actions">
             <button type="button" class="btn-secondary" id="reset-settings">Annuler</button>
             <button type="submit">
-                <img src="svg/access-control.svg" class="access-control-icon">Enregistrer
+                <img src="svg/access-control.svg" title="authentification requise!" class="access-control-icon">Enregistrer
             </button>
         </div>
     </form>
