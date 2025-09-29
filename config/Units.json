@@ -96,7 +96,7 @@
     "direction": {
         "title": "Direction",
         "description": "Unités de mesure de la direction cardinales",
-        "user": "°",
+        "user": "cardinal",
         "metric": "°",
         "available_units": {
             "°": {
@@ -231,7 +231,7 @@
             },
             "min": {
                 "title": "temps d'exposition avant brulure",
-                "fnFromMetric": "(uv, dem=32) => Number(Math.min(180, dem*6.5/((uv*Math.exp(uv/dem)))).toFixed(0))",
+                "fnFromMetric": "(uv, dem=32) => Number(Math.min(300, dem*6.5/((uv*Math.exp(uv/dem)))).toFixed(0))",
                 "skin": 2
             }
         },

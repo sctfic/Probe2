@@ -47,6 +47,7 @@ function createPlot(data, metadata, id, period) {
     }
 
     try {
+        // console.log(metadata, chartDiv.clientWidth, chartDiv.clientHeight);
         const plot = Plot.plot({
             width: chartDiv.clientWidth,
             height: chartDiv.clientHeight || 100,

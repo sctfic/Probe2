@@ -59,8 +59,12 @@ function mergeData(data) {
         }
     }
     if (data.data['stormRain']) {
-        data.data.stormRain.more = data.data.dateStormRain?.Value.split('T')[0];
-        delete data.data.dateStormRain;
+        if (data.data.dateStormRain){
+            data.data.stormRain.more = data.data.dateStormRain?.Value.split('T')[0];
+            delete data.data.dateStormRain;
+        } else {
+            delete data.data.stormRain;
+        }
     }
     return data;
 }
@@ -372,6 +376,8 @@ function updateExistingTile(tileElement, item) {
                 </div>
             `;
         }
+        console.warn(item);
+        if (item.userUnit === "cardinal" ) unitDisplay = '';
     }
 }
 
@@ -598,8 +604,9 @@ function createConditionTileHTML(item) {
                     style="transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${windDirection}deg)">
             </div>
         `;
-        unitDisplay = '';
-    } else if (item.unit === 'dateStormRain' || item.unit === 'iso8601' || item.userUnit === 'cardinal'){
+        console.log(item);
+        if (item.userUnit === "cardinal" ) unitDisplay = '';
+    } else if (item.unit === 'dateStormRain' || item.unit === 'iso8601'){
         unitDisplay = '';
     } else if (item.key === 'batteryVoltage') {
         // Cas spécial pour la batterie avec niveau
@@ -642,8 +649,8 @@ function getStartDate (period){
     let date;
     if (period === 'dateStormRain') {
         const str = currentConditionsData.stormRain?.more;
-        console.log(str);
         date = new Date((new Date(`${str}T00:00:00.000Z`)).getTime());
+        console.log(str, date);
     } else {
         if(typeof period === 'string'){
             const P = eval(period.replace('w', '*24*60*60*7').replace('d', '*24*60*60').replace('h', '*60*60').replace('m', '*60'));

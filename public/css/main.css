@@ -1721,7 +1721,7 @@ input:checked+.slider:before {
    1. Generic & Shared Styles
    --------------------------- */
 .nav-icon {
-    color: #eee; /* Couleur grise par défaut pour les icônes */
+    /* color: #eee; /* Couleur grise par défaut pour les icônes */
     width: 32px;
     height: 32px;
     vertical-align: middle;

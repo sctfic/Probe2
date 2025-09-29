@@ -312,7 +312,7 @@ exports.getAllStations = async (req, res) => {
 
 exports.getHealth = (req, res) => {
     try {
-        console.log(`${V.heart} Check de santé de l'application`);
+        console.log(`${V.eye} Check de santé de l'application`);
         
         const allConfigs = configManager.loadAllConfigs();
         const stationsList = Object.keys(allConfigs);

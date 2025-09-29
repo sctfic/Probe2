@@ -25,7 +25,7 @@ const ITEMS_TO_UPDATE = [
 ];
 
 exports.applyUpdate = async (req, res) => {
-    console.log(`${V.download} Lancement du processus de mise à jour...`);
+    console.log(`${V.receive} Lancement du processus de mise à jour...`);
     res.status(202).json({ success: true, message: 'Mise à jour lancée. Le serveur va redémarrer si des changements sont appliqués.' });
 
     try {
@@ -35,7 +35,7 @@ exports.applyUpdate = async (req, res) => {
         console.log(`${V.info} Répertoire temporaire créé : ${TEMP_DIR}`);
 
         // 2. Télécharger le zip
-        console.log(`${V.download} Téléchargement de la mise à jour depuis ${UPDATE_URL}`);
+        console.log(`${V.receive} Téléchargement de la mise à jour depuis ${UPDATE_URL}`);
         const response = await axios({
             url: UPDATE_URL,
             method: 'GET',
@@ -86,7 +86,7 @@ exports.applyUpdate = async (req, res) => {
             console.log(`${V.Check} 'npm install' terminé.`);
             console.log(`npm stdout: ${npmStdout}`);
 
-            console.log(`${V.restart} Redémarrage de l'application via PM2...`);
+            console.log(`${V.cpu} Redémarrage de l'application via PM2...`);
             // Utiliser 'restart' est plus sûr que 'stop' puis 'start' depuis le script lui-même.
             // PM2 gérera le redémarrage de l'application.
             exec(`pm2 restart ecosystem.config.js`, { cwd: ROOT_DIR }, (pm2Error, pm2Stdout, pm2Stderr) => {

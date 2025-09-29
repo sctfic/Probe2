@@ -206,18 +206,27 @@ function displayUnitsForm(settings) {
         currentSkinType = settings.uv.available_units.min.skin;
     }
 
-    // Grouper les catégories par type
     const groupedCategories = {
-        'Conditions Météorologiques': ['temperature', 'humidity', 'pressure'],
-        'Vent et Direction': ['speed', 'direction'],
-        'Précipitations': ['rain', 'rainRate'],
-        'Rayonnement': ['uv', 'powerRadiation'],
-        'Système': ['battery', 'date', 'time']
+        'Unités Météorologiques': ['temperature', 'humidity', 'pressure'],
+        'Unités Vent et Direction': ['speed', 'direction'],
+        'Unités Précipitations': ['rain', 'rainRate'],
+        'Unités Rayonnement': ['uv', 'powerRadiation'],
+        'Unités Système': ['battery', 'date', 'time'],
+        'Unités Supplémentaires': [] // Sera peuplé dynamiquement
     };
+
+    // Récupérer toutes les clés d'unités déjà catégorisées
+    const categorizedKeys = new Set(Object.values(groupedCategories).flat());
+
+    // Trouver les clés qui ne sont dans aucune catégorie prédéfinie et les ajouter aux unités supplémentaires
+    Object.keys(settings).forEach(key => {
+        if (!categorizedKeys.has(key)) {
+            groupedCategories['Unités Supplémentaires'].push(key);
+        }
+    });
 
     let formHTML = `
     <div class="settings-group">
-        <h3>Configuration des Unités de Mesure</h3>
         <form id="units-preferences-form" class="settings-form">
     `;
     
