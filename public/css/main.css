@@ -8,10 +8,13 @@ body {
     font-family: Arial,sans-serif;
     margin: 0;
     padding: 0;
-    background-color: var(--background-white);
+    background-color: #fff;
     color: var(--primary-dark);
     width: 100%;
-    overflow-x: hidden
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh
 }
 
 .navbar {
@@ -20,10 +23,7 @@ body {
     align-items: center;
     background-color: var(--primary-dark);
     padding: 5px 10px 5px 20px;
-    color: var(--background-white);
-    position: fixed;
-    position: absolute;
-    top: 0;
+    color: #fff;
     width: 100%;
     box-sizing: border-box;
     z-index: 1000
@@ -71,9 +71,6 @@ body {
 .station-selector {
     background-color: var(--accent-blue);
     padding: 10px 20px;
-    position: fixed;
-    position: absolute;
-    top: 50px;
     width: 100%;
     box-sizing: border-box;
     z-index: 900;
@@ -104,9 +101,9 @@ body {
     display: flex;
     width: 400vw;
     transform: translateX(0);
-    transition: transform 0.3s ease-out;
-    padding-top: 110px;
-    padding-bottom: 80px; /* Espace pour le footer et éviter que le dernier contenu soit masqué */
+    transition: transform .3s ease-out;
+    flex: 1;
+    overflow-y: auto
 }
 
 .content-section {
@@ -347,15 +344,12 @@ label {
 }
 
 .footer {
-    background-color: #dc3545; /* Couleur rouge pour le bandeau */
+    background-color: var(--primary-dark); /* Couleur rouge pour le bandeau */
     color: white;
-    position: fixed; /* Use fixed to keep it at the bottom, removed duplicate 'absolute' */
-    bottom: 0vw;
-    left: 0vw;
     width: 100vw;
     height: 40px;
     z-index: 1100; /* Augmenté pour être au-dessus du contenu principal */
-    box-shadow: 0 -2px 4px rgba(0,0,0,.1);
+    box-shadow: 0 -2px 4px rgba(0,0,0,.1); /* Transition pour hauteur et transformation */
     transition: all .4s ease-in-out; /* Transition pour hauteur et transformation */
     display: flex;
     flex-direction: column;

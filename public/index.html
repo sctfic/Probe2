@@ -108,7 +108,6 @@
         </div>
     </nav>
 </header>
-
 <!-- Sélecteur global de station -->
 <div class="station-selector">
     <div class="station-selector-container">
@@ -261,6 +260,8 @@
         </div>
     </div>
 <main id="content-container" class="content-container">
+    
+
     <section id="dashboard-section" class="content-section active">
         <!-- Contrôles de filtre réorganisés -->
         <div class="conditions-controls">
@@ -679,14 +680,18 @@
             const stationSelectorDiv = document.querySelector('.station-selector');
             const activeSectionId = sections[currentIndex].id;
 
-            if (activeSectionId === 'compositeProbes-section' || activeSectionId === 'settings-section') {
-                stationSelectorDiv.style.display = 'none';
-                contentContainer.style.paddingTop = '60px'; // Hauteur de la navbar uniquement
-                contentContainer.style.height = 'calc(100vh - 100px)'; // 60px navbar + 40px footer
+            const isDashboard = activeSectionId === 'dashboard-section';
+            stationSelectorDiv.style.display = (activeSectionId === 'compositeProbes-section' || activeSectionId === 'settings-section') ? 'none' : 'flex';
+
+            // Gérer la visibilité du footer de détails
+            if (!isDashboard) {
+                hideDetailsFooter();
             } else {
-                stationSelectorDiv.style.display = 'flex';
-                contentContainer.style.paddingTop = '110px'; // Hauteur navbar + sélecteur
-                contentContainer.style.height = 'calc(100vh - 150px)'; // 110px header + 40px footer
+                // Si on revient sur le dashboard et qu'il y a une sélection, on réaffiche le graphe
+                if (typeof selectedTiles !== 'undefined' && selectedTiles.size > 0) {
+                    console.log('showDetailsFooter', selectedTiles);
+                    showDetailsFooter([...selectedTiles]);
+                }
             }
 
             if (doRefresh) {

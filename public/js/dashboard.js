@@ -943,7 +943,7 @@ function hideDetailsFooter() {
 
     // Fonction pour nettoyer le contenu
     const cleanup = () => {
-        contentContainer.innerHTML = '';
+        // contentContainer.innerHTML = '';
         detailsFooter.removeEventListener('transitionend', cleanup);
     }
 
@@ -966,6 +966,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearSelection = () => {
         document.querySelectorAll('.condition-tile.selected').forEach(t => t.classList.remove('selected'));
         selectedTiles.clear();
+        hideDetailsFooter();
     };
 
     const hideContextMenu = () => {
@@ -1002,17 +1003,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Met à jour le graphique avec la nouvelle sélection
                 showDetailsFooter([...selectedTiles]);
             }
-
         } else {
+            console.log('selectedTiles', selectedTiles);
             const key = tile.dataset.key;
+            console.log('key', key);
             const item = allConditions.find(c => c.key === key);
-
+            console.log('item', item);
             if (item && item.sensorDb) {
-                // Un clic simple désélectionne tout, puis sélectionne l'élément cliqué.
-                clearSelection();
-                selectedTiles.add(key);
-                tile.classList.add('selected');
-                showDetailsFooter(key);
+                console.log(selectedTiles.size);
+                if (tile.classList.contains('selected') && selectedTiles.size === 1) {
+                    clearSelection();
+                } else {
+                    clearSelection();
+                    selectedTiles.add(key);
+                    tile.classList.add('selected');
+                    showDetailsFooter(key);
+                }
             }
         }
     };
@@ -1114,6 +1120,16 @@ document.addEventListener('DOMContentLoaded', () => {
         viewAllBtn.addEventListener('click', showAllTilesAndClearFilter);
     }
 
-    window.addEventListener('click', () => hideContextMenu());
-    document.addEventListener('keydown', (e) => e.key === 'Escape' && (clearSelection(), hideContextMenu()));
+    window.addEventListener('click', (event) => {
+        // Cacher le menu contextuel si on clique ailleurs
+        if (!contextMenu.contains(event.target)) {
+            hideContextMenu();
+        }
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            clearSelection();
+            hideContextMenu();
+        }
+    });
 });

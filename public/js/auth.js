@@ -13,7 +13,7 @@ const loginForm = document.getElementById('login-form');
 const passwordForm = document.getElementById('password-form');
 
 function showLoginModal() {
-    authModal.style.display = 'flex';
+    authModal.style.display = 'block';
     document.getElementById('auth-password').focus();
 }
 
@@ -35,7 +35,7 @@ function showPasswordModal(isInitialSetup = false) {
         oldPasswordGroup.style.display = 'block';
     }
     
-    passwordModal.style.display = 'flex';
+    passwordModal.style.display = 'block';
     document.getElementById('new-password').focus();
 }
 
