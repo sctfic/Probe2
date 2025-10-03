@@ -613,17 +613,17 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
     const day = effectiveStartDate.getDate();
     const hours = effectiveStartDate.getHours();
     const minutes = effectiveStartDate.getMinutes();
-// console.log(O.RED, year, month, day, hours, minutes);
+console.log(O.RED, year, month, day, hours, minutes);
     const dateStamp = (year - 2000) * 512 + month * 32 + day;
-    const timeStamp = (hours) * 100 + minutes - 5; // -1 pour test
-// console.log(O.RED, dateStamp, timeStamp);
+    const timeStamp = (hours) * 100 + minutes; // -1 pour test
+console.log(O.RED, dateStamp, timeStamp);
     const datePayload = Buffer.from([ dateStamp & 0xFF, dateStamp >> 8, timeStamp & 0xFF, timeStamp >> 8]);
     
     const dateCrc = calculateCRC(datePayload);
     const dateCrcBytes = Buffer.from([dateCrc >> 8, dateCrc & 0xFF]);
     const fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
     
-// console.log(O.RED, dateStamp, timeStamp, datePayload, dateCrcBytes, fullPayload, fullPayload.toString('hex'), fullPayload.toString('binary')); // 13123 2100 <Buffer 43 33 34 08> 8684
+console.log(O.RED, dateStamp, timeStamp, datePayload, dateCrcBytes, fullPayload, fullPayload.toString('hex'), fullPayload.toString('binary')); // 13123 2100 <Buffer 43 33 34 08> 8684
     // on envoit la date de la 1er archive souhaitée
     const pageInfo = await sendCommand(req, stationConfig, fullPayload, 3000, "<ACK>4<CRC>");
     const numberOfPages = pageInfo.readUInt16LE(0);
@@ -645,7 +645,7 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
     for (let i = 0; i < numberOfPages && i < 50; i++) {
 
         // on envoit l'ACK, demande de la suivante
-        const pageData = await sendCommand(req, stationConfig, ACK, 3000, "265<CRC>");
+        const pageData = await sendCommand(req, stationConfig, ACK, 2000, "265<CRC>");
         const pageNumber = pageData.readUInt8(0);
         const pageDataOnly = pageData.slice(1, pageData.length-4);
         
