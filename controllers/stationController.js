@@ -196,7 +196,7 @@ exports.getArchiveData = async (req, res) => {
         const stationConfig = req.stationConfig;
         console.log(`${V.Parabol} Demande de données d'archive pour la station ${stationConfig.id}`);
             
-        const endDate = new Date((await queryDateRange(stationConfig.id)).lastUtc).toLocaleString();
+        const endDate = (await queryDateRange(stationConfig.id)).lastUtc;
         const archiveData = await stationService.downloadArchiveData(req, stationConfig, endDate);
         
         res.json({
@@ -223,7 +223,6 @@ exports.syncSettings = async (req, res) => {
         
         const result = await stationService.syncStationSettings(req, stationConfig);
 
-        
         res.json({
             success: true,
             stationId: stationConfig.id,

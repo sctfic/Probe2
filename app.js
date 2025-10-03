@@ -121,7 +121,6 @@ app.listen(PORT, () => {
     // Planification dynamique de la collecte pour chaque station
     console.log(`${V.info} [CRON] Initialisation des tâches de collecte planifiées...`);
     const stations = configManager.listStations();
-    console.log(stations);
     stations.forEach((station) => {
         const stationConfig = configManager.loadConfig(station);
         const cronIntervale = stationConfig.cron.value;
@@ -136,7 +135,7 @@ app.listen(PORT, () => {
         }
 
         let cronPattern;
-        cronIntervale / 60 < 1 ? cronPattern = `15 1-59/${cronIntervale} * * * *` : cronPattern = `15 1 */${Math.round(cronIntervale/60)} * * *`;
+        cronIntervale / 60 < 1 ? cronPattern = `6 1-59/${cronIntervale} * * * *` : cronPattern = `15 1 */${Math.round(cronIntervale/60)} * * *`;
 
         cron.schedule(cronPattern, async () => {
             const url = `http://localhost:${PORT}/api/station/${stationConfig.id}/collect`;

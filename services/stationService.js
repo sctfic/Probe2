@@ -442,7 +442,7 @@ async function syncStationSettings(req, stationConfig) {
         if (changesMade) {
             console.log(`${V.memory} Application des changements avec NEWSETUP...`);
             await sendCommand(req, stationConfig, 'NEWSETUP', 2000, "<ACK>");
-            
+            // updateStationTime(req, stationConfig);
             configManager.saveConfig(stationId, stationConfig);
             
             console.log(`${V.Check} Synchronisation terminée avec succès pour ${stationId}`);
@@ -595,23 +595,24 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
 
 async function downloadArchiveData(req, stationConfig, startDate, res) {
     let effectiveStartDate;
-    if (startDate) {
+    if (startDate) { // 02/10/2025 22:05:00
         effectiveStartDate = new Date(startDate);
-    // } else if (stationConfig.lastArchiveDate) {
-        // effectiveStartDate = new Date(stationConfig.lastArchiveDate);
-        // effectiveStartDate.setMinutes(effectiveStartDate.getMinutes());
+
+    console.log(`${V.info} Demande de données d'archive pour la station ${stationConfig.id} depuis le ${effectiveStartDate}`);
+
     } else {
-        effectiveStartDate = (new Date(new Date().getTime() - 4 * 24 * 60 * 60 * 1000));
+        effectiveStartDate = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
     }
-    
     await sendCommand(req, stationConfig, 'DMPAFT', 2000, "<ACK>");
 
-    const year = effectiveStartDate.getUTCFullYear();
-    const month = effectiveStartDate.getUTCMonth() + 1;
-    const day = effectiveStartDate.getUTCDate();
+
+    const year = effectiveStartDate.getFullYear();
+    const month = effectiveStartDate.getMonth() + 1;
+    const day = effectiveStartDate.getDate();
+    const hours = effectiveStartDate.getHours();
+    const minutes = effectiveStartDate.getMinutes();
+
     const dateStamp = (year - 2000) * 512 + month * 32 + day;
-    const hours = effectiveStartDate.getUTCHours();
-    const minutes = effectiveStartDate.getUTCMinutes();
     const timeStamp = hours * 100 + minutes;
 
     const datePayload = Buffer.from([ dateStamp & 0xFF, dateStamp >> 8, timeStamp & 0xFF, timeStamp >> 8]);
@@ -619,9 +620,10 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
     const dateCrc = calculateCRC(datePayload);
     const dateCrcBytes = Buffer.from([dateCrc >> 8, dateCrc & 0xFF]);
     const fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
+    console.log(V.info, stationConfig.id,'recuperation a partir du', startDate, effectiveStartDate, year, month, day, hours, minutes, '=>', dateStamp, timeStamp);
 
     // on envoit la date de la 1er archive souhaitée
-    const pageInfo = await sendCommand(req, stationConfig, fullPayload, 2000, "<ACK>4<CRC>");
+    const pageInfo = await sendCommand(req, stationConfig, fullPayload, 3000, "<ACK>4<CRC>");
     const numberOfPages = pageInfo.readUInt16LE(0);
     let firstReccord = pageInfo.readUInt8(2);
     console.log(`${V.books} ${numberOfPages} pages d'archives`, `${V.book} debute au ${firstReccord}ieme enregistrement de la 1er page`);
