@@ -46,7 +46,7 @@ async function updateStationTime(req, stationConfig) {
 
     const VP2DateTime = await getVp2DateTime(req, stationConfig);
 
-    if (stationConfig.deltaTimeSeconds <= 1) {
+    if (stationConfig.deltaTimeSeconds <= 5) {
         console.log(`${V.clock} Décalage de ${stationConfig.deltaTimeSeconds.toFixed(2)} sec. L'heure est déjà synchronisée. ${V.Check}`);
         return {
             status: 'unchanged',

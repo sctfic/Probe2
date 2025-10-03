@@ -77,6 +77,9 @@ function displaySettingsForm() {
     formHTML += `
         <div class="settings-actions">
             <button type="button" class="btn-secondary" id="reset-settings">Annuler</button>
+            <button type="button" class="btn-primary" id="sync-time-btn">
+                <img src="svg/access-control.svg" title="authentification requise!" class="access-control-icon">Synchroniser l'horloge
+            </button>
             <button type="submit">
                 <img src="svg/access-control.svg" title="authentification requise!" class="access-control-icon">Enregistrer
             </button>
@@ -88,6 +91,7 @@ function displaySettingsForm() {
 
     const form = document.getElementById('station-settings-form');
     const resetBtn = document.getElementById('reset-settings');
+    const syncTimeBtn = document.getElementById('sync-time-btn');
 
     if (form) {
         form.addEventListener('submit', handleSettingsSubmit);
@@ -96,6 +100,28 @@ function displaySettingsForm() {
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
             displaySettingsForm();
+        });
+    }
+
+    if (syncTimeBtn) {
+        syncTimeBtn.addEventListener('click', async () => {
+            if (!selectedStation) return;
+            showGlobalStatus('Synchronisation de l\'horloge...', 'loading');
+            syncTimeBtn.disabled = true;
+            try {
+                const datetimeResponse = await fetch(`/api/station/${selectedStation.id}/update-datetime`);
+                const datetimeResult = await datetimeResponse.json();
+                if (datetimeResult.success) {
+                    showGlobalStatus(`Horloge synchronisée: ${datetimeResult.message}`, 'success');
+                } else {
+                    throw new Error(datetimeResult.error || 'Erreur inconnue lors de la synchronisation de l\'horloge.');
+                }
+            } catch (error) {
+                console.error('Erreur lors de la synchronisation de l\'horloge:', error);
+                showGlobalStatus(`Erreur de synchronisation de l'horloge: ${error.message}`, 'error');
+            } finally {
+                syncTimeBtn.disabled = false;
+            }
         });
     }
 
@@ -330,14 +356,6 @@ async function handleSettingsSubmit(e) {
         const syncResult = await syncResponse.json();
         if (!syncResult.success) {
             console.warn('Avertissement synchronisation:', syncResult.message || 'Erreur inconnue');
-        }
-
-        showGlobalStatus('Mise à jour de la date/heure...', 'loading');
-
-        const datetimeResponse = await fetch(`/api/station/${selectedStation.id}/update-datetime`);
-        const datetimeResult = await datetimeResponse.json();
-        if (!datetimeResult.success) {
-            console.warn('Avertissement mise à jour date/heure:', datetimeResult.message || 'Erreur inconnue');
         }
 
         showGlobalStatus('Paramètres sauvegardés et synchronisés avec succès', 'success');
