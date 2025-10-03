@@ -314,26 +314,18 @@ async function sendCommand(req, stationConfig, command, timeout = 2000, answerFo
 async function wakeUpConsole(req, stationConfig, screen = null) {
     let attempts = 0;
     const maxAttempts = 3;
+    const ESC_LF = Buffer.from([0x1B, 0x0A]);
     
     while (attempts < maxAttempts) {
         attempts++;
         console.log(V.sleep,'try wakeUp', stationConfig.id)
         try {
-            const ESC_LF = Buffer.from([0x1B, 0x0A]);
             
             const response = await sendCommand(req, stationConfig, ESC_LF, 1200, "2");
             
             if (response.toString('hex') === '0a0d') {
-                if (screen === true) {
-                    await sendCommand(req, stationConfig, `LAMPS 1`, 1200, "<LF><CR>OK<LF><CR>");
-                    console.log(`${O.yellow} ${stationConfig.id} - Screen ON`);
-                } else if (screen === false) {
-                    await sendCommand(req, stationConfig, `LAMPS 0`, 1200, "<LF><CR>OK<LF><CR>");
-                    console.log(`${O.black} ${stationConfig.id} - Screen OFF`);
-                } else {
-                    console.log(`${O.purple} ${stationConfig.id} - WakeUp!`);
-                }
-                return;
+
+                return true;
             } else {
                 console.warn(`${V.sleep} Unexpected wakeup response: ${response.toString('hex')}`);
             }

@@ -403,7 +403,7 @@ async function syncStationSettings(req, stationConfig) {
         }
         
         const requiredChanges = identifyRequiredChanges(currentSettings, stationConfig);
-        console.log(V.Warn, requiredChanges, requiredChanges.length);
+        // console.log(V.Warn, requiredChanges, requiredChanges.length);
         if (requiredChanges.length === 0) {
             console.log(`${V.Check} Aucun changement nécessaire pour ${stationId}`);
             return {
@@ -595,13 +595,18 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
 
 async function downloadArchiveData(req, stationConfig, startDate, res) {
     let effectiveStartDate;
+    const ACK = Buffer.from([0x06]);
+    const NAK = Buffer.from([0x21]);
+    const ESC = Buffer.from([0x1B]);
+    const ESC_LF = Buffer.from([0x1B, 0x0A]);
+
     if (startDate) { // 02/10/2025 22:05:00
         effectiveStartDate = new Date(startDate);
     } else {
         effectiveStartDate = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
     }
+    console.log(V.StartFlag, 'date UTC de la derniere archive :', effectiveStartDate)
     await sendCommand(req, stationConfig, 'DMPAFT', 2000, "<ACK>");
-
 
     const year = effectiveStartDate.getFullYear();
     const month = effectiveStartDate.getMonth() + 1;
@@ -610,14 +615,15 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
     const minutes = effectiveStartDate.getMinutes();
 
     const dateStamp = (year - 2000) * 512 + month * 32 + day;
-    const timeStamp = hours * 100 + minutes;
-
+    const timeStamp = (hours) * 100 + minutes - 5; // -1 pour test
+    
     const datePayload = Buffer.from([ dateStamp & 0xFF, dateStamp >> 8, timeStamp & 0xFF, timeStamp >> 8]);
-
+    
     const dateCrc = calculateCRC(datePayload);
     const dateCrcBytes = Buffer.from([dateCrc >> 8, dateCrc & 0xFF]);
     const fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
-
+    
+    // console.log(dateStamp, timeStamp, datePayload, dateCrc); // 13123 2100 <Buffer 43 33 34 08> 8684
     // on envoit la date de la 1er archive souhaitée
     const pageInfo = await sendCommand(req, stationConfig, fullPayload, 3000, "<ACK>4<CRC>");
     const numberOfPages = pageInfo.readUInt16LE(0);
@@ -633,11 +639,11 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
     //     }
     // };
     // sendProgress(0, numberOfPages);
-
     const allRecords = {};
+
     // on se limite a 50 archives a la fois pour laisser la station aquerir les nouvelles données
     for (let i = 0; i < numberOfPages && i < 50; i++) {
-        const ACK = Buffer.from([0x06]);
+
         // on envoit l'ACK, demande de la suivante
         const pageData = await sendCommand(req, stationConfig, ACK, 3000, "265<CRC>");
         const pageNumber = pageData.readUInt8(0);
@@ -652,7 +658,7 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
                 const nativetime = convertRawValue2NativeValue( parsedRecord.time.value, 'time', null);
                 const datetime = conversionTable.date.iso8601(nativedate) + conversionTable.time.iso8601(nativetime);
 
-                if (stationConfig.lastArchiveDate === null || (new Date(datetime)) > (new Date(stationConfig.lastArchiveDate))) {
+                if ( (new Date(datetime)) > effectiveStartDate) {
                     allRecords[datetime] = processedData;
                     const WriteToDB = await writeArchiveToInfluxDB(processedData, new Date(datetime), stationConfig.id);
                     if (WriteToDB){
@@ -670,7 +676,7 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
         firstReccord = 0;
         // sendProgress(i+1, numberOfPages);
     }
-    
+    await sendCommand(req, stationConfig, ESC_LF, 1200, "2");
     return { status: 'success', message: `${Object.keys(allRecords).length} pages sur ${numberOfPages} archive téléchargées.`, data: allRecords };
 }
 

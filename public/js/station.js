@@ -1,4 +1,17 @@
 let currentStationSettings = null;
+/**
+ * Formate une durée en secondes au format HH:MM:SS.
+ * @param {number} totalSeconds - Le nombre total de secondes.
+ * @returns {string} La durée formatée.
+ */
+function formatDeltaTime(totalSeconds) {
+    if (totalSeconds === null || totalSeconds === undefined) return '';
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    const pad = (num) => String(num).padStart(2, '0');
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+}
 
 async function fetchStationSettings() {
     if (!selectedStation) {
@@ -92,6 +105,16 @@ function displaySettingsForm() {
     const form = document.getElementById('station-settings-form');
     const resetBtn = document.getElementById('reset-settings');
     const syncTimeBtn = document.getElementById('sync-time-btn');
+
+    if (currentStationSettings.deltaTimeSeconds !== null) {
+        const formattedDelta = formatDeltaTime(currentStationSettings.deltaTimeSeconds);
+        syncTimeBtn.title = `Synchroniser l'horloge (delta ${formattedDelta})`;
+    }
+
+    if (currentStationSettings.deltaTimeSeconds > 5) {
+        syncTimeBtn.classList.remove('btn-primary');
+        syncTimeBtn.classList.add('btn-danger');
+    }
 
     if (form) {
         form.addEventListener('submit', handleSettingsSubmit);

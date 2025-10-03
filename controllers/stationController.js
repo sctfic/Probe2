@@ -142,7 +142,6 @@ exports.getCurrentWeather = async (req, res) => {
 
     try {
         const weatherData = await stationService.getCurrentWeatherData(req, stationConfig);
-
         // Calculate and append composite probes
         const enrichedWeatherData = await calculateAndAppendcompositeProbes(weatherData, stationConfig);
         
@@ -198,7 +197,10 @@ exports.getArchiveData = async (req, res) => {
         console.log(`${V.Parabol} Demande de données d'archive pour la station ${stationConfig.id}`);
             
         const endDate = (await queryDateRange(stationConfig.id)).lastUtc;
+        
+        // <!> downloadArchiveData laisse un relica de socket
         const archiveData = await stationService.downloadArchiveData(req, stationConfig, endDate);
+        await stationService.getVp2DateTime(req, stationConfig);
         
         res.json({
             success: true,

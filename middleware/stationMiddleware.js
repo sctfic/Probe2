@@ -51,7 +51,11 @@ const talkStationWithLamp = (handler) => {
         let socketAcquired = false;
         try {
             // await getOrCreateSocket(req, stationConfig);
-            await wakeUpConsole(req, stationConfig, true);
+            const wakeUp = await wakeUpConsole(req, stationConfig, true);
+            if (wakeUp === true) {
+                await sendCommand(req, stationConfig, `LAMPS 1`, 1200, "<LF><CR>OK<LF><CR>");
+                console.log(`${O.yellow} ${stationConfig.id} - Screen ON`);
+            }
             socketAcquired = true;
             await handler(req, res); // The handler is now responsible for sending the response
         } catch (error) {
@@ -67,9 +71,8 @@ const talkStationWithLamp = (handler) => {
         } finally {
             if (socketAcquired) {
                 // Turn off the screen at the end
-                await wakeUpConsole(req, stationConfig, false).catch(err => {
-                    console.error(`${V.error} ${stationConfig.id} - Erreur LAMPS OFF: ${err.message}`);
-                });
+                await sendCommand(req, stationConfig, `LAMPS 0`, 1200, "<LF><CR>OK<LF><CR>");
+                console.log(`${O.black} ${stationConfig.id} - Screen OFF`);
             }
             // Clean up the socket if it exists
             if (req.weatherSocket && !req.weatherSocket.destroyed) {

@@ -38,7 +38,6 @@ async function getIntervalSeconds(stationId, sensorRef, startDate, endDate, step
     // 3. Calcule l'intervalle optimal
     const totalSeconds  = (endTime.getTime() - startTime.getTime()) / 1000;
     const interval = Math.max(1, Math.round(totalSeconds / parseInt(stepCount) / 300)*300);
-    console.log(interval);
     return {
         start: startTime.toISOString().replace('.000Z', 'Z'),
         end: endTime.toISOString().replace('.000Z', 'Z'),
@@ -469,8 +468,6 @@ exports.clearAllData = async (req, res) => {
         // const success = await influxdbService.clearBucket();
         // force lastArchiveDate au 01/08/2025 et enregistre la conig
         // req.params.stationId = 'VP2_Serramoune';
-        req.stationConfig.lastArchiveDate = '2025-08-25T00:00:00.000Z';
-        configManager.autoSaveConfig(stationId);
 
         if (success) {
             res.json({

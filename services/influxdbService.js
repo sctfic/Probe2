@@ -101,7 +101,8 @@ async function writePoints(points) {
  * @returns {Promise<Array>} Un tableau des résultats de la requête.
  */
 async function executeQuery(fluxQuery) {
-    console.log(`${V.info} Exécution de la requête Flux:\n${fluxQuery}`);
+    console.log(`${V.info} Exécution de la requête Flux...`);
+    // console.log(`${V.info} Exécution de la requête Flux:\n${fluxQuery}`);
     return new Promise((resolve, reject) => {
         const results = [];
         queryApi.queryRows(fluxQuery, {

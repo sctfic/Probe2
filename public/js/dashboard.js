@@ -167,11 +167,12 @@ function processAndDisplayConditions() {
 function applyCurrentFilter() {
     const filterText = document.getElementById('conditions-filter')?.value?.toLowerCase() || '';
     const tiles = document.querySelectorAll('.condition-tile');
-
+console.log(filterText);
     let visibleCount = 0;
 
     tiles.forEach(tile => {
         const conditionKey = tile.dataset.key;
+        // console.log(conditionKey, allConditions);
         const condition = allConditions.find(c => c.key === conditionKey);
 
         if (!condition) return;

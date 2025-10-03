@@ -37,7 +37,7 @@ router.get('/:stationId/composite-conditions/:sensors', compositeController.getc
 router.get('/:stationId', (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune
     try {
         const stationConfig = req.stationConfig;
-        console.log(`${V.info} Récupération de la configuration pour la station ${stationConfig.id}`);
+        console.log(`ℹ️ Récupération de la configuration pour la station ${stationConfig.id}`);
         
         res.json({
             success: true,
