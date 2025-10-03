@@ -459,26 +459,3 @@ exports.getQueryWindVectors = async (req, res) => {
         handleError(res, stationId, error, 'getQueryWindVectors');
     }
 };
-
-exports.clearAllData = async (req, res) => {
-    const { stationId } = req.params;
-
-    try {
-        console.log(`${V.Warn} Demande de suppression de toutes les données du bucket`);
-        // const success = await influxdbService.clearBucket();
-        // force lastArchiveDate au 01/08/2025 et enregistre la conig
-        // req.params.stationId = 'VP2_Serramoune';
-
-        if (success) {
-            res.json({
-                success: true,
-                message: 'Toutes les données du bucket ont été supprimées avec succès.',
-                timestamp: new Date().toISOString()
-            });
-        } else {
-            throw new Error('La suppression des données du bucket a échoué.');
-        }
-    } catch (error) {
-        handleError(res, 'all-stations', error, 'clearAllData');
-    }
-};
