@@ -10,6 +10,10 @@ const { V,O } = require('../utils/icons');
 const configManager = require('./configManager');
 const { writePoints, Point } = require('./influxdbService'); // Ajout pour InfluxDB
 const units = require('../config/Units.json');
+const ACK = Buffer.from([0x06]);
+const NAK = Buffer.from([0x21]);
+const ESC = Buffer.from([0x1B]);
+const ESC_LF = Buffer.from([0x1B, 0x0A]);
 
 async function getVp2DateTime(req, stationConfig) {
     const stationTimeDataBytes = await sendCommand(req, stationConfig, 'GETTIME', 2000, "<ACK>6<CRC>");
@@ -595,10 +599,6 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
 
 async function downloadArchiveData(req, stationConfig, startDate, res) {
     let effectiveStartDate;
-    const ACK = Buffer.from([0x06]);
-    const NAK = Buffer.from([0x21]);
-    const ESC = Buffer.from([0x1B]);
-    const ESC_LF = Buffer.from([0x1B, 0x0A]);
 
     if (startDate) { // 02/10/2025 22:05:00
         effectiveStartDate = new Date(startDate);
@@ -615,7 +615,7 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
     const minutes = effectiveStartDate.getMinutes();
 
     const dateStamp = (year - 2000) * 512 + month * 32 + day;
-    const timeStamp = (hours) * 100 + minutes - 5; // -1 pour test
+    const timeStamp = (hours) * 100 + minutes; // -1 pour test
     
     const datePayload = Buffer.from([ dateStamp & 0xFF, dateStamp >> 8, timeStamp & 0xFF, timeStamp >> 8]);
     
@@ -623,7 +623,7 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
     const dateCrcBytes = Buffer.from([dateCrc >> 8, dateCrc & 0xFF]);
     const fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
     
-    // console.log(dateStamp, timeStamp, datePayload, dateCrc); // 13123 2100 <Buffer 43 33 34 08> 8684
+    console.log(dateStamp, timeStamp, datePayload, dateCrcBytes, fullPayload, fullPayload.toString('hex'), fullPayload.toString('binary')); // 13123 2100 <Buffer 43 33 34 08> 8684
     // on envoit la date de la 1er archive souhaitée
     const pageInfo = await sendCommand(req, stationConfig, fullPayload, 3000, "<ACK>4<CRC>");
     const numberOfPages = pageInfo.readUInt16LE(0);

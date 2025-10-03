@@ -1,6 +1,6 @@
 // middleware/stationMiddleware.js
 const configManager = require('../services/configManager');
-const { wakeUpConsole, getOrCreateSocket } = require('../services/vp2NetClient');
+const { wakeUpConsole, sendCommand } = require('../services/vp2NetClient');
 const { O, V } = require('../utils/icons');
 
 const loadStationConfig = (req, res, next) => {
