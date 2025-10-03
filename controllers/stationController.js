@@ -1,6 +1,7 @@
 // controllers/stationController.js
 const stationService = require('../services/stationService');
 const influxdbService = require('../services/influxdbService');
+const cronService = require('../services/cronService');
 const configManager = require('../services/configManager');
 const network = require('../services/networkService');
 const { queryDateRange } = require('../services/influxdbService');
@@ -220,7 +221,7 @@ exports.syncSettings = async (req, res) => {
     try {
         const stationConfig = req.stationConfig;
         console.log(`${V.gear} Demande de synchronisation des paramètres pour la station ${stationConfig.id}`);
-        
+
         const result = await stationService.syncStationSettings(req, stationConfig);
 
         res.json({

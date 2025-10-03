@@ -1,9 +1,8 @@
 // app.js
 const express = require('express');
 const path = require('path');
-const configManager = require('./services/configManager');
-const cron = require('node-cron');
-const axios = require('axios');
+const configManager = require('./services/configManager'); // Gardé pour la route /api/
+const cronService = require('./services/cronService');
 const { V,O } = require('./utils/icons');
 const session = require('express-session');
 const crypto = require('crypto');
@@ -118,39 +117,8 @@ app.listen(PORT, () => {
         console.log(`${V.Travaux} Ignore watch: ${process.env.ignore_watch}`);
     }
     
-    // Planification dynamique de la collecte pour chaque station
-    console.log(`${V.info} [CRON] Initialisation des tâches de collecte planifiées...`);
-    const stations = configManager.listStations();
-    stations.forEach((station) => {
-        const stationConfig = configManager.loadConfig(station);
-        const cronIntervale = stationConfig.cron.value;
-
-        if (!cronIntervale || typeof cronIntervale !== 'number' || cronIntervale <= 0) {
-            console.log(`${V.warning} [CRON] Intervalle d'archivage invalide ou manquant pour la station ${stationConfig.id}. Tâche non planifiée.`);
-            return; // Passe à la station suivante
-        }
-        if ( stationConfig.cron.enabled === false) {
-            console.log(`${V.warning} [CRON] Collecte des données non activée pour la station ${stationConfig.id}. Tâche non planifiée.`);
-            return; // Passe à la station suivante
-        }
-
-        let cronPattern;
-        cronIntervale / 60 < 1 ? cronPattern = `6 1-59/${cronIntervale} * * * *` : cronPattern = `15 1 */${Math.round(cronIntervale/60)} * * *`;
-
-        cron.schedule(cronPattern, async () => {
-            const url = `http://localhost:${PORT}/api/station/${stationConfig.id}/collect`;
-            console.log(`${V.info} [CRON] Exécution de la collecte pour la station ${stationConfig.id}`);
-            try {
-                const response = await axios.get(url);
-                console.log(`${V.Check} [CRON] Collecte pour ${stationConfig.id} réussie. Status: ${response.status}`);
-            } catch (error) {
-                const errorMessage = error.response ? `Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data)}` : error.message;
-                console.error(`${V.error} [CRON] Erreur lors de la collecte pour ${stationConfig.id}:`, errorMessage);
-            }
-        });
-
-        console.log(`${V.Check} [CRON] Tâche de collecte planifiée pour la station ${stationConfig.id} avec le pattern: "${cronPattern}".`);
-    });
+    // Initialise toutes les tâches cron planifiées au démarrage
+    cronService.initializeAllJobs();
 });
 
 module.exports = app;

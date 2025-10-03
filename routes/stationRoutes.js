@@ -5,6 +5,7 @@ const { loadStationConfig, talkStationWithLamp, talkStationQuickly } = require('
 const { isAuthenticated } = require('../middleware/authMiddleware');
 const stationController = require('../controllers/stationController');
 const compositeController = require('../controllers/compositeController');
+const cronService = require('../services/cronService');
 const V = require('../utils/icons');
 
 // Middleware pour toutes les routes de stations
@@ -62,7 +63,13 @@ router.put('/:stationId', isAuthenticated, (req, res) => {
         const configManager = require('../services/configManager');
         
         // console.log(`${V.gear} Mise à jour de la configuration pour la station ${stationConfig.id}`, updates);
-        
+
+        // Si les paramètres cron ont changé, on replanifie la tâche
+        const cronSettingsChanged = stationConfig.cron.enabled !== updates.cron.enabled || stationConfig.cron.value !== updates.cron.value;
+        if (cronSettingsChanged) {
+            console.log(`[CRON] Les paramètres de collecte ont changé pour ${stationConfig.id}. Replanification...`);
+            cronService.scheduleJobForStation(stationConfig.id, updates); // updates contient la nouvelle config
+        }
         // Fusionner les modifications avec la configuration existante
         const updatedConfig = { ...stationConfig, ...updates };
         updatedConfig.id = stationConfig.id; // S'assurer que l'ID reste correct

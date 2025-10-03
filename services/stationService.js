@@ -403,7 +403,7 @@ async function syncStationSettings(req, stationConfig) {
         }
         
         const requiredChanges = identifyRequiredChanges(currentSettings, stationConfig);
-        
+        console.log(V.Warn, requiredChanges, requiredChanges.length);
         if (requiredChanges.length === 0) {
             console.log(`${V.Check} Aucun changement nécessaire pour ${stationId}`);
             return {
@@ -597,9 +597,6 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
     let effectiveStartDate;
     if (startDate) { // 02/10/2025 22:05:00
         effectiveStartDate = new Date(startDate);
-
-    console.log(`${V.info} Demande de données d'archive pour la station ${stationConfig.id} depuis le ${effectiveStartDate}`);
-
     } else {
         effectiveStartDate = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
     }
@@ -620,24 +617,22 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
     const dateCrc = calculateCRC(datePayload);
     const dateCrcBytes = Buffer.from([dateCrc >> 8, dateCrc & 0xFF]);
     const fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
-    console.log(V.info, stationConfig.id,'recuperation a partir du', startDate, effectiveStartDate, year, month, day, hours, minutes, '=>', dateStamp, timeStamp);
 
     // on envoit la date de la 1er archive souhaitée
     const pageInfo = await sendCommand(req, stationConfig, fullPayload, 3000, "<ACK>4<CRC>");
     const numberOfPages = pageInfo.readUInt16LE(0);
     let firstReccord = pageInfo.readUInt8(2);
-    console.log(`${V.books} ${numberOfPages} pages d'archives`, `${V.book} debute au ${firstReccord}ieme enregistrement de la 1er page`);
     
-    const sendProgress = (page, total) => {
-        if (total > 1) {
-            const out = {
-                status: 'in progress',
-                processedPages: page,
-                totalPages: total,
-            }
-        }
-    };
-    sendProgress(0, numberOfPages);
+    // const sendProgress = (page, total) => {
+    //     if (total > 1) {
+    //         const out = {
+    //             status: 'in progress',
+    //             processedPages: page,
+    //             totalPages: total,
+    //         }
+    //     }
+    // };
+    // sendProgress(0, numberOfPages);
 
     const allRecords = {};
     // on se limite a 50 archives a la fois pour laisser la station aquerir les nouvelles données
@@ -673,7 +668,7 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
             }
         }
         firstReccord = 0;
-        sendProgress(i+1, numberOfPages);
+        // sendProgress(i+1, numberOfPages);
     }
     
     return { status: 'success', message: `${Object.keys(allRecords).length} pages sur ${numberOfPages} archive téléchargées.`, data: allRecords };
