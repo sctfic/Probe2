@@ -101,8 +101,8 @@ async function writePoints(points) {
  * @returns {Promise<Array>} Un tableau des résultats de la requête.
  */
 async function executeQuery(fluxQuery) {
-    console.log(`${V.info} Exécution de la requête Flux...`);
-    // console.log(`${V.info} Exécution de la requête Flux:\n${fluxQuery}`);
+    // console.log(`${V.info} Exécution de la requête Flux...`);
+    console.log(`${V.info} Exécution de la requête Flux:\n${fluxQuery}`);
     return new Promise((resolve, reject) => {
         const results = [];
         queryApi.queryRows(fluxQuery, {
@@ -268,7 +268,7 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate) {
     }
     const query = `
     from(bucket: "Probe")
-        |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'}) 
+        |> range(start: ${startDate ? startDate : 0}${endDate ? `, stop: ${endDate}` : ''}) 
         |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
         |> group()
         |> reduce(

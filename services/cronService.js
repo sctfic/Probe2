@@ -30,7 +30,7 @@ function scheduleJobForStation(stationId, stationConfig) {
     }
 
     const cronPattern = cronInterval < 60
-        ? `11 */${cronInterval} * * * *`
+        ? `3 */${cronInterval} * * * *`
         : `12 * */${Math.round(cronInterval / 60)} * * *`;
 
     const task = cron.schedule(cronPattern, async () => {

@@ -615,7 +615,7 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
     const minutes = effectiveStartDate.getMinutes();
 
     const dateStamp = (year - 2000) * 512 + month * 32 + day;
-    const timeStamp = (hours) * 100 + minutes; // -1 pour test
+    const timeStamp = (hours) * 100 + minutes - 5; // -1 pour test
     
     const datePayload = Buffer.from([ dateStamp & 0xFF, dateStamp >> 8, timeStamp & 0xFF, timeStamp >> 8]);
     
@@ -656,8 +656,7 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
                 const processedData = processWeatherData(parsedRecord, stationConfig, 'metric');
                 const nativedate = convertRawValue2NativeValue( parsedRecord.date.value, 'date_YYMMdd', null);
                 const nativetime = convertRawValue2NativeValue( parsedRecord.time.value, 'time', null);
-                const datetime = conversionTable.date.iso8601(nativedate) + conversionTable.time.iso8601(nativetime);
-
+                const datetime = conversionTable.date['yyyy-mm-dd'](nativedate) + ' ' + conversionTable.time['hh:mm'](nativetime);
                 if ( (new Date(datetime)) > effectiveStartDate) {
                     allRecords[datetime] = processedData;
                     const WriteToDB = await writeArchiveToInfluxDB(processedData, new Date(datetime), stationConfig.id);
