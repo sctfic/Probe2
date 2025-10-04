@@ -200,7 +200,10 @@ exports.getArchiveData = async (req, res) => {
         
         // <!> downloadArchiveData laisse un relica de socket
         const archiveData = await stationService.downloadArchiveData(req, stationConfig, endDate);
-        await stationService.getVp2DateTime(req, stationConfig);
+        // si il est 0h 00 le dimanche, on met a jour la date de la station
+        if (new Date().getDay() === 0 && new Date().getHours() === 0 && new Date().getMinutes() === 0) {
+            await stationService.getVp2DateTime(req, stationConfig);
+        }
         
         res.json({
             success: true,

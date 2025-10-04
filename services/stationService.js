@@ -538,8 +538,6 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
     delete processedData.time;
     let Ux = 0;
     let Vy = 0;
-    // console.log(processedData.windSpeedMax, processedData.windDirMax);
-    // console.log(processedData.windSpeedMax?.Value, typeof processedData.windSpeedMax?.Value, processedData.windDirMax?.Value, typeof processedData.windDirMax?.Value );
     if (typeof processedData.windSpeedMax?.Value === 'number' && typeof processedData.windDirMax?.Value === 'number'){
         Ux = Math.round(processedData.windSpeedMax.Value * Math.sin(Math.PI * processedData.windDirMax.Value / 180.0)*1000)/1000
         Vy = Math.round(processedData.windSpeedMax.Value * Math.cos(Math.PI * processedData.windDirMax.Value / 180.0)*1000)/1000

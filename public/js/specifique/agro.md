@@ -30,47 +30,211 @@ utilise la literature scientifique agronomique pour caracteriser chaque culture
 
 Table 2. Temperature requirements during different growth stages for tomato andcucumber (Tommie, 2018; Haifa, 2017)
 
-| Growth stage                | Minimum | Maximum | Optimal |
-|-----------------------------|---------|---------|---------|
-| Germination                 | 11      | 34      | 16-29   |
-| Vegetative growth           | 18      | 32      | 21-24   |
-| Fruit setting (night)       | 10      | 21      | 14-18   |
-| Fruit setting (day)         | 18      | 31      | 21-25   |
-| cold damage                 |         |         | <6      |
-| frost damage                |         |         | <1      |
-| dead damage                 |         |         | <-2     |
+| Growth stage          | Minimum | Maximum | Optimal |
+| --------------------- | ------- | ------- | ------- |
+| Germination           | 11      | 34      | 16-29   |
+| Vegetative growth     | 18      | 32      | 21-24   |
+| Fruit setting (night) | 10      | 21      | 14-18   |
+| Fruit setting (day)   | 18      | 31      | 21-25   |
+| cold damage           |         |         | <6      |
+| frost damage          |         |         | <1      |
+| dead damage           |         |         | <-2     |
 
+| Relative humidity             |
+| ----------------------------- |
+| 60%-70%                       |
+| Relative humidity             |
+| ----------------------------- |
+| Germination                   |
+| Vegetative growth             |
+| nouaison                      |
+| damage                        |
 
-| Relative humidity | 
-|-------------------|
-| 60%-70%           |
-| Relative humidity           | Minimum | Maximum | Optimal |
-|-----------------------------|---------|---------|---------|
-| Germination                 | 80      | 95      | 85      |
-| Vegetative growth           | 60      | 80      | 70      |
-| nouaison                    | 60      | 75      | 65      |
-| damage                      | 50      | 85      |         |
+| Light(hours)   | optimal | min | max |
+| -------------- | ------- | --- | --- |
+| day            | 16      | 8   | 18  |
 
-| Light(hours) | optimal | min | max |
-|--------------|---------|-----|-----|
-| Light(hours) | 16      | 8   | 18  |
-| light (W/m2) | 250     | 100 | 300 |
-⚠️ Au-delà de 250 W/m² (500 μmol/m²/s), il y a saturation de la photosynthèse chez la tomate, sauf si CO₂ et température sont augmentés (ex. en serre climatisée).
-Une photopériode trop longue (>18h) peut induire du stress physiologique ou retarder la floraison chez certaines variétés.
+| Light(W/m²)    | optimal | min | max |
+| -------------- | ------- | --- | --- |
+| day            | 250     | 100 | 300 |
 
-| water requirement               | 
-|---------------------------------|
-| 900 l/m2/year (2.5 l/m2/jour)   |
+⚠️ Au-delà de 250 W/m² (500 μmol/m²/s), il y a saturation de la photosynthèse chez la tomate, sauf si CO₂ et température sont augmentés (ex. en serre climatisée). Une photopériode trop longue (>18h) peut induire du stress physiologique ou retarder la floraison chez certaines variétés.
+
+| water requirement             |
+| ----------------------------- |
+| 900 l/m2/year (2.5 l/m2/jour) |
 
 exemple de culture :
+{
+  "tomato": {
+    "name": "tomato_indeterminate",
+    "culturalType": "fruit-vegetable",
+    "culturalGroup": "Solanaceae",
+    "referenceLink": ["https://www.fao.org/3/T0279E/T0279E00.htm"],
+    "stages": {
+      "SOWING": { // pour determiner le moment de semis
+        "temp": {
+          "lethalLow": 4,
+          "min": 10,
+          "opt": 25,
+          "max": 35,
+          "lethalHigh": 40,
+          "betaShape": null,
+          "acclim": null
+        },
+        "humidity": {
+          "lethalLow": 40,
+          "min": 60,
+          "opt": 70,
+          "max": 80,
+          "lethalHigh": 95
+        },
+		"water": 2.5, // l/m2/jour
+		"lightPower": {
+			"opt": 250,
+			"min": 100,
+			"max": 300				
+		},
+		"lightHours": {
+			"opt": 16,
+			"min": 8,
+			"max": 18
+		},
+		"thermal": {
+			"degree-hours": 240,
+			"periodDays": 10
+		}
+        "windMax_m_s": 5,
+      },
+      "GERMINATION": {
+        "temp": {
+          "lethalLow": 4,
+          "min": 10,
+          "opt": 25,
+          "max": 35,
+          "lethalHigh": 40,
+          "betaShape": null,
+          "acclim": null
+        },
+        "humidity": {
+          "lethalLow": 40,
+          "min": 60,
+          "opt": 70,
+          "max": 80,
+          "lethalHigh": 95
+        },
+        "radiationOpt_W_m2": 0,
+        "windMax_m_s": 5,
+        "thermalRequirements": {
+          "degree-hours": 350,
+          "periodDays": 7
+        }
+      },
+      "VEGETATIVE": {
+        "temp": {
+          "lethalLow": 4,
+          "min": 8,
+          "opt": 26,
+          "max": 34,
+          "lethalHigh": 38,
+          "betaShape": { "m": 2.0, "n": 3.0 },
+          "acclim": { "tauDays": 3.0, "shiftPerDegree": 0.2, "shrinkPerDegree": 0.04 },
+        },
+        "humidity": {
+          "lethalLow": 40,
+          "min": 55,
+          "opt": 65,
+          "max": 75,
+          "lethalHigh": 95
+        },
+        "radiationOpt_W_m2": 250,
+        "windMax_m_s": 6,
+        "thermalRequirements": {
+          "degree-hours": 120,
+          "periodDays": 21
+        }
+      },
+      "FLOWERING": {
+        "temp": {
+          "lethalLow": 5,
+          "min": 8,
+          "opt": 24,
+          "max": 32,
+          "lethalHigh": 36,
+          "betaShape": { "m": 2.3, "n": 3.2 },
+          "acclim": { "tauDays": 2.5, "shiftPerDegree": 0.18, "shrinkPerDegree": 0.035 },
+        },
+        "humidity": {
+          "lethalLow": 40,
+          "min": 50,
+          "opt": 60,
+          "max": 70,
+          "lethalHigh": 95
+        },
+        "radiationOpt_W_m2": 220,
+        "windMax_m_s": 5,
+        "thermalRequirements": {
+          "degree-hours": 150,
+          "periodDays": 5
+        }
+      },
+      "FRUIT_DAY": {
+        "temp": {
+          "lethalLow": 6,
+          "min": 12,
+          "opt": 24,
+          "max": 32,
+          "lethalHigh": 36,
+          "betaShape": { "m": 2.5, "n": 2.8 },
+          "acclim": { "tauDays": 2.0, "shiftPerDegree": 0.15, "shrinkPerDegree": 0.03 },
+        },
+        "humidity": {
+          "lethalLow": 40,
+          "min": 50,
+          "opt": 60,
+          "max": 70,
+          "lethalHigh": 95
+        },
+        "radiationOpt_W_m2": 200,
+        "windMax_m_s": 4,
+        "thermalRequirements": null
+      },
+      "FRUIT_NIGHT": {
+        "temp": {
+          "lethalLow": 5,
+          "min": 10,
+          "opt": 18,
+          "max": 25,
+          "lethalHigh": 28,
+          "betaShape": { "m": 2.0, "n": 4.0 },
+          "acclim": { "tauDays": 3.5, "shiftPerDegree": 0.1, "shrinkPerDegree": 0.02 },
+        },
+        "humidity": {
+          "lethalLow": 40,
+          "min": 50,
+          "opt": 60,
+          "max": 70,
+          "lethalHigh": 95
+        },
+        "radiationOpt_W_m2": 0,
+        "windMax_m_s": 3,
+        "thermalRequirements": null
+      }
+    }
+  }
+}
+
 
 - a ameliorer (Photoperiodisme, Intensité Lumineuse, Cumul de Lumière) :
   "tomate" = {
   "groupeCultural" : "legume_fruit",
   "typeCultural" : "tomate",
   "RefAgronomiques" : [],
-  "water" : "(et) => et * besoinEau", // les besoin d'eau sont en fonction de la evapotranspiration
-  "temp" : "(t,{LOW = -1,MIN = 10,OPT = 25,MAX = 35,HIGH = 40,EXP_COLD = 2.2,EXP_HOT = 3.5}={}) => {\n  if (t <= LOW) return -1;\n  if (t >= HIGH) return -1;\n  if (t < OPT) {\n    const normalized = (t - OPT) / (OPT - MIN);\n    return 1 - Math.pow(Math.abs(normalized), EXP_COLD);\n  } else {\n    const normalized = (t - MAX) / (MAX - OPT);\n    return 1 - Math.pow(normalized, EXP_HOT);\n  }\n};",
+  "models":{ // modele a aclimatation dynamique
+    "humidity":""
+    "water" : "(et) => et * besoinEau", // les besoin d'eau sont en fonction de la evapotranspiration
+    "temp" : "(t,{LOW = -1,MIN = 10,OPT = 25,MAX = 35,HIGH = 40,EXP_COLD = 2.2,EXP_HOT = 3.5}={}) => {\n  if (t <= LOW) return -1;\n  if (t >= HIGH) return -1;\n  if (t < OPT) {\n    const normalized = (t - OPT) / (OPT - MIN);\n    return 1 - Math.pow(Math.abs(normalized), EXP_COLD);\n  } else {\n    const normalized = (t - MAX) / (MAX - OPT);\n    return 1 - Math.pow(normalized, EXP_HOT);\n  }\n};",
+  }
   "exigences" : {
   "temperature" : { "ideal" : [18, 25], "stress" : [10, 35] },
   "humidite" : { "ideal" : [60, 80], "stress" : [40, 90] },
@@ -101,7 +265,6 @@ exemple de culture :
   }
   }
 
-(t,{LOW = -1,MIN = 10,OPT = 25,MAX = 35,HIGH = 40,EXP_COLD = 2.2,EXP_HOT = 3.5}={}) => {\n  if (t <= LOW) return -1;\n  if (t >= HIGH) return -1;\n  if (t < OPT) {\n    const normalized = (t - OPT) / (OPT - MIN);\n    return 1 - Math.pow(Math.abs(normalized), EXP_COLD);\n  } else {\n    const normalized = (t - MAX) / (MAX - OPT);\n    return 1 - Math.pow(normalized, EXP_HOT);\n  }\n};
 
 raws.json sera fournis par une api ( /query/VP2_Serramoune/Raws/temperature:outTemp,powerRadiation:solarRadiation,rain:ET,humidity:outHumidity,rain:rainFall,speed:Wind?stepCount=120&startDate=2025-09-15&endDate=2025-09-20) avec la meme structure
 il pourra contenir 'uv:UV', 'humidity:extraSoilMoisture1' et 'temperature:soilTemp1' en option (si le capteur est present, sinon faire sans ou faire une estimation d'apres les conditions precedentes)

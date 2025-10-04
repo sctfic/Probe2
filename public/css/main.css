@@ -95,7 +95,46 @@ body {
 }
 
 
+.condition-tile.value-changed .condition-value {
+    color: #4CAF50;
+    font-weight: bold;
+}
 
+.condition-tile.major-change {
+    animation: majorUpdate 1.8s ease-out;
+    border: 2px solid #FF9800;
+    box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+}
+
+.condition-tile.major-change .condition-value {
+    color: #FF9800;
+    font-weight: bold;
+}
+@keyframes majorUpdate {
+    0% {
+        transform: scale(1) rotate(0deg);
+        background-color: inherit;
+    }
+    15% {
+        transform: scale(1.08) rotate(-1deg);
+        background-color: rgba(255, 152, 0, 0.15);
+    }
+    30% {
+        transform: scale(1.05) rotate(1deg);
+        background-color: rgba(255, 152, 0, 0.1);
+    }
+    45% {
+        transform: scale(1.03) rotate(-0.5deg);
+        background-color: rgba(255, 152, 0, 0.05);
+    }
+    60% {
+        transform: scale(1.01) rotate(0.5deg);
+    }
+    100% {
+        transform: scale(1) rotate(0deg);
+        background-color: inherit;
+    }
+}
 
 .content-container {
     display: flex;
