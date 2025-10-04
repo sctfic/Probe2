@@ -613,7 +613,7 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
     const day = effectiveStartDate.getDate();
     const hours = effectiveStartDate.getHours();
     const minutes = effectiveStartDate.getMinutes();
-console.log(O.RED, year, month, day, hours, minutes);
+console.log(O.RED, 'year =',year, 'month =', month, 'day =',day, 'hours =', hours, 'minutes =', minutes);
     const dateStamp = (year - 2000) * 512 + month * 32 + day;
     const timeStamp = (hours) * 100 + minutes; // -1 pour test
 console.log(O.RED, dateStamp, timeStamp);
@@ -676,6 +676,10 @@ console.log(O.RED, dateStamp, timeStamp, datePayload, dateCrcBytes, fullPayload,
         // sendProgress(i+1, numberOfPages);
     }
     await sendCommand(req, stationConfig, ESC_LF, 1200, "2");
+    if (!numberOfPages){
+        console.log(V.Warn, `Aucune archive supplementaire pour le moment.`);
+        return { status: 'success', message: 'Aucune archive supplementaire pour le moment.' };
+    }
     return { status: 'success', message: `${Object.keys(allRecords).length} pages sur ${numberOfPages} archive téléchargées.`, data: allRecords };
 }
 
