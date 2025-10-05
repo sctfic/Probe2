@@ -122,7 +122,6 @@ async function displaySettingsForm() {
     const form = document.getElementById('station-settings-form');
     const resetBtn = document.getElementById('reset-settings');
     const syncTimeBtn = document.getElementById('sync-time-btn');
-    const dbExpandBtn = document.getElementById('db-expand-btn');
 
     if (currentStationSettings.deltaTimeSeconds !== null) {
         const formattedDelta = formatDeltaTime(currentStationSettings.deltaTimeSeconds);
@@ -162,28 +161,6 @@ async function displaySettingsForm() {
                 showGlobalStatus(`Erreur de synchronisation de l'horloge: ${error.message}`, 'error');
             } finally {
                 syncTimeBtn.disabled = false;
-            }
-        });
-    }
-
-    if (dbExpandBtn) {
-        dbExpandBtn.addEventListener('click', async () => {
-            if (!selectedStation) return;
-            if (!confirm("Êtes-vous sûr de vouloir importer les données météo des 15 dernières années ? Cette opération peut prendre plusieurs minutes et consommer des ressources importantes.")) return;
-
-            showGlobalStatus('Lancement de l\'importation des archives Open-Meteo...', 'loading');
-            dbExpandBtn.disabled = true;
-            dbExpandBtn.innerHTML = '<div class="spinner" style="display: inline-block; margin-right: 8px;"></div>Importation en cours...';
-
-            try {
-                const response = await fetch(`/query/${selectedStation.id}/dbexpand`);
-                const result = await response.json();
-                showGlobalStatus(result.message || 'Opération terminée', result.success ? 'success' : 'error');
-            } catch (error) {
-                showGlobalStatus(`Erreur lors de l'importation : ${error.message}`, 'error');
-            } finally {
-                dbExpandBtn.disabled = false;
-                dbExpandBtn.innerHTML = '<img src="svg/access-control.svg" class="access-control-icon">Compléter l\'historique';
             }
         });
     }
@@ -279,11 +256,7 @@ function createDbExpandFieldHTML(field, range, isEnabled) {
                         <input type="checkbox" id="setting-cron-openMeteo" ${isEnabled ? 'checked' : ''}>
                         <span class="slider round"></span>
                     </label>
-                    <label for="setting-cron-openMeteo" style="margin-left: 8px;">Mise à jour quotidienne à 23h30.</label>
-                <button type="button" class="btn-primary" id="db-expand-btn">
-                    <img src="svg/access-control.svg" class="access-control-icon">
-                    Importer manuellement
-                </button>
+                    <label for="setting-cron-openMeteo" style="margin-left: 8px;">Importation quotidienne des archives à 23h30.</label>
                 <span class="db-expand-range">${rangeText}</span>
                 </div>
             </div>

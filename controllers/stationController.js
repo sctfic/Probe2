@@ -126,6 +126,8 @@ async function calculateAndAppendcompositeProbes(weatherData, stationConfig) {
                     userUnit: measurement?.user || null,
                     toUserUnit: measurement?.available_units?.[measurement.user]?.fnFromMetric || null,
                     period: probeConfig.period,
+                    groupUsage: probeConfig.groupUsage,
+                    groupCustom: probeConfig.groupCustom,
                     sensorDb: probeConfig.sensorDb
                 };
             }

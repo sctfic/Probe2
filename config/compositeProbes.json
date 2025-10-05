@@ -21,6 +21,7 @@
         ],
         "period": 604800,
         "groupUsage": "Composites",
+        "groupCustom": "Composites",
         "sensorDb": "THSW_calc",
         "measurement": "temperature"
     },
@@ -44,6 +45,7 @@
         ],
         "period": 604800,
         "groupUsage": "Composites",
+        "groupCustom": "Composites",
         "sensorDb": "AirWater_calc",
         "measurement": "density"
     },
@@ -63,7 +65,7 @@
         ],
         "period": 2592000,
         "groupUsage": "Composites",
-        "sensorDb": "SUN_V_calc",
+            "sensorDb": "SUN_V_calc",
         "measurement": "angle"
     },
     "MOON_calc": {
@@ -82,6 +84,7 @@
         ],
         "period": 2592000,
         "groupUsage": "Composites",
+        "groupCustom": "Composites",
         "sensorDb": "MOON_calc",
         "measurement": "angle"
     }

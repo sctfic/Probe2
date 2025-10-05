@@ -491,7 +491,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
 
         // const lastTimestamp = await influxdbService.findLastOpenMeteoTimestamp(stationId);
         const lastTimestamp = (await influxdbService.queryDateRange(stationId, 'open-meteo_barometer')).lastUtc;
-        if (lastTimestamp) {
+        if (lastTimestamp && (new Date(lastTimestamp)) > (new Date('1970-01-01T00:00:00Z'))) {
             console.log(`${V.info} Données Open-Meteo existantes trouvées. Dernière date: `, lastTimestamp);
             startDate = new Date(lastTimestamp);
             startDate.setDate(startDate.getDate() - 1); // Commence le jour suivant pour éviter les doublons
@@ -524,8 +524,8 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             timeformat: 'unixtime'
         };
 
-        console.log(`${V.Parabol} Appel à Open-Meteo avec les paramètres:`, params, response.responseUrl);
         const response = await axios.get(openMeteoUrl, { params });
+        console.log(`${V.Parabol} Appel à Open-Meteo avec les paramètres:`, params, response.responseUrl);
         const openMeteoData = response.data;
         if (!openMeteoData || !openMeteoData.hourly || !openMeteoData.hourly.time) {
             throw new Error("Réponse invalide de l'API Open-Meteo.");

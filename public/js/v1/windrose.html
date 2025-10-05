@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rose des Vents - VP2 Serramoune</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .info {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .current-date {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1F77B4;
+            margin-top: 15px;
+        }
+        
+        #Details {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+        
+        .rose-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: box-shadow 0.3s;
+        }
+
+        .rose-container:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+        
+        .rose-title {
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .axes circle {
+            fill: none;
+            stroke: #aaa;
+            stroke-width: 0.5px;
+        }
+        
+        .tickmarks text {
+            font: 10px sans-serif;
+            text-anchor: middle;
+        }
+        
+        .calmwind text {
+            font: 14px sans-serif;
+            text-anchor: middle;
+        }
+        
+        .arcs {
+            stroke: #000;
+            stroke-width: 0.5px;
+            fill-opacity: 0.6;
+            cursor: pointer;
+            transition: transform 0.2s;
+            transform-origin: center;
+        }
+
+        .arcs:hover {
+            fill-opacity: 0.9;
+            stroke-width: 1px;
+        }
+        
+        .arcs_max {
+            stroke: #000;
+            stroke-width: 0.5px;
+            fill-opacity: 0.1;
+            cursor: pointer;
+        }
+        
+        .labels text {
+            letter-spacing: 1px;
+            fill: #444;
+            font-size: 12px;
+            font: 10px sans-serif;
+            text-anchor: middle;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #666;
+        }
+
+        .progress-bar {
+            width: 300px;
+            height: 4px;
+            background: #ddd;
+            border-radius: 2px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #1F77B4;
+            width: 0%;
+            transition: width 2s linear;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Rose des Vents - Station VP2 Serramoune</h1>
+        <div class="info">
+            📍 Latitude: 43.2° N | Longitude: 0.5° W | Altitude: 242 m
+        </div>
+        <div class="current-date" id="currentDate">Chargement...</div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar"></div>
+        </div>
+    </div>
+    
+    <div id="Details">
+        <div class="rose-container" id="probabilityContainer">
+            <div class="rose-title">Rose de Probabilité</div>
+            <div id="windrose"></div>
+        </div>
+        <div class="rose-container" id="speedContainer">
+            <div class="rose-title">Rose de Vitesse</div>
+            <div id="windspeed"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://probe2.lpz.ovh/query/VP2_Serramoune/WindRose?stepCount=6';
+        const INTERVAL_MS = 2000;
+        
+        let allData = [];
+        let currentIndex = 0;
+        let intervalId = null;
+        let isPaused = false;
+
+        const SpeedFactor = 3.6; // m/s to km/h
+
+        // Échelles de couleur
+        const speedToColorScale = d3.scaleLinear()
+            .domain([2, 10, 25, 100])
+            .range(["#fbb4ae", "#b3cde3", "#ccebc5", "#decbe4"])
+            .interpolate(d3.interpolateHsl);
+
+        const probabilityToColorScale = d3.scaleLinear()
+            .domain([0, 0.5, 0.8, 1])
+            .range(["#AEC7E8", "#1F77B4", "#D62728", "#2C3539"])
+            .interpolate(d3.interpolateHsl);
+
+        function speedToColor(d) { return speedToColorScale(d.s); }
+        function probabilityToColor(d) { return probabilityToColorScale(d.p); }
+
+        // Fonctions utilitaires
+        function totalSpl(data) {
+            return Object.values(data).reduce((sum, d) => sum + (d.Spl || 0), 0);
+        }
+
+        function maxSpl(data) {
+            return Math.max(...Object.values(data).map(d => d.Spl || 0));
+        }
+
+        function maxSpd(data) {
+            return Math.max(...Object.values(data).map(d => (d.Max || 0) * SpeedFactor));
+        }
+
+        // Fonction arc
+        function arc(options) {
+            return d3.arc()
+                .startAngle(d => (d.d - options.width) * Math.PI / 180)
+                .endAngle(d => (d.d + options.width) * Math.PI / 180)
+                .innerRadius(options.from)
+                .outerRadius(d => options.to(d));
+        }
+
+        // Créer un conteneur SVG
+        function makeWindContainer(container, w, h, p) {
+            const svg = d3.select(container)
+                .append("svg")
+                .style("float", "left")
+                .style("position", "relative")
+                .attr("width", w + p)
+                .attr("height", h + p)
+                .append("g")
+                .attr("transform", `translate(${(w + p) / 2}, ${(h + p) / 2})`);
+            return svg;
+        }
+
+        function drawGrid(svg, ticks, scale) {
+            svg.append("g")
+                .attr("class", "axes")
+                .selectAll("circle")
+                .data(ticks)
+                .enter().append("circle")
+                .attr("r", scale);
+        }
+
+        function drawGridScale(svg, tickmarks, tickLabel, scale) {
+            svg.append("g")
+                .attr("class", "tickmarks")
+                .selectAll("text")
+                .data(tickmarks)
+                .enter().append("text")
+                .text(tickLabel)
+                .attr("dy", "-3px")
+                .attr("transform", d => `translate(0, ${-scale(d)})`);
+        }
+
+        function drawCalm(svg, radius, data) {
+            svg.append("circle")
+                .attr("r", radius)
+                .style("fill", "#fff")
+                .style("stroke", "#000")
+                .style("stroke-width", "0.5px");
+
+            const cw = svg.append("g").attr("class", "calmwind")
+                .selectAll("text")
+                .data(data)
+                .enter();
+            
+            cw.append("text")
+                .attr("transform", "translate(0,-2)")
+                .text(d => Math.round(d * 100) + "%");
+            
+            cw.append("text")
+                .attr("transform", "translate(0,12)")
+                .text("calm");
+        }
+
+        function drawLevelGrid(svg, r) {
+            const directions = ['NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW','N'];
+            const label = svg.append("g")
+                .attr("class", "labels")
+                .selectAll("g")
+                .data(d3.range(22.5, 361, 22.5))
+                .enter().append("g")
+                .attr("transform", d => `translate(0, ${-(r + 2)}) rotate(${d}, 0, ${r + 2})`);
+
+            label.append("text")
+                .data(directions)
+                .attr("dy", "-2px")
+                .text(d => d);
+        }
+
+        // Rose de probabilité
+        function plotProbabilityRose(data, container, R) {
+            const winds = [], zero = [];
+            const t = totalSpl(data);
+            const SplScale = maxSpl(data) / t;
+            const visWidth = R;
+            const p = 22, r = visWidth, w = visWidth * 2, h = visWidth * 2;
+            const ip = 28;
+
+            d3.select(container).selectAll("*").remove();
+
+            const svg = makeWindContainer(container, w, h, p);
+
+            let calm = 0;
+            for (const key in data) {
+                if (data[key].Dir !== null && data[key].Dir !== undefined) {
+                    zero.push({d: data[key].Dir, p: 0, s: 0, m: 0});
+                    winds.push({
+                        d: data[key].Dir,
+                        p: data[key].Spl / t,
+                        s: data[key].Spd * SpeedFactor,
+                        m: data[key].Max * SpeedFactor
+                    });
+                } else if (key === 'null') {
+                    calm = data[key].Spl;
+                }
+            }
+
+            let probabilityToRadiusScale, ticks, tickmarks;
+            if (SplScale > 0.14) {
+                probabilityToRadiusScale = d3.scaleLinear()
+                    .domain([0, SplScale])
+                    .range([ip, visWidth])
+                    .clamp(true);
+                const tickStep = SplScale / 4;
+                ticks = d3.range(tickStep, tickStep * 4.001, tickStep);
+                tickmarks = d3.range(tickStep, tickStep * 3.001, tickStep);
+            } else {
+                probabilityToRadiusScale = d3.scaleLinear()
+                    .domain([0, 0.15])
+                    .range([ip, visWidth])
+                    .clamp(true);
+                ticks = d3.range(0.05, 0.151, 0.05);
+                tickmarks = d3.range(0.05, 0.101, 0.05);
+            }
+
+            const windProbabilityArcOptions = {
+                width: 10,
+                from: ip - 2,
+                to: d => probabilityToRadiusScale(d.p)
+            };
+
+            drawGrid(svg, ticks, probabilityToRadiusScale);
+            drawGridScale(svg, tickmarks, d => `${(d * 100).toFixed(0)} %`, probabilityToRadiusScale);
+            drawCalm(svg, windProbabilityArcOptions.from, [calm / t]);
+            drawLevelGrid(svg, r);
+
+            const arcGen = arc(windProbabilityArcOptions);
+            const probabilityArc = svg.append("g").attr("class", "ProbabilityArc");
+
+            const paths = probabilityArc.selectAll("path")
+                .data(zero)
+                .enter().append("path")
+                .attr("d", arcGen)
+                .attr("class", "arcs")
+                .style("fill", speedToColor)
+                .on("mouseenter", function() {
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .attr("transform", "scale(1.2)");
+                })
+                .on("mouseleave", function() {
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .attr("transform", "scale(1)");
+                });
+
+            paths.append("title")
+                .text(d => `${d.d}° \n${(100 * d.p).toFixed(1)} % \n${d.s.toFixed(1)} km/h\nMaxi : ${d.m.toFixed(1)} km/h`);
+
+            paths.data(winds)
+                .transition()
+                .duration(500)
+                .attr("d", arcGen)
+                .style("fill", speedToColor);
+
+            // Mettre à jour les tooltips
+            paths.select("title")
+                .text(d => `${d.d}° \n${(100 * d.p).toFixed(1)} % \n${d.s.toFixed(1)} km/h\nMaxi : ${d.m.toFixed(1)} km/h`);
+        }
+
+        // Rose de vitesse
+        function plotSpeedRose(data, container, R) {
+            const winds = [], zero = [];
+            const t = totalSpl(data);
+            const SpdScale = maxSpd(data);
+            const visWidth = R;
+            const p = 22, r = visWidth, w = visWidth * 2, h = visWidth * 2;
+            const ip = 28;
+
+            d3.select(container).selectAll("*").remove();
+
+            const svg = makeWindContainer(container, w, h, p);
+
+            let calm = 0;
+            for (const key in data) {
+                if (data[key].Dir !== null && data[key].Dir !== undefined) {
+                    zero.push({d: data[key].Dir, p: 0, s: 0, m: 0});
+                    winds.push({
+                        d: data[key].Dir,
+                        p: data[key].Spl / t,
+                        s: data[key].Spd * SpeedFactor,
+                        m: data[key].Max * SpeedFactor
+                    });
+                } else if (key === 'null') {
+                    calm = data[key].Spl;
+                }
+            }
+
+            let speedToRadiusScale, ticks, tickmarks;
+            if (SpdScale > 6) {
+                speedToRadiusScale = d3.scaleLinear()
+                    .domain([0, SpdScale])
+                    .range([ip, visWidth])
+                    .clamp(true);
+                const tickStep = SpdScale / 4;
+                ticks = d3.range(tickStep, tickStep * 4.001, tickStep);
+                tickmarks = d3.range(tickStep, tickStep * 3.001, tickStep);
+            } else {
+                speedToRadiusScale = d3.scaleLinear()
+                    .domain([0, 6])
+                    .range([ip, visWidth])
+                    .clamp(true);
+                ticks = d3.range(2, 6.01, 2);
+                tickmarks = d3.range(2, 4.01, 2);
+            }
+
+            const windSpeedArcOptions = {
+                width: 10,
+                from: ip - 2,
+                to: d => speedToRadiusScale(d.s)
+            };
+
+            const windMaxArcOptions = {
+                width: 8,
+                from: d => speedToRadiusScale(d.m),
+                to: d => speedToRadiusScale(d.m)
+            };
+
+            drawGrid(svg, ticks, speedToRadiusScale);
+            drawGridScale(svg, tickmarks, d => `${d.toFixed(1)} km/h`, speedToRadiusScale);
+            drawCalm(svg, windSpeedArcOptions.from, [calm / t]);
+            drawLevelGrid(svg, r);
+
+            // Arcs pour les maxima
+            const maxArcGen = arc(windMaxArcOptions);
+            const speedArcMax = svg.append("g").attr("class", "speedArcMax");
+
+            speedArcMax.selectAll("path")
+                .data(zero)
+                .enter().append("path")
+                .attr("d", maxArcGen)
+                .attr("class", "arcs_max")
+                .style("fill", "#fff")
+                .style("stroke", "#222");
+
+            speedArcMax.selectAll("path")
+                .data(winds)
+                .transition()
+                .duration(500)
+                .attr("d", maxArcGen)
+                .style("stroke-width", "1.5px");
+
+            // Arcs pour les vitesses moyennes
+            const speedArcGen = arc(windSpeedArcOptions);
+            const speedArc = svg.append("g").attr("class", "speedArc");
+
+            const paths = speedArc.selectAll("path")
+                .data(zero)
+                .enter().append("path")
+                .attr("d", speedArcGen)
+                .attr("class", "arcs")
+                .style("fill", probabilityToColor)
+                .on("mouseenter", function() {
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .attr("transform", "scale(1.2)");
+                })
+                .on("mouseleave", function() {
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .attr("transform", "scale(1)");
+                });
+
+            paths.append("title")
+                .text(d => `${d.d}° \n${(100 * d.p).toFixed(1)} % \n${d.s.toFixed(1)} km/h\nMaxi : ${d.m.toFixed(1)} km/h`);
+
+            paths.data(winds)
+                .transition()
+                .duration(500)
+                .attr("d", speedArcGen)
+                .style("fill", probabilityToColor);
+
+            paths.select("title")
+                .text(d => `${d.d}° \n${(100 * d.p).toFixed(1)} % \n${d.s.toFixed(1)} km/h\nMaxi : ${d.m.toFixed(1)} km/h`);
+        }
+
+        // Convertir les données de l'API
+        function convertApiData(apiData) {
+            const result = [];
+            for (const [dateStr, directions] of Object.entries(apiData)) {
+                const converted = {};
+                for (const [dir, values] of Object.entries(directions)) {
+                    if (dir === 'null') {
+                        converted['null'] = {
+                            Dir: null,
+                            Spl: (values.wind?.c || 0) + (values.gust?.c || 0),
+                            Spd: 0,
+                            Max: 0
+                        };
+                    } else {
+                        const dirMap = {
+                            "N": 0, "NNE": 22.5, "NE": 45, "ENE": 67.5,
+                            "E": 90, "ESE": 112.5, "SE": 135, "SSE": 157.5,
+                            "S": 180, "SSW": 202.5, "SW": 225, "WSW": 247.5,
+                            "W": 270, "WNW": 292.5, "NW": 315, "NNW": 337.5
+                        };
+                        converted[dir] = {
+                            Dir: dirMap[dir],
+                            Spl: (values.wind?.c || 0) + (values.gust?.c || 0),
+                            Spd: values.wind?.v || 0,
+                            Max: values.gust?.v || 0
+                        };
+                    }
+                }
+                result.push({ date: dateStr, data: converted });
+            }
+            return result;
+        }
+
+        // Afficher les données courantes
+        function displayCurrentData() {
+            if (allData.length === 0) return;
+
+            const current = allData[currentIndex];
+            document.getElementById('currentDate').textContent = `📅 ${new Date(current.date).toLocaleString('fr-FR')}`;
+            
+            plotProbabilityRose(current.data, '#windrose', 120);
+            plotSpeedRose(current.data, '#windspeed', 120);
+
+            // Animer la barre de progression
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.transition = 'none';
+            progressBar.style.width = '0%';
+            setTimeout(() => {
+                progressBar.style.transition = `width ${INTERVAL_MS}ms linear`;
+                progressBar.style.width = '100%';
+            }, 50);
+        }
+
+        // Passer aux données suivantes
+        function nextData() {
+            if (isPaused) return;
+            currentIndex = (currentIndex + 1) % allData.length;
+            displayCurrentData();
+        }
+
+        // Démarrer le défilement automatique
+        function startAutoScroll() {
+            if (intervalId) clearInterval(intervalId);
+            intervalId = setInterval(nextData, INTERVAL_MS);
+        }
+
+        // Arrêter le défilement
+        function stopAutoScroll() {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+            document.getElementById('progressBar').style.width = '0%';
+        }
+
+        // Gestion des événements de survol
+        ['probabilityContainer', 'speedContainer'].forEach(id => {
+            const container = document.getElementById(id);
+            container.addEventListener('mouseenter', () => {
+                isPaused = true;
+                stopAutoScroll();
+            });
+            container.addEventListener('mouseleave', () => {
+                isPaused = false;
+                startAutoScroll();
+            });
+        });
+
+        // Charger les données depuis l'API
+        async function loadData() {
+            try {
+                const response = await fetch(API_URL);
+                const json = await response.json();
+                
+                if (json.success && json.data) {
+                    allData = convertApiData(json.data);
+                    currentIndex = 0;
+                    displayCurrentData();
+                    startAutoScroll();
+                } else {
+                    document.getElementById('currentDate').textContent = '❌ Erreur: données invalides';
+                }
+            } catch (error) {
+                console.error('Erreur de chargement:', error);
+                document.getElementById('currentDate').textContent = '❌ Erreur de chargement des données';
+            }
+        }
+
+        // Initialiser
+        loadData();
+    </script>
+</body>
+</html>

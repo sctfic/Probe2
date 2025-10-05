@@ -125,6 +125,7 @@ function processAndDisplayConditions() {
         .map(([key, data]) => {
             const sensorInfo = { ...sensorMap[key], ...data, ...tileState[key] };
             if (sensorInfo.order !== undefined && sensorInfo.order > maxOrder) maxOrder = sensorInfo.order;
+
             return {
                 key,
                 name: sensorInfo.label || key,
@@ -137,9 +138,9 @@ function processAndDisplayConditions() {
                 groupUsage: sensorInfo.groupUsage || null,
                 groupCustom: sensorInfo.groupCustom || null,
                 customOrder: sensorInfo.order,
+                sensorDb: sensorInfo.sensorDb,
                 hidden: !!sensorInfo.hidden,
                 period: sensorInfo.period || '7d',
-                sensorDb: sensorInfo.sensorDb,
                 comment: sensorInfo.comment,
                 searchText: [sensorInfo.label, key, sensorInfo.comment, String(data.Value), data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
             };
