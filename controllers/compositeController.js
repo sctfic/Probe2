@@ -41,5 +41,5 @@ async function getcompositeProbes (req, res){
 }
 
 module.exports = {
-    getcompositeProbes
+    // getcompositeProbes
 };

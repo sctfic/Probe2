@@ -24,6 +24,10 @@ router.put('/settings', isAuthenticated, appController.updateUnitsSettings); // 
 router.get('/composite-probes', appController.getcompositeProbesSettings);
 router.put('/composite-probes', isAuthenticated, appController.updatecompositeProbesSettings);
 
+// Routes pour la configuration des Modeles Intégrateur
+router.get('/integrator-probes', appController.getIntegratorProbesSettings);
+router.put('/integrator-probes', isAuthenticated, appController.updateIntegratorProbesSettings);
+
 // Routes pour la configuration d'InfluxDB
 router.get('/influxdb', appController.getInfluxDbSettings);
 router.put('/influxdb', isAuthenticated, appController.updateInfluxDbSettings);

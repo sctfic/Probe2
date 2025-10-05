@@ -33,10 +33,6 @@
                 "url": "/api/station/:stationId/current-conditions",
                 "method": "GET"
             },
-            "compositeConditions": {
-                "url": "/api/station/:stationId/composite-conditions/:sensors?",
-                "method": "GET"
-            },
             "collect": {
                 "url": "/api/station/:stationId/collect",
                 "method": "GET"

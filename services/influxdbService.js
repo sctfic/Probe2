@@ -121,130 +121,79 @@ async function executeQuery(fluxQuery) {
     });
 }
 
-/**
- * Récupère les métadonnées pour une station spécifique.
- * @param {string} stationId - Identifiant de la station.
- * @returns {Promise<Object>} Un objet contenant les métadonnées de la station.
- */
-async function getInfluxMetadata(stationId) {
-    const bucketStructure = {};
-
+async function getInfluxMetadata(stationId = null, knownTags = ['sensor', 'station_id'], daysBack = 100) {
     try {
-        // Étape 1: Obtenir la liste de tous les _measurements
-        const measurementsQuery = `
-            import "influxdata/influxdb/schema"
-            schema.measurements(bucket: "${bucket}")
-        `;
-        const measurements = await new Promise((resolve, reject) => {
-            const results = [];
-            queryApi.queryRows(measurementsQuery, {
+        // REQUÊTE UNIQUE avec les tags connus - LIMITÉ aux derniers jours
+        const keepColumns = ['_measurement', '_field', ...knownTags].map(c => `"${c}"`).join(', ');
+        
+        const query = `
+            from(bucket: "${bucket}")
+                |> range(start: -${daysBack}d)
+                ${stationId ? `|> filter(fn: (r) => r.station_id == "${stationId}")` : ''}
+                |> keep(columns: [${keepColumns}])
+                |> distinct()
+                |> group()
+            `;
+
+        const allRows = await new Promise((resolve, reject) => {
+            const rows = [];
+            queryApi.queryRows(query, {
                 next(row, tableMeta) {
-                    const o = tableMeta.toObject(row);
-                    results.push(o._value);
+                    rows.push(tableMeta.toObject(row));
                 },
-                error(error) {
-                    reject(error);
-                },
-                complete() {
-                    resolve(results);
-                },
+                error: reject,
+                complete: () => resolve(rows)
             });
         });
-console.log(measurements);
-        // Étape 2: Pour chaque measurement, obtenir les tagKeys et fieldKeys
-        for (const measurement of measurements) {
+
+        // Construction de la structure
+        const bucketStructure = {};
+        
+        allRows.forEach(row => {
+            const measurement = row._measurement;
+            const field = row._field;
             
-            // Requête pour les tags
-            const tagsQuery = `
-                import "influxdata/influxdb/schema"
-                schema.measurementTagKeys(
-                    bucket: "${bucket}",
-                    measurement: "${measurement}"
-                )
-            `;
-            const tags = await new Promise((resolve, reject) => {
-                const results = [];
-                queryApi.queryRows(tagsQuery, {
-                    next(row, tableMeta) {
-                        const o = tableMeta.toObject(row);
-                        results.push(o._value);
-                    },
-                    error(error) {
-                        reject(error);
-                    },
-                    complete() {
-                        resolve(results);
-                    },
+            if (!bucketStructure[measurement]) {
+                bucketStructure[measurement] = {
+                    tags: {},
+                    fields: new Set()
+                };
+                knownTags.forEach(tag => {
+                    bucketStructure[measurement].tags[tag] = new Set();
                 });
-            });
-console.log('tags', tags);
-            // Requête pour les champs (_fields)
-            const fieldsQuery = `
-                import "influxdata/influxdb/schema"
-                schema.measurementFieldKeys(
-                    bucket: "${bucket}",
-                    measurement: "${measurement}"
-                )
-            `;
-            const fields = await new Promise((resolve, reject) => {
-                const results = [];
-                queryApi.queryRows(fieldsQuery, {
-                    next(row, tableMeta) {
-                        const o = tableMeta.toObject(row);
-                        results.push(o._value);
-                    },
-                    error(error) {
-                        reject(error);
-                    },
-                    complete() {
-                        resolve(results);
-                    },
-                });
-            });
-console.log('fields', fields);
-            const tagsWithValues = {};
-            for (const tag of tags.filter(t => t !== '_measurement' && t !== '_start' && t !== '_stop' && t !== '_field')) {
-                const valuesQuery = `
-                    import "influxdata/influxdb/schema"
-                    schema.measurementTagValues(
-                        bucket: "${bucket}",
-                        measurement: "${measurement}",
-                        tag: "${tag}"
-                    )
-                `;
-                const values = await new Promise((resolve, reject) => {
-                    const results = [];
-                    queryApi.queryRows(valuesQuery, {
-                        next(row, tableMeta) {
-                            const o = tableMeta.toObject(row);
-                            results.push(o._value);
-                        },
-                        error(error) {
-                            reject(error);
-                        },
-                        complete() {
-                            resolve(results);
-                        },
-                    });
-                });
-                console.log('values', values);
-                tagsWithValues[tag] = values;
             }
-console.log('tagsWithValues', tagsWithValues);
-            // Stocker la structure
-            bucketStructure[measurement] = {
-                tags: tagsWithValues,
-                fields: fields,
-            };
-        }
-console.log('bucketStructure', bucketStructure);
+            
+            bucketStructure[measurement].fields.add(field);
+            
+            knownTags.forEach(tag => {
+                if (row[tag] !== null && row[tag] !== undefined) {
+                    bucketStructure[measurement].tags[tag].add(row[tag]);
+                }
+            });
+        });
+
+        // Convertir Sets en Arrays
+        Object.keys(bucketStructure).forEach(measurement => {
+            bucketStructure[measurement].fields = Array.from(bucketStructure[measurement].fields).sort();
+            Object.keys(bucketStructure[measurement].tags).forEach(tag => {
+                const values = Array.from(bucketStructure[measurement].tags[tag]).sort();
+                if (values.length > 0) {
+                    bucketStructure[measurement].tags[tag] = values;
+                } else {
+                    delete bucketStructure[measurement].tags[tag];
+                }
+            });
+        });
+
         return bucketStructure;
 
     } catch (error) {
-        console.error('Erreur lors de l\'extraction de la structure:', error);
+        console.error('Erreur:', error);
         return null;
     }
 }
+
+
 function getFilter(sensorRef) {
     let Filter;
     if (sensorRef.includes(':')) {
@@ -271,25 +220,24 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate) {
 
     const query = `
         import "array"
-        first = from(bucket: "Probe")
+        // Premier timestamp
+        first = from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : 0}${endDate ? `, stop: ${endDate}` : ''}) 
             |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
             |> first()
-            |> keep(columns: ["_time"])
-            |> rename(columns: {"_time": "first"})
-            |> tableFind(fn: (key) => true)  // extrait la table
-            |> getRecord(idx: 0)             // prend la 1ᵉʳ ligne
+            |> findRecord(fn: (key) => true, idx: 0)
 
-        last = from(bucket: "Probe")
+        // Dernier timestamp - lecture inverse plus rapide
+        last = from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : 0}${endDate ? `, stop: ${endDate}` : ''}) 
             |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
             |> last()
-            |> keep(columns: ["_time"])
-            |> rename(columns: {"_time": "last"})
-            |> tableFind(fn: (key) => true)
-            |> getRecord(idx: 0)
+            |> findRecord(fn: (key) => true, idx: 0)
 
-        array.from(rows: [{first: first.first, last: last.last}])
+        array.from(rows: [{
+            first: first._time,
+            last: last._time
+        }])
     `;
     const result = await executeQuery(query);
     if (!result || result.length === 0 || result[0].count === 0) {

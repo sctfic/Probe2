@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 1. Get metadata for the calculated sensor and station config
             const [metaResponse, stationResponse] = await Promise.all([
-                fetch(`/api/station/${stationId}/composite-conditions/${sensorKey}`),
+                fetch(`/api/composite-conditions/${sensorKey}`),
                 fetch(`/api/station/${stationId}`)
             ]);
 

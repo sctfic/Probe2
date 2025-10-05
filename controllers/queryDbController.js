@@ -1,6 +1,6 @@
 // controllers/queryDbController.js
 const influxdbService = require('../services/influxdbService');
-const { V } = require('../utils/icons');
+const { V, O } = require('../utils/icons');
 const units = require('../config/Units.json');
 const { sensorTypeMap } = require('../utils/weatherDataParser');
 const configManager = require('../services/configManager');
@@ -93,14 +93,22 @@ function getMetadata(req, sensorRefs, { start, end, intervalSeconds }, data) {
 
 exports.getQueryMetadata = async (req, res) => {
     const stationId = req.params.stationId;
+    const start = Date.now();
     try {
+        console.log(`${V.info} getQueryMetadata: ${Date.now() - start}ms`);
+
+        const dateRange = await influxdbService.queryDateRange(stationId);
+        console.log(`${V.info} getQueryMetadata: ${Date.now() - start}ms`);
+
         console.log(`${V.info} Demande de métadonnées pour la station ${stationId}`);
         const _measurements = await influxdbService.getInfluxMetadata(stationId);
-        const allFields = Object.entries(_measurements)
+        console.log(`${V.info} getQueryMetadata: ${Date.now() - start}ms`);
+
+        const allFields = Object.entries(_measurements) // liste des sensors en nom long
             .flatMap(([measurementType, measurement]) => 
                 (measurement.tags?.sensor || []).map(sensor => `${measurementType}:${sensor}`)
             );
-        const dateRange = await influxdbService.queryDateRange(stationId, '', 0, Math.round(new Date().getTime()/1000));
+            console.log(`${V.info} getQueryMetadata: ${Date.now() - start}ms`);
 
         res.json({
             success: true,
@@ -559,7 +567,7 @@ console.log(response);
                     const point = new influxdbService.Point(type)
                         .tag('station_id', stationId)
                         .tag('sensor', sensor)
-                        .tag('unit', units[type].metric)
+                        // .tag('unit', units[type].metric)
                         .floatField('value', metricValue.toFixed(2))
                         .timestamp(timestamp)
                         .precision('m');
@@ -575,7 +583,7 @@ console.log(response);
                 .tag('station_id', stationId)
                 .floatField('Ux', UxWind)
                 .floatField('Vy', VyWind)
-                .tag('unit', '->')
+                // .tag('unit', '->')
                 .tag('sensor', 'open-meteo_Wind')
                 .timestamp(timestamp)
                 .precision('m');
@@ -589,7 +597,7 @@ console.log(response);
                 .tag('station_id', stationId)
                 .floatField('Ux', UxGust)
                 .floatField('Vy', VyGust)
-                .tag('unit', '->')
+                // .tag('unit', '->')
                 .tag('sensor', 'open-meteo_Gust')
                 .timestamp(timestamp)
                 .precision('m');

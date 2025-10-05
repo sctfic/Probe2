@@ -68,8 +68,9 @@
     "lastArchiveDate": "2025-08-20T04:00:00.000Z",
     "cron":{
         "comment": "Cron : intervalle de collecte des données de la station en minutes",
-        "enabled": true,
-        "value": 10
+        "enabled": false,
+        "value": 10,
+        "openMeteo": false
     },
     "deltaTimeSeconds": 0.959,
     "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\default.json"

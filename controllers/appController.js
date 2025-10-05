@@ -267,6 +267,72 @@ exports.updatecompositeProbesSettings = (req, res) => {
     }
 };
 
+exports.getIntegratorProbesSettings = (req, res) => {
+    try {
+        console.log(`${V.gear} Récupération de la configuration des Modeles Intégrateur (integratorProbes.json)`);
+        const probesPath = path.join(__dirname, '..', 'config', 'integratorProbes.json');
+        const probesConfig = JSON.parse(fs.readFileSync(probesPath, 'utf8'));
+        res.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            version: probeVersion,
+            settings: probesConfig
+        });
+    } catch (error) {
+        console.error(`${V.error} Erreur lors de la récupération de la configuration des Modeles Intégrateur:`, error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la récupération de la configuration des Modeles Intégrateur'
+        });
+    }
+};
+
+exports.updateIntegratorProbesSettings = (req, res) => {
+    try {
+        const newSettings = req.body.settings;
+        if (!newSettings || typeof newSettings !== 'object') {
+            return res.status(400).json({
+                success: false,
+                error: 'Données de configuration invalides ou manquantes.'
+            });
+        }
+
+        const probesPath = path.join(__dirname, '..', 'config', 'integratorProbes.json');
+        
+        fs.writeFileSync(probesPath, JSON.stringify(newSettings, null, 4), 'utf8');
+        console.log(`${V.write} Fichier integratorProbes.json mis à jour.`);
+
+        try {
+            const unitsPath = path.join(__dirname, '..', 'config', 'Units.json');
+            const unitsConfig = JSON.parse(fs.readFileSync(unitsPath, 'utf8'));
+            const allIntegratorProbeKeys = Object.keys(newSettings);
+
+            for (const probeKey of allIntegratorProbeKeys) {
+                const probeData = newSettings[probeKey];
+                const measurementType = probeData.measurement;
+
+                if (measurementType && unitsConfig[measurementType]) {
+                    if (!unitsConfig[measurementType].sensors) {
+                        unitsConfig[measurementType].sensors = [];
+                    }
+                    if (!unitsConfig[measurementType].sensors.includes(probeKey)) {
+                        unitsConfig[measurementType].sensors.push(probeKey);
+                    }
+                }
+            }
+            fs.writeFileSync(unitsPath, JSON.stringify(unitsConfig, null, 4), 'utf8');
+            console.log(`${V.write} Fichier Units.json mis à jour avec les Modeles Intégrateur.`);
+        } catch (unitsError) {
+            console.error(`${V.error} Erreur lors de la mise à jour de Units.json:`, unitsError);
+        }
+
+        res.json({ success: true, message: 'Configuration des Modeles Intégrateur mise à jour avec succès.' });
+    } catch (error) {
+        console.error(`${V.error} Erreur lors de la mise à jour de la configuration des Modeles Intégrateur:`, error);
+        res.status(500).json({ success: false, error: 'Erreur lors de la mise à jour de la configuration des Modeles Intégrateur.' });
+    }
+};
+
 exports.getAllStations = async (req, res) => {
     try {
         console.log(`${V.book} Récupération de la liste des stations`);

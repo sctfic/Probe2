@@ -4,7 +4,7 @@ const router = express.Router();
 const { loadStationConfig, talkStationWithLamp, talkStationQuickly } = require('../middleware/stationMiddleware');
 const { isAuthenticated } = require('../middleware/authMiddleware');
 const stationController = require('../controllers/stationController');
-const compositeController = require('../controllers/compositeController');
+// const compositeController = require('../controllers/compositeController');
 const cronService = require('../services/cronService');
 const V = require('../utils/icons');
 
@@ -29,9 +29,6 @@ router.get('/:stationId/sync-settings', talkStationWithLamp(stationController.sy
 router.get('/:stationId/test', stationController.testTcpIp); // http://probe2.lpz.ovh/api/station/VP2_Serramoune/test
 
 router.get('/:stationId/current-conditions', talkStationQuickly(stationController.getCurrentWeather)); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/current-conditions
-
-router.get('/:stationId/composite-conditions', compositeController.getcompositeProbes); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/composite-conditions
-router.get('/:stationId/composite-conditions/:sensors', compositeController.getcompositeProbes); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/composite-conditions/:sensors
 
 // Route pour obtenir la configuration d'une station
 router.get('/:stationId', (req, res) => { //http://probe2.lpz.ovh/api/station/VP2_Serramoune

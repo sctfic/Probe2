@@ -65,12 +65,13 @@
         "desired": 5,
         "lastReadValue": 5
     },
-    "lastArchiveDate": "2025-09-21T20:10:00.000Z",
+    "lastArchiveDate": "2025-10-04 12:15",
     "cron": {
         "comment": "Cron interval de collecte des données de la station",
         "enabled": false,
-        "value": 120
+        "value": 5,
+        "openMeteo": true
     },
-    "deltaTimeSeconds": 0.315,
+    "deltaTimeSeconds": 1.47,
     "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\VP2_Serramoune.json"
 }

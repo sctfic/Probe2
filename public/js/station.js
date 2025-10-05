@@ -279,7 +279,7 @@ function createDbExpandFieldHTML(field, range, isEnabled) {
                         <input type="checkbox" id="setting-cron-openMeteo" ${isEnabled ? 'checked' : ''}>
                         <span class="slider round"></span>
                     </label>
-                    <label for="setting-cron-openMeteo" style="margin-left: 8px;">Mise à jour quotidienne à 22h.</label>
+                    <label for="setting-cron-openMeteo" style="margin-left: 8px;">Mise à jour quotidienne à 23h30.</label>
                 <button type="button" class="btn-primary" id="db-expand-btn">
                     <img src="svg/access-control.svg" class="access-control-icon">
                     Importer manuellement
