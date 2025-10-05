@@ -219,7 +219,7 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate) {
     }
 
     const query = `
-        import "array"
+      import "array"
         // Premier timestamp
         first = from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : 0}${endDate ? `, stop: ${endDate}` : ''}) 
@@ -234,11 +234,17 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate) {
             |> last()
             |> findRecord(fn: (key) => true, idx: 0)
 
-        array.from(rows: [{
-            first: first._time,
-            last: last._time
-        }])
-    `;
+        if exists first._time then
+            array.from(rows: [{
+                first: first._time,
+                last: last._time
+            }])
+        else
+            array.from(rows: [{
+                first: time(v: 0),
+                last: time(v: 0)
+            }])
+        `;
     const result = await executeQuery(query);
     if (!result || result.length === 0 || result[0].count === 0) {
         return { firstUtc: null, lastUtc: null, count: 0, unit: '' };
@@ -246,8 +252,8 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate) {
     const data = result[0];
 
     return {
-        firstUtc: data.first,
-        lastUtc: data.last
+        firstUtc: data.first || (new Date().toISOString()),
+        lastUtc: data.last || (new Date(0).toISOString())
     };
 }
 

@@ -1,7 +1,7 @@
 {
   "success": true,
   "stationId": "VP2_Serramoune",
-  "timestamp": "2025-10-05T14:15:55.272Z",
+  "timestamp": "2025-10-05T14:45:41.142Z",
   "data": {
     "monthRain": {
       "Value": 6.6,
@@ -52,19 +52,19 @@
       "toUserUnit": "(t) => (t.includes('T') ? t.split('T')[1] : t).substring(0, 5)"
     },
     "barometer": {
-      "Value": 1025.9,
+      "Value": 1026.1,
       "Unit": "hpa",
       "userUnit": "hpa",
       "toUserUnit": "(hpa) => Number(hpa.toFixed(1))"
     },
     "inTemp": {
-      "Value": 290.4,
+      "Value": 289.3,
       "Unit": "K",
       "userUnit": "°C",
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
     },
     "inHumidity": {
-      "Value": 59,
+      "Value": 61,
       "Unit": "%",
       "userUnit": "%",
       "toUserUnit": "(h) => Number(h.toFixed(1))"
@@ -82,7 +82,7 @@
       "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
     },
     "windDir": {
-      "Value": 184,
+      "Value": 312,
       "Unit": "°",
       "userUnit": "cardinal",
       "toUserUnit": "(deg) => ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][Math.round(deg / 22.5) % 16]"
@@ -106,7 +106,7 @@
       "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
     },
     "windGustDir10Min": {
-      "Value": 359,
+      "Value": 314,
       "Unit": "°",
       "userUnit": "cardinal",
       "toUserUnit": "(deg) => ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][Math.round(deg / 22.5) % 16]"
@@ -130,13 +130,13 @@
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
     },
     "windChill": {
-      "Value": 289.3,
+      "Value": 289.8,
       "Unit": "K",
       "userUnit": "°C",
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
     },
     "THSW": {
-      "Value": 289.8,
+      "Value": 290.9,
       "Unit": "K",
       "userUnit": "°C",
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
@@ -148,13 +148,13 @@
       "toUserUnit": "(mmh) => Number((mmh*10).toFixed(2))"
     },
     "UV": {
-      "Value": 1.3,
+      "Value": 1,
       "Unit": "index",
       "userUnit": "min",
       "toUserUnit": "(uv, dem=32) => Number(Math.min(300, dem*6.5/((uv*Math.exp(uv/dem)))).toFixed(0))"
     },
     "solar": {
-      "Value": 142,
+      "Value": 221,
       "Unit": "w/m²",
       "userUnit": "w/m²",
       "toUserUnit": "(w) => Number(w.toFixed(1))"
@@ -215,7 +215,7 @@
     "SUN_V_calc": {
       "label": "Angle vertical du soleil",
       "comment": "calcul de la phase du soleil",
-      "Value": 31.9,
+      "Value": 27.9,
       "measurement": "angle",
       "Unit": "°",
       "userUnit": "°",
@@ -226,7 +226,7 @@
     "MOON_calc": {
       "label": "Phase de la lune",
       "comment": "calcul de la phase de la lune",
-      "Value": -25.6,
+      "Value": -20.6,
       "measurement": "angle",
       "Unit": "°",
       "userUnit": "°",

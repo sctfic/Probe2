@@ -524,10 +524,9 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             timeformat: 'unixtime'
         };
 
-        console.log(`${V.Parabol} Appel à Open-Meteo avec les paramètres:`, params);
+        console.log(`${V.Parabol} Appel à Open-Meteo avec les paramètres:`, params, response.responseUrl);
         const response = await axios.get(openMeteoUrl, { params });
         const openMeteoData = response.data;
-console.log(response);
         if (!openMeteoData || !openMeteoData.hourly || !openMeteoData.hourly.time) {
             throw new Error("Réponse invalide de l'API Open-Meteo.");
         }
