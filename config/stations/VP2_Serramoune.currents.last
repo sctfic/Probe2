@@ -1,7 +1,7 @@
 {
   "success": true,
   "stationId": "VP2_Serramoune",
-  "timestamp": "2025-10-04T13:24:00.787Z",
+  "timestamp": "2025-10-04T13:41:15.121Z",
   "data": {
     "monthRain": {
       "Value": 0.8,
@@ -52,25 +52,25 @@
       "toUserUnit": "(t) => (t.includes('T') ? t.split('T')[1] : t).substring(0, 5)"
     },
     "barometer": {
-      "Value": 1019.6,
+      "Value": 1019.7,
       "Unit": "hpa",
       "userUnit": "hpa",
       "toUserUnit": "(hpa) => Number(hpa.toFixed(1))"
     },
     "inTemp": {
-      "Value": 293.2,
+      "Value": 292.8,
       "Unit": "K",
       "userUnit": "°C",
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
     },
     "inHumidity": {
-      "Value": 69,
+      "Value": 72,
       "Unit": "%",
       "userUnit": "%",
       "toUserUnit": "(h) => Number(h.toFixed(1))"
     },
     "outTemp": {
-      "Value": 294.1,
+      "Value": 293.4,
       "Unit": "K",
       "userUnit": "°C",
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
@@ -82,61 +82,61 @@
       "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
     },
     "windDir": {
-      "Value": 151,
+      "Value": 251,
       "Unit": "°",
       "userUnit": "cardinal",
       "toUserUnit": "(deg) => ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][Math.round(deg / 22.5) % 16]"
     },
     "avgWindSpeed10Min": {
-      "Value": 0.5364,
-      "Unit": "m/s",
-      "userUnit": "km/h",
-      "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
-    },
-    "avgWindSpeed2Min": {
       "Value": 0.3129,
       "Unit": "m/s",
       "userUnit": "km/h",
       "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
     },
+    "avgWindSpeed2Min": {
+      "Value": 0.1341,
+      "Unit": "m/s",
+      "userUnit": "km/h",
+      "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
+    },
     "windGust10Min": {
-      "Value": 0.3576,
+      "Value": 0.1341,
       "Unit": "m/s",
       "userUnit": "km/h",
       "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
     },
     "windGustDir10Min": {
-      "Value": 224,
+      "Value": 359,
       "Unit": "°",
       "userUnit": "cardinal",
       "toUserUnit": "(deg) => ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][Math.round(deg / 22.5) % 16]"
     },
     "dewPoint": {
-      "Value": 290.4,
+      "Value": 289.8,
       "Unit": "K",
       "userUnit": "°C",
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
     },
     "outHumidity": {
-      "Value": 78,
+      "Value": 80,
       "Unit": "%",
       "userUnit": "%",
       "toUserUnit": "(h) => Number(h.toFixed(1))"
     },
     "heatIndex": {
-      "Value": 294.8,
+      "Value": 293.7,
       "Unit": "K",
       "userUnit": "°C",
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
     },
     "windChill": {
-      "Value": 294.3,
+      "Value": 293.1,
       "Unit": "K",
       "userUnit": "°C",
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
     },
     "THSW": {
-      "Value": 295.9,
+      "Value": 295.4,
       "Unit": "K",
       "userUnit": "°C",
       "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
@@ -153,8 +153,8 @@
       "userUnit": "min",
       "toUserUnit": "(uv, dem=32) => Number(Math.min(300, dem*6.5/((uv*Math.exp(uv/dem)))).toFixed(0))"
     },
-    "solarRadiation": {
-      "Value": 156,
+    "solar": {
+      "Value": 181,
       "Unit": "w/m²",
       "userUnit": "w/m²",
       "toUserUnit": "(w) => Number(w.toFixed(1))"
@@ -198,7 +198,7 @@
     "AirWater_calc": {
       "label": "masse d'H2O dans l'air",
       "comment": "masse d'eau par mettre cube d'air (ou g/l)",
-      "Value": 14.24,
+      "Value": 14.02,
       "measurement": "density",
       "Unit": "g/m³",
       "userUnit": "g/m³",
@@ -209,7 +209,7 @@
     "SUN_V_calc": {
       "label": "Angle vertical du soleil",
       "comment": "calcul de la phase du soleil",
-      "Value": 38,
+      "Value": 36.3,
       "measurement": "angle",
       "Unit": "°",
       "userUnit": "°",
@@ -220,7 +220,7 @@
     "MOON_calc": {
       "label": "Phase de la lune",
       "comment": "calcul de la phase de la lune",
-      "Value": -31.2,
+      "Value": -28.3,
       "measurement": "angle",
       "Unit": "°",
       "userUnit": "°",

@@ -39,11 +39,11 @@
                     "Value": 1.9,
                     "Unit": "index"
                 },
-                "solarRadiation": {
+                "solar": {
                     "Value": 276,
                     "Unit": "w/m²"
                 },
-                "solarRadiationMax": {
+                "solarMax": {
                     "Value": 327,
                     "Unit": "w/m²"
                 },
@@ -85,11 +85,11 @@
                     "Value": 1.5,
                     "Unit": "index"
                 },
-                "solarRadiation": {
+                "solar": {
                     "Value": 235,
                     "Unit": "w/m²"
                 },
-                "solarRadiationMax": {
+                "solarMax": {
                     "Value": 243,
                     "Unit": "w/m²"
                 },

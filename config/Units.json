@@ -21,6 +21,7 @@
         "sensors": [
             "inTemp",
             "outTemp",
+            "open-meteo_outTemp",
             "dewPoint",
             "heatIndex",
             "windChill",
@@ -31,6 +32,7 @@
             "soilTemp2",
             "soilTemp3",
             "soilTemp4",
+            "open-meteo_soilTemp",
             "extraTemp1",
             "extraTemp2",
             "extraTemp3",
@@ -86,6 +88,8 @@
         "sensors": [
             "Wind",
             "Gust",
+            "open-meteo_Wind",
+            "open-meteo_Gusts",
             "windSpeed",
             "windSpeedMax",
             "avgWindSpeed10Min",
@@ -109,6 +113,9 @@
             }
         },
         "sensors": [
+            "Wind",
+            "Gust",
+            "open-meteo_Wind",
             "windDir",
             "windDirMax",
             "windGustDir10Min"
@@ -159,7 +166,7 @@
         },
         "sensors": [
             "barometer",
-            "truc_calc"
+            "open-meteo_barometer"
         ]
     },
     "rain": {
@@ -183,6 +190,7 @@
         },
         "sensors": [
             "rainFall",
+            "open-meteo_rainFall",
             "stormRain",
             "dayRain",
             "monthRain",
@@ -193,6 +201,7 @@
             "last15MinRain",
             "lastHourRain",
             "last24HourRain",
+            "open-meteo_ET",
             "ET"
         ]
     },
@@ -240,8 +249,8 @@
             "UVMax"
         ]
     },
-    "powerRadiation": {
-        "title": "Iradiance",
+    "irradiance": {
+        "title": "Irradiance",
         "description": "Unités de mesure du rayonnement solaire",
         "user": "w/m²",
         "metric": "w/m²",
@@ -252,8 +261,9 @@
             }
         },
         "sensors": [
-            "solarRadiation",
-            "solarRadiationMax"
+            "solar",
+            "solarMax",
+            "open-meteo_solar"
         ]
     },
     "humidity": {
@@ -270,6 +280,7 @@
         "sensors": [
             "inHumidity",
             "outHumidity",
+            "open-meteo_outHumidity",
             "leafWetness1",
             "leafWetness2",
             "extraHumidity1",
@@ -277,7 +288,8 @@
             "extraSoilMoisture1",
             "extraSoilMoisture2",
             "extraSoilMoisture3",
-            "extraSoilMoisture4"
+            "extraSoilMoisture4",
+            "open-meteo_soilMoisture"
         ]
     },
     "battery": {

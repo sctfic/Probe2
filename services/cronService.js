@@ -5,6 +5,7 @@ const configManager = require('./configManager');
 const { V } = require('../utils/icons');
 
 const scheduledTasks = new Map();
+const scheduledOpenMeteoTasks = new Map();
 
 /**
  * Planifie une tâche de collecte pour une station donnée.
@@ -51,6 +52,46 @@ function scheduleJobForStation(stationId, stationConfig) {
 }
 
 /**
+ * Planifie une tâche de collecte Open-Meteo pour une station.
+ * @param {string} stationId - L'ID de la station.
+ * @param {object} stationConfig - La configuration de la station.
+ */
+function scheduleOpenMeteoJob(stationId, stationConfig) {
+    // S'assurer qu'il n'y a pas déjà une tâche pour cette station
+    if (scheduledOpenMeteoTasks.has(stationId)) {
+        console.log(`${V.Warn} [CRON] Une tâche Open-Meteo existe déjà pour ${stationId}. Suppression avant de replanifier.`);
+        removeOpenMeteoJob(stationId);
+    }
+
+    if (!stationConfig.cron || !stationConfig.cron.openMeteo) {
+        console.log(`${V.info} [CRON] La collecte Open-Meteo n'est pas activée pour ${stationId}.`);
+        return;
+    }
+
+    // Tous les jours à 23h30
+    const cronPattern = '0 30 23 * * *';
+
+    const task = cron.schedule(cronPattern, async () => {
+        const port = process.env.PORT || 3000;
+        const url = `http://localhost:${port}/query/${stationId}/dbexpand`;
+        console.log(`${V.info} [CRON] Exécution de la collecte Open-Meteo pour la station ${stationId}`);
+        try {
+            const response = await axios.get(url);
+            console.log(`${V.Check} [CRON] Collecte Open-Meteo pour ${stationId} réussie. Status: ${response.status}`);
+        } catch (error) {
+            const errorMessage = error.response ? `Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data)}` : error.message;
+            console.error(`${V.error} [CRON] Erreur lors de la collecte Open-Meteo pour ${stationId}:`, errorMessage);
+        }
+    }, {
+        timezone: "Europe/Paris" // ou le fuseau horaire de votre serveur
+    });
+
+    scheduledOpenMeteoTasks.set(stationId, task);
+    console.log(`${V.Check} [CRON] Tâche Open-Meteo planifiée pour ${stationId} avec le pattern: "${cronPattern}".`);
+}
+
+
+/**
  * Supprime la tâche planifiée pour une station.
  * @param {string} stationId - L'ID de la station.
  */
@@ -63,6 +104,17 @@ function removeJobForStation(stationId) {
 }
 
 /**
+ * Supprime la tâche Open-Meteo planifiée pour une station.
+ * @param {string} stationId - L'ID de la station.
+ */
+function removeOpenMeteoJob(stationId) {
+    if (scheduledOpenMeteoTasks.has(stationId)) {
+        scheduledOpenMeteoTasks.get(stationId).stop();
+        scheduledOpenMeteoTasks.delete(stationId);
+        console.log(`${V.trash} [CRON] Tâche Open-Meteo supprimée pour la station ${stationId}.`);
+    }
+}
+/**
  * Initialise les tâches pour toutes les stations configurées.
  */
 function initializeAllJobs() {
@@ -71,11 +123,14 @@ function initializeAllJobs() {
     stations.forEach((stationId) => {
         const stationConfig = configManager.loadConfig(stationId);
         scheduleJobForStation(stationId, stationConfig);
+        scheduleOpenMeteoJob(stationId, stationConfig);
     });
 }
 
 module.exports = {
     initializeAllJobs,
     scheduleJobForStation,
-    removeJobForStation
+    removeJobForStation,
+    scheduleOpenMeteoJob,
+    removeOpenMeteoJob
 };

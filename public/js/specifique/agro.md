@@ -89,22 +89,22 @@ exemple de culture :
           "max": 80,
           "lethalHigh": 95
         },
-		"water": 2.5, // l/m2/jour
-		"lightPower": {
-			"opt": 250,
-			"min": 100,
-			"max": 300				
-		},
-		"lightHours": {
-			"opt": 16,
-			"min": 8,
-			"max": 18
-		},
-		"thermal": {
-			"degree-hours": 240,
-			"periodDays": 10
-		}
+        "lightPower": {
+          "opt": 250,
+          "min": 100,
+          "max": 300				
+        },
+        "lightHours": {
+          "opt": 16,
+          "min": 8,
+          "max": 18
+        },
+        "thermal": {
+          "degree-hours": 240,
+          "periodDays": 10
+        },
         "windMax_m_s": 5,
+        "water": 2.5 // l/m2/jour
       },
       "GERMINATION": {
         "temp": {
@@ -123,12 +123,22 @@ exemple de culture :
           "max": 80,
           "lethalHigh": 95
         },
-        "radiationOpt_W_m2": 0,
+        "lightPower": {
+          "opt": 250,
+          "min": 100,
+          "max": 300				
+        },
+        "lightHours": {
+          "opt": 16,
+          "min": 8,
+          "max": 18
+        },
+        "thermal": {
+          "degree-hours": 240,
+          "periodDays": 10
+        },
         "windMax_m_s": 5,
-        "thermalRequirements": {
-          "degree-hours": 350,
-          "periodDays": 7
-        }
+        "water": 2.5 // l/m2/jour
       },
       "VEGETATIVE": {
         "temp": {
@@ -147,12 +157,22 @@ exemple de culture :
           "max": 75,
           "lethalHigh": 95
         },
-        "radiationOpt_W_m2": 250,
+        "lightPower": {
+          "opt": 250,
+          "min": 100,
+          "max": 300				
+        },
+        "lightHours": {
+          "opt": 16,
+          "min": 8,
+          "max": 18
+        },
+        "thermal": {
+          "degree-hours": 240,
+          "periodDays": 10
+        },
         "windMax_m_s": 6,
-        "thermalRequirements": {
-          "degree-hours": 120,
-          "periodDays": 21
-        }
+        "water": 2.5 // l/m2/jour
       },
       "FLOWERING": {
         "temp": {
@@ -171,12 +191,22 @@ exemple de culture :
           "max": 70,
           "lethalHigh": 95
         },
-        "radiationOpt_W_m2": 220,
+        "lightPower": {
+          "opt": 220,
+          "min": 100,
+          "max": 300			
+        },
+        "lightHours": {
+          "opt": 16,
+          "min": 8,
+          "max": 18
+        },
+        "thermal": {
+          "degree-hours": 240,
+          "periodDays": 10
+        },
         "windMax_m_s": 5,
-        "thermalRequirements": {
-          "degree-hours": 150,
-          "periodDays": 5
-        }
+        "water": 2.5 // l/m2/jour
       },
       "FRUIT_DAY": {
         "temp": {
@@ -195,9 +225,22 @@ exemple de culture :
           "max": 70,
           "lethalHigh": 95
         },
-        "radiationOpt_W_m2": 200,
+        "lightPower": {
+          "opt": 200,
+          "min": 100,
+          "max": 300			
+        },
+        "lightHours": {
+          "opt": 16,
+          "min": 8,
+          "max": 18
+        },
+        "thermal": {
+          "degree-hours": 240,
+          "periodDays": 10
+        },
         "windMax_m_s": 4,
-        "thermalRequirements": null
+        "water": 2.5 // l/m2/jour
       },
       "FRUIT_NIGHT": {
         "temp": {
@@ -216,9 +259,22 @@ exemple de culture :
           "max": 70,
           "lethalHigh": 95
         },
-        "radiationOpt_W_m2": 0,
+        "lightPowerS": {
+          "opt": 200,
+          "min": 100,
+          "max": 300			
+        },
+        "lightHours": {
+          "opt": 16,
+          "min": 8,
+          "max": 18
+        },
+        "thermal": {
+          "degree-hours": 240,
+          "periodDays": 10
+        },
         "windMax_m_s": 3,
-        "thermalRequirements": null
+        "water": 2.5 // l/m2/jour
       }
     }
   }
@@ -266,6 +322,6 @@ exemple de culture :
   }
 
 
-raws.json sera fournis par une api ( /query/VP2_Serramoune/Raws/temperature:outTemp,powerRadiation:solarRadiation,rain:ET,humidity:outHumidity,rain:rainFall,speed:Wind?stepCount=120&startDate=2025-09-15&endDate=2025-09-20) avec la meme structure
+raws.json sera fournis par une api ( /query/VP2_Serramoune/Raws/temperature:outTemp,irradiance:solar,rain:ET,humidity:outHumidity,rain:rainFall,speed:Wind?stepCount=120&startDate=2025-09-15&endDate=2025-09-20) avec la meme structure
 il pourra contenir 'uv:UV', 'humidity:extraSoilMoisture1' et 'temperature:soilTemp1' en option (si le capteur est present, sinon faire sans ou faire une estimation d'apres les conditions precedentes)
 fais moi des suggestion pour etre le plus pertinant dans la gestion de mes cultures

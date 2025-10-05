@@ -611,17 +611,17 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
     const day = effectiveStartDate.getDate();
     const hours = effectiveStartDate.getHours();
     const minutes = effectiveStartDate.getMinutes();
-console.log(O.RED, 'year =',year, 'month =', month, 'day =',day, 'hours =', hours, 'minutes =', minutes);
+// console.log(O.RED, 'year =',year, 'month =', month, 'day =',day, 'hours =', hours, 'minutes =', minutes);
     const dateStamp = (year - 2000) * 512 + month * 32 + day;
     const timeStamp = (hours) * 100 + minutes; // -1 pour test
-console.log(O.RED, dateStamp, timeStamp);
+// console.log(O.RED, dateStamp, timeStamp);
     const datePayload = Buffer.from([ dateStamp & 0xFF, dateStamp >> 8, timeStamp & 0xFF, timeStamp >> 8]);
     
     const dateCrc = calculateCRC(datePayload);
     const dateCrcBytes = Buffer.from([dateCrc >> 8, dateCrc & 0xFF]);
     const fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
     
-console.log(O.RED, dateStamp, timeStamp, datePayload, dateCrcBytes, fullPayload, fullPayload.toString('hex'), fullPayload.toString('binary')); // 13123 2100 <Buffer 43 33 34 08> 8684
+// console.log(O.RED, dateStamp, timeStamp, datePayload, dateCrcBytes, fullPayload, fullPayload.toString('hex'), fullPayload.toString('binary')); // 13123 2100 <Buffer 43 33 34 08> 8684
     // on envoit la date de la 1er archive souhaitée
     const pageInfo = await sendCommand(req, stationConfig, fullPayload, 3000, "<ACK>4<CRC>");
     const numberOfPages = pageInfo.readUInt16LE(0);

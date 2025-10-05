@@ -153,7 +153,7 @@
             "userUnit": "min",
             "toUserUnit": "(uv, dem=24) => Number(Math.min(300, (6.5*dem)/((uv*Math.exp(uv/dem)))).toFixed(0))"
         },
-        "solarRadiation": {
+        "solar": {
             "Value": 547,
             "Unit": "w/m²",
             "userUnit": "w/m²",

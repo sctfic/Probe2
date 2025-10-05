@@ -61,19 +61,33 @@ router.put('/:stationId', isAuthenticated, (req, res) => {
         const stationConfig = req.stationConfig;
         const updates = req.body;
         const configManager = require('../services/configManager');
-        
-        // console.log(`${V.gear} Mise à jour de la configuration pour la station ${stationConfig.id}`, updates);
+        const cronChanged = stationConfig.cron.enabled !== updates.cron.enabled || stationConfig.cron.value !== updates.cron.value;
+        const openMeteoChanged = stationConfig.cron.openMeteo !== updates.cron.openMeteo;
 
-        // Si les paramètres cron ont changé, on replanifie la tâche
-        const cronSettingsChanged = stationConfig.cron.enabled !== updates.cron.enabled || stationConfig.cron.value !== updates.cron.value;
-        if (cronSettingsChanged) {
-            console.log(`[CRON] Les paramètres de collecte ont changé pour ${stationConfig.id}. Replanification...`);
-            cronService.scheduleJobForStation(stationConfig.id, updates); // updates contient la nouvelle config
-        }
-        // Fusionner les modifications avec la configuration existante
-        const updatedConfig = { ...stationConfig, ...updates };
+        // Fusionner les modifications avec la configuration existante de manière récursive
+        const mergeDeep = (target, source) => {
+            for (const key in source) {
+                if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                    if (!target[key]) Object.assign(target, { [key]: {} });
+                    mergeDeep(target[key], source[key]);
+                } else {
+                    Object.assign(target, { [key]: source[key] });
+                }
+            }
+            return target;
+        };
+        const updatedConfig = mergeDeep({ ...stationConfig }, updates);
+
         updatedConfig.id = stationConfig.id; // S'assurer que l'ID reste correct
         
+        if (cronChanged) {
+            console.log(`[CRON] Les paramètres de collecte ont changé pour ${stationConfig.id}. Replanification...`);
+            cronService.scheduleJobForStation(stationConfig.id, updatedConfig);
+        }
+        if (openMeteoChanged) {
+            console.log(`[CRON] Le paramètre de collecte Open-Meteo a changé pour ${stationConfig.id}. Replanification...`);
+            cronService.scheduleOpenMeteoJob(stationConfig.id, updatedConfig);
+        }
         // Sauvegarder la configuration mise à jour
         const success = configManager.saveConfig(stationConfig.id, updatedConfig);
         

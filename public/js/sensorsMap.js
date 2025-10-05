@@ -98,14 +98,14 @@ const sensorMap = {
         groupCustom: 1,
         sensorDb: 'UV'
     },
-    'solarRadiation': {
+    'solar': {
         label: 'Irradiance solaire',
         comment: 'puissance Radiation solaire',
-        measurement: 'powerRadiation',
+        measurement: 'irradiance',
         period: 60*60*24*7,
         groupUsage: '2/ Sun',
         groupCustom: 1,
-        sensorDb: 'solarRadiationMax'
+        sensorDb: 'solarMax'
     },
     'stormRain': {
         label: "Preciperiode d'averces actuelle",

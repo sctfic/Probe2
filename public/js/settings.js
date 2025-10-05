@@ -210,7 +210,7 @@ function displayUnitsForm(settings) {
         'Unités Météorologiques': ['temperature', 'humidity', 'pressure'],
         'Unités Vent et Direction': ['speed', 'direction'],
         'Unités Précipitations': ['rain', 'rainRate'],
-        'Unités Rayonnement': ['uv', 'powerRadiation'],
+        'Unités Rayonnement': ['uv', 'irradiance'],
         'Unités Système': ['battery', 'date', 'time'],
         'Unités Supplémentaires': [] // Sera peuplé dynamiquement
     };

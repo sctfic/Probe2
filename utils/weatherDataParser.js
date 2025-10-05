@@ -90,7 +90,7 @@ function parseLOOP1Data(data) {
     // weatherData.outHumidity = { value: readUInt8(data, 33), native_unit: "percent" };
     // weatherData.rainRate = { value: readUInt16LE(data, 41), native_unit: "clicks*cup_size" };
     // weatherData.UV = { value: readUInt8(data, 43), native_unit: "uvIndex_tenths" };
-    // weatherData.solarRadiation = { value: readUInt16LE(data, 44, 32767), native_unit: "w/m²" };
+    // weatherData.solar = { value: readUInt16LE(data, 44, 32767), native_unit: "w/m²" };
     // weatherData.stormRain = { value: readUInt16LE(data, 46), native_unit: "in_100th" };
     // weatherData.dayRain = { value: readUInt16LE(data, 50), native_unit: "clicks*cup_size" };
     weatherData.monthRain = { value: readUInt16LE(data, 52), native_unit: "clicks*cup_size" };
@@ -124,7 +124,7 @@ function parseLOOP2Data(data) {
     weatherData.THSW = { value: readSignedInt16LE(data, 39), native_unit: "F_whole" };
     weatherData.rainRate = { value: readUInt16LE(data, 41), native_unit: "clicks*cup_size" };
     weatherData.UV = { value: readUInt8(data, 43), native_unit: "uvIndex_tenths" };
-    weatherData.solarRadiation = { value: readUInt16LE(data, 44, 32767), native_unit: "w/m²" };
+    weatherData.solar = { value: readUInt16LE(data, 44, 32767), native_unit: "w/m²" };
     weatherData.stormRain = { value: readUInt16LE(data, 46), native_unit: "clicks*cup_size" };
     weatherData.dateStormRain = { value: readUInt16LE(data, 48), native_unit: "date_MMddYY" };
     weatherData.dayRain = { value: readUInt16LE(data, 50), native_unit: "clicks*cup_size" };
@@ -152,8 +152,8 @@ function parseDMPRecord(recordBuffer) {
     record.windDirMax = { value: readUInt8(recordBuffer, 27), native_unit: "cardinalInt" };
     record.UV = { value: readUInt8(recordBuffer, 28), native_unit: "uvIndex_tenths" };
     record.UVMax = { value: readUInt8(recordBuffer, 32), native_unit: "uvIndex_tenths" };
-    record.solarRadiation = { value: readUInt16LE(recordBuffer, 16, 32767), native_unit: "w/m²" };
-    record.solarRadiationMax = { value: readUInt16LE(recordBuffer, 30, 32767), native_unit: "w/m²" };
+    record.solar = { value: readUInt16LE(recordBuffer, 16, 32767), native_unit: "w/m²" };
+    record.solarMax = { value: readUInt16LE(recordBuffer, 30, 32767), native_unit: "w/m²" };
     record.ForecastNum = { value: readUInt8(recordBuffer, 33, 193), native_unit: "ForecastNum" };
     record.leafTemp1 = { value: readUInt8(recordBuffer, 34), native_unit: "F_whole" };
     record.leafTemp2 = { value: readUInt8(recordBuffer, 35), native_unit: "F_whole" };
@@ -259,7 +259,7 @@ const conversionTable = {
         // temps d'exposition avant un coup de soleil = (DEM*6.5)/(UVIndex*exp(uvindex/DEM))
         // DEM (Dose Erythemale Minimal) = 32 mJ/cm² peau claire de Type 2, (type 6 = noire)
     },
-    powerRadiation: {
+    irradiance: {
         'w/m²': (w) => w
     },
     humidity: {

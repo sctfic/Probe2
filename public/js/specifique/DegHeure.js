@@ -22,7 +22,7 @@ class AdvancedDegreeHoursCalculator {
             
             // Rayonnement et UV
             lightRequirement: 200, // Besoin en rayonnement minimal (W/m²)
-            maxSolarRadiation: 1000, // Rayonnement maximal avant stress (W/m²)
+            maxsolar: 1000, // Rayonnement maximal avant stress (W/m²)
             maxUV: 8,               // UV maximal avant stress (index)
             
             // Pression atmosphérique
@@ -101,24 +101,24 @@ class AdvancedDegreeHoursCalculator {
      * Facteur de correction pour le rayonnement solaire
      * Sources : Farquhar, G.D. & Sharkey, T.D. (1982), Long, S.P. et al. (2006)
      */
-    lightFactor(solarRadiation) {
-        if (!solarRadiation) return 1;
+    lightFactor(solar) {
+        if (!solar) return 1;
         
-        const { lightRequirement, maxSolarRadiation } = this.params;
+        const { lightRequirement, maxsolar } = this.params;
         
         // Rayonnement optimal
-        if (solarRadiation >= lightRequirement && solarRadiation <= maxSolarRadiation) {
+        if (solar >= lightRequirement && solar <= maxsolar) {
             return 1;
         }
         
         // Rayonnement insuffisant
-        if (solarRadiation < lightRequirement) {
-            return Math.max(0.1, Math.pow(solarRadiation / lightRequirement, 0.8));
+        if (solar < lightRequirement) {
+            return Math.max(0.1, Math.pow(solar / lightRequirement, 0.8));
         }
         
         // Rayonnement excessif (stress photo-oxydatif)
-        if (solarRadiation > maxSolarRadiation) {
-            const excessFactor = (solarRadiation - maxSolarRadiation) / maxSolarRadiation;
+        if (solar > maxsolar) {
+            const excessFactor = (solar - maxsolar) / maxsolar;
             return Math.max(0.6, 1 - excessFactor * 0.4);
         }
         
@@ -226,7 +226,7 @@ class AdvancedDegreeHoursCalculator {
         const factors = {
             temperature: this.temperatureFactor(tempC),
             humidity: this.humidityFactor(dataPoint['humidity:outHumidity']),
-            light: this.lightFactor(dataPoint['powerRadiation:solarRadiation']),
+            light: this.lightFactor(dataPoint['irradiance:solar']),
             uv: this.uvFactor(dataPoint['uv:UV']),
             pressure: this.pressureFactor(dataPoint['pressure:barometer']),
             rainfall: this.rainfallFactor(dataPoint['rain:rainFall']),
@@ -253,7 +253,7 @@ class AdvancedDegreeHoursCalculator {
             globalFactor: globalFactor,
             conditions: {
                 humidity: dataPoint['humidity:outHumidity'],
-                solarRadiation: dataPoint['powerRadiation:solarRadiation'],
+                solar: dataPoint['irradiance:solar'],
                 uvIndex: dataPoint['uv:UV'],
                 pressure: dataPoint['pressure:barometer'],
                 rainfall: dataPoint['rain:rainFall'],
@@ -1031,184 +1031,184 @@ class AdvancedDegreeHoursCalculator {
             mais: {
                 baseTemp: 10, optimalTemp: 30, maxTemp: 35, criticalMaxTemp: 42,
                 optimalHumidity: 60, minHumidity: 40, maxHumidity: 80,
-                lightRequirement: 250, maxSolarRadiation: 900, maxUV: 9
+                lightRequirement: 250, maxsolar: 900, maxUV: 9
             },
             ble: {
                 baseTemp: 0, optimalTemp: 20, maxTemp: 30, criticalMaxTemp: 35,
                 optimalHumidity: 70, minHumidity: 50, maxHumidity: 85,
-                lightRequirement: 180, maxSolarRadiation: 800, maxUV: 7
+                lightRequirement: 180, maxsolar: 800, maxUV: 7
             },
             tomate: {
                 baseTemp: 10, optimalTemp: 25, maxTemp: 30, criticalMaxTemp: 35,
                 optimalHumidity: 65, minHumidity: 40, maxHumidity: 80,
-                lightRequirement: 200, maxSolarRadiation: 850, maxUV: 8
+                lightRequirement: 200, maxsolar: 850, maxUV: 8
             },
             vigne: {
                 baseTemp: 10, optimalTemp: 25, maxTemp: 35, criticalMaxTemp: 40,
                 optimalHumidity: 60, minHumidity: 35, maxHumidity: 75,
-                lightRequirement: 220, maxSolarRadiation: 950, maxUV: 10
+                lightRequirement: 220, maxsolar: 950, maxUV: 10
             },
             oliviers: {
                 baseTemp: 7, optimalTemp: 22, maxTemp: 38, criticalMaxTemp: 45,
                 optimalHumidity: 55, minHumidity: 25, maxHumidity: 70,
-                lightRequirement: 250, maxSolarRadiation: 1000, maxUV: 12
+                lightRequirement: 250, maxsolar: 1000, maxUV: 12
             },
             // Cultures maraîchères
             laitue: {
                 baseTemp: 5, optimalTemp: 18, maxTemp: 25, criticalMaxTemp: 30,
                 optimalHumidity: 70, minHumidity: 50, maxHumidity: 85,
-                lightRequirement: 150, maxSolarRadiation: 700, maxUV: 6
+                lightRequirement: 150, maxsolar: 700, maxUV: 6
             },
             radis: {
                 baseTemp: 4, optimalTemp: 16, maxTemp: 22, criticalMaxTemp: 28,
                 optimalHumidity: 65, minHumidity: 45, maxHumidity: 80,
-                lightRequirement: 120, maxSolarRadiation: 600, maxUV: 5
+                lightRequirement: 120, maxsolar: 600, maxUV: 5
             },
             carotte: {
                 baseTemp: 6, optimalTemp: 20, maxTemp: 26, criticalMaxTemp: 32,
                 optimalHumidity: 70, minHumidity: 50, maxHumidity: 85,
-                lightRequirement: 160, maxSolarRadiation: 750, maxUV: 7
+                lightRequirement: 160, maxsolar: 750, maxUV: 7
             },
             epinard: {
                 baseTemp: 2, optimalTemp: 15, maxTemp: 20, criticalMaxTemp: 25,
                 optimalHumidity: 75, minHumidity: 60, maxHumidity: 90,
-                lightRequirement: 130, maxSolarRadiation: 650, maxUV: 5
+                lightRequirement: 130, maxsolar: 650, maxUV: 5
             },
             courgette: {
                 baseTemp: 12, optimalTemp: 24, maxTemp: 30, criticalMaxTemp: 35,
                 optimalHumidity: 60, minHumidity: 40, maxHumidity: 75,
-                lightRequirement: 220, maxSolarRadiation: 850, maxUV: 8
+                lightRequirement: 220, maxsolar: 850, maxUV: 8
             },
             aubergine: {
                 baseTemp: 15, optimalTemp: 26, maxTemp: 32, criticalMaxTemp: 38,
                 optimalHumidity: 65, minHumidity: 45, maxHumidity: 80,
-                lightRequirement: 250, maxSolarRadiation: 900, maxUV: 9
+                lightRequirement: 250, maxsolar: 900, maxUV: 9
             },
             poivron: {
                 baseTemp: 13, optimalTemp: 25, maxTemp: 30, criticalMaxTemp: 35,
                 optimalHumidity: 65, minHumidity: 45, maxHumidity: 80,
-                lightRequirement: 200, maxSolarRadiation: 850, maxUV: 8
+                lightRequirement: 200, maxsolar: 850, maxUV: 8
             },
             concombre: {
                 baseTemp: 15, optimalTemp: 25, maxTemp: 30, criticalMaxTemp: 35,
                 optimalHumidity: 70, minHumidity: 50, maxHumidity: 85,
-                lightRequirement: 180, maxSolarRadiation: 800, maxUV: 7
+                lightRequirement: 180, maxsolar: 800, maxUV: 7
             },
             haricot_vert: {
                 baseTemp: 10, optimalTemp: 22, maxTemp: 28, criticalMaxTemp: 33,
                 optimalHumidity: 65, minHumidity: 45, maxHumidity: 80,
-                lightRequirement: 180, maxSolarRadiation: 800, maxUV: 8
+                lightRequirement: 180, maxsolar: 800, maxUV: 8
             },
             petit_pois: {
                 baseTemp: 4, optimalTemp: 16, maxTemp: 22, criticalMaxTemp: 28,
                 optimalHumidity: 70, minHumidity: 55, maxHumidity: 85,
-                lightRequirement: 140, maxSolarRadiation: 650, maxUV: 6
+                lightRequirement: 140, maxsolar: 650, maxUV: 6
             },
             oignon: {
                 baseTemp: 6, optimalTemp: 20, maxTemp: 28, criticalMaxTemp: 34,
                 optimalHumidity: 60, minHumidity: 40, maxHumidity: 75,
-                lightRequirement: 170, maxSolarRadiation: 800, maxUV: 8
+                lightRequirement: 170, maxsolar: 800, maxUV: 8
             },
             ail: {
                 baseTemp: 0, optimalTemp: 18, maxTemp: 25, criticalMaxTemp: 32,
                 optimalHumidity: 55, minHumidity: 35, maxHumidity: 70,
-                lightRequirement: 160, maxSolarRadiation: 750, maxUV: 8
+                lightRequirement: 160, maxsolar: 750, maxUV: 8
             },
             betterave: {
                 baseTemp: 5, optimalTemp: 18, maxTemp: 25, criticalMaxTemp: 30,
                 optimalHumidity: 65, minHumidity: 45, maxHumidity: 80,
-                lightRequirement: 150, maxSolarRadiation: 700, maxUV: 7
+                lightRequirement: 150, maxsolar: 700, maxUV: 7
             },
             chou: {
                 baseTemp: 6, optimalTemp: 17, maxTemp: 24, criticalMaxTemp: 29,
                 optimalHumidity: 70, minHumidity: 55, maxHumidity: 85,
-                lightRequirement: 160, maxSolarRadiation: 750, maxUV: 6
+                lightRequirement: 160, maxsolar: 750, maxUV: 6
             },
             brocoli: {
                 baseTemp: 6, optimalTemp: 16, maxTemp: 23, criticalMaxTemp: 28,
                 optimalHumidity: 75, minHumidity: 60, maxHumidity: 90,
-                lightRequirement: 170, maxSolarRadiation: 700, maxUV: 6
+                lightRequirement: 170, maxsolar: 700, maxUV: 6
             },
             navet: {
                 baseTemp: 4, optimalTemp: 16, maxTemp: 22, criticalMaxTemp: 28,
                 optimalHumidity: 70, minHumidity: 50, maxHumidity: 85,
-                lightRequirement: 140, maxSolarRadiation: 650, maxUV: 6
+                lightRequirement: 140, maxsolar: 650, maxUV: 6
             },
             celeri: {
                 baseTemp: 7, optimalTemp: 18, maxTemp: 24, criticalMaxTemp: 30,
                 optimalHumidity: 75, minHumidity: 60, maxHumidity: 90,
-                lightRequirement: 150, maxSolarRadiation: 700, maxUV: 6
+                lightRequirement: 150, maxsolar: 700, maxUV: 6
             },
             persil: {
                 baseTemp: 6, optimalTemp: 18, maxTemp: 25, criticalMaxTemp: 30,
                 optimalHumidity: 70, minHumidity: 50, maxHumidity: 85,
-                lightRequirement: 120, maxSolarRadiation: 600, maxUV: 5
+                lightRequirement: 120, maxsolar: 600, maxUV: 5
             },
             basilic: {
                 baseTemp: 12, optimalTemp: 23, maxTemp: 28, criticalMaxTemp: 33,
                 optimalHumidity: 65, minHumidity: 45, maxHumidity: 80,
-                lightRequirement: 180, maxSolarRadiation: 800, maxUV: 7
+                lightRequirement: 180, maxsolar: 800, maxUV: 7
             },
             melon: {
                 baseTemp: 15, optimalTemp: 26, maxTemp: 32, criticalMaxTemp: 38,
                 optimalHumidity: 60, minHumidity: 40, maxHumidity: 75,
-                lightRequirement: 250, maxSolarRadiation: 950, maxUV: 9
+                lightRequirement: 250, maxsolar: 950, maxUV: 9
             },
             pasteque: {
                 baseTemp: 18, optimalTemp: 28, maxTemp: 35, criticalMaxTemp: 40,
                 optimalHumidity: 55, minHumidity: 35, maxHumidity: 70,
-                lightRequirement: 280, maxSolarRadiation: 1000, maxUV: 10
+                lightRequirement: 280, maxsolar: 1000, maxUV: 10
             },
             // Arbres fruitiers
             pommier: {
                 baseTemp: 6, optimalTemp: 20, maxTemp: 28, criticalMaxTemp: 35,
                 optimalHumidity: 70, minHumidity: 50, maxHumidity: 85,
-                lightRequirement: 200, maxSolarRadiation: 850, maxUV: 8
+                lightRequirement: 200, maxsolar: 850, maxUV: 8
             },
             poirier: {
                 baseTemp: 7, optimalTemp: 22, maxTemp: 30, criticalMaxTemp: 36,
                 optimalHumidity: 65, minHumidity: 45, maxHumidity: 80,
-                lightRequirement: 210, maxSolarRadiation: 870, maxUV: 8
+                lightRequirement: 210, maxsolar: 870, maxUV: 8
             },
             pecher: {
                 baseTemp: 8, optimalTemp: 24, maxTemp: 32, criticalMaxTemp: 38,
                 optimalHumidity: 60, minHumidity: 40, maxHumidity: 75,
-                lightRequirement: 230, maxSolarRadiation: 900, maxUV: 9
+                lightRequirement: 230, maxsolar: 900, maxUV: 9
             },
             abricotier: {
                 baseTemp: 7, optimalTemp: 23, maxTemp: 31, criticalMaxTemp: 37,
                 optimalHumidity: 55, minHumidity: 35, maxHumidity: 70,
-                lightRequirement: 240, maxSolarRadiation: 920, maxUV: 9
+                lightRequirement: 240, maxsolar: 920, maxUV: 9
             },
             prunier: {
                 baseTemp: 6, optimalTemp: 21, maxTemp: 29, criticalMaxTemp: 35,
                 optimalHumidity: 65, minHumidity: 45, maxHumidity: 80,
-                lightRequirement: 200, maxSolarRadiation: 850, maxUV: 8
+                lightRequirement: 200, maxsolar: 850, maxUV: 8
             },
             cerisier: {
                 baseTemp: 4, optimalTemp: 18, maxTemp: 26, criticalMaxTemp: 32,
                 optimalHumidity: 70, minHumidity: 50, maxHumidity: 85,
-                lightRequirement: 180, maxSolarRadiation: 800, maxUV: 7
+                lightRequirement: 180, maxsolar: 800, maxUV: 7
             },
             figuier: {
                 baseTemp: 12, optimalTemp: 26, maxTemp: 34, criticalMaxTemp: 40,
                 optimalHumidity: 50, minHumidity: 30, maxHumidity: 65,
-                lightRequirement: 250, maxSolarRadiation: 950, maxUV: 10
+                lightRequirement: 250, maxsolar: 950, maxUV: 10
             },
             avocatier: {
                 baseTemp: 15, optimalTemp: 25, maxTemp: 30, criticalMaxTemp: 35,
                 optimalHumidity: 60, minHumidity: 40, maxHumidity: 75,
-                lightRequirement: 200, maxSolarRadiation: 850, maxUV: 8
+                lightRequirement: 200, maxsolar: 850, maxUV: 8
             },
             citronnier: {
                 baseTemp: 13, optimalTemp: 24, maxTemp: 30, criticalMaxTemp: 36,
                 optimalHumidity: 55, minHumidity: 35, maxHumidity: 70,
-                lightRequirement: 220, maxSolarRadiation: 900, maxUV: 9
+                lightRequirement: 220, maxsolar: 900, maxUV: 9
             },
             oranger: {
                 baseTemp: 12, optimalTemp: 23, maxTemp: 29, criticalMaxTemp: 35,
                 optimalHumidity: 60, minHumidity: 40, maxHumidity: 75,
-                lightRequirement: 210, maxSolarRadiation: 880, maxUV: 9
+                lightRequirement: 210, maxsolar: 880, maxUV: 9
             }
         };
         

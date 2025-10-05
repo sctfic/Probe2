@@ -150,7 +150,7 @@ async function getInfluxMetadata(stationId) {
                 },
             });
         });
-
+console.log(measurements);
         // Étape 2: Pour chaque measurement, obtenir les tagKeys et fieldKeys
         for (const measurement of measurements) {
             
@@ -177,7 +177,7 @@ async function getInfluxMetadata(stationId) {
                     },
                 });
             });
-
+console.log('tags', tags);
             // Requête pour les champs (_fields)
             const fieldsQuery = `
                 import "influxdata/influxdb/schema"
@@ -201,7 +201,7 @@ async function getInfluxMetadata(stationId) {
                     },
                 });
             });
-
+console.log('fields', fields);
             const tagsWithValues = {};
             for (const tag of tags.filter(t => t !== '_measurement' && t !== '_start' && t !== '_stop' && t !== '_field')) {
                 const valuesQuery = `
@@ -227,15 +227,17 @@ async function getInfluxMetadata(stationId) {
                         },
                     });
                 });
+                console.log('values', values);
                 tagsWithValues[tag] = values;
             }
-
+console.log('tagsWithValues', tagsWithValues);
             // Stocker la structure
             bucketStructure[measurement] = {
                 tags: tagsWithValues,
                 fields: fields,
             };
         }
+console.log('bucketStructure', bucketStructure);
         return bucketStructure;
 
     } catch (error) {
@@ -266,22 +268,29 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate) {
     if (sensorRef) {
         filter = getFilter(sensorRef);
     }
-    const query = `
-    from(bucket: "Probe")
-        |> range(start: ${startDate ? startDate : 0}${endDate ? `, stop: ${endDate}` : ''}) 
-        |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
-        |> group()
-        |> reduce(
-            identity: {min_time: time(v: 0), max_time: time(v: 0), count: 0, unit: ""},
-            fn: (r, accumulator) => ({
-                min_time: if accumulator.count == 0 or r._time < accumulator.min_time then r._time else accumulator.min_time,
-                max_time: if accumulator.count == 0 or r._time > accumulator.max_time then r._time else accumulator.max_time,
-                count: accumulator.count + 1,
-                unit: if exists r.unit then r.unit else accumulator.unit
-            })
-        )
-    `;
 
+    const query = `
+        import "array"
+        first = from(bucket: "Probe")
+            |> range(start: ${startDate ? startDate : 0}${endDate ? `, stop: ${endDate}` : ''}) 
+            |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
+            |> first()
+            |> keep(columns: ["_time"])
+            |> rename(columns: {"_time": "first"})
+            |> tableFind(fn: (key) => true)  // extrait la table
+            |> getRecord(idx: 0)             // prend la 1ᵉʳ ligne
+
+        last = from(bucket: "Probe")
+            |> range(start: ${startDate ? startDate : 0}${endDate ? `, stop: ${endDate}` : ''}) 
+            |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
+            |> last()
+            |> keep(columns: ["_time"])
+            |> rename(columns: {"_time": "last"})
+            |> tableFind(fn: (key) => true)
+            |> getRecord(idx: 0)
+
+        array.from(rows: [{first: first.first, last: last.last}])
+    `;
     const result = await executeQuery(query);
     if (!result || result.length === 0 || result[0].count === 0) {
         return { firstUtc: null, lastUtc: null, count: 0, unit: '' };
@@ -289,10 +298,8 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate) {
     const data = result[0];
 
     return {
-        firstUtc: data.min_time,
-        lastUtc: data.max_time,
-        count: data.count,
-        unit: data.unit
+        firstUtc: data.first,
+        lastUtc: data.last
     };
 }
 
@@ -670,6 +677,35 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
     return await executeQuery(fluxQuery);
 }
 
+// /**
+//  * Trouve le dernier timestamp pour les données Open-Meteo d'une station.
+//  * @param {string} stationId - Identifiant de la station.
+//  * @returns {Promise<string|null>} Le dernier timestamp au format ISO ou null si aucune donnée n'est trouvée.
+//  */
+// async function findLastOpenMeteoTimestamp(stationId) {
+//     const fluxQuery = `
+//         import "strings"
+//         from(bucket: "${bucket}")
+//             |> range(start: 0)
+//             |> filter(fn: (r) => r.station_id == "${stationId}")
+//             |> filter(fn: (r) => strings.containsStr(v: r.sensor, substr: "open-meteo"))
+//             |> group()
+//             |> last()
+//             |> keep(columns: ["_time"])
+//     `;
+//     try {
+//         const result = await executeQuery(fluxQuery);
+//         if (result && result.length > 0 && result[0]._time) {
+//             return result[0]._time;
+//         }
+//         return null;
+//     } catch (error) {
+//         console.error(`${V.error} Erreur lors de la recherche du dernier timestamp Open-Meteo pour ${stationId}:`, error);
+//         // En cas d'erreur, on suppose qu'il n'y a pas de données pour forcer un import complet
+//         return null;
+//     }
+// }
+
 
 module.exports = {
     testInfluxConnection,
@@ -684,4 +720,5 @@ module.exports = {
     queryWindVectors,
     queryCandle,
     clearBucket
+    // findLastOpenMeteoTimestamp
 };

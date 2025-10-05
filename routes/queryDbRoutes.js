@@ -3,12 +3,12 @@ const express = require('express');
 const router = express.Router();
 const queryDbController = require('../controllers/queryDbController');
 const { loadStationConfig } = require('../middleware/stationMiddleware');
+const { isAuthenticated } = require('../middleware/authMiddleware');
 
 module.exports = router;
 
-//
-// ["_measurement"] == [temperature, speed, direction, pressure, rain, rainRate, uv, powerRadiation, humidity, battery]
-// ["sensor_ref"] == [barometer, inTemp, inHumidity, outTemp, windSpeed, avgWindSpeed10Min, windDir, outHumidity, rainRate, rainFall, UV, solarRadiation, stormRain, dateStormRain, dayRain, monthRain, yearRain, dayET, monthET, yearET, batteryVoltage, avgWindSpeed2Min, windGust10Min, windGustDir10Min, dewPoint, heatIndex, windChill, THSW, last15MinRain, lastHourRain, last24HourRain, ForecastIcon, sunrise, sunset, date, time]
+// ["_measurement"] == [temperature, speed, direction, pressure, rain, rainRate, uv, irradiance, humidity, battery]
+// ["sensor_ref"] == [barometer, inTemp, inHumidity, outTemp, windSpeed, avgWindSpeed10Min, windDir, outHumidity, rainRate, rainFall, UV, solar, stormRain, dateStormRain, dayRain, monthRain, yearRain, dayET, monthET, yearET, batteryVoltage, avgWindSpeed2Min, windGust10Min, windGustDir10Min, dewPoint, heatIndex, windChill, THSW, last15MinRain, lastHourRain, last24HourRain, ForecastIcon, sunrise, sunset, date, time]
 
 // Middleware pour toutes les routes de query
 router.use('/:stationId', loadStationConfig);
@@ -40,6 +40,9 @@ router.get('/:stationId/WindVectors/:sensorRef', queryDbController.getQueryWindV
 
 // Route to get candle data
 router.get('/:stationId/Candle/:sensorRef', queryDbController.getQueryCandle); // http://probe2.lpz.ovh/query/VP2_Serramoune/Candle/barometer?stepCount=500
+
+// Route pour compléter la base de données avec les archives Open-Meteo
+router.get('/:stationId/dbexpand', queryDbController.expandDbWithOpenMeteo); // http://probe2.lpz.ovh/api/station/VP2_Serramoune/dbexpand
 
 
 

@@ -442,7 +442,7 @@ async function saveAllProbesSettings(settings) {
             throw new Error(errorData.error || 'Erreur lors de la sauvegarde');
         }
         const result = await response.json();
-        if (result.success) {
+        if (result.success === true) {
             currentProbesSettings = settings;
             showGlobalStatus('Sondes enregistrées avec succès !', 'success');
         } else {

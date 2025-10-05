@@ -2,18 +2,18 @@
     "THSW_calc": {
         "label": "Température THSW",
         "comment": "Température de Sensibilisation, Thermique, Humidité, Soleil et Vent",
-        "fnCalc": "(data) => calcTHSW(data['temperature:outTemp'], data['humidity:outHumidity'], data['powerRadiation:solarRadiation'], data['speed:Wind'])",
+        "fnCalc": "(data) => calcTHSW(data['temperature:outTemp'], data['humidity:outHumidity'], data['irradiance:solar'], data['speed:Wind'])",
         "dataNeeded": [
             "temperature:outTemp",
             "humidity:outHumidity",
-            "powerRadiation:solarRadiation",
+            "irradiance:solar",
             "speed:Wind"
         ],
         "currentMap": {
             "d": "timestamp",
             "temperature:outTemp": "outTemp",
             "humidity:outHumidity": "outHumidity",
-            "powerRadiation:solarRadiation": "solarRadiation",
+            "irradiance:solar": "solar",
             "speed:Wind": "Wind"
         },
         "scriptJS": [
@@ -84,24 +84,5 @@
         "groupUsage": "Composites",
         "sensorDb": "MOON_calc",
         "measurement": "angle"
-    },
-    "truc_calc": {
-        "label": "test",
-        "comment": "machin",
-        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n    return data['direction:Gust']+data['direction:Gust']+data['humidity:outHumidity']\n}",
-        "dataNeeded": [
-            "direction:Gust",
-            "humidity:outHumidity"
-        ],
-        "currentMap": {
-            "d": "timestamp",
-            "direction:Gust": "Gust",
-            "humidity:outHumidity": "outHumidity"
-        },
-        "scriptJS": [],
-        "period": 604800,
-        "groupUsage": "Composites",
-        "sensorDb": "truc_calc",
-        "measurement": "pressure"
     }
 }

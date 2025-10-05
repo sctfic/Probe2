@@ -7,6 +7,7 @@ const configManager = require('../services/configManager');
 const probeVersion = require('../package.json').version;
 
 const compositeProbes = require('../config/compositeProbes.json');
+const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -168,8 +169,8 @@ exports.getQueryRange = async (req, res) => {
                 first: data.firstUtc ? new Date(data.firstUtc).toISOString() : null,
                 last: data.lastUtc ? new Date(data.lastUtc).toISOString() : null,
                 intervalSeconds: data.count > 1 ? Math.round((new Date(data.lastUtc).getTime() - new Date(data.firstUtc).getTime()) / (data.count - 1))/1000 : null,
-                count: data.count,
-                unit: data.unit || '',
+                count: null,
+                unit: null,
                 userUnit: units?.[type]?.user || '',
                 toUserUnit: units?.[type]?.available_units?.[units?.[type]?.user]?.fnFromMetric || null
             },
@@ -457,5 +458,173 @@ exports.getQueryWindVectors = async (req, res) => {
         });
     } catch (error) {
         handleError(res, stationId, error, 'getQueryWindVectors');
+    }
+};
+
+exports.expandDbWithOpenMeteo = async (req, res) => {
+    const { stationId } = req.params;
+    const stationConfig = req.stationConfig;
+
+    try {
+        console.log(V.Travaux, `Expansion de la base de données pour ${stationId} avec les données Open-Meteo.`);
+
+        const { latitude, longitude, elevation } = {
+            latitude: stationConfig.latitude.lastReadValue,
+            longitude: stationConfig.longitude.lastReadValue,
+            elevation: stationConfig.altitude.lastReadValue
+        };
+
+        if (!latitude || !longitude) {
+            throw new Error("Les coordonnées GPS de la station ne sont pas définies.");
+        }
+
+        const endDate = new Date();
+        let startDate;
+
+        // const lastTimestamp = await influxdbService.findLastOpenMeteoTimestamp(stationId);
+        const lastTimestamp = (await influxdbService.queryDateRange(stationId, 'open-meteo_barometer')).lastUtc;
+        if (lastTimestamp) {
+            console.log(`${V.info} Données Open-Meteo existantes trouvées. Dernière date: `, lastTimestamp);
+            startDate = new Date(lastTimestamp);
+            startDate.setDate(startDate.getDate() - 1); // Commence le jour suivant pour éviter les doublons
+        } else {
+            console.log(`${V.info} Aucune donnée Open-Meteo existante. Récupération des 15 dernières années.`);
+            startDate = new Date();
+            startDate.setFullYear(endDate.getFullYear() - 15);
+        }
+
+        const openMeteoUrl = `https://archive-api.open-meteo.com/v1/archive`;
+        const params = {
+            latitude: latitude.toFixed(2),
+            longitude: longitude.toFixed(2),
+            elevation: elevation.toFixed(0),
+            start_date: startDate.toISOString().split('T')[0],
+            end_date: endDate.toISOString().split('T')[0],
+            hourly: [
+                'temperature_2m',
+                'relative_humidity_2m',
+                'precipitation',
+                'evapotranspiration',
+                'wind_speed_10m',
+                'wind_direction_10m',
+                'wind_gusts_10m',
+                'soil_temperature_7_to_28cm',
+                'soil_moisture_7_to_28cm',
+                'pressure_msl',
+                'shortwave_radiation'
+            ],
+            timeformat: 'unixtime'
+        };
+
+        console.log(`${V.Parabol} Appel à Open-Meteo avec les paramètres:`, params);
+        const response = await axios.get(openMeteoUrl, { params });
+        const openMeteoData = response.data;
+console.log(response);
+        if (!openMeteoData || !openMeteoData.hourly || !openMeteoData.hourly.time) {
+            throw new Error("Réponse invalide de l'API Open-Meteo.");
+        }
+
+        const { time, ...metrics } = openMeteoData.hourly;
+        let totalPointsWritten = 0;
+
+        const mapping = {
+            'temperature_2m': { type: 'temperature', sensor: 'open-meteo_outTemp', convert: (v) => v + 273.15 }, // °C -> K
+            'relative_humidity_2m': { type: 'humidity', sensor: 'open-meteo_outHumidity' },
+            'precipitation': { type: 'rain', sensor: 'open-meteo_rainFall' },
+            'evapotranspiration': { type: 'rain', sensor: 'open-meteo_ET' },
+            'wind_speed_10m': { type: 'speed', sensor: 'open-meteo_Wind', convert: (v) => v / 3.6 }, // km/h -> m/s
+            'wind_direction_10m': { type: 'direction', sensor: 'open-meteo_Wind' },
+            'wind_gusts_10m': { type: 'speed', sensor: 'open-meteo_Gusts', convert: (v) => v / 3.6 }, // km/h -> m/s
+            'soil_temperature_7_to_28cm': { type: 'temperature', sensor: 'open-meteo_soilTemp', convert: (v) => v + 273.15 }, // °C -> K
+            'soil_moisture_7_to_28cm': { type: 'humidity', sensor: 'open-meteo_soilMoisture' },
+            'pressure_msl': { type: 'pressure', sensor: 'open-meteo_barometer' },
+            'shortwave_radiation': { type: 'irradiance', sensor: 'open-meteo_solar' }
+        };
+
+        console.log(`${V.gear} Traitement de ${time.length} points de données...`);
+
+        let pointsChunk = [];
+        const CHUNK_SIZE_DAYS = 30;
+        let lastChunkDate = time.length > 0 ? new Date(time[0] * 1000) : null;
+
+        for (let i = 0; i < time.length; i++) {
+            const timestamp = new Date(time[i] * 1000);
+
+            for (const [openMeteoKey, values] of Object.entries(metrics)) {
+                const value = values[i];
+                if (value !== null && mapping[openMeteoKey]) {
+                    const { type, sensor, convert } = mapping[openMeteoKey];
+                    const metricValue = convert ? convert(value) : value;
+
+                    const point = new influxdbService.Point(type)
+                        .tag('station_id', stationId)
+                        .tag('sensor', sensor)
+                        .tag('unit', units[type].metric)
+                        .floatField('value', metricValue.toFixed(2))
+                        .timestamp(timestamp);
+
+                    pointsChunk.push(point);
+                }
+            }
+            // on calcule Ux et Vy pour wind_speed_10m et wind_direction_10m
+            const Wind = metrics.wind_speed_10m[i]/3.6;
+            const WindDir = metrics.wind_direction_10m[i];
+            const UxWind = Math.round(Wind * Math.sin(Math.PI * WindDir / 180.0)*1000)/1000;
+            const VyWind = Math.round(Wind * Math.cos(Math.PI * WindDir / 180.0)*1000)/1000;
+            const vWind = new influxdbService.Point('vector')
+                .tag('station_id', stationId)
+                .floatField('Ux', UxWind)
+                .floatField('Vy', VyWind)
+                .tag('unit', '->')
+                .tag('sensor', 'open-meteo_Wind')
+                .timestamp(timestamp);
+            pointsChunk.push(vWind);
+            // on calcule Ux et Vy pour wind_gusts_10m et wind_direction_10m
+            const Gust = metrics.wind_gusts_10m[i]/3.6;
+            const GustDir = metrics.wind_direction_10m[i];
+            const UxGust = Math.round(Gust * Math.sin(Math.PI * GustDir / 180.0)*1000)/1000;
+            const VyGust = Math.round(Gust * Math.cos(Math.PI * GustDir / 180.0)*1000)/1000;
+            const vGust = new influxdbService.Point('vector')
+                .tag('station_id', stationId)
+                .floatField('Ux', UxGust)
+                .floatField('Vy', VyGust)
+                .tag('unit', '->')
+                .tag('sensor', 'open-meteo_Gust')
+                .timestamp(timestamp);
+            pointsChunk.push(vGust);
+            
+            const daysDiff = (timestamp - lastChunkDate) / (1000 * 60 * 60 * 24);
+            
+            // Écrire le chunk s'il atteint la taille de 30 jours ou si c'est la dernière itération
+            if (pointsChunk.length > 0 && (daysDiff >= CHUNK_SIZE_DAYS || i === time.length - 1)) {
+                const writtenCount = await influxdbService.writePoints(pointsChunk);
+                console.log(V.database, `Écriture d'un lot de ${pointsChunk.length} points dans InfluxDB... (Jusqu'à ${timestamp.toISOString()})`, V.Check);
+                totalPointsWritten += writtenCount;
+                pointsChunk = []; // Réinitialiser le chunk
+                lastChunkDate = timestamp;
+            }
+        }
+
+        if (totalPointsWritten === 0) {
+            console.log(`${V.info} Aucune nouvelle donnée à importer. La base de données est déjà à jour.`);
+            return res.json({
+                success: true,
+                message: `Aucune nouvelle donnée à importer pour la station ${stationId}. La base est à jour.`
+            });
+        }
+
+        res.json({
+            success: true,
+            stationId: stationId,
+            message: `${totalPointsWritten} points de données historiques ont été importés avec succès pour la station ${stationId}.`,
+            pointsCount: totalPointsWritten,
+            range: {
+                start: new Date(time[0] * 1000).toISOString(),
+                end: new Date(time[time.length - 1] * 1000).toISOString()
+            }
+        });
+
+    } catch (error) {
+        handleError(res, stationId, error, 'expandDbWithOpenMeteo');
     }
 };

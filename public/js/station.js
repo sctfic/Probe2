@@ -40,7 +40,7 @@ async function fetchStationSettings() {
     }
 }
 
-function displaySettingsForm() {
+async function displaySettingsForm() {
     const settingsContainer = document.getElementById('settings-container');
     if (!settingsContainer || !currentStationSettings) return;
 
@@ -53,7 +53,7 @@ function displaySettingsForm() {
         },
         network: {
             title: 'Configuration Réseau',
-            fields: ['host', 'port', 'cron']
+            fields: ['host', 'port']
         },
         localisation: {
             title: 'Localisation (synchronisée dans la Station Davis)',
@@ -62,8 +62,22 @@ function displaySettingsForm() {
         meteo: {
             title: 'Paramètres météo (synchronisés dans la Station Davis)',
             fields: ['archiveInterval','AMPMMode', 'dateFormat', 'windCupSize', 'rainCollectorSize', 'rainSaisonStart']
+        },
+        database: {
+            title: 'Base de données',
+            fields: ['dbexpand', 'cron']
         }
     };
+
+    // Fetch Open-Meteo data range
+    let openMeteoRange = { first: null, last: null };
+    try {
+        const rangeResponse = await fetch(`/query/${selectedStation.id}/Range/open-meteo_barometer`);
+        const rangeData = await rangeResponse.json();
+        if (rangeData.success) {
+            openMeteoRange = { first: rangeData.metadata.first, last: rangeData.metadata.last };
+        }
+    } catch (e) { console.warn("Could not fetch Open-Meteo date range.", e); }
 
     let formHTML = '<form id="station-settings-form" class="settings-form">';
     
@@ -76,8 +90,11 @@ function displaySettingsForm() {
         
         group.fields.forEach(fieldKey => {
             if (currentStationSettings.hasOwnProperty(fieldKey) && !excludeKeys.includes(fieldKey)) {
-                const field = currentStationSettings[fieldKey];
+                const field = currentStationSettings[fieldKey]; // Standard fields
                 formHTML += createSettingFieldHTML(fieldKey, field);
+            } else if (fieldKey === 'dbexpand') { // Special case for our new button
+                const field = { comment: "Complète la base de données avec les archives d'Open-Meteo sur 15 ans pour cette localisation." };
+                formHTML += createDbExpandFieldHTML(field, openMeteoRange, currentStationSettings.cron?.openMeteo);
             }
         });
         
@@ -105,6 +122,7 @@ function displaySettingsForm() {
     const form = document.getElementById('station-settings-form');
     const resetBtn = document.getElementById('reset-settings');
     const syncTimeBtn = document.getElementById('sync-time-btn');
+    const dbExpandBtn = document.getElementById('db-expand-btn');
 
     if (currentStationSettings.deltaTimeSeconds !== null) {
         const formattedDelta = formatDeltaTime(currentStationSettings.deltaTimeSeconds);
@@ -148,18 +166,68 @@ function displaySettingsForm() {
         });
     }
 
+    if (dbExpandBtn) {
+        dbExpandBtn.addEventListener('click', async () => {
+            if (!selectedStation) return;
+            if (!confirm("Êtes-vous sûr de vouloir importer les données météo des 15 dernières années ? Cette opération peut prendre plusieurs minutes et consommer des ressources importantes.")) return;
+
+            showGlobalStatus('Lancement de l\'importation des archives Open-Meteo...', 'loading');
+            dbExpandBtn.disabled = true;
+            dbExpandBtn.innerHTML = '<div class="spinner" style="display: inline-block; margin-right: 8px;"></div>Importation en cours...';
+
+            try {
+                const response = await fetch(`/query/${selectedStation.id}/dbexpand`);
+                const result = await response.json();
+                showGlobalStatus(result.message || 'Opération terminée', result.success ? 'success' : 'error');
+            } catch (error) {
+                showGlobalStatus(`Erreur lors de l'importation : ${error.message}`, 'error');
+            } finally {
+                dbExpandBtn.disabled = false;
+                dbExpandBtn.innerHTML = '<img src="svg/access-control.svg" class="access-control-icon">Compléter l\'historique';
+            }
+        });
+    }
+
+    // --- Ajout des écouteurs pour les switchs avec mise à jour instantanée ---
+
+    // 1. Switch pour la collecte automatique Open-Meteo
+    const openMeteoCronSwitch = document.getElementById('setting-cron-openMeteo');
+    if (openMeteoCronSwitch) {
+        openMeteoCronSwitch.addEventListener('change', async (e) => {
+            const switchElement = e.target;
+            const isEnabled = switchElement.checked;
+            const settings = { cron: { ...currentStationSettings.cron, openMeteo: isEnabled } };
+            const success = await updatePartialSettings(settings);
+            if (!success) {
+                // Revenir à l'état précédent en cas d'échec
+                switchElement.checked = !isEnabled;
+            }
+        });
+    }
+
+    // 2. Switch pour la collecte automatique de la station
     const cronToggleSwitch = document.getElementById('setting-cron-enabled');
     if (cronToggleSwitch) {
-        cronToggleSwitch.addEventListener('change', () => {
+        cronToggleSwitch.addEventListener('change', async (e) => {
+            const switchElement = e.target;
             const cronValueSelect = document.getElementById('setting-cron-value');
-            const isActive = cronToggleSwitch.checked;
+            const isEnabled = switchElement.checked;
+
+            // Mettre à jour l'état visuel du select
             if (cronValueSelect) {
-                cronValueSelect.disabled = !isActive;
+                cronValueSelect.disabled = !isEnabled;
+            }
+
+            const settings = { cron: { ...currentStationSettings.cron, enabled: isEnabled, value: Number(cronValueSelect.value) } };
+            const success = await updatePartialSettings(settings);
+            if (!success) {
+                // Revenir à l'état précédent en cas d'échec
+                switchElement.checked = !isEnabled;
+                if (cronValueSelect) cronValueSelect.disabled = isEnabled; // Inverser aussi l'état du select
             }
         });
     }
 }
-
 function createSettingFieldHTML(key, field) {
     if (key === 'cron') {
         return createCronFieldHTML(key, field);
@@ -190,6 +258,35 @@ function createSettingFieldHTML(key, field) {
                 ${tooltipHTML}
             </label>
             ${createInputHTML(key, value, inputType)}
+        </div>
+    `;
+}
+
+function createDbExpandFieldHTML(field, range, isEnabled) {
+    const rangeText = (range.first && range.last)
+        ? `Données présentes du ${new Date(range.first).toLocaleDateString()} au ${new Date(range.last).toLocaleDateString()}`
+        : "Aucune donnée Open-Meteo.";
+
+    return `
+        <div class="settings-field condition-tile">
+            <label>
+                ${formatSettingLabel('dbexpand')}
+                <span class="tooltip" data-tooltip="${field.comment}">?</span>
+            </label>
+            <div class="db-expand-controls" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                <div class="cron-container">
+                    <label class="switch" title="Activer la mise à jour quotidienne à 23h30">
+                        <input type="checkbox" id="setting-cron-openMeteo" ${isEnabled ? 'checked' : ''}>
+                        <span class="slider round"></span>
+                    </label>
+                    <label for="setting-cron-openMeteo" style="margin-left: 8px;">Mise à jour quotidienne à 22h.</label>
+                <button type="button" class="btn-primary" id="db-expand-btn">
+                    <img src="svg/access-control.svg" class="access-control-icon">
+                    Importer manuellement
+                </button>
+                <span class="db-expand-range">${rangeText}</span>
+                </div>
+            </div>
         </div>
     `;
 }
@@ -318,13 +415,15 @@ function formatSettingLabel(key) {
         'rainSaisonStart': 'Mois début saison pluie',
         'latitudeNorthSouth': 'Latitude Nord/Sud',
         'longitudeEastWest': 'Longitude Est/Ouest',
-        'cron': 'Collecte automatique'
+        'cron': 'Collecte auto. (station)',
+        'dbexpand': 'Activer l\'historique Open-Meteo',
     };
     
     return labelMap[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
 }
 
 async function handleSettingsSubmit(e) {
+    const stationSyncFields = ['longitude', 'latitude', 'longitudeEastWest', 'latitudeNorthSouth', 'altitude', 'archiveInterval','AMPMMode', 'dateFormat', 'windCupSize', 'rainCollectorSize', 'rainSaisonStart'];
     e.preventDefault();
     if (!selectedStation) return;
 
@@ -332,6 +431,7 @@ async function handleSettingsSubmit(e) {
     const settings = {};
 
     for (let [key, value] of formData.entries()) {
+        if (key === 'cron-value') continue; // Géré par le switch
         if (key.startsWith('cron-')) continue; // Skip cron fields for now
 
         const currentField = currentStationSettings[key];
@@ -358,6 +458,15 @@ async function handleSettingsSubmit(e) {
                 value: Number(cronValueSelect.value)
             };
         }
+
+        // Handle special openMeteo cron field
+        const openMeteoToggle = document.getElementById('setting-cron-openMeteo');
+        if (openMeteoToggle) {
+            settings.cron = {
+                ...settings.cron, // Keep existing cron settings
+                openMeteo: openMeteoToggle.checked
+            };
+        }
     }
     showGlobalStatus('Enregistrement des paramètres...', 'loading');
 
@@ -372,13 +481,23 @@ async function handleSettingsSubmit(e) {
 
         const result = await response.json();
         if (!result.success) throw new Error('Erreur lors de la sauvegarde');
+        
+        // Vérifier si un champ nécessitant la synchronisation a été modifié
+        let needsSync = false;
+        for (const field of stationSyncFields) {
+            if (settings[field] && settings[field].desired !== currentStationSettings[field].desired) {
+                needsSync = true;
+                break;
+            }
+        }
 
-        showGlobalStatus('Synchronisation avec la station...', 'loading');
-
-        const syncResponse = await fetch(`/api/station/${selectedStation.id}/sync-settings`);
-        const syncResult = await syncResponse.json();
-        if (!syncResult.success) {
-            console.warn('Avertissement synchronisation:', syncResult.message || 'Erreur inconnue');
+        if (needsSync) {
+            showGlobalStatus('Synchronisation avec la station...', 'loading');
+            const syncResponse = await fetch(`/api/station/${selectedStation.id}/sync-settings`);
+            const syncResult = await syncResponse.json();
+            if (!syncResult.success) {
+                console.warn('Avertissement synchronisation:', syncResult.message || 'Erreur inconnue');
+            }
         }
 
         showGlobalStatus('Paramètres sauvegardés et synchronisés avec succès', 'success');
@@ -390,5 +509,33 @@ async function handleSettingsSubmit(e) {
     } catch (error) {
         console.error('Erreur:', error);
         showGlobalStatus(`Erreur: ${error.message}`, 'error');
+    }
+}
+
+async function updatePartialSettings(settings) {
+    if (!selectedStation) return false;
+    showGlobalStatus('Enregistrement...', 'loading');
+
+    try {
+        const response = await fetch(`/api/station/${selectedStation.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(settings)
+        });
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error || 'Erreur lors de la sauvegarde');
+
+        // Mettre à jour la configuration locale pour que les actions suivantes soient correctes
+        Object.assign(currentStationSettings, result.settings);
+
+        showGlobalStatus('Paramètre mis à jour', 'success');
+        return true;
+    } catch (error) {
+        console.error('Erreur:', error);
+        showGlobalStatus(`Erreur: ${error.message}`, 'error');
+        return false;
     }
 }

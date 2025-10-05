@@ -8,8 +8,8 @@
             "Wind",
             "inHumidity",
             "outHumidity",
-            "solarRadiation",
-            "solarRadiationMax",
+            "solar",
+            "solarMax",
             "barometer",
             "ET",
             "rainFall",
@@ -206,7 +206,7 @@
                     "UVMax"
                 ]
             },
-            "powerRadiation": {
+            "irradiance": {
                 "user": "w/m²",
                 "metric": "w/m²",
                 "available_units": {
@@ -216,8 +216,8 @@
                     }
                 },
                 "sensors": [
-                    "solarRadiation",
-                    "solarRadiationMax"
+                    "solar",
+                    "solarMax"
                 ]
             },
             "humidity": {
@@ -352,11 +352,11 @@
                 "value"
             ]
         },
-        "powerRadiation": {
+        "irradiance": {
             "tags": {
                 "sensor": [
-                    "solarRadiation",
-                    "solarRadiationMax"
+                    "solar",
+                    "solarMax"
                 ],
                 "station_id": [
                     "VP2_Serramoune"
