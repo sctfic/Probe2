@@ -557,6 +557,9 @@ console.log(response);
 
         for (let i = 0; i < time.length; i++) {
             const timestamp = new Date(time[i] * 1000);
+            // On s'assure que le timestamp est arrondi à la minute (ici, à l'heure)
+            timestamp.setMinutes(0, 0, 0);
+
 
             for (const [openMeteoKey, values] of Object.entries(metrics)) {
                 const value = values[i];
@@ -569,8 +572,7 @@ console.log(response);
                         .tag('sensor', sensor)
                         // .tag('unit', units[type].metric)
                         .floatField('value', metricValue.toFixed(2))
-                        .timestamp(timestamp)
-                        .precision('m');
+                        .timestamp(timestamp);
                     pointsChunk.push(point);
                 }
             }
@@ -585,8 +587,7 @@ console.log(response);
                 .floatField('Vy', VyWind)
                 // .tag('unit', '->')
                 .tag('sensor', 'open-meteo_Wind')
-                .timestamp(timestamp)
-                .precision('m');
+                .timestamp(timestamp);
             pointsChunk.push(vWind);
             // on calcule Ux et Vy pour wind_gusts_10m et wind_direction_10m
             const Gust = metrics.wind_gusts_10m[i]/3.6;
@@ -599,8 +600,7 @@ console.log(response);
                 .floatField('Vy', VyGust)
                 // .tag('unit', '->')
                 .tag('sensor', 'open-meteo_Gust')
-                .timestamp(timestamp)
-                .precision('m');
+                .timestamp(timestamp);
             pointsChunk.push(vGust);
             
             const daysDiff = (timestamp - lastChunkDate) / (1000 * 60 * 60 * 24);

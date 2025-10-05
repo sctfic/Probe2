@@ -534,6 +534,10 @@ async function getStationInfo(req, stationConfig) {
 
 async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
     const points = [];
+    // On s'assure que le timestamp est arrondi à la minute (secondes et millisecondes à 0)
+    const minuteTimestamp = new Date(datetime);
+    minuteTimestamp.setSeconds(0, 0);
+
     delete processedData.date;
     delete processedData.time;
     let Ux = 0;
@@ -549,8 +553,7 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
             .floatField('Vy', Vy)
             // .tag('unit', '->')
             .tag('sensor', 'Gust')
-            .timestamp(datetime)
-            .precision('m');
+            .timestamp(minuteTimestamp);
         points.push(vGust);
     Ux = 0;
     Vy = 0;
@@ -567,8 +570,7 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
             .floatField('Vy', Vy)
             // .tag('unit', '->')
             .tag('sensor', 'Wind')
-            .timestamp(datetime)
-            .precision('m');
+            .timestamp(minuteTimestamp);
         points.push(vWind);
     
     
@@ -585,8 +587,7 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
             .floatField('value', data.Value)
             // .tag('unit', data.Unit)
             .tag('sensor', tag)
-            .timestamp(datetime)
-            .precision('m');
+            .timestamp(minuteTimestamp);
         points.push(point);
     };
 

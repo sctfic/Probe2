@@ -138,7 +138,7 @@ body {
 
 .content-container {
     display: flex;
-    width: 400vw;
+    width: 500vw;
     transform: translateX(0);
     transition: transform .3s ease-out;
     flex: 1;
