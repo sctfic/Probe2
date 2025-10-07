@@ -54,6 +54,26 @@ function createRosePlot(data, metadata, id) {
             .attr("transform", `translate(${(w + p) / 2}, ${(h + p) / 2})`);
     }
 
+    function addArrowMarkers(svg, uniqueId) {
+        const defs = svg.append("defs");
+        
+        // Marker normal pour les flèches des rafales
+        defs.append("marker")
+            .attr("id", `arrowhead-gust-${uniqueId}`)
+            .attr("refX", -10)
+            .attr("refY", 0)
+            .attr("viewBox", "-25 -25 60 50")
+            .attr("markerUnits", "strokeWidth")
+            .attr("markerWidth", 30)
+            .attr("markerHeight", 60)
+            .attr("orient", "auto")
+            .attr("stroke", "#3498db")
+            .attr("stroke-width", 1)
+            .append("polygon")
+            .attr("fill", "#3498db")
+            .attr("points", "0,0 12.5,12.5 -25,0 12.5,-12.5");
+    }
+
     function drawGrid(svg, ticks, scale) {
         svg.append("g")
             .attr("class", "axes")
@@ -74,18 +94,20 @@ function createRosePlot(data, metadata, id) {
             .attr("transform", d => `translate(0, ${-scale(d)})`);
     }
 
-    function drawInfoText(svg, R, lines) {
+    function drawInfoText(svg, R, lines, align = 'end') {
         // Remove any existing info text to avoid overlap
         svg.select(".info-text").remove();
+
+        const xPos = align === 'start' ? -R - 12 : R + 12;
 
         const textGroup = svg.append("g")
             .attr("class", "info-text")
             .attr("font-size", "11px")
-            .attr("transform", `translate(${R+12}, ${-R-2})`)
-            .attr("text-anchor", "end");
+            .attr("transform", `translate(${xPos}, ${-R-2})`)
+            .attr("text-anchor", align);
 
         lines.forEach((line, i) => {
-            textGroup.append("text") // Use text instead of tspan for easier line breaks
+            textGroup.append("text")
                 .attr("y", i * 11)
                 .attr("fill", "#ccc")
                 .text(line);
@@ -163,17 +185,47 @@ function createRosePlot(data, metadata, id) {
             .selectAll("path").data(winds).enter().append("path")
             .attr("d", arcGen).attr("class", "arcs").style("fill", speedToColor);
 
-        petals.on("mouseover", function(event, d) {
-            const infoLines = [`${(100 * d.p).toFixed(1)} %`, `${d.d}°`];
-            drawInfoText(svg, r, infoLines);
-        }).on("mouseout", function() {
-            svg.select(".info-text").remove();
-        });
-
         drawGrid(svg, ticks, probabilityToRadiusScale);
         drawGridScale(svg, tickmarks, d => `${(d * 100).toFixed(0)} %`, probabilityToRadiusScale);
         drawCalm(svg, windProbabilityArcOptions.from, t > 0 ? calm / t : 0);
         drawLevelGrid(svg, r);
+        // Zones invisibles pour le hover (20° par direction, de calm jusqu'à maxProb)
+        const hoverArc = d3.arc()
+            .startAngle(d => (d.d - 10) * Math.PI / 180)
+            .endAngle(d => (d.d + 10) * Math.PI / 180)
+            .innerRadius(ip - 2)
+            .outerRadius(visWidth);
+
+        const hoverZones = svg.append("g").attr("class", "hover-zones")
+            .selectAll("path").data(winds).enter().append("path")
+            .attr("d", hoverArc)
+            .attr("class", "hover-zone")
+            .style("fill", "transparent")
+            .style("pointer-events", "all");
+
+        hoverZones.on("mouseover", function(event, d) {
+            // Mettre en valeur le pétale correspondant
+            petals.filter(petal => petal.d === d.d)
+                .transition()
+                .duration(50)
+                .style("fill-opacity", 0.9)
+                .style("stroke-width", "2px")
+                .style("stroke", "#ff6b6b");
+            
+            const infoLines = [`${(100 * d.p).toFixed(1)} %`, `${d.d}°`];
+            drawInfoText(svg, r, infoLines);
+        }).on("mouseout", function(event, d) {
+            // Retirer la mise en valeur
+            petals.filter(petal => petal.d === d.d)
+                .transition()
+                .duration(800)
+                .style("fill-opacity", null)
+                .style("stroke-width", null)
+                .style("stroke", null);
+            
+            svg.select(".info-text").remove();
+        });
+
     }
 
     function plotSpeedRose(data, container, R) {
@@ -184,6 +236,10 @@ function createRosePlot(data, metadata, id) {
         const ip = 28;
 
         const svg = makeWindContainer(container, w, h, p);
+        
+        // Add arrow markers with unique ID
+        const uniqueId = id + '-speed';
+        addArrowMarkers(svg, uniqueId);
 
         let calm = 0;
         let maxSpdVal = 0;
@@ -209,44 +265,96 @@ function createRosePlot(data, metadata, id) {
             width: 10, from: ip - 2, to: d => speedToRadiusScale(d.s)
         };
 
-        function createChevron(d) {
-            const angle = d.d * Math.PI / 180;
-            const r = speedToRadiusScale(d.m);
-            const width = 1; // Largeur de la base de la flèche en degrés
-            const widthRad = width * Math.PI / 180;
-            const chevronHeight = 6; // Hauteur de la pointe de la flèche
-
-            const x1 = r * Math.sin(angle - widthRad);
-            const y1 = -r * Math.cos(angle - widthRad);
-            const x2 = (r - chevronHeight) * Math.sin(angle);
-            const y2 = -(r - chevronHeight) * Math.cos(angle);
-            const x3 = r * Math.sin(angle + widthRad);
-            const y3 = -r * Math.cos(angle + widthRad);
-            
-            // M = Move to tip, L = Line to one wing, A = Arc for the back, Z = Close path
-            return `M${x2},${y2} L${x1},${y1} A${r},${r} 0 0 0 ${x3},${y3} Z`;
-        }
-
-        svg.append("g").attr("class", "speedArcMax")
-            .selectAll("path").data(winds).enter().append("path")
-            .attr("class", "arcs_max").attr("d", createChevron);
+        // Dessiner les lignes invisibles avec markers pour les rafales max
+        const gustArrows = svg.append("g").attr("class", "speedArcMax")
+            .selectAll("line")
+            .data(winds)
+            .enter()
+            .append("line")
+            .attr("class", "gust-arrow")
+            .attr("x1", d => {
+                const angle = d.d * Math.PI / 180;
+                return speedToRadiusScale(d.m) * Math.sin(angle) * 0.99; // Légèrement en retrait
+            })
+            .attr("y1", d => {
+                const angle = d.d * Math.PI / 180;
+                return -speedToRadiusScale(d.m) * Math.cos(angle) * 0.99;
+            })
+            .attr("x2", d => {
+                const angle = d.d * Math.PI / 180;
+                return speedToRadiusScale(d.m) * Math.sin(angle);
+            })
+            .attr("y2", d => {
+                const angle = d.d * Math.PI / 180;
+                return -speedToRadiusScale(d.m) * Math.cos(angle);
+            })
+            .attr("marker-end", `url(#arrowhead-gust-${uniqueId})`);
 
         const speedArcGen = arc(windSpeedArcOptions);
         const petals = svg.append("g").attr("class", "speedArc")
             .selectAll("path").data(winds).enter().append("path")
             .attr("d", speedArcGen).attr("class", "arcs").style("fill", probabilityToColor);
 
-        petals.on("mouseover", function(event, d) {
-            const infoLines = [ `Rafale: ${d.m.toFixed(1)} ${speedUnit}`, `Moy: ${d.s.toFixed(1)} ${speedUnit}`,`${d.d}°`];
-            drawInfoText(svg, r, infoLines);
-        }).on("mouseout", function() {
-            svg.select(".info-text").remove();
-        });
-
         drawGrid(svg, ticks, speedToRadiusScale);
         drawGridScale(svg, tickmarks, d => `${d.toFixed(1)} ${speedUnit}`, speedToRadiusScale);
         drawCalm(svg, windSpeedArcOptions.from, t > 0 ? calm / t : 0);
         drawLevelGrid(svg, r);
+        // Zones invisibles pour le hover (20° par direction, de calm jusqu'à maxSpeed)
+        const hoverArc = d3.arc()
+            .startAngle(d => (d.d - 10) * Math.PI / 180)
+            .endAngle(d => (d.d + 10) * Math.PI / 180)
+            .innerRadius(ip - 2)
+            .outerRadius(visWidth);
+
+        const hoverZones = svg.append("g").attr("class", "hover-zones")
+            .selectAll("path").data(winds).enter().append("path")
+            .attr("d", hoverArc)
+            .attr("class", "hover-zone")
+            .style("fill", "transparent")
+            .style("pointer-events", "all");
+
+        hoverZones.on("mouseover", function(event, d) {
+            // Mettre en valeur le pétale correspondant
+            petals.filter(petal => petal.d === d.d)
+                .transition()
+                .duration(50)
+                .style("fill-opacity", 0.9)
+                .style("stroke-width", "2px")
+                .style("stroke", "#ff6b6b");
+            
+            // Changer le marker pour la version hover
+            // gustArrows.filter(arrow => arrow.d === d.d)
+            //     .attr("marker-end", `url(#arrowhead-gust-hover-${uniqueId})`);
+            // Mettre en valeur le marker correspondant
+            gustArrows.filter(arrow => arrow.d === d.d)
+                .transition()
+                .duration(50)
+                .attr("stroke-width", 1.3);
+            
+            
+            const infoLines = [ `Rafale: ${d.m.toFixed(1)} ${speedUnit}`, `Moy: ${d.s.toFixed(1)} ${speedUnit}`,`${d.d}°`];
+            drawInfoText(svg, r, infoLines);
+        }).on("mouseout", function(event, d) {
+            // Retirer la mise en valeur du pétale
+            petals.filter(petal => petal.d === d.d)
+                .transition()
+                .duration(800)
+                .style("fill-opacity", null)
+                .style("stroke-width", null)
+                .style("stroke", null);
+            
+            // // Remettre le marker normal
+            // gustArrows.filter(arrow => arrow.d === d.d)
+            //     .attr("marker-end", `url(#arrowhead-gust-${uniqueId})`);
+            // Retirer la mise en valeur du marker
+            gustArrows.filter(arrow => arrow.d === d.d)
+                .transition()
+                .duration(800)
+                .attr("stroke-width", 1);
+            
+            svg.select(".info-text").remove();
+        });
+
     }
 
     function convertApiData(apiData) {

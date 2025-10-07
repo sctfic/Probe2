@@ -1220,7 +1220,13 @@ input:checked+.slider:before {
     .wind-arrow {
         width: 25px;
         height: 25px;
-        top: 40%
+        top: 40%;
+    }
+
+    .rose-period-display {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
     }
 
     .wind-compass {
@@ -1739,7 +1745,7 @@ input:checked+.slider:before {
 
 .chart-container {
     flex-grow: 1;
-    padding: 10px;
+    padding-top: 10px;
     overflow: auto;
 }
 
@@ -2065,6 +2071,10 @@ input:checked+.slider:before {
 .wind-bottom-row {
     height: 40%;
     width: 100%;
+}
+
+.wind-top-row {
+    position: relative; /* Contexte de positionnement pour l'enfant absolu */
 }
 
 .rose-container {
