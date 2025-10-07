@@ -920,12 +920,25 @@ function showDetailsFooter(keys) {
     
     // Utilise le premier item pour les propriétés communes comme la période
     const firstItem = items[0];
-    const chartId = `details_chart_`;
-    contentContainer.innerHTML = `<div id="${chartId}" style="width: 100%; height: 100%;"></div>`;
 
     const sensorDbs = items.map(i => i.sensorDb).filter(Boolean);
     if (sensorDbs.length === 0) {
         contentContainer.innerHTML = `<div class="error-message">Aucun capteur avec historique dans la sélection.</div>`;
+        return;
+    }
+    
+    // Special case for wind rose
+    if (items.some(i => i.measurement === 'direction' || i.sensorDb.startsWith('vector:') || i.sensorDb.startsWith('rose:'))) {
+        contentContainer.innerHTML = `
+            <div class="wind-details-grid">
+                <div class="wind-top-row" id="windRoses-container"></div>
+                <div class="wind-bottom-row" id="vector-container"></div>
+            </div>
+        `;
+        const start = getStartDate(firstItem.period);
+        loadRosePlot('windRoses-container', `${API_BASE_URL}/${selectedStation.id}/WindRose?stepCount=24&startDate=${start}`);
+        const vectorUrl = `/query/${selectedStation.id}/WindVectors?stepCount=600&startDate=${start}`;
+        loadVectorPlot('vector-container', vectorUrl);
         return;
     }
 
@@ -933,6 +946,8 @@ function showDetailsFooter(keys) {
     const count = `stepCount=500`;
     console.log(sensorDbs, sensorDbs.length);
 
+        const chartId = `details_chart_`;
+        contentContainer.innerHTML = `<div id="${chartId}" style="width: 100%; height: 100%;"></div>`;
         const sensorsQuery = sensorDbs.join(',');
         loadDatas(chartId, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}?${count}&${start}`, firstItem.period);
     

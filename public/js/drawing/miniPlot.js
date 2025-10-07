@@ -202,4 +202,4 @@ async function loadData(id, url, period, item = null) {
     }
 }
 // Optionnel : Nettoyer automatiquement le cache toutes les 60 seconde
-setInterval(cleanCache, 60 * 1000);
+setInterval(cleanCache, 60*60 * 1000);

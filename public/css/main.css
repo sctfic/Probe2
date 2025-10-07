@@ -1040,6 +1040,7 @@ input:checked+.slider:before {
     z-index: 1
 }
 
+
 .wind-arrow {
     position: absolute;
     width: 30px;
@@ -2026,6 +2027,108 @@ input:checked+.slider:before {
 #compositeProbes-section .settings-actions {
     text-align: right;
     justify-content: flex-end;
+}
+
+/* ---
+   5. Wind Rose & Vector Chart Styles (Footer)
+   ------------------------------------------- */
+.wind-details-grid {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    padding: 5px;
+    box-sizing: border-box;
+}
+
+.wind-top-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    height: 60%;
+    width: 100%;
+}
+
+.rose-period-display {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #ccc;
+    font-size: 0.9em;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.wind-bottom-row {
+    height: 40%;
+    width: 100%;
+}
+
+.rose-container {
+    border-radius: 8px;
+    padding: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    flex: 1;
+}
+
+.rose-title {
+    text-align: center;
+    font-size: 1em;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #ccc;
+}
+
+.axes circle {
+    fill: none;
+    stroke: #666;
+    stroke-width: 0.5px;
+}
+
+.tickmarks text {
+    font: 10px sans-serif;
+    text-anchor: middle;
+    fill: #ccc;
+}
+
+.calmwind text {
+    font: 14px sans-serif;
+    text-anchor: middle;
+    fill: #fff;
+}
+
+.arcs {
+    stroke: #fff;
+    stroke-width: 0.5px;
+    fill-opacity: 0.6;
+    cursor: pointer;
+    transition: stroke-width 0.2s, fill-opacity 0.2s;
+}
+
+.arcs:hover {
+    fill-opacity: 0.9;
+    stroke-width: 2px;
+    stroke: #ff6b6b;
+}
+
+.arcs_max {
+    stroke: #fff;
+    stroke-width: 1.5px;
+    fill: none;
+}
+
+.labels text {
+    letter-spacing: 1px;
+    fill: #aaa;
+    font-size: 10px;
+    text-anchor: middle;
 }
 
 /* ---
