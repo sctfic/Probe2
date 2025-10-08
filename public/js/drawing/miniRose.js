@@ -54,26 +54,6 @@ function createRosePlot(data, metadata, id) {
             .attr("transform", `translate(${(w + p) / 2}, ${(h + p) / 2})`);
     }
 
-    function addArrowMarkers(svg, uniqueId) {
-        const defs = svg.append("defs");
-        
-        // Marker normal pour les flèches des rafales
-        defs.append("marker")
-            .attr("id", `arrowhead-gust-${uniqueId}`)
-            .attr("refX", -10)
-            .attr("refY", 0)
-            .attr("viewBox", "-25 -25 60 50")
-            .attr("markerUnits", "strokeWidth")
-            .attr("markerWidth", 30)
-            .attr("markerHeight", 60)
-            .attr("orient", "auto")
-            .attr("stroke", "#3498db")
-            .attr("stroke-width", 1)
-            .append("polygon")
-            .attr("fill", "#3498db")
-            .attr("points", "0,0 12.5,12.5 -25,0 12.5,-12.5");
-    }
-
     function drawGrid(svg, ticks, scale) {
         svg.append("g")
             .attr("class", "axes")
@@ -237,10 +217,6 @@ function createRosePlot(data, metadata, id) {
 
         const svg = makeWindContainer(container, w, h, p);
         
-        // Add arrow markers with unique ID
-        const uniqueId = id + '-speed';
-        addArrowMarkers(svg, uniqueId);
-
         let calm = 0;
         let maxSpdVal = 0;
         for (const key in data) {
@@ -265,35 +241,24 @@ function createRosePlot(data, metadata, id) {
             width: 10, from: ip - 2, to: d => speedToRadiusScale(d.s)
         };
 
-        // Dessiner les lignes invisibles avec markers pour les rafales max
-        const gustArrows = svg.append("g").attr("class", "speedArcMax")
-            .selectAll("line")
-            .data(winds)
-            .enter()
-            .append("line")
-            .attr("class", "gust-arrow")
-            .attr("x1", d => {
-                const angle = d.d * Math.PI / 180;
-                return speedToRadiusScale(d.m) * Math.sin(angle) * 0.99; // Légèrement en retrait
-            })
-            .attr("y1", d => {
-                const angle = d.d * Math.PI / 180;
-                return -speedToRadiusScale(d.m) * Math.cos(angle) * 0.99;
-            })
-            .attr("x2", d => {
-                const angle = d.d * Math.PI / 180;
-                return speedToRadiusScale(d.m) * Math.sin(angle);
-            })
-            .attr("y2", d => {
-                const angle = d.d * Math.PI / 180;
-                return -speedToRadiusScale(d.m) * Math.cos(angle);
-            })
-            .attr("marker-end", `url(#arrowhead-gust-${uniqueId})`);
+        // Pétales pour les rafales (gusts)
+        const windGustArcOptions = {
+            width: 9, from: ip - 2, to: d => speedToRadiusScale(d.m)
+        };
+        const gustArcGen = arc(windGustArcOptions);
+        const gustPetals = svg.append("g").attr("class", "gustArc")
+            .selectAll("path").data(winds).enter().append("path")
+            .attr("d", gustArcGen)
+            .attr("class", "arcs")
+            .style("fill", d => d3.color(probabilityToColor(d)).darker(0.5))
+            .style("fill-opacity", 0.4);
 
         const speedArcGen = arc(windSpeedArcOptions);
         const petals = svg.append("g").attr("class", "speedArc")
             .selectAll("path").data(winds).enter().append("path")
-            .attr("d", speedArcGen).attr("class", "arcs").style("fill", probabilityToColor);
+            .attr("d", speedArcGen)
+            .attr("class", "arcs")
+            .style("fill", probabilityToColor);
 
         drawGrid(svg, ticks, speedToRadiusScale);
         drawGridScale(svg, tickmarks, d => `${d.toFixed(1)} ${speedUnit}`, speedToRadiusScale);
@@ -322,15 +287,12 @@ function createRosePlot(data, metadata, id) {
                 .style("stroke-width", "2px")
                 .style("stroke", "#ff6b6b");
             
-            // Changer le marker pour la version hover
-            // gustArrows.filter(arrow => arrow.d === d.d)
-            //     .attr("marker-end", `url(#arrowhead-gust-hover-${uniqueId})`);
-            // Mettre en valeur le marker correspondant
-            gustArrows.filter(arrow => arrow.d === d.d)
+            // Mettre en valeur le pétale de rafale correspondant
+            gustPetals.filter(petal => petal.d === d.d)
                 .transition()
                 .duration(50)
-                .attr("stroke-width", 1.3);
-            
+                .style("fill-opacity", 0.7)
+                .style("stroke", "#ff6b6b");
             
             const infoLines = [ `Rafale: ${d.m.toFixed(1)} ${speedUnit}`, `Moy: ${d.s.toFixed(1)} ${speedUnit}`,`${d.d}°`];
             drawInfoText(svg, r, infoLines);
@@ -343,15 +305,12 @@ function createRosePlot(data, metadata, id) {
                 .style("stroke-width", null)
                 .style("stroke", null);
             
-            // // Remettre le marker normal
-            // gustArrows.filter(arrow => arrow.d === d.d)
-            //     .attr("marker-end", `url(#arrowhead-gust-${uniqueId})`);
-            // Retirer la mise en valeur du marker
-            gustArrows.filter(arrow => arrow.d === d.d)
+            // Retirer la mise en valeur du pétale de rafale
+            gustPetals.filter(petal => petal.d === d.d)
                 .transition()
                 .duration(800)
-                .attr("stroke-width", 1);
-            
+                .style("fill-opacity", 0.4)
+                .style("stroke", null);
             svg.select(".info-text").remove();
         });
 
