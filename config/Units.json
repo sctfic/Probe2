@@ -372,5 +372,21 @@
             "ForecastClass",
             "ForecastNum"
         ]
+    },
+    "vector": {
+        "title": "Vector",
+        "description": "Unités de mesure du vecteur",
+        "user": "m/s",
+        "metric": "m/s",
+        "available_units": {
+            "m/s": {
+                "title": "m/s",
+                "fnFromMetric": "(v) => Number(Math.sqrt(v.Ux*v.Ux+v.Vy*v.Vy).toFixed(2))"
+            }
+        },
+        "sensors": [
+            "vector:Gust",
+            "vector:Wind"
+        ]
     }
 }

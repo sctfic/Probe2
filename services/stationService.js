@@ -489,19 +489,19 @@ async function updateArchiveConfiguration(req, stationConfig) {
 }
 
 async function getCurrentWeatherData(req, stationConfig) {
-    const loop1Bytes = await sendCommand(req, stationConfig, 'LPS 1 1', 1200, "<ACK>97<CRC>"); // 800ms
+    try {
+        const loop1Bytes = await sendCommand(req, stationConfig, 'LPS 1 1', 1200, "<ACK>97<CRC>"); // 800ms
+        const loop1Data = parseLOOP1Data(loop1Bytes);
 
-    const loop1Data = parseLOOP1Data(loop1Bytes);
+        const loop2Bytes = await sendCommand(req, stationConfig, 'LPS 2 1', 1200, "<ACK>97<CRC>"); // 800ms
+        const loop2Data = parseLOOP2Data(loop2Bytes);
 
-
-    const loop2Bytes = await sendCommand(req, stationConfig, 'LPS 2 1', 1200, "<ACK>97<CRC>"); // 800ms
-
-    const loop2Data = parseLOOP2Data(loop2Bytes);
-
-
-    const aggregatedData = { ...loop1Data, ...loop2Data };
-    const processedData = processWeatherData(aggregatedData, stationConfig, 'metric');
-    return processedData;
+        const aggregatedData = { ...loop1Data, ...loop2Data };
+        const processedData = processWeatherData(aggregatedData, stationConfig, 'metric');
+        return processedData;
+    } catch (error) {
+        return {};
+    }
 }
 
 async function getStationInfo(req, stationConfig) {

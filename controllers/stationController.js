@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const compositeProbes = require('../config/compositeProbes.json');
+const dbProbes = require('../config/dbProbes.json');
 const { sensorTypeMap } = require('../utils/weatherDataParser');
 const units = require('../config/Units.json');
 const { V } = require('../utils/icons');
@@ -138,14 +139,51 @@ async function calculateAndAppendcompositeProbes(weatherData, stationConfig) {
     return weatherData;
 }
 
+/**
+ * Appends probes based on data available in the database for the last 7 days.
+ * @param {object} weatherData - The core weather data object.
+ * @param {object} stationConfig - The configuration for the station.
+ * @returns {Promise<object>} The weather data object enriched with DB-based probes.
+ */
+async function AppendDbProbes(weatherData, stationConfig) {
+    try {
+        // 1. Get all sensors with data in the last 7 days from InfluxDB
+        const dbData = await influxdbService.queryLast(stationConfig.id, '-7d', 'now()');
+        // on surchage dbData avec les données de dbProbes
+        for (const sensorKey of Object.keys(dbData)) {
+            // console.log(sensorKey);
+            dbData[sensorKey] = {...dbData[sensorKey], ...dbProbes[sensorKey]};
+            if (dbData[sensorKey].value !== undefined) {
+                dbData[sensorKey]['Value'] = dbData[sensorKey].value;
+                delete dbData[sensorKey].value;
+            } else if (dbData[sensorKey].measurement == 'vector') {
+                dbData[sensorKey]['Value'] = {
+                    Ux: dbData[sensorKey].Ux,
+                    Vy: dbData[sensorKey].Vy
+                };
+            }
+            const type = units[dbData[sensorKey].measurement];
+            dbData[sensorKey].Unit = type?.metric || null;
+            dbData[sensorKey].userUnit = type?.user || null;
+            dbData[sensorKey].toUserUnit = type?.available_units?.[type.user]?.fnFromMetric || null;
+        }
+        return dbData;
+    } catch (dbError) {
+        console.error(`${V.error} Error appending DB probes:`, dbError.message);
+    }
+    return weatherData;
+}
+
 exports.getCurrentWeather = async (req, res) => {
     const stationConfig = req.stationConfig;
     const cacheFilePath = path.join(__dirname, '..', 'config', 'stations', `${stationConfig.id}.currents.last`);
 
     try {
+
         const weatherData = await stationService.getCurrentWeatherData(req, stationConfig);
+        const dbWeatherData = await AppendDbProbes(weatherData, stationConfig);
         // Calculate and append composite probes
-        const enrichedWeatherData = await calculateAndAppendcompositeProbes(weatherData, stationConfig);
+        const enrichedWeatherData = await calculateAndAppendcompositeProbes(dbWeatherData, stationConfig);
         
         const responsePayload = {
             success: true,
@@ -153,37 +191,20 @@ exports.getCurrentWeather = async (req, res) => {
             timestamp: new Date().toISOString(),
             data: enrichedWeatherData
         };
-        // Enregistrer la réponse réussie dans le fichier cache
-        fs.writeFileSync(cacheFilePath, JSON.stringify(responsePayload, null, 2), 'utf8');
-
         res.json(responsePayload);
     } catch (error) {
-        // En cas d'erreur, essayer de renvoyer les données du fichier cache
         try {
-            if (fs.existsSync(cacheFilePath)) {
-                console.log(V.Warn, `Récupération des données depuis le cache: ${cacheFilePath}`);
-                const cachedData = fs.readFileSync(cacheFilePath, 'utf8');
-                let responsePayload = JSON.parse(cachedData);
-                
-                // Extract weather data from the cached payload
-                let weatherDataFromCache = responsePayload.data;
-
-                // Recalculate composite probes on the cached data
-                weatherDataFromCache = await calculateAndAppendcompositeProbes(weatherDataFromCache, stationConfig);
-                // console.log(weatherDataFromCache.AirWater_calc);
-                // Ajouter un message pour indiquer que les données proviennent du cache
-                responsePayload.data = weatherDataFromCache;
-                responsePayload.message = "Données en cache (erreur de connexion à la station)";
-                responsePayload.fromCache = true;
-                responsePayload.success = false;
-                
-                res.json(responsePayload);
-            } else {
-                // Si aucun fichier cache n'existe, renvoyer l'erreur originale
-                throw new Error(`Aucun fichier cache disponible et erreur de connexion: ${error.message}`); // Re-throw to be caught by the outer catch
-            }
+            const dbWeatherData = await AppendDbProbes(weatherData, stationConfig);
+            // Recalculate composite probes on the cached data
+            weatherDataFromCache = await calculateAndAppendcompositeProbes(dbWeatherData, stationConfig);
+            // console.log(weatherDataFromCache.AirWater_calc);
+            // Ajouter un message pour indiquer que les données proviennent du cache
+            responsePayload.data = weatherDataFromCache;
+            responsePayload.message = "Données en cache (erreur de connexion à la station)";
+            responsePayload.fromCache = true;
+            responsePayload.success = false;
+            res.json(responsePayload);
         } catch (cacheError) {
-            console.error(`${V.error} Erreur lors de la lecture du fichier cache pour ${req.stationConfig?.id}:`, cacheError);
             res.status(500).json({
                 success: false,
                 stationId: req.stationConfig?.id || 'unknown',

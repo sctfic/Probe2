@@ -271,12 +271,34 @@ async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSecond
         from(bucket: "${bucket}")
           |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'}) 
           |> filter(fn: (r) => r.station_id == "${stationId}" and ${getFilter(sensorRef)})
-          |> group(columns: ["unit"])
           |> aggregateWindow(every: ${intervalSeconds}s, fn: ${sensorRef.startsWith('rain:') ? 'sum' : 'mean'}, createEmpty: false)
-          |> keep(columns: ["_time", "_field", "_value", "unit"])
+          |> keep(columns: ["_time", "_field", "_value"])
           |> sort(columns: ["_time"])
     `;
     return await executeQuery(fluxQuery);
+}
+async function queryLast(stationId, startDate = '-7d', endDate = 'now()') {
+    const fluxQuery = `
+        from(bucket: "${bucket}")
+          |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'}) 
+          |> filter(fn: (r) => r.station_id == "${stationId}")
+          |> drop(columns: ["_start", "_stop", "station_id"])
+          |> last()
+    `;
+    const result = await executeQuery(fluxQuery)
+
+    // parser return { "direction:Gust": { v: 247.5, d: '2025-10-08T17:55:00Z' } } // { "_measurement:sensor": { v: _value, d: _time } }
+    const datas = {};
+    result.forEach(data => {
+        const sensor = data._measurement + ':' + data.sensor;
+        const value = data._value;
+        const time = data._time;
+        if (!datas[sensor]) {
+            datas[sensor] = {d: time};
+        }
+        datas[sensor][data._field] = Math.round(value * 1000) / 1000;
+    });
+    return datas;
 }
 
 /**
@@ -483,61 +505,6 @@ function parserWindRose(data) {
  * @param {string} endDate - Date de fin.
  * @returns {Promise<Array>} Un tableau des données pour le graphique du vent.
  */
-// STRUCTURE DES DONNÉES DANS INFLUXDB POUR LE VENT:
-// "measurements": {
-//     "direction": {
-//         "tags": {
-//             "sensor": [
-//                 "Gust",
-//                 "Wind"
-//             ],
-//             "station_id": [
-//                 "VP2_Serramoune"
-//             ],
-//             "unit": [
-//                 "°"
-//             ]
-//         },
-//         "fields": [
-//             "value"
-//         ]
-//     },
-//     "speed": {
-//         "tags": {
-//             "sensor": [
-//                 "Gust",
-//                 "Wind"
-//             ],
-//             "station_id": [
-//                 "VP2_Serramoune"
-//             ],
-//             "unit": [
-//                 "m/s"
-//             ]
-//         },
-//         "fields": [
-//             "value"
-//         ]
-//     },
-//     "vector": {
-//         "tags": {
-//             "sensor": [
-//                 "Gust",
-//                 "Wind"
-//             ],
-//             "station_id": [
-//                 "VP2_Serramoune"
-//             ],
-//             "unit": [
-//                 "->"
-//             ]
-//         },
-//         "fields": [
-//             "Ux",
-//             "Vy"
-//         ]
-//     }
-// }
 
 async function queryWindVectors(stationId, sensorRef, startDate, endDate, intervalSeconds = 3600) {
     const fluxQuery = `
@@ -594,7 +561,7 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
         from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'}) 
             |> filter(fn: (r) => r.station_id == "${stationId}" and r.sensor == "${sensorRef}")
-            |> group(columns: ["unit"])
+            // |> group(columns: ["unit"])
             |> window(every: ${intervalSeconds}s)
             |> reduce(
                 identity: {
@@ -627,7 +594,7 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
                 unit: r.unit
             }))
             |> sort(columns: ["datetime"])
-            |> keep(columns: ["datetime", "first", "min", "avg", "max", "last", "count", "unit"])
+            |> keep(columns: ["datetime", "first", "min", "avg", "max", "last", "count"])
     `;
     
     return await executeQuery(fluxQuery);
@@ -675,6 +642,7 @@ module.exports = {
     queryWindRose,
     queryWindVectors,
     queryCandle,
-    clearBucket
+    clearBucket,
+    queryLast
     // findLastOpenMeteoTimestamp
 };
