@@ -69,6 +69,16 @@
         "sensorDb": "direction:open-meteo_Wind",
         "measurement": "direction"
     },
+    "direction:open-meteo_Gust": {
+        "label": "Direction Rafale (Open-Meteo)",
+        "comment": "Direction des rafales (Open-Meteo)",
+        "currentMap": "windGustDir10Min",
+        "period": 604800,
+        "groupUsage": "db",
+        "groupCustom": "open-meteo",
+        "sensorDb": "direction:open-meteo_Wind",
+        "measurement": "direction"
+    },
     "humidity:inHumidity": {
         "label": "Humidité Intérieure",
         "comment": "Humidité relative intérieure",
