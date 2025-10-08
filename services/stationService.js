@@ -498,6 +498,24 @@ async function getCurrentWeatherData(req, stationConfig) {
 
         const aggregatedData = { ...loop1Data, ...loop2Data };
         const processedData = processWeatherData(aggregatedData, stationConfig, 'metric');
+
+        for (const sensorKey of Object.keys(processedData)) {
+            // console.log(sensorKey);
+            processedData[sensorKey] = {...processedData[sensorKey], ...dbProbes[sensorKey]};
+            if (processedData[sensorKey].value !== undefined) {
+                processedData[sensorKey]['Value'] = processedData[sensorKey].value;
+                delete processedData[sensorKey].value;
+            } else if (processedData[sensorKey].measurement == 'vector') {
+                processedData[sensorKey]['Value'] = {
+                    Ux: processedData[sensorKey].Ux,
+                    Vy: processedData[sensorKey].Vy
+                };
+            }
+            const type = units[processedData[sensorKey].measurement];
+            processedData[sensorKey].Unit = type?.metric || null;
+            processedData[sensorKey].userUnit = type?.user || null;
+            processedData[sensorKey].toUserUnit = type?.available_units?.[type.user]?.fnFromMetric || null;
+        }
         return processedData;
     } catch (error) {
         return {};

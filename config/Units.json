@@ -284,7 +284,29 @@
             "leafWetness1",
             "leafWetness2",
             "extraHumidity1",
-            "extraHumidity2",
+            "extraHumidity2"
+        ]
+    },
+    "soilMoisture": {
+        "title": "Density",
+        "description": "",
+        "user": "%",
+        "metric": "m³/m³",
+        "available_units": {
+            "l/m³": {
+                "title": "litre per cubic meter",
+                "fnFromMetric": "(m) => Number(1000*m.toFixed(1))"
+            },
+            "%": {
+                "title": "percent",
+                "fnFromMetric": "(m) => Number(100*m.toFixed(1))"
+            },
+            "m³/m³": {
+                "title": "volume per cubic meter",
+                "fnFromMetric": "(m) => Number(m.toFixed(1))"
+            }
+        },
+        "sensors": [
             "extraSoilMoisture1",
             "extraSoilMoisture2",
             "extraSoilMoisture3",

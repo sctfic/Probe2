@@ -193,24 +193,11 @@ exports.getCurrentWeather = async (req, res) => {
         };
         res.json(responsePayload);
     } catch (error) {
-        try {
-            const dbWeatherData = await AppendDbProbes(weatherData, stationConfig);
-            // Recalculate composite probes on the cached data
-            weatherDataFromCache = await calculateAndAppendcompositeProbes(dbWeatherData, stationConfig);
-            // console.log(weatherDataFromCache.AirWater_calc);
-            // Ajouter un message pour indiquer que les données proviennent du cache
-            responsePayload.data = weatherDataFromCache;
-            responsePayload.message = "Données en cache (erreur de connexion à la station)";
-            responsePayload.fromCache = true;
-            responsePayload.success = false;
-            res.json(responsePayload);
-        } catch (cacheError) {
-            res.status(500).json({
-                success: false,
-                stationId: req.stationConfig?.id || 'unknown',
-                error: error.message // Renvoie l'erreur de connexion originale
-            });
-        }
+        res.status(500).json({
+            success: false,
+            stationId: req.stationConfig?.id || 'unknown',
+            error: error.message // Renvoie l'erreur de connexion originale
+        });
     }
 };
 

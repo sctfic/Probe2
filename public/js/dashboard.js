@@ -12,7 +12,7 @@ let selectedTiles = new Set();
 function saveTileState() {
     if (!selectedStation) return;
     const state = Object.fromEntries(
-        allConditions.map(item => [item.key, { order: item.customOrder, hidden: !!item.hidden }])
+        allConditions.map(item => [item.key, { order: item.order, hidden: !!item.hidden }])
     );
     // console.log(`Saving tile state for station ${selectedStation.id}:`, state);
     localStorage.setItem(`${STORAGE_KEY_STATE}_${selectedStation.id}`, JSON.stringify(state));
@@ -123,40 +123,40 @@ function processAndDisplayConditions() {
     allConditions = Object.entries(currentConditionsData)
         .filter(([key]) => !excludeKeys.includes(key))
         .map(([key, data]) => {
-            const sensorInfo = { ...sensorMap[key], ...data, ...tileState[key] };
+            const sensorInfo = {...data, ...tileState[key] };
             if (sensorInfo.order !== undefined && sensorInfo.order > maxOrder) maxOrder = sensorInfo.order;
 
             return {
-                key,
                 name: sensorInfo.label || key,
-                value: sensorInfo.Value,
-                more: sensorInfo.more || '',
-                unit: sensorInfo.Unit,
-                userUnit: sensorInfo.userUnit,
-                fnToUserUnit: sensorInfo.toUserUnit || '(_) => _',
+                comment: sensorInfo.comment,
+                key,
                 measurement: sensorInfo.measurement || 'unknown',
+                value: sensorInfo.Value,
+                unit: sensorInfo.Unit,
+                more: sensorInfo.more || '',
+                userUnit: sensorInfo.userUnit,
+                toUserUnit: sensorInfo.toUserUnit || '(_) => _',
                 groupUsage: sensorInfo.groupUsage || null,
                 groupCustom: sensorInfo.groupCustom || null,
-                customOrder: sensorInfo.order,
                 sensorDb: sensorInfo.sensorDb,
-                hidden: !!sensorInfo.hidden,
                 period: sensorInfo.period || '7d',
-                comment: sensorInfo.comment,
+                order: sensorInfo.order,
+                hidden: !!sensorInfo.hidden,
                 searchText: [sensorInfo.label, key, sensorInfo.comment, String(data.Value), data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
             };
         });
 
     // Assign order to new items and ensure uniqueness
-    let usedOrders = new Set(allConditions.map(item => item.customOrder).filter(o => o !== undefined));
+    let usedOrders = new Set(allConditions.map(item => item.order).filter(o => o !== undefined));
     allConditions.forEach(item => {
-        if (item.customOrder === undefined) {
+        if (item.order === undefined) {
             while (usedOrders.has(++maxOrder)) {}
-            item.customOrder = maxOrder;
-            usedOrders.add(item.customOrder);
+            item.order = maxOrder;
+            usedOrders.add(item.order);
         }
     });
 
-    // console.log('[DND] Conditions with custom order before sort:', allConditions.map(i => ({key: i.key, order: i.customOrder})));
+    // console.log('[DND] Conditions with custom order before sort:', allConditions.map(i => ({key: i.key, order: i.order})));
     // Afficher les conditions selon le groupement
     displayConditions();
     
@@ -248,7 +248,7 @@ function updateConditionsStats(visibleCount) {
 function displayConditions() {
     const groupBy = document.getElementById('conditions-group')?.value || 'unit';
 
-    allConditions.sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0));
+    allConditions.sort((a, b) => (a.order || 0) - (b.order || 0));
 
     if (groupBy === 'none') {
         reorganizeConditionsList();
@@ -296,7 +296,7 @@ function isMajorChange(oldValue, newValue, unit) {
 
 // Fonction modifiée pour mettre à jour une tuile existante avec animation
 function updateExistingTile(tileElement, item) {
-    const fn = eval(item.fnToUserUnit || 'x => x');
+    const fn = eval(item.toUserUnit || 'x => x');
     const valueElement = tileElement.querySelector('.condition-value');
 
     if (valueElement) {
@@ -461,7 +461,7 @@ function reorganizeConditionsGrouped(groupBy) {
     // Réinsérer les tuiles dans les bons groupes
     Object.entries(groupedData).forEach(([groupName, items]) => {
         const groupGrid = conditionsContainer.querySelector(`[data-group="${groupName}"]`);
-        items.sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0));
+        items.sort((a, b) => (a.order || 0) - (b.order || 0));
         if (groupGrid) {
             items.forEach(item => {
                 if (existingTiles[item.key]) {
@@ -550,9 +550,9 @@ function createConditionTileHTML(item) {
     let unitDisplay = item.userUnit ? `<span class="condition-unit">${item.userUnit}</span>` : '';
     let fn;
     try {
-        fn = eval(item.fnToUserUnit || 'x => x');
+        fn = eval(item.toUserUnit || 'x => x');
     } catch (error) {
-        fn = x => { console.log(`erreur eval(${item.fnToUserUnit})`); };
+        fn = x => { console.log(`erreur eval(${item.toUserUnit})`); };
         console.error('Erreur lors de l\'évaluation de la fonction de conversion:', error);
     }
 
@@ -679,6 +679,7 @@ function loadChartForItem(item) {
 
     if (item.sensorDb.startsWith('vector:')) {
         const sensorRef = item.sensorDb.substring('vector:'.length);
+        // console.log(item.sensorDb, sensorRef, prefix);
         loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindVectors/${sensorRef}?${count}&${start}`, item.period);
     } else if (item.sensorDb.startsWith('rose:')) {
         const sensorRef = item.sensorDb.substring('rose:'.length);
@@ -755,7 +756,7 @@ function handleDrop(e) {
     const [draggedItem] = allConditions.splice(draggedItemIndex, 1);
     allConditions.splice(targetItemIndex, 0, draggedItem);
 
-    allConditions.forEach((item, index) => item.customOrder = index);
+    allConditions.forEach((item, index) => item.order = index);
     saveTileState();
 
     // Reorder the DOM element directly instead of a full redraw
@@ -847,7 +848,7 @@ function handleTouchEnd(e) {
         if (draggedItemIndex !== -1 && targetItemIndex !== -1) {
             const [draggedItem] = allConditions.splice(draggedItemIndex, 1);
             allConditions.splice(targetItemIndex, 0, draggedItem);
-            allConditions.forEach((item, index) => item.customOrder = index);
+            allConditions.forEach((item, index) => item.order = index);
             saveTileState();
             targetTile.parentNode.insertBefore(draggedDOMElement, targetTile);
         }
@@ -929,6 +930,11 @@ function showDetailsFooter(keys) {
     
     // Special case for wind rose
     if (items.some(i => i.measurement === 'direction' || i.sensorDb.startsWith('vector:') || i.sensorDb.startsWith('rose:'))) {
+        let prefix = '';
+        if (firstItem.key.includes('_')) {
+            prefix = firstItem.key.split(':')[1].split('_')[0] + '_';
+        }
+        console.log('firstItem', firstItem.key, prefix);
         contentContainer.innerHTML = `
             <div class="wind-details-grid">
                 <div class="wind-top-row" id="windRoses-container"></div>
@@ -936,20 +942,19 @@ function showDetailsFooter(keys) {
             </div>
         `;
         const start = getStartDate(firstItem.period);
-        loadRosePlot('windRoses-container', `${API_BASE_URL}/${selectedStation.id}/WindRose?stepCount=24&startDate=${start}`);
-        const vectorUrl = `/query/${selectedStation.id}/WindVectors?stepCount=600&startDate=${start}`;
+        loadRosePlot('windRoses-container', `${API_BASE_URL}/${selectedStation.id}/WindRose?stepCount=24&startDate=${start}&prefix=${prefix}`);
+        const vectorUrl = `/query/${selectedStation.id}/WindVectors/${firstItem.sensorDb.split(':')[1]}?stepCount=600&startDate=${start}`;
         loadVectorPlot('vector-container', vectorUrl);
         return;
     }
 
     const start = `startDate=${getStartDate('100d')}`;
     const count = `stepCount=500`;
-    console.log(sensorDbs, sensorDbs.length);
 
-        const chartId = `details_chart_`;
-        contentContainer.innerHTML = `<div id="${chartId}" style="width: 100%; height: 100%;"></div>`;
-        const sensorsQuery = sensorDbs.join(',');
-        loadDatas(chartId, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}?${count}&${start}`, firstItem.period);
+    const chartId = `details_chart_`;
+    contentContainer.innerHTML = `<div id="${chartId}" style="width: 100%; height: 100%;"></div>`;
+    const sensorsQuery = sensorDbs.join(',');
+    loadDatas(chartId, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}?${count}&${start}`, firstItem.period);
     
 }
 

@@ -407,7 +407,7 @@ exports.getQueryCandle = async (req, res) => {
 
 exports.getQueryWindRose = async (req, res) => { // https://observablehq.com/@julesblm/wind-rose
     const { stationId } = req.params;
-    const { startDate, endDate, stepCount = 10 } = req.query;
+    const { startDate, endDate, stepCount = 10, prefix = '' } = req.query;
     
     if (!stationId) {
         return res.status(400).json({ success: false, error: 'Le paramètre stationId est requis.' });
@@ -415,7 +415,7 @@ exports.getQueryWindRose = async (req, res) => { // https://observablehq.com/@ju
     try {
         console.log(`${V.info} Demande de données de vent pour ${stationId}`);
         const timeInfo = await getIntervalSeconds(stationId, 'speed:Wind', startDate, endDate, stepCount);
-        const data = await influxdbService.queryWindRose(stationId, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
+        const data = await influxdbService.queryWindRose(stationId, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds, prefix);
         let msg = 'Full data loadded !';
         if (data.length==stepCount+1 && new Date(data[data.length-1].d).getTime()==timeInfo.end) {
             // data.pop(); // supprimer la derniere valeur, qui est la derniere valeur de la plage avant agregation
@@ -437,13 +437,12 @@ exports.getQueryWindRose = async (req, res) => { // https://observablehq.com/@ju
 };
 
 exports.getQueryWindVectors = async (req, res) => {
-    const { stationId, sensorRef='Wind' } = req.params;
+    const { stationId, sensorRef } = req.params;
     const { startDate, endDate, stepCount = 100 } = req.query;
     
     if (!stationId) {
         return res.status(400).json({ success: false, error: 'Le paramètre stationId est requis.' });
     }
-    if (sensorRef !== 'Wind' && sensorRef !== 'Gust') {sensorRef = 'Wind';}
     
     try {
         console.log(`${V.info} Demande de données de vent pour ${stationId}`);
@@ -535,17 +534,17 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
         let totalPointsWritten = 0;
 
         const mapping = {
-            'temperature_2m': { type: 'temperature', sensor: 'open-meteo_outTemp', convert: (v) => v + 273.15 }, // °C -> K
-            'relative_humidity_2m': { type: 'humidity', sensor: 'open-meteo_outHumidity' },
-            'precipitation': { type: 'rain', sensor: 'open-meteo_rainFall' },
-            'evapotranspiration': { type: 'rain', sensor: 'open-meteo_ET' },
-            'wind_speed_10m': { type: 'speed', sensor: 'open-meteo_Wind', convert: (v) => v / 3.6 }, // km/h -> m/s
-            'wind_direction_10m': { type: 'direction', sensor: 'open-meteo_Wind' },
-            'wind_gusts_10m': { type: 'speed', sensor: 'open-meteo_Gusts', convert: (v) => v / 3.6 }, // km/h -> m/s
-            'soil_temperature_7_to_28cm': { type: 'temperature', sensor: 'open-meteo_soilTemp', convert: (v) => v + 273.15 }, // °C -> K
-            'soil_moisture_7_to_28cm': { type: 'humidity', sensor: 'open-meteo_soilMoisture' },
-            'pressure_msl': { type: 'pressure', sensor: 'open-meteo_barometer' },
-            'shortwave_radiation': { type: 'irradiance', sensor: 'open-meteo_solar' }
+            'temperature_2m': { type: 'temperature', sensor: ['open-meteo_outTemp'], convert: (v) => v + 273.15 }, // °C -> K
+            'relative_humidity_2m': { type: 'humidity', sensor: ['open-meteo_outHumidity'] },
+            'precipitation': { type: 'rain', sensor: ['open-meteo_rainFall'] },
+            'evapotranspiration': { type: 'rain', sensor: ['open-meteo_ET'] },
+            'wind_speed_10m': { type: 'speed', sensor: ['open-meteo_Wind'], convert: (v) => v / 3.6 }, // km/h -> m/s
+            'wind_gusts_10m': { type: 'speed', sensor: ['open-meteo_Gust'], convert: (v) => v / 3.6 }, // km/h -> m/s
+            'wind_direction_10m': { type: 'direction', sensor: ['open-meteo_Wind', 'open-meteo_Gust'] },
+            'soil_temperature_7_to_28cm': { type: 'temperature', sensor: ['open-meteo_soilTemp'], convert: (v) => v + 273.15 }, // °C -> K
+            'soil_moisture_7_to_28cm': { type: 'humidity', sensor: ['open-meteo_soilMoisture'] },
+            'pressure_msl': { type: 'pressure', sensor: ['open-meteo_barometer'] },
+            'shortwave_radiation': { type: 'irradiance', sensor: ['open-meteo_solar'] }
         };
 
         console.log(`${V.gear} Traitement de ${time.length} points de données...`);
@@ -565,14 +564,16 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
                 if (value !== null && mapping[openMeteoKey]) {
                     const { type, sensor, convert } = mapping[openMeteoKey];
                     const metricValue = convert ? convert(value) : value;
-
-                    const point = new influxdbService.Point(type)
-                        .tag('station_id', stationId)
-                        .tag('sensor', sensor)
-                        // .tag('unit', units[type].metric)
-                        .floatField('value', metricValue.toFixed(2))
-                        .timestamp(timestamp);
-                    pointsChunk.push(point);
+                    
+                    sensor.forEach(s => {
+                        const point = new influxdbService.Point(type)
+                            .tag('station_id', stationId)
+                            .tag('sensor', s)
+                            // .tag('unit', units[type].metric)
+                            .floatField('value', metricValue.toFixed(2))
+                            .timestamp(timestamp);
+                        pointsChunk.push(point);
+                    });
                 }
             }
             // on calcule Ux et Vy pour wind_speed_10m et wind_direction_10m

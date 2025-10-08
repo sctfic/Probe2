@@ -393,13 +393,13 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
     return await executeQuery(fluxQuery);
 }
 
-async function queryWindRose(stationId, startDate, endDate, intervalSeconds = 3600) {
+async function queryWindRose(stationId, startDate, endDate, intervalSeconds = 3600, prefix = '') {
     const fluxQuery = `
         // 1. Récupérer les données de direction
         directionData = from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
             |> filter(fn: (r) => r.station_id == "${stationId}")
-            |> filter(fn: (r) => r._measurement == "direction")
+            |> filter(fn: (r) => r._measurement == "direction" and (r.sensor == "${prefix}Wind" or r.sensor == "${prefix}Gust"))
             |> keep(columns: ["_time", "_value", "sensor"])
             |> rename(columns: {_value: "direction"})
 
@@ -408,7 +408,7 @@ async function queryWindRose(stationId, startDate, endDate, intervalSeconds = 36
         speedData = from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
             |> filter(fn: (r) => r.station_id == "${stationId}")
-            |> filter(fn: (r) => r._measurement == "speed")
+            |> filter(fn: (r) => r._measurement == "speed" and (r.sensor == "${prefix}Wind" or r.sensor == "${prefix}Gust"))
             |> keep(columns: ["_time", "_value", "sensor"])
             |> rename(columns: {_value: "speed"})
 
@@ -434,18 +434,18 @@ async function queryWindRose(stationId, startDate, endDate, intervalSeconds = 36
             |> rename(columns: {speed: "count"})
            
         gust = grpPetal
-            |> filter(fn: (r) => r.sensor == "Gust")
+            |> filter(fn: (r) => r.sensor == "${prefix}Gust")
             |> aggregateWindow(every: ${intervalSeconds}s, fn: max, column: "speed", createEmpty: false)
             |> drop(columns: ["_start", "_stop"])
         gCount = count
-            |> filter(fn: (r) => r.sensor == "Gust")
+            |> filter(fn: (r) => r.sensor == "${prefix}Gust")
             |> drop(columns: ["_start", "_stop"])
         avg = grpPetal
-            |> filter(fn: (r) => r.sensor == "Wind")
+            |> filter(fn: (r) => r.sensor == "${prefix}Wind")
             |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, column: "speed", createEmpty: false)
             |> drop(columns: ["_start", "_stop"])
         aCount = count
-            |> filter(fn: (r) => r.sensor == "Wind")
+            |> filter(fn: (r) => r.sensor == "${prefix}Wind")
             |> drop(columns: ["_start", "_stop"])
            
         gustC = join(

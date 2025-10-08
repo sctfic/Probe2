@@ -5,7 +5,7 @@
         "currentMap": "windGust10Min",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "vector:Gust",
         "measurement": "vector"
     },
@@ -15,12 +15,12 @@
         "currentMap": "avgWindSpeed10Min",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "vector:Wind",
         "measurement": "vector"
     },
     "vector:open-meteo_Gust": {
-        "label": "Vecteur Rafale (OM)",
+        "label": "Vecteur Rafale (Open-Meteo)",
         "comment": "Vecteur des rafales de vent (Open-Meteo)",
         "currentMap": "windGust10Min",
         "period": 604800,
@@ -30,7 +30,7 @@
         "measurement": "vector"
     },
     "vector:open-meteo_Wind": {
-        "label": "Vecteur Vent (OM)",
+        "label": "Vecteur Vent (Open-Meteo)",
         "comment": "Vecteur du vent moyen (Open-Meteo)",
         "currentMap": "avgWindSpeed10Min",
         "period": 604800,
@@ -45,7 +45,7 @@
         "currentMap": "windGustDir10Min",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "direction:Gust",
         "measurement": "direction"
     },
@@ -55,12 +55,12 @@
         "currentMap": "windDir",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "direction:Wind",
         "measurement": "direction"
     },
     "direction:open-meteo_Wind": {
-        "label": "Direction Vent (OM)",
+        "label": "Direction Vent (Open-Meteo)",
         "comment": "Direction du vent moyen (Open-Meteo)",
         "currentMap": "windDir",
         "period": 604800,
@@ -75,12 +75,12 @@
         "currentMap": "inHumidity",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "humidity:inHumidity",
         "measurement": "humidity"
     },
     "humidity:open-meteo_outHumidity": {
-        "label": "Humidité Extérieure (OM)",
+        "label": "Humidité Extérieure (Open-Meteo)",
         "comment": "Humidité relative extérieure (Open-Meteo)",
         "currentMap": "outHumidity",
         "period": 604800,
@@ -90,8 +90,8 @@
         "measurement": "humidity"
     },
     "humidity:open-meteo_soilMoisture": {
-        "label": "Humidité Sol (OM)",
-        "comment": "Humidité du sol (Open-Meteo)",
+        "label": "Humidité Sol (Open-Meteo)",
+        "comment": "Humidité du sol -9cm à -27cm (Open-Meteo)",
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
@@ -105,12 +105,12 @@
         "currentMap": "outHumidity",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "humidity:outHumidity",
         "measurement": "humidity"
     },
     "irradiance:open-meteo_solar": {
-        "label": "Irradiance (OM)",
+        "label": "Irradiance (Open-Meteo)",
         "comment": "Irradiance solaire (Open-Meteo)",
         "currentMap": "solar",
         "period": 604800,
@@ -125,7 +125,7 @@
         "currentMap": "solar",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "irradiance:solar",
         "measurement": "irradiance"
     },
@@ -135,12 +135,12 @@
         "currentMap": "solar",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "irradiance:solarMax",
         "measurement": "irradiance"
     },
     "pressure:open-meteo_barometer": {
-        "label": "Baromètre (OM)",
+        "label": "Baromètre (Open-Meteo)",
         "comment": "Pression atmosphérique (Open-Meteo)",
         "currentMap": "barometer",
         "period": 604800,
@@ -149,18 +149,28 @@
         "sensorDb": "pressure:open-meteo_barometer",
         "measurement": "pressure"
     },
+    "pressure:barometer": {
+        "label": "Baromètre",
+        "comment": "Pression atmosphérique",
+        "currentMap": "barometer",
+        "period": 604800,
+        "groupUsage": "db",
+        "groupCustom": "open-meteo",
+        "sensorDb": "pressure:barometer",
+        "measurement": "pressure"
+    },
     "rain:ET": {
         "label": "Evapotranspiration",
         "comment": "Evapotranspiration",
         "currentMap": "dayET",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "rain:ET",
         "measurement": "rain"
     },
     "rain:open-meteo_rainFall": {
-        "label": "Précipitations (OM)",
+        "label": "Précipitations (Open-Meteo)",
         "comment": "Précipitations (Open-Meteo)",
         "currentMap": "dayRain",
         "period": 604800,
@@ -175,7 +185,7 @@
         "currentMap": "dayRain",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "rain:rainFall",
         "measurement": "rain"
     },
@@ -185,8 +195,8 @@
         "currentMap": "windGust10Min",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
-        "sensorDb": "speed:windSpeedMax",
+        "groupCustom": " Station",
+        "sensorDb": "speed:Gust",
         "measurement": "speed"
     },
     "speed:Wind": {
@@ -195,22 +205,22 @@
         "currentMap": "windSpeed",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "speed:windSpeed",
         "measurement": "speed"
     },
-    "speed:open-meteo_Gusts": {
-        "label": "Vitesse du vent max (OM)",
+    "speed:open-meteo_Gust": {
+        "label": "Vitesse du vent max (Open-Meteo)",
         "comment": "Vitesse de rafale de vent max (Open-Meteo)",
         "currentMap": "windGust10Min",
         "period": 604800,
         "groupUsage": "db",
         "groupCustom": "open-meteo",
-        "sensorDb": "speed:open-meteo_Gusts",
+        "sensorDb": "speed:open-meteo_Gust",
         "measurement": "speed"
     },
     "speed:open-meteo_Wind": {
-        "label": "Vitesse du vent (OM)",
+        "label": "Vitesse du vent (Open-Meteo)",
         "comment": "Vitesse du vent (Open-Meteo)",
         "currentMap": "windSpeed",
         "period": 604800,
@@ -225,12 +235,12 @@
         "currentMap": "inTemp",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "temperature:inTemp",
         "measurement": "temperature"
     },
     "temperature:open-meteo_outTemp": {
-        "label": "Température Extérieure (OM)",
+        "label": "Température Extérieure (Open-Meteo)",
         "comment": "Température extérieure (Open-Meteo)",
         "currentMap": "outTemp",
         "period": 604800,
@@ -240,7 +250,7 @@
         "measurement": "temperature"
     },
     "temperature:open-meteo_soilTemp": {
-        "label": "Température Sol (OM)",
+        "label": "Température Sol (Open-Meteo)",
         "comment": "Température du sol a -18cm (Open-Meteo)",
         "currentMap": "soilTemp1",
         "period": 604800,
@@ -255,7 +265,7 @@
         "currentMap": "outTemp",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "temperature:outTemp",
         "measurement": "temperature"
     },
@@ -265,7 +275,7 @@
         "currentMap": "UV",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "uv:UV",
         "measurement": "uv"
     },
@@ -275,7 +285,7 @@
         "currentMap": "UV",
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "uv:UVMax",
         "measurement": "uv"
     },
@@ -285,7 +295,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "temperature:leafTemp1",
         "measurement": "temperature"
     },
@@ -295,7 +305,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "temperature:leafTemp2",
         "measurement": "temperature"
     },
@@ -305,7 +315,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "humidity:leafWetness1",
         "measurement": "humidity"
     },
@@ -315,7 +325,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "humidity:leafWetness2",
         "measurement": "humidity"
     },
@@ -325,7 +335,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "temperature:soilTemp1",
         "measurement": "temperature"
     },
@@ -335,7 +345,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "temperature:soilTemp2",
         "measurement": "temperature"
     },
@@ -345,7 +355,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "temperature:soilTemp3",
         "measurement": "temperature"
     },
@@ -355,7 +365,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "temperature:soilTemp4",
         "measurement": "temperature"
     },
@@ -365,7 +375,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "humidity:extraHumidity1",
         "measurement": "humidity"
     },
@@ -375,7 +385,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "humidity:extraHumidity2",
         "measurement": "humidity"
     },
@@ -385,7 +395,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "temperature:extraTemp1",
         "measurement": "temperature"
     },
@@ -395,7 +405,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "temperature:extraTemp2",
         "measurement": "temperature"
     },
@@ -405,7 +415,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "temperature:extraTemp3",
         "measurement": "temperature"
     },
@@ -415,7 +425,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "humidity:extraSoilMoisture1",
         "measurement": "humidity"
     },
@@ -425,7 +435,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "humidity:extraSoilMoisture2",
         "measurement": "humidity"
     },
@@ -435,7 +445,7 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "humidity:extraSoilMoisture3",
         "measurement": "humidity"
     },
@@ -445,8 +455,314 @@
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
-        "groupCustom": "real",
+        "groupCustom": " Station",
         "sensorDb": "humidity:extraSoilMoisture4",
         "measurement": "humidity"
+    },
+    "barometer": {
+        "label":  "Baromètre",
+        "comment":  "Pression atmosphérique",
+        "measurement":  "pressure",
+        "period": 2592000,
+        "groupUsage":  "1/ Outdoor",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "barometer"
+    },
+     "inTemp ": {
+        "label":  "Température intérieure",
+        "comment":  "Température intérieure",
+        "measurement":  "temperature",
+        "period": 2592000,
+        "groupUsage":  "3/ Intdoor",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "inTemp"
+    },
+     "inHumidity ": {
+        "label":  "Humidité intérieure",
+        "comment":  "Humidité intérieure",
+        "measurement":  "humidity",
+        "period": 2592000,
+        "groupUsage":  "3/ Intdoor",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "inHumidity"
+    },
+     "outTemp ": {
+        "label":  "Température extérieure",
+        "comment":  "Température extérieure",
+        "measurement":  "temperature",
+        "period": 2592000,
+        "groupUsage":  "1/ Outdoor",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "outTemp"
+    },
+     "windSpeed ": {
+        "label":  "Vitesse du vent",
+        "comment":  "Vitesse du vent",
+        "measurement":  "wind",
+        "period": 2592000,
+        "groupUsage":  "1/ Outdoor",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "speed:Wind"
+    },
+     "windSpeedMax ": {
+        "label":  "Vitesse du vent max",
+        "comment":  "Vitesse de rafale de vent max",
+        "measurement":  "wind",
+        "period": 259200,
+        "groupUsage":  "1/ Outdoor",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "speed:Gust"
+    },
+     "avgWindSpeed10Min ": {
+        "label":  "Vitesse vent moyenne (10min)",
+        "comment":  "Vitesse moyenne du vent sur 10 minutes",
+        "measurement":  "wind",
+        "period": 2592000,
+        "groupUsage":  "5/ other_wind",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "vector:Wind"
+    },
+     "windDir ": {
+        "label":  "Direction du vent",
+        "comment":  "Direction d'ou provient le vent",
+        "measurement":  "direction",
+        "period": 2592000,
+        "groupUsage":  "1/ Outdoor",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "diection:Wind"
+    },
+     "outHumidity ": {
+        "label":  "Humidité extérieure",
+        "comment":  "Humidité extérieure",
+        "measurement":  "humidity",
+        "period": 2592000,
+        "groupUsage":  "1/ Outdoor",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "outHumidity"
+    },
+     "rainRate ": {
+        "label":  "Taux de précipitation",
+        "comment":  "Taux de précipitation instantané",
+        "measurement":  "rainRate",
+        "period": 2592000,
+        "groupUsage":  "4/ other_rain",
+        "groupCustom": "Instantanee",
+        "sensorDb": null
+    },
+     "UV ": {
+        "label":  "Index UV",
+        "comment":  "Indice d'érythème cutané",
+        "measurement":  "uv",
+        "period": 2592000,
+        "groupUsage":  "2/ Sun",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "UV"
+    },
+     "solar ": {
+        "label":  "Irradiance solaire",
+        "comment":  "puissance Radiation solaire",
+        "measurement":  "irradiance",
+        "period": 2592000,
+        "groupUsage":  "2/ Sun",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "solarMax"
+    },
+     "stormRain ": {
+        "label": "Preciperiode d'averses actuelle",
+        "comment":  "Précipitation depuis le début de la période d'averses",
+        "measurement":  "rain",
+        "period":  "dateStormRain",
+        "groupUsage":  "1/ Outdoor",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "rainFall"
+    },
+     "dayRain ": {
+        "label":  "Pluie du jour",
+        "comment":  "Pluie depuis le début du jour",
+        "measurement":  "rain",
+        "period": 86400,
+        "groupUsage":  "4/ other_rain",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "rainFall"
+    },
+     "monthRain ": {
+        "label":  "Pluie du mois",
+        "comment":  "Pluie depuis le début du mois",
+        "measurement":  "rain",
+        "period": 2592000,
+        "groupUsage":  "4/ other_rain",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "rainFall"
+    },
+     "yearRain ": {
+        "label":  "Pluie de l'année",
+        "comment":  "Pluie depuis le début de l'année",
+        "measurement":  "rain",
+        "period": 31536000,
+        "groupUsage":  "4/ other_rain",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "rainFall"
+    },
+     "dayET ": {
+        "label":  "Évapotranspiration du jour",
+        "comment":  "Évapotranspiration depuis le début du jour",
+        "measurement":  "rain",
+        "period": 2592000,
+        "groupUsage":  "1/ Outdoor",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "ET"
+    },
+     "monthET ": {
+        "label":  "Évapotranspiration du mois",
+        "comment":  "Évapotranspiration depuis le début du mois",
+        "measurement":  "rain",
+        "period": 2592000,
+        "groupUsage":  "4/ other_rain",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "ET"
+    },
+     "yearET ": {
+        "label":  "Évapotranspiration de l'année",
+        "comment":  "Évapotranspiration depuis le début de l'année",
+        "measurement":  "rain",
+        "period": 31536000,
+        "groupUsage":  "4/ other_rain",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "ET"
+    },
+     "batteryVoltage ": {
+        "label":  "Niveau batterie",
+        "comment":  "Niveau de la batterie",
+        "measurement":  "battery",
+        "period": 2592000,
+        "groupUsage":  "6/ other",
+        "groupCustom": "Instantanee",
+        "sensorDb": null
+    },
+     "ForecastNum ": {
+        "label":  "Prévision météo",
+        "comment":  "Prévision météo",
+        "measurement":  "Forecast",
+        "period": 2592000,
+        "groupUsage":  "1/ Outdoor",
+        "groupCustom": "Instantanee",
+        "sensorDb": null
+    },
+     "sunrise ": {
+        "label":  "Lever du soleil",
+        "comment":  "Heure du lever du soleil",
+        "measurement":  "time",
+        "period": 2592000,
+        "groupUsage":  "2/ Sun",
+        "groupCustom": "Instantanee",
+        "sensorDb": null
+    },
+     "sunset ": {
+        "label":  "Coucher du soleil",
+        "comment":  "Heure du coucher du soleil",
+        "measurement":  "time",
+        "period": 2592000,
+        "groupUsage":  "2/ Sun",
+        "groupCustom": "Instantanee",
+        "sensorDb": null
+    },
+     "avgWindSpeed2Min ": {
+        "label":  "Vitesse vent moyenne (2min)",
+        "comment":  "Vitesse moyenne du vent sur 2 minutes",
+        "measurement":  "wind",
+        "period": 2592000,
+        "groupUsage":  "5/ other_wind",
+        "groupCustom": "Instantanee",
+        "sensorDb": null
+    },
+     "windGust10Min ": {
+        "label":  "Rafale de vent (10min)",
+        "comment":  "Rafale de vent sur 10 minutes",
+        "measurement":  "wind",
+        "period": 2592000,
+        "groupUsage":  "5/ other_wind",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "vector:Gust"
+    },
+     "windGustDir10Min ": {
+        "label":  "Direction rafale (10min)",
+        "comment":  "Direction de la rafale de vent sur 10 minutes",
+        "measurement":  "direction",
+        "period": 86400,
+        "groupUsage":  "5/ other_wind",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "diection:Gust"
+    },
+     "dewPoint ": {
+        "label":  "Point de rosée",
+        "comment":  "Temperature de formation du brouillard",
+        "measurement":  "temperature",
+        "period": 2592000,
+        "groupUsage":  "1/ Outdoor",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "outTemp"
+    },
+     "heatIndex ": {
+        "label":  "Indice de chaleur (heatIndex)",
+        "comment":  "Temperature perçue",
+        "measurement":  "temperature",
+        "period": 2592000,
+        "groupUsage":  "6/ other",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "outTemp"
+    },
+     "windChill ": {
+        "label":  "Refroidissement éolien (wind Chill)",
+        "comment":  "Temperature perçue",
+        "measurement":  "temperature",
+        "period": 2592000,
+        "groupUsage":  "6/ other",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "outTemp"
+    },
+     "THSW ": {
+        "label":  "Indice THSW",
+        "comment":  "Temperature perçue",
+        "measurement":  "temperature",
+        "period": 2592000,
+        "groupUsage":  "1/ Outdoor",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "THSW_calc"
+    },
+     "dateStormRain ": {
+        "label":  "Date de début des dernieres averces",
+        "comment":  "Date de début des dernieres averces",
+        "measurement":  "date",
+        "period": 2592000,
+        "groupUsage":  "4/ other_rain",
+        "groupCustom": "Instantanee",
+        "sensorDb": null
+    },
+     "last15MinRain ": {
+        "label":  "Pluie (15 dernières min)",
+        "comment":  "Pluie sur les 15 dernières minutes",
+        "measurement":  "rain",
+        "period": 2592000,
+        "groupUsage":  "4/ other_rain",
+        "groupCustom": "Instantanee",
+        "sensorDb": null
+    },
+     "lastHourRain ": {
+        "label":  "Pluie (dernière heure)",
+        "comment":  "Pluie sur les dernières heures",
+        "measurement":  "rain",
+        "period": 86400,
+        "groupUsage":  "4/ other_rain",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "rainFall"
+    },
+     "last24HourRain ": {
+        "label":  "Pluie (24 dernières heures)",
+        "comment":  "Pluie sur les 24 dernières heures",
+        "measurement":  "rain",
+        "period": 86400,
+        "groupUsage":  "4/ other_rain",
+        "groupCustom": "Instantanee",
+        "sensorDb":  "rainFall "
     }
 }

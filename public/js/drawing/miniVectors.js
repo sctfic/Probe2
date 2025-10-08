@@ -42,21 +42,21 @@ function createVectorPlot(data, metadata, id) {
         spdOriginal: d.spd || 0, // Garder la valeur originale pour le calcul de maxSpeed
         dir: d.dir || 0
     }));
-
     // Scales
     const xScale = d3.scaleTime()
         .domain(d3.extent(processedData, d => d.date))
         .range([0, innerWidth]);
 
-    // Utiliser spdOriginal (en m/s) pour calculer le domaine Y
-    const maxSpeed = d3.max(processedData, d => d.spdOriginal) || 1;
+    // Utiliser la projection Verticale Vy (*0.9 pour voir le ArrowHead) pour calculer le domaine Y
+    const maxSpeed = d3.max(processedData, d => d.Vy) || 1;
+    const minSpeed = d3.min(processedData, d => d.Vy) || -1;
     const yScale = d3.scaleLinear()
-        .domain([-maxSpeed * 0.8, maxSpeed * 0.8])
+        .domain([minSpeed, maxSpeed])
         .range([innerHeight, 0]);
 
     // Coefficient pour proportionnalité des vecteurs
     const coef = (yScale.range()[0] - yScale.range()[1]) / (yScale.domain()[1] - yScale.domain()[0]);
-
+console.log(coef, 'maxSpeed', maxSpeed);
     // X-Axis
     const xAxis = d3.axisBottom(xScale)
         .ticks(3)
