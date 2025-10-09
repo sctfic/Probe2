@@ -13,14 +13,8 @@ return data = [{
     "dhSum": 185,                // Degrés-heures cumuler depuis le dernier semis
     "lightSum": 254,              // light cumulé
     "tx": 67,                     // Taux de croissance/devellopemet (%)
-    "status": "germination",             // periode de semi, germination, croissance_vegetative, floraison, fructification, maturation, recolte
-    "risque": ["MANQUE_LUMIERE"], // Types de danger, facteurs limitant
-    "stress": {                  // Taux de stress par facteur (%)
-            thermique: 15,       // Combinaison temp + amplitude
-            hydrique: 20,        // Humidité + ET + pluie
-            lumineux: 10,        // Radiation + durée jour
-            biotique: 5          // Risques maladies (pluie + humidité)
-        }
+    "tags": ["semi", "germination", "croissance_vegetative", "floraison", "fructification", "maturation", "recolte"]
+    "stress": ["maladie", "dommage", "parasite", "stress_thermique", "stress_hydrique", "stress_lumineux", "stress_biotique"]
     },
     ...
 ]

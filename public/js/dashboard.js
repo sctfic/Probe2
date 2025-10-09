@@ -91,7 +91,7 @@ async function fetchCurrentConditions() {
         if (data.data) {
             // The server now provides all data, including calculated ones.
             // The mergeData function is still used for UI-specific formatting.
-            const mergedData = mergeData(data);
+            mergeData(data);
             currentConditionsData = data.data;
             processAndDisplayConditions();
             showGlobalStatus(data.message || 'Données actualisées avec succès', data.success ? 'success' : 'warning');
@@ -125,7 +125,6 @@ function processAndDisplayConditions() {
         .map(([key, data]) => {
             const sensorInfo = {...data, ...tileState[key] };
             if (sensorInfo.order !== undefined && sensorInfo.order > maxOrder) maxOrder = sensorInfo.order;
-
             return {
                 name: sensorInfo.label || key,
                 comment: sensorInfo.comment,

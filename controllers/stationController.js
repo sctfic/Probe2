@@ -92,46 +92,41 @@ async function calculateAndAppendcompositeProbes(weatherData, stationConfig) {
 
         // 2. Calculate values for each composite probe
         for (const probeKey in compositeProbes) {
-            let allDataAvailable = true;
             const probeConfig = compositeProbes[probeKey];
-            const calcInput = {};
-            for (const key in probeConfig.currentMap) {
-                if (probeConfig.currentMap[key] === 'timestamp') {
-                    calcInput[key] = new Date().toISOString();
-                } else if (!weatherData[probeConfig.currentMap[key]]) {
-                    console.log(V.Warn, `Missing data ${key} for`, probeConfig.currentMap);
+            const calcInput = {d: new Date().toISOString()};
+            probeConfig.dataNeeded.forEach(key => {
+                if (!weatherData[key].currentMap) { // on utilise la valeur d'archive
+                    console.log(V.Warn, `Missing data ${key} in currentConditions, use last archives`, weatherData[key].Value);
                     console.log(V.Warn, `verrifier ${probeKey}.currentMap['${key}'] la valeur est inconnue dans les current-conditions`);
-                    allDataAvailable = false;
-                    break;
-                } else {
-                    calcInput[key] = weatherData[probeConfig.currentMap[key]].Value;
+                    calcInput[key] = weatherData[key].Value;
+                } else { // on utilise la valeur instantanee
+                    calcInput[key] = weatherData[weatherData[key].currentMap].Value;
                 }
-            }
-            if (allDataAvailable) {
-                const fnCalcStr = probeConfig.fnCalc
-                    .replace("%longitude%", stationConfig.longitude.lastReadValue)
-                    .replace("%latitude%", stationConfig.latitude.lastReadValue)
-                    .replace("%altitude%", stationConfig.altitude.lastReadValue);
+                console.log(key, calcInput);
+            });
+            const fnCalcStr = probeConfig.fnCalc
+                .replace("%longitude%", stationConfig.longitude.lastReadValue)
+                .replace("%latitude%", stationConfig.latitude.lastReadValue)
+                .replace("%altitude%", stationConfig.altitude.lastReadValue);
 
-                const calculate = vm.runInNewContext(`(${fnCalcStr})`, scriptContext);
-                const calculatedValue = calculate(calcInput);
-                const type = sensorTypeMap[probeKey];
-                const measurement = units[type];
-                // console.log('Value', calculatedValue, 'Unit', measurement.metric , 'userUnit', measurement.user , 'toUserUnit', measurement.available_units[measurement.user].fnFromMetric );
-                weatherData[probeKey] = {
-                    label: probeConfig.label,
-                    comment: probeConfig.comment,
-                    Value: calculatedValue,
-                    measurement: sensorTypeMap[probeKey] || null,
-                    Unit: measurement?.metric || null,
-                    userUnit: measurement?.user || null,
-                    toUserUnit: measurement?.available_units?.[measurement.user]?.fnFromMetric || null,
-                    period: probeConfig.period,
-                    groupUsage: probeConfig.groupUsage,
-                    groupCustom: probeConfig.groupCustom,
-                    sensorDb: probeConfig.sensorDb
-                };
-            }
+            const calculate = vm.runInNewContext(`(${fnCalcStr})`, scriptContext);
+            const calculatedValue = calculate(calcInput);
+            const type = sensorTypeMap[probeKey];
+            const measurement = units[type];
+            // console.log('Value', calculatedValue, 'Unit', measurement.metric , 'userUnit', measurement.user , 'toUserUnit', measurement.available_units[measurement.user].fnFromMetric );
+            weatherData[probeKey] = {
+                label: probeConfig.label,
+                comment: probeConfig.comment,
+                Value: calculatedValue,
+                measurement: sensorTypeMap[probeKey] || null,
+                Unit: measurement?.metric || null,
+                userUnit: measurement?.user || null,
+                toUserUnit: measurement?.available_units?.[measurement.user]?.fnFromMetric || null,
+                period: probeConfig.period,
+                groupUsage: probeConfig.groupUsage,
+                groupCustom: probeConfig.groupCustom,
+                sensorDb: probeConfig.sensorDb
+            };
         }
     } catch (calcError) {
         console.error(`${V.error} Error calculating composite probes for current conditions:`, calcError.message);
@@ -145,7 +140,7 @@ async function calculateAndAppendcompositeProbes(weatherData, stationConfig) {
  * @param {object} stationConfig - The configuration for the station.
  * @returns {Promise<object>} The weather data object enriched with DB-based probes.
  */
-async function AppendDbProbes(weatherData, stationConfig) {
+async function getDbProbes(stationConfig) {
     try {
         // 1. Get all sensors with data in the last 7 days from InfluxDB
         const dbData = await influxdbService.queryLast(stationConfig.id, '-7d', 'now()');
@@ -171,7 +166,7 @@ async function AppendDbProbes(weatherData, stationConfig) {
     } catch (dbError) {
         console.error(`${V.error} Error appending DB probes:`, dbError.message);
     }
-    return weatherData;
+    return {};
 }
 
 exports.getCurrentWeather = async (req, res) => {
@@ -181,9 +176,11 @@ exports.getCurrentWeather = async (req, res) => {
     try {
 
         const weatherData = await stationService.getCurrentWeatherData(req, stationConfig);
-        const dbWeatherData = await AppendDbProbes(weatherData, stationConfig);
+        const dbWeatherData = await getDbProbes(stationConfig);
+        // Fusionner les données de la base de données avec les données live, sans écraser ces dernières.
+        Object.assign(weatherData, dbWeatherData);
         // Calculate and append composite probes
-        const enrichedWeatherData = await calculateAndAppendcompositeProbes(dbWeatherData, stationConfig);
+        const enrichedWeatherData = await calculateAndAppendcompositeProbes(weatherData, stationConfig);
         
         const responsePayload = {
             success: true,

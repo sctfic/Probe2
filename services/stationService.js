@@ -5,7 +5,7 @@ const { calculateCRC } = require('../utils/crc');
 const { sensorTypeMap, mapDegreesToCardinal, mapCardinalToDegrees, parseLOOP1Data, parseLOOP2Data, parseDMPRecord, processWeatherData, convertRawValue2NativeValue, conversionTable, readSignedInt16LE, readUInt16LE, readInt8, readUInt8  } = require('../utils/weatherDataParser');
 const { getLocalTimeFromCoordinates, getTimeZoneFromCoordinates } = require('../utils/timeHelper');
 const { findDavisTimeZoneIndex } = require('../utils/timeZoneMapping');
-const wakeUpConsole = require('../services/vp2NetClient');
+const dbProbes = require('../config/dbProbes.json');
 const { V,O } = require('../utils/icons');
 const configManager = require('./configManager');
 const { writePoints, Point } = require('./influxdbService'); // Ajout pour InfluxDB
@@ -492,29 +492,12 @@ async function getCurrentWeatherData(req, stationConfig) {
     try {
         const loop1Bytes = await sendCommand(req, stationConfig, 'LPS 1 1', 1200, "<ACK>97<CRC>"); // 800ms
         const loop1Data = parseLOOP1Data(loop1Bytes);
-
         const loop2Bytes = await sendCommand(req, stationConfig, 'LPS 2 1', 1200, "<ACK>97<CRC>"); // 800ms
         const loop2Data = parseLOOP2Data(loop2Bytes);
-
         const aggregatedData = { ...loop1Data, ...loop2Data };
         const processedData = processWeatherData(aggregatedData, stationConfig, 'metric');
-
         for (const sensorKey of Object.keys(processedData)) {
-            // console.log(sensorKey);
             processedData[sensorKey] = {...processedData[sensorKey], ...dbProbes[sensorKey]};
-            if (processedData[sensorKey].value !== undefined) {
-                processedData[sensorKey]['Value'] = processedData[sensorKey].value;
-                delete processedData[sensorKey].value;
-            } else if (processedData[sensorKey].measurement == 'vector') {
-                processedData[sensorKey]['Value'] = {
-                    Ux: processedData[sensorKey].Ux,
-                    Vy: processedData[sensorKey].Vy
-                };
-            }
-            const type = units[processedData[sensorKey].measurement];
-            processedData[sensorKey].Unit = type?.metric || null;
-            processedData[sensorKey].userUnit = type?.user || null;
-            processedData[sensorKey].toUserUnit = type?.available_units?.[type.user]?.fnFromMetric || null;
         }
         return processedData;
     } catch (error) {

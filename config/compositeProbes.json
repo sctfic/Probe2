@@ -9,18 +9,11 @@
             "irradiance:solar",
             "speed:Wind"
         ],
-        "currentMap": {
-            "d": "timestamp",
-            "temperature:outTemp": "outTemp",
-            "humidity:outHumidity": "outHumidity",
-            "irradiance:solar": "solar",
-            "speed:Wind": "Wind"
-        },
         "scriptJS": [
             "/js/composite/THSW.js"
         ],
         "period": 604800,
-        "groupUsage": "Composites",
+        "groupUsage": "1/ Outdoor",
         "groupCustom": "Composites",
         "sensorDb": "THSW_calc",
         "measurement": "temperature"
@@ -34,17 +27,11 @@
             "humidity:outHumidity",
             "pressure:barometer"
         ],
-        "currentMap": {
-            "d": "timestamp",
-            "temperature:outTemp": "outTemp",
-            "humidity:outHumidity": "outHumidity",
-            "pressure:barometer": "barometer"
-        },
         "scriptJS": [
             "/js/composite/AirWater.js"
         ],
         "period": 604800,
-        "groupUsage": "Composites",
+        "groupUsage": "1/ Outdoor",
         "groupCustom": "Composites",
         "sensorDb": "AirWater_calc",
         "measurement": "density"
@@ -56,16 +43,13 @@
         "dataNeeded": [
             "pressure:barometer"
         ],
-        "currentMap": {
-            "d": "timestamp",
-            "pressure:barometer": "barometer"
-        },
         "scriptJS": [
             "/js/composite/sunCalc.js"
         ],
         "period": 2592000,
-        "groupUsage": "Composites",
-            "sensorDb": "SUN_V_calc",
+        "groupUsage": "2/ Sun",
+        "groupCustom": "Composites",
+        "sensorDb": "SUN_V_calc",
         "measurement": "angle"
     },
     "MOON_calc": {
@@ -75,15 +59,11 @@
         "dataNeeded": [
             "pressure:barometer"
         ],
-        "currentMap": {
-            "d": "timestamp",
-            "pressure:barometer": "barometer"
-        },
         "scriptJS": [
             "/js/composite/sunCalc.js"
         ],
         "period": 2592000,
-        "groupUsage": "Composites",
+        "groupUsage": "2/ Sun",
         "groupCustom": "Composites",
         "sensorDb": "MOON_calc",
         "measurement": "angle"

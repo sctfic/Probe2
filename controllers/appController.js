@@ -4,6 +4,7 @@ const influxdbService = require('../services/influxdbService');
 const { V } = require('../utils/icons');
 const fs = require('fs');
 const path = require('path');
+const { exec } = require('child_process');
 const probeVersion = require('../package.json').version;
 const ping = require('ping');
 
@@ -172,7 +173,10 @@ exports.updateInfluxDbSettings = async (req, res) => {
         // Si le test réussit, sauvegarder la configuration
         fs.writeFileSync(influxPath, JSON.stringify(configToTest, null, 4), 'utf8');
 
-        res.json({ success: true, message: 'Configuration InfluxDB mise à jour avec succès.' });
+        // Réinitialiser le service InfluxDB avec la nouvelle configuration sans redémarrer le serveur
+        influxdbService.reinitializeInfluxDB(configToTest);
+
+        res.json({ success: true, message: 'Configuration InfluxDB mise à jour et appliquée avec succès.' });
     } catch (error) {
         console.error(`${V.error} Erreur lors de la mise à jour de la configuration InfluxDB:`, error);
         res.status(500).json({ success: false, error: 'Erreur lors de la mise à jour de la configuration InfluxDB.' });

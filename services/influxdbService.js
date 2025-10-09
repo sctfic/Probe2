@@ -4,26 +4,46 @@ const fs = require('fs');
 const path = require('path');
 const { V } = require('../utils/icons');
 
-// Charger la configuration InfluxDB
 const configPath = path.join(__dirname, '..', 'config', 'influx.json');
 let influxConfig;
-try {
-    influxConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-} catch (error) {
-    console.error(`${V.error} Erreur lors du chargement de la configuration InfluxDB:`, error);
-    // Utiliser des valeurs par défaut ou arrêter le processus si la configuration est essentielle
-    influxConfig = { url: '', token: '', org: '', bucket: '' };
+
+let influxDB;
+let writeApi;
+let queryApi;
+let deleteApi;
+let org;
+let bucket;
+
+/**
+ * Initialise ou réinitialise les clients InfluxDB avec une configuration donnée.
+ * @param {object} config - L'objet de configuration { url, token, org, bucket }.
+ */
+function initialize(config) {
+    const { url, token } = config;
+    org = config.org;
+    bucket = config.bucket;
+
+    influxDB = new InfluxDB({ url, token });
+    writeApi = influxDB.getWriteApi(org, bucket);
+    queryApi = influxDB.getQueryApi(org);
+    deleteApi = new DeleteAPI(influxDB);
+
+    console.log(`${V.database} Service InfluxDB initialisé/réinitialisé pour l'organisation '${org}' et le bucket '${bucket}'.`);
 }
 
-const { url, token, org, bucket } = influxConfig;
-
-// Initialiser le client InfluxDB
-const influxDB = new InfluxDB({ url, token });
-const writeApi = influxDB.getWriteApi(org, bucket);
-const queryApi = influxDB.getQueryApi(org);
-const deleteApi = new DeleteAPI(influxDB);
-
-console.log(`${V.database} Service InfluxDB initialisé pour l'organisation '${org}' et le bucket '${bucket}'.`);
+/**
+ * Charge la configuration depuis le fichier et initialise les clients.
+ */
+function loadAndInitialize() {
+    try {
+        influxConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    } catch (error) {
+        console.error(`${V.error} Erreur lors du chargement de la configuration InfluxDB:`, error);
+        influxConfig = { url: '', token: '', org: '', bucket: '' };
+    }
+    initialize(influxConfig);
+}
+loadAndInitialize(); // Initialisation au démarrage
 
 /**
  * Teste la connexion à une instance InfluxDB avec une configuration donnée.
@@ -48,6 +68,16 @@ async function testInfluxConnection(config) {
         console.error(`${V.error} Échec du test de connexion à InfluxDB:`, error.message);
         return { success: false, message: `Échec de la connexion: ${error.message}` };
     }
+}
+
+/**
+ * Réinitialise le service InfluxDB avec une nouvelle configuration.
+ * @param {object} newConfig - La nouvelle configuration à utiliser.
+ */
+function reinitializeInfluxDB(newConfig) {
+    console.log(`${V.gear} Réinitialisation du service InfluxDB avec la nouvelle configuration.`);
+    influxConfig = newConfig;
+    initialize(influxConfig);
 }
 
 /**
@@ -632,6 +662,7 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
 
 module.exports = {
     testInfluxConnection,
+    reinitializeInfluxDB,
     writePoints,
     Point,
     // queryData,
