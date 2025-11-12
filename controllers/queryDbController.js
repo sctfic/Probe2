@@ -12,14 +12,33 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-
 // Generic function to handle errors
 const handleError = (res, stationId, error, controllerName) => {
     console.error(`${V.error} Erreur dans ${controllerName} pour ${stationId}:`, error);
-    res.status(error.statusCode || 500).json({
+    
+    // Détection spécifique des erreurs InfluxDB
+    let errorMessage = error.message;
+    let statusCode = error.statusCode || 500;
+    
+    // Vérifier si c'est une erreur d'authentification InfluxDB
+    if (error.message && (
+        error.message.toLowerCase().includes('unauthorized') ||
+        error.message.toLowerCase().includes('401')
+    )) {
+        errorMessage = `Erreur d'authentification InfluxDB: Accès non autorisé à la base de données. Vérifiez le token et les permissions dans la configuration InfluxDB.`;
+        statusCode = 502; // Bad Gateway - pour indiquer que c'est un problème avec le service backend
+    }
+    
+    // Autres erreurs InfluxDB spécifiques
+    if (error.message && error.message.toLowerCase().includes('influx')) {
+        errorMessage = `Erreur InfluxDB: ${error.message}`;
+    }
+    
+    res.status(statusCode).json({
         success: false,
         stationId: stationId || 'unknown',
-        error: error.message
+        error: errorMessage,
+        source: 'database' // Ajout d'un indicateur de source d'erreur
     });
 };
 
@@ -542,7 +561,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             'wind_gusts_10m': { type: 'speed', sensor: ['open-meteo_Gust'], convert: (v) => v / 3.6 }, // km/h -> m/s
             'wind_direction_10m': { type: 'direction', sensor: ['open-meteo_Wind', 'open-meteo_Gust'] },
             'soil_temperature_7_to_28cm': { type: 'temperature', sensor: ['open-meteo_soilTemp'], convert: (v) => v + 273.15 }, // °C -> K
-            'soil_moisture_7_to_28cm': { type: 'humidity', sensor: ['open-meteo_soilMoisture'] },
+            'soil_moisture_7_to_28cm': { type: 'soilMoisture', sensor: ['open-meteo_soilMoisture'] },
             'pressure_msl': { type: 'pressure', sensor: ['open-meteo_barometer'] },
             'shortwave_radiation': { type: 'irradiance', sensor: ['open-meteo_solar'] }
         };

@@ -1,9 +1,3 @@
-// Configuration globale
-const CACHE_DURATION = 10000; // 10 secondes en millisecondes
-
-// Cache pour stocker les promesses et les réponses
-const requestCache = new Map();
-
 // Stocke l'état actuel (données, métadonnées, options) de chaque graphique affiché
 const plotStates = {};
 
@@ -107,89 +101,9 @@ function createPlot(data, metadata, id, period) {
     }
 }
 
-function cleanCache() {
-    const now = Date.now();
-    for (const [url, cached] of requestCache.entries()) {
-        // Ne nettoyer que les entrées résolues et expirées
-        if (cached.status === 'resolved' && now - cached.timestamp > CACHE_DURATION) {
-            requestCache.delete(url);
-            // console.log(`Cache cleaned for: ${url}`);
-        }
-    }
-}
-
-async function fetchWithCache(url) {
-    const now = Date.now();
-    const cached = requestCache.get(url);
-    
-    // Si on a une entrée en cache
-    if (cached) {
-        const age = now - cached.timestamp;
-        
-        // Si c'est une promesse en cours (pending), on la retourne
-        if (cached.status === 'pending') {
-            // console.log(`Request already pending for: ${url}`);
-            return cached.promise;
-        }
-        
-        // Si c'est une réponse valide et non expirée, on la retourne
-        if (cached.status === 'resolved' && age < CACHE_DURATION) {
-            // console.log(`Cache hit for: ${url} (age: ${Math.round(age/1000)}s)`);
-            return Promise.resolve(cached.data);
-        }
-        
-        // Si expirée, on la supprime
-        if (cached.status === 'resolved' && age >= CACHE_DURATION) {
-            requestCache.delete(url);
-        }
-    }
-    
-    // Créer une nouvelle promesse pour cette requête
-    // console.log(`Starting new request for: ${url}`);
-    
-    const fetchPromise = fetch(url)
-        .then(async response => {
-            if (!response.ok) {
-                throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
-            }
-            
-            const apiResponse = await response.json();
-            
-            if (!apiResponse.success) {
-                throw new Error(apiResponse.message || 'Erreur inconnue de l\'API');
-            }
-            // Mettre à jour le cache avec la réponse résolue
-            requestCache.set(url, {
-                timestamp: Date.now(),
-                status: 'resolved',
-                data: apiResponse
-            });
-            
-            // console.log(`Request completed and cached for: ${url}`);
-            return apiResponse;
-        })
-        .catch(error => {
-            // En cas d'erreur, supprimer l'entrée du cache
-            requestCache.delete(url);
-            throw error;
-        });
-    
-    // Stocker immédiatement la promesse en cours
-    requestCache.set(url, {
-        timestamp: now,
-        status: 'pending',
-        promise: fetchPromise
-    });
-    
-    return fetchPromise;
-}
-
 async function loadData(id, url, period, item = null) {
     const loadingText = document.getElementById('loadingText');
     try {
-        // Nettoyer périodiquement le cache
-        cleanCache();
-        
         // Utiliser la fonction de fetch avec cache
         const apiResponse = await fetchWithCache(url);
         // Transformation et affichage
@@ -201,5 +115,3 @@ async function loadData(id, url, period, item = null) {
         // console.error('URL:', url);
     }
 }
-// Optionnel : Nettoyer automatiquement le cache toutes les 60 seconde
-setInterval(cleanCache, 60*60 * 1000);

@@ -231,7 +231,6 @@ console.log(coef, 'maxSpeed', maxSpeed);
 async function loadVectorPlot(id, url) {
     try {
         // fetchWithCache is assumed to be available from miniPlot.js
-        cleanCache();
         const apiResponse = await fetchWithCache(url);
         createVectorPlot(apiResponse.data, apiResponse.metadata, id);
     } catch (error) {

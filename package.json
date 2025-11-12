@@ -1,6 +1,6 @@
 {
   "name": "probe2-api",
-  "version": "0.3.36",
+  "version": "0.3.38",
   "description": "API pour récupérer des informations sur l'application Probe2",
   "main": "app.js",
   "scripts": {
@@ -18,6 +18,7 @@
   "dependencies": {
     "@influxdata/influxdb-client": "^1.35.0",
     "@influxdata/influxdb-client-apis": "^1.35.0",
+    "@tanstack/query-core": "^5.90.2",
     "adm-zip": "^0.5.16",
     "axios": "^1.12.2",
     "bcrypt": "^6.0.0",

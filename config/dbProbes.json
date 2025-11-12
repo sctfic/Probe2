@@ -216,7 +216,7 @@
         "period": 604800,
         "groupUsage": "db",
         "groupCustom": " Station",
-        "sensorDb": "speed:windSpeed",
+        "sensorDb": "speed:Wind",
         "measurement": "speed"
     },
     "speed:open-meteo_Gust": {

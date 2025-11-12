@@ -65,7 +65,8 @@ exports.getStationInfo = async (req, res) => {
  * @param {object} stationConfig - The configuration for the station.
  * @returns {Promise<object>} The weather data object enriched with calculated values.
  */
-async function calculateAndAppendcompositeProbes(weatherData, stationConfig) {
+async function getCompositeProbes(weatherData, stationConfig) {
+    console.log(`${V.info} Calculating composite probes for current conditions`, weatherData    );
     try {
         // 1. Prepare script context (can be cached for performance)
         const scriptContext = {};
@@ -95,12 +96,14 @@ async function calculateAndAppendcompositeProbes(weatherData, stationConfig) {
             const probeConfig = compositeProbes[probeKey];
             const calcInput = {d: new Date().toISOString()};
             probeConfig.dataNeeded.forEach(key => {
-                if (!weatherData[key].currentMap) { // on utilise la valeur d'archive
+                console.log(key, weatherData[key].currentMap);
+                if (weatherData[key].currentMap && weatherData[weatherData[key].currentMap]) {
+                    console.log(key, weatherData[weatherData[key].currentMap]);
+                    calcInput[key] = weatherData[weatherData[key].currentMap].Value;
+                } else { // pas de mapping vers les condition Current, on utilise la valeur d'archive
                     console.log(V.Warn, `Missing data ${key} in currentConditions, use last archives`, weatherData[key].Value);
                     console.log(V.Warn, `verrifier ${probeKey}.currentMap['${key}'] la valeur est inconnue dans les current-conditions`);
                     calcInput[key] = weatherData[key].Value;
-                } else { // on utilise la valeur instantanee
-                    calcInput[key] = weatherData[weatherData[key].currentMap].Value;
                 }
                 console.log(key, calcInput);
             });
@@ -108,12 +111,14 @@ async function calculateAndAppendcompositeProbes(weatherData, stationConfig) {
                 .replace("%longitude%", stationConfig.longitude.lastReadValue)
                 .replace("%latitude%", stationConfig.latitude.lastReadValue)
                 .replace("%altitude%", stationConfig.altitude.lastReadValue);
-
+            console.log(fnCalcStr);
             const calculate = vm.runInNewContext(`(${fnCalcStr})`, scriptContext);
             const calculatedValue = calculate(calcInput);
             const type = sensorTypeMap[probeKey];
             const measurement = units[type];
-            // console.log('Value', calculatedValue, 'Unit', measurement.metric , 'userUnit', measurement.user , 'toUserUnit', measurement.available_units[measurement.user].fnFromMetric );
+            console.log('Type', type);
+            console.log('Measurement', measurement);
+            console.log('Value', calculatedValue, 'Unit', measurement.metric , 'userUnit', measurement.user , 'toUserUnit', measurement.available_units[measurement.user].fnFromMetric );
             weatherData[probeKey] = {
                 label: probeConfig.label,
                 comment: probeConfig.comment,
@@ -180,7 +185,7 @@ exports.getCurrentWeather = async (req, res) => {
         // Fusionner les données de la base de données avec les données live, sans écraser ces dernières.
         Object.assign(weatherData, dbWeatherData);
         // Calculate and append composite probes
-        const enrichedWeatherData = await calculateAndAppendcompositeProbes(weatherData, stationConfig);
+        const enrichedWeatherData = await getCompositeProbes(weatherData, stationConfig);
         
         const responsePayload = {
             success: true,

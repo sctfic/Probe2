@@ -139,8 +139,10 @@ async function executeQuery(fluxQuery) {
             next(row, tableMeta) {
                 results.push(tableMeta.toObject(row));
             },
-            error(error) {
+            error(error){
                 console.error(`${V.error} Erreur lors de l'exécution de la requête Flux:`, error);
+                error.body.message = 'Influxdb '+error.body.message
+                console.log(`${V.error} Requête Flux:\n`, error);
                 reject(error);
             },
             complete() {
@@ -165,16 +167,8 @@ async function getInfluxMetadata(stationId = null, knownTags = ['sensor', 'stati
                 |> group()
             `;
 
-        const allRows = await new Promise((resolve, reject) => {
-            const rows = [];
-            queryApi.queryRows(query, {
-                next(row, tableMeta) {
-                    rows.push(tableMeta.toObject(row));
-                },
-                error: reject,
-                complete: () => resolve(rows)
-            });
-        });
+        // utilise executeQuery pour exécuter la requête
+        const allRows = await executeQuery(query);
 
         // Construction de la structure
         const bucketStructure = {};
