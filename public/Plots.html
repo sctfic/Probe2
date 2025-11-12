@@ -117,7 +117,7 @@
             stroke-dasharray: 3,3;
         }
         
-        .focus text, .legend text {
+        .focus text, .legend text, .axis-label {
             font-size: 11px;
             font-weight: bold;
             fill: #333;
@@ -184,21 +184,22 @@
     </footer>
     <script>
 // Configuration globale
-// Configuration globale
-const margin = { top: 10, right: 40, bottom: 20, left: 40 };
 const height = 300;
-const width = window.innerWidth - 80;
+const width = window.innerWidth;
+const margin = { top: 10, right: 40, bottom: 20, left: 40 };
 const innerWidth = width - margin.left - margin.right;
 const innerHeight = height - margin.top - margin.bottom;
 
-// Variables globales
+// Variables globales (ajouter brushDurationLabel)
 let svg, xScale, yScales = {}, currentData = null, metadata = null;
 let colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 let originalParams = null;
 let brush, brushGroup;
-let g; // Référence au groupe principal
+let g;
 let isBrushing = false;
-let brushStartLabel, brushEndLabel;
+let brushStartLabel, brushEndLabel, brushDurationLabel; // Nouvelle variable
+let legendGroup = null;
+let isLegendVisible = true;
 
 // FONCTIONS DE STATUT (inchangées)
 function showStatus(message, type = 'loading') {
@@ -238,10 +239,10 @@ function initFromUrl() {
     if (titleElement && params.sensors) {
         titleElement.textContent = `Comparaison de ${params.sensors}`;
     }
-    loadData(params, false); // false = création complète
+    loadData(params, false);
 }
 
-// CHARGEMENT DES DONNÉES - MODIFIÉ
+// CHARGEMENT DES DONNÉES (inchangé)
 async function loadData(params = null, updateOnly = false) {
     if (!params) params = getUrlParams();
     
@@ -269,13 +270,12 @@ async function loadData(params = null, updateOnly = false) {
         
         processData();
         
-        // CHOISIR entre création complète ou mise à jour uniquement
         if (updateOnly) {
-            // sleep
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            updateChart(); // NOUVELLE FONCTION : met à jour sans tout recréer
+            // Attendre imperativement la fin du zoom !!!
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            updateChart();
         } else {
-            createChart(); // Création complète (init ou reset)
+            createChart();
         }
         
         showStatus(`${currentData.length} points chargés`, 'success');
@@ -305,9 +305,8 @@ function processData() {
     currentData.sort((a, b) => a.datetime - b.datetime);
 }
 
-// CRÉATION COMPLÈTE - Appelée une fois au démarrage
+// CRÉATION COMPLÈTE (inchangée)
 function createChart() {
-    // Nettoyer tout
     d3.select("#d3-chart-container").selectAll("*").remove();
     
     svg = d3.select("#d3-chart-container")
@@ -324,12 +323,10 @@ function createChart() {
         .attr("width", innerWidth)
         .attr("height", innerHeight);
     
-    // Initialiser l'échelle X
     xScale = d3.scaleTime()
         .domain(d3.extent(currentData, d => d.datetime))
         .range([0, innerWidth]);
     
-    // Créer les échelles Y
     const measurementGroups = metadata.measurement;
     yScales = {};
     Object.keys(measurementGroups).forEach((groupName, index) => {
@@ -359,19 +356,17 @@ function createChart() {
         }
     });
     
-    // Créer tous les éléments une fois
     createAxes(g);
     createLines(g);
-    createLegend(g);
     addBrush(g);
     addInteraction(g);
+    createLegend(g);
 }
 
-// MISE À JOUR UNIQUEMENT - Appelée après chargement de nouvelles données
+// MISE À JOUR UNIQUEMENT - Appelée lors du brush
 function updateChart() {
-    // **NE PAS toucher à xScale.domain()**
+    // NE PAS toucher à xScale.domain()
     
-    // Mise à jour des échelles Y (code existant)
     const measurementGroups = metadata.measurement;
     Object.keys(measurementGroups).forEach((groupName, index) => {
         const sensors = measurementGroups[groupName];
@@ -394,25 +389,26 @@ function updateChart() {
         }
     });
     
-    updateAxes(g);
-    updateLines(g, false); // **PAS DE TRANSITION lors de cet appel**
+    // Pas de transition sur X, transition sur Y préservée
+    // (les axes Y ont déjà leur transition dans updateAxes)
+    updateAxes(g, false);
+    // Pas de transition sur les lignes
+    updateLines(g, false);
 }
 
-// CRÉATION DES AXES - Appelée une fois
+// CRÉATION DES AXES (inchangée)
 function createAxes(g) {
-    // Axe X
     g.append("g")
         .attr("class", "axis axis-x")
         .attr("transform", `translate(0,${innerHeight})`)
         .call(d3.axisBottom(xScale).tickSize(2));
     
-    // Axes Y
     Object.entries(yScales).forEach(([groupName, scaleInfo]) => {
         addYAxis(g, groupName, scaleInfo);
     });
 }
 
-// AJOUT D'UN AXE Y - Fonction réutilisable
+// AJOUT D'UN AXE Y (inchangée)
 function addYAxis(g, groupName, scaleInfo) {
     const sensor = metadata.measurement[groupName][0];
     const unit = metadata.toUserUnit[sensor].userUnit;
@@ -429,26 +425,28 @@ function addYAxis(g, groupName, scaleInfo) {
         .attr("transform", transform)
         .call(axis);
     
-    // Label
     const labelX = (position ? 0 : innerWidth) + (orientation ?  -20 : 20);
     g.append("text")
         .attr("class", `axis-label axis-label-${groupName}`)
-        .attr("transform", `translate(${labelX},5)`)
+        .attr("transform", `translate(${labelX},-2)`)
         .style("text-anchor", "middle")
         .style("font-size", "10px")
         .style("font-weight", "bold")
         .text(unit);
 }
 
-// MISE À JOUR DES AXES - Avec transitions
-function updateAxes(g) {
-    // Axe X
-    g.select(".axis-x")
-        .transition()
-        .duration(1000)
-        .call(d3.axisBottom(xScale).tickSize(2));
+// MISE À JOUR DES AXES - Avec option de transition sur X
+function updateAxes(g, transitionX = true) {
+    const xAxis = d3.axisBottom(xScale).tickSize(2);
+    const xAxisGroup = g.select(".axis-x");
     
-    // Axes Y
+    if (transitionX) {
+        xAxisGroup.transition().duration(1000).call(xAxis);
+    } else {
+        xAxisGroup.call(xAxis);
+    }
+    
+    // Transition TOUJOURS préservée sur Y
     Object.entries(yScales).forEach(([groupName, scaleInfo]) => {
         const sensor = metadata.measurement[groupName][0];
         const unit = metadata.toUserUnit[sensor].userUnit;
@@ -459,17 +457,16 @@ function updateAxes(g) {
             d3.axisRight(scaleInfo.scale).tickSize(3);
         
         g.select(`.axis-${groupName}`)
-            .transition()
+            .transition() // Transition PRESERVEE sur Y
             .duration(1000)
             .call(axis);
         
-        // Mettre à jour le label si l'unité a changé
         g.select(`.axis-label-${groupName}`)
             .text(unit);
     });
 }
 
-// CRÉATION DES LIGNES - Appelée une fois
+// CRÉATION DES LIGNES (inchangée)
 function createLines(g) {
     const linesGroup = g.append("g")
         .attr("class", "lines-group")
@@ -490,7 +487,7 @@ function createLines(g) {
     });
 }
 
-// CRÉATION D'UNE LIGNE - Fonction utilitaire
+// CRÉATION D'UNE LIGNE (inchangée)
 function createLine(sensor, scaleInfo) {
     return d3.line()
         .x(d => xScale(d.datetime))
@@ -499,29 +496,25 @@ function createLine(sensor, scaleInfo) {
         .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveBasis);
 }
 
-// MISE À JOUR DES LIGNES - Version avec option de transition
+// MISE À JOUR DES LIGNES - Avec option de transition
 function updateLines(g, useTransition = true) {
     const linesGroup = g.select(".lines-group");
     
-    // Pour chaque groupe de mesures
     Object.entries(yScales).forEach(([groupName, scaleInfo]) => {
         scaleInfo.sensors.forEach(sensor => {
             const linePath = linesGroup.select(`.line-${sensor.replace(":", "_")}`);
-            const newLineData = createLine(sensor, scaleInfo);
             
             if (linePath.empty()) {
-                // Si la ligne n'existe pas (nouveau capteur), la créer
                 linesGroup.append("path")
                     .datum(currentData)
                     .attr("class", `line line-${sensor.replace(":", "_")}`)
-                    .attr("d", newLineData)
+                    .attr("d", createLine(sensor, scaleInfo))
                     .style("stroke", colorScale(sensor.replace(":", "_")))
                     .style("opacity", 0)
                     .transition()
                     .duration(500)
                     .style("opacity", 1);
             } else {
-                // Sinon, la mettre à jour avec ou sans transition
                 const lineUpdate = linePath.datum(currentData);
                 
                 if (useTransition) {
@@ -537,75 +530,129 @@ function updateLines(g, useTransition = true) {
     });
 }
 
-// CRÉATION DE LA LÉGENDE - Appelée une fois
+// CRÉATION DE LA LÉGENDE - Bouton à droite avec zone de clic transparente
 function createLegend(g) {
-    const legend = g.append("g")
+    legendGroup = g.append("g")
         .attr("class", "legend")
         .attr("transform", `translate(${innerWidth - 150}, 20)`);
 
+    // Contenu de la légende
+    legendContent = legendGroup.append("g")
+        .attr("class", "legend-content");
+
     let yOffset = 0;
     Object.entries(yScales).forEach(([groupName, scaleInfo]) => {
-        // Titre du groupe
-        legend.append("text")
+        legendContent.append("text")
             .attr("class", `legend-title legend-title-${groupName}`)
             .attr("x", 0)
             .attr("y", yOffset)
             .style("font-weight", "bold")
             .style("font-size", "11px")
             .text(groupName);
-        yOffset += 15;
 
-        // Capteurs du groupe
         scaleInfo.sensors.forEach(sensor => {
-            const item = legend.append("g")
+            yOffset += 11;
+            const item = legendContent.append("g")
                 .attr("class", `legend-item legend-item-${sensor.replace(":", "_")}`)
                 .attr("transform", `translate(10, ${yOffset})`);
 
             item.append("line")
                 .attr("x1", 0)
                 .attr("x2", 15)
-                .attr("y1", 0)
-                .attr("y2", 0)
+                .attr("y1", -2)
+                .attr("y2", -2)
                 .style("stroke", colorScale(sensor.replace(":", "_")))
                 .style("stroke-width", 2);
 
             item.append("text")
                 .attr("x", 20)
                 .attr("y", 0)
-                .attr("dy", "0.35em")
                 .style("font-size", "10px")
                 .text(sensor);
 
-            yOffset += 12;
         });
-        yOffset += 5;
+        yOffset += 16;
     });
+    
+    // Mesurer la largeur du contenu
+    const bbox = legendContent.node().getBBox();
+    const contentWidth = bbox.width + bbox.x;
+    
+    // Bouton show/hide à DROITE
+    const toggleButton = legendGroup.append("g")
+        .attr("class", "legend-toggle")
+        .attr("transform", `translate(${contentWidth - 10}, -32)`)
+        .style("cursor", "pointer");
+    
+    // **ZONE DE CLIQUE TRANSPARENTE (hit area)**
+    toggleButton.append("rect")
+        .attr("width", 32)
+        .attr("height", 32)
+        .attr("rx", 4)
+        .style("fill", "transparent") // Transparent mais cliquable
+    toggleButton.append("path")
+        .attr("class", "eye-icon")
+        .attr("d", "M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z")
+        .style("fill", "var(--primary-dark, #333333)")
+        .attr("transform", "scale(0.8)");
+    
+    // **ÉVÉNEMENTS SUR LE GROUPE (qui a la zone de clic)**
+    toggleButton
+        .on("mouseenter", function() {
+            d3.select(this).select(".eye-icon")
+                .style("fill", "var(--accent-blue, #4DC0E0)")
+                .transition().duration(150)
+                .attr("transform", "scale(0.9)");
+        })
+        .on("mouseleave", function() {
+            d3.select(this).select(".eye-icon")
+                .style("fill", "var(--primary-dark, #333333)")
+                .transition().duration(150)
+                .attr("transform", "scale(0.8)");
+        })
+        .on("click", toggleLegend);
 }
 
-// MISE À JOUR DE LA LÉGENDE - Optionnel, si les capteurs peuvent changer
-function updateLegend() {
-    // Cette fonction peut être implémentée si les capteurs changent dynamiquement
-    // Pour l'instant, on ne met pas à jour la légende car elle est statique
+// BASCULER LA VISIBILITÉ DE LA LÉGENDE
+function toggleLegend() {
+    isLegendVisible = !isLegendVisible;
+    
+    if (isLegendVisible) {
+        // Afficher la légende
+        legendContent
+            .style("display", "block")
+            .transition()
+            .duration(400)
+            .style("opacity", 1);
+    } else {
+        // Cacher la légende
+        legendContent
+            .transition()
+            .duration(400)
+            .style("opacity", 0)
+            .on("end", () => {
+                legendContent.style("display", "none");
+            });
+    }
 }
 
-// AJOUT DU BRUSH - Appelée une fois
+// AJOUT DU BRUSH
 function addBrush(g) {
     brush = d3.brushX()
         .extent([[0, 0], [innerWidth, innerHeight]])
         .on("start", brushStarted)
+        .on("brush", brushBrushed) // Nouveau handler
         .on("end", brushEnded);
     
     brushGroup = g.append("g")
         .attr("class", "brush")
         .call(brush);
     
-    // Style
     brushGroup.selectAll(".selection")
         .attr("fill", "#007bff")
         .attr("fill-opacity", 0.2)
         .attr("stroke", "#007bff");
     
-    // Labels de dates
     brushStartLabel = brushGroup.append("text")
         .attr("class", "brush-label brush-start-label")
         .attr("text-anchor", "end")
@@ -616,7 +663,15 @@ function addBrush(g) {
         .attr("text-anchor", "start")
         .style("display", "none");
     
-    // Double-clic pour reset
+    // **NOUVEL ÉLÉMENT : Label de durée**
+    brushDurationLabel = g.append("text")
+        .attr("class", "brush-duration-label")
+        .attr("x", innerWidth / 2)
+        .attr("y", -2)
+        .attr("text-anchor", "middle")
+        .style("font-size", "9px")
+        .style("display", "none");
+    
     brushGroup.select(".overlay")
         .on("dblclick", function(event) {
             event.stopPropagation();
@@ -624,14 +679,33 @@ function addBrush(g) {
         });
 }
 
+function brushBrushed(event) {
+    if (!event.selection) return;
+    const [mouseX] = d3.pointer(event, this);
+    const [x0, x1] = event.selection;
+    const startDate = xScale.invert(x0);
+    const endDate = xScale.invert(x1);
+    const duration = endDate - startDate;
+    const days = duration / (1000 * 60 * 60 * 24);
+    
+    brushDurationLabel
+        .text(`${days.toFixed(1)} Days`)
+        .attr("x", mouseX - 5)
+        .style("fill", duration < 12 * 60 * 60 * 1000 ? "#999" : "#333");
+}
+
 function brushStarted(event) {
     isBrushing = true;
     d3.select(".focus").style("display", "none");
     brushStartLabel.style("display", null);
     brushEndLabel.style("display", null);
+    brushDurationLabel.style("display", null); // Afficher la durée
 }
 
 function brushEnded(event) {
+    // Masquer le label de durée
+    brushDurationLabel.style("display", "none");
+    
     if (!event.selection) {
         isBrushing = false;
         brushStartLabel.style("display", "none");
@@ -642,40 +716,38 @@ function brushEnded(event) {
     const [x0, x1] = event.selection;
     const startDate = xScale.invert(x0);
     const endDate = xScale.invert(x1);
+    const duration = endDate - startDate;
     
     brushGroup.call(brush.move, null);
     brushStartLabel.style("display", "none");
     brushEndLabel.style("display", "none");
     isBrushing = false;
     
-    // Vérification durée minimale
-    if (endDate - startDate < 60000) {
-        showStatus("Sélection trop courte", "warning");
+    // **MODIFICATION : Vérification de 12h minimum**
+    if (duration < 12 * 60 * 60 * 1000) { // 12 heures en millisecondes
+        showStatus("Sélection trop courte (< 12h)", "warning");
         setTimeout(hideStatus, 3000);
         return;
     }
     
-    // Agrandir l'intervalle de 50%
-    const duration = endDate - startDate;
-    const margin = duration * 0.5;
-    const adjustedStartDate = new Date(startDate.getTime() - margin);
-    const adjustedEndDate = new Date(endDate.getTime() + margin);
+    if (duration < 60000) return; // Fallback sécurité
     
-    // Formater pour l'API
-    const formatDateAPI = d3.timeFormat("%Y-%m-%dT%H:%M:%SZ");
+    const durationMargin = duration * 0.2;
+    const adjustedStartDate = new Date(startDate.getTime() - durationMargin);
+    const adjustedEndDate = new Date(endDate.getTime() + durationMargin);
+    
+    const formatDateAPI = d3.timeFormat("%Y-%m-%dT%H:%M:00Z");
     const newStartDate = formatDateAPI(adjustedStartDate);
     const newEndDate = formatDateAPI(adjustedEndDate);
     
-    // Zoom temporaire (avec transition)
     xScale.domain([startDate, endDate]);
     g.select(".axis-x")
         .transition()
         .duration(1000)
         .call(d3.axisBottom(xScale).tickSize(2));
     
-    updateLines(g); // **Appel avec transition par défaut**
+    updateLines(g);
     
-    // Charger nouvelles données
     const currentParams = getUrlParams();
     loadData({
         ...currentParams,
@@ -684,7 +756,7 @@ function brushEnded(event) {
     }, true);
 }
 
-// AJOUT DE L'INTERACTION TOOLTIP - Appelée une fois
+// AJOUT DE L'INTERACTION TOOLTIP (inchangé)
 function addInteraction(g) {
     const focus = g.append("g")
         .attr("class", "focus")
@@ -714,57 +786,7 @@ function addInteraction(g) {
         });
 }
 
-// GESTIONNAIRE BRUSH
-function brushed(event) {
-    if (!event.selection) return;
-    
-    const [x0, x1] = event.selection;
-    const startDate = xScale.invert(x0);
-    const endDate = xScale.invert(x1);
-    
-    if (endDate - startDate < 60000) {
-        showStatus("Sélection trop courte", "warning");
-        setTimeout(hideStatus, 3000);
-        return;
-    }
-    
-    // 1. Cacher la sélection brush
-    brushGroup.call(brush.move, null);
-    
-    // 2. Formater dates au format yyyy-mm-dd pour l'API
-    const formatDate = d3.timeFormat("%Y-%m-%d");
-    const newStartDate = formatDate(startDate);
-    const newEndDate = formatDate(endDate);
-    
-    // 3. Zoom temporaire avec transition de 1 seconde
-    console.log("Zooming in");
-    xScale.domain([startDate, endDate]);
-    
-    // Axe X avec transition
-    g.select(".axis-x")
-        .transition()
-        .duration(1000)
-        .call(d3.axisBottom(xScale).tickSize(2));
-    
-    // Lignes avec transition
-    updateLines(g);
-    
-    // 4. Appeler l'API avec les nouvelles dates (updateOnly = true)
-    const currentParams = getUrlParams();
-    loadData({
-        ...currentParams,
-        startDate: newStartDate,
-        endDate: newEndDate
-    }, true); // true = mise à jour uniquement, pas de création complète
-}
-
-// RESET BRUSH
-function resetBrush() {
-    if (!originalParams) return;
-    loadData(originalParams, false); // false = création complète
-}
-
-// MISE À JOUR TOOLTIP
+// MISE À JOUR TOOLTIP (inchangée)
 function updateTooltip(event) {
     const bisect = d3.bisector(d => d.datetime).left;
     const [mouseX] = d3.pointer(event, this);
@@ -825,6 +847,13 @@ function updateTooltip(event) {
     }
 }
 
+// RESET BRUSH (inchangé)
+function resetBrush() {
+    if (!originalParams) return;
+    loadData(originalParams, false);
+}
+
+// GESTIONNAIRE FULLSCREEN (inchangé)
 function initializeFullscreenBtn() {
     const fullscreenBtn = document.getElementById('fullscreenToggleBtn');
     if (!fullscreenBtn) return;
@@ -852,7 +881,19 @@ function initializeFullscreenBtn() {
 window.addEventListener('load', () => { 
     initFromUrl(); 
     initializeFullscreenBtn(); 
+    
+    if (legendGroup) {
+        legendGroup.attr("transform", `translate(${innerWidth - 150}, 20)`);
+    }
 });
+
+// hide legend after 3 seconds
+setTimeout(() => {
+    if (legendGroup) {
+        toggleLegend();
+    }
+}, 3000);
+
     </script>
 </body>
 </html>
