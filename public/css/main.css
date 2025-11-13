@@ -1223,7 +1223,7 @@ input:checked+.slider:before {
         top: 40%;
     }
 
-    .rose-period-display {
+    .wind-period-display {
         position: absolute;
         left: 50%;
         transform: translateX(-50%);
@@ -2057,7 +2057,7 @@ input:checked+.slider:before {
     width: 100%;
 }
 
-.rose-period-display {
+.wind-period-display {
     display: flex;
     flex-direction: column;
     justify-content: center;
