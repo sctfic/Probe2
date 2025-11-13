@@ -328,38 +328,127 @@ exports.getQueryRaws = async (req, res) => {
     const { startDate, endDate, stepCount: stepCountStr } = req.query;
     const stepCount = stepCountStr ? parseInt(stepCountStr, 10) : 100000;
     let sensorRefs = sensorRefsStr.split(',');
-    // on retire les doublons, les vides
+    // Retirer les doublons et les valeurs vides
     sensorRefs = sensorRefs.filter((ref, index) => ref && sensorRefs.indexOf(ref) === index);
+    
     if (sensorRefs.length === 0) {
         return res.status(400).json({ success: false, error: 'Aucun capteur valide dans sensorRefs.' });
     }
+    
     try {
-        // Use the first sensor to determine the overall time range and interval
-        const timeInfo = await getIntervalSeconds(stationId, sensorRefs[0], startDate, endDate, stepCount);
-        const data = await influxdbService.queryRaws(stationId, sensorRefs, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
-        const Data = data.map(row => {
+        // 1. Séparer les capteurs réguliers des capteurs composites
+        const regularSensors = [];
+        const calcSensors = [];
+        
+        sensorRefs.forEach(ref => {
+            const { type, sensor } = getTypeAndSensor(ref);
+            if (sensor && sensor.endsWith('_calc')) {
+                calcSensors.push(type+':'+sensor);
+            } else {
+                regularSensors.push(type+':'+sensor);
+            }
+        });
+        
+        // 2. Utiliser le premier capteur pour déterminer la plage de temps
+        const firstSensor = regularSensors.length > 0 ? regularSensors[0] : 'pressure:barometer';
+        const timeInfo = await getIntervalSeconds(stationId, firstSensor, startDate, endDate, stepCount);
+        
+        // 3. Récupérer les données régulières
+        let regularData = [];
+        if (regularSensors.length > 0) {
+            regularData = await influxdbService.queryRaws(stationId, regularSensors, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
+        }
+        
+        // 4. Récupérer les données composites
+        const calcDataResults = [];
+        for (const sensorRef of calcSensors) {
+            const { sensor } = getTypeAndSensor(sensorRef);
+            const probeConfig = compositeProbes[sensor];
+            
+            if (!probeConfig) {
+                console.error(`${V.error} Configuration non trouvée pour le capteur composite: ${sensorRef}`);
+                continue;
+            }
+            
+            const data = await getCalculatedData(req.stationConfig, probeConfig, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
+            calcDataResults.push({ sensorRef, data });
+        }
+        
+        // 5. Combiner les données
+        // Convertir les données régulières en Map pour un accès rapide
+        const regularDataMap = new Map();
+        regularData.forEach(row => {
+            regularDataMap.set(row._time, row);
+        });
+        
+        // Construire le tableau final
+        let combinedData = [];
+        
+        if (regularDataMap.size > 0) {
+            // Utiliser les timestamps des données régulières comme base
+            combinedData = Array.from(regularDataMap.entries()).map(([timestamp, row]) => {
+                const combinedRow = { _time: timestamp };
+                
+                // Copier les valeurs régulières
+                Object.keys(row).forEach(key => {
+                    if (key !== '_time' && key !== 'result' && key !== 'table') {
+                        combinedRow[key] = row[key];
+                    }
+                });
+                
+                // Ajouter les valeurs composites pour ce timestamp
+                console.log(`Adding composite values for timestamp: ${timestamp}`, calcDataResults);
+                calcDataResults.forEach(({ sensorRef, data }) => {
+                    const matchingPoint = data.find(point => point.d === timestamp);
+                    if (matchingPoint) {
+                        combinedRow[sensorRef] = matchingPoint.v;
+                    }
+                });
+                
+                return combinedRow;
+            });
+        } else if (calcDataResults.length > 0) {
+            // Si seulement des capteurs composites, utiliser le premier comme base
+            const firstCalcData = calcDataResults[0].data;
+            combinedData = firstCalcData.map(point => {
+                const combinedRow = { _time: point.d, [calcDataResults[0].sensorRef]: point.v };
+                
+                // Ajouter les autres capteurs composites
+                calcDataResults.slice(1).forEach(({ sensorRef, data }) => {
+                    const matchingPoint = data.find(p => p.d === point.d);
+                    if (matchingPoint) {
+                        combinedRow[sensorRef] = matchingPoint.v;
+                    }
+                });
+                
+                return combinedRow;
+            });
+        }
+        
+        // 6. Formater les données comme dans l'original
+        const Data = combinedData.map(row => {
             let result = { d: row._time };
-            // pour chaque key on arrondi à 2 décimales
             Object.keys(row).filter(key => key !== '_time' && key !== 'result' && key !== 'table').forEach(key => {
-                // si null ou NaN on le laisse tel quel
                 if (row[key] === null || isNaN(row[key])) {
-                    // result[key] = row[key];
+                    // Laisser null/NaN tel quel
                 } else {
                     result[key] = Math.round(row[key] * 100) / 100;
                 }
             });
             return result;
-        });
-
-        let msg = 'Full data loadded !';
+        }).sort((a, b) => new Date(a.d) - new Date(b.d));
+        
+        // 7. Générer le message
+        let msg = 'Full data loaded !';
         if (Data.length === stepCount + 1 && new Date(Data[Data.length - 1].d).getTime() === new Date(timeInfo.end).getTime()) {
             msg = '(!) Last value is current !';
         } else if (Data.length < stepCount) {
             msg = '<!> Data missing suspected !';
         }
-
+        
+        // 8. Préparer les métadonnées et répondre
         const metadata = getMetadata(req, sensorRefs, timeInfo, Data);
-
+        
         res.json({
             success: true,
             message: msg,
