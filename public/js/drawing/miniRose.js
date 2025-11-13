@@ -390,11 +390,9 @@ async function loadRosePlot(id, url) {
         console.error(`Div with ID ${id} not found`);
         return;
     }
-    chartDiv.innerHTML = '<div class="loading">Chargement...</div>';
 
     try {
-        cleanCache();
-        const apiResponse = await fetchWithCache(url);
+        const apiResponse = await fetchWithCache(url+'&startDate='+WIND.Start+'&endDate='+WIND.End);
         if (apiResponse.success && Object.keys(apiResponse.data).length > 0) {
             createRosePlot(apiResponse.data, apiResponse.metadata, id);
         } else {

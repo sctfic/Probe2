@@ -229,15 +229,21 @@ console.log(coef, 'maxSpeed', maxSpeed);
  * @param {string} url - The API URL to fetch data from.
  */
 async function loadVectorPlot(id, url) {
+    const chartDiv = document.getElementById(id);
+    if (!chartDiv) {
+        console.error(`Div with ID ${id} not found`);
+        return;
+    }
+
     try {
-        // fetchWithCache is assumed to be available from miniPlot.js
         const apiResponse = await fetchWithCache(url);
-        createVectorPlot(apiResponse.data, apiResponse.metadata, id);
+        if (apiResponse.success && Object.keys(apiResponse.data).length > 0) {
+            createVectorPlot(apiResponse.data, apiResponse.metadata, id);
+        } else {
+            chartDiv.innerHTML = `<div class="error-message">Aucune donnée de vent disponible.</div>`;
+        }
     } catch (error) {
         console.error('Error loading vector data:', error);
-        const chartDiv = document.getElementById(id);
-        if (chartDiv) {
-            chartDiv.innerHTML = `<div class="error-message">Loading error</div>`;
-        }
+        chartDiv.innerHTML = `<div class="error-message">Loading error</div>`;
     }
 }

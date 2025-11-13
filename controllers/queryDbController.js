@@ -519,16 +519,16 @@ exports.getQueryCandle = async (req, res) => {
     }
 };
 
-exports.getQueryWindRose = async (req, res) => { // https://observablehq.com/@julesblm/wind-rose
+exports.getQueryWindRose = async (req, res) => {
     const { stationId } = req.params;
-    const { startDate, endDate, stepCount = 10, prefix = '' } = req.query;
+    const { startDate, endDate, stepCount = 10, prefix = '' } = req.query; // prefix peut être vide ou 'open-meteo_'
     
     if (!stationId) {
         return res.status(400).json({ success: false, error: 'Le paramètre stationId est requis.' });
     }
     try {
         console.log(`${V.info} Demande de données de vent pour ${stationId}`);
-        const timeInfo = await getIntervalSeconds(stationId, 'speed:Wind', startDate, endDate, stepCount);
+        const timeInfo = await getIntervalSeconds(stationId, `speed:${prefix}Wind`, startDate, endDate, stepCount);
         const data = await influxdbService.queryWindRose(stationId, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds, prefix);
         let msg = 'Full data loadded !';
         if (data.length==stepCount+1 && new Date(data[data.length-1].d).getTime()==timeInfo.end) {
@@ -537,7 +537,7 @@ exports.getQueryWindRose = async (req, res) => { // https://observablehq.com/@ju
         } else if (data.length < stepCount) {
             msg = '<!> Data missing suspected !';
         }
-        const metadata = getMetadata(req, ['speed:Wind', 'direction:Gust', 'speed:Gust', 'direction:Wind'], timeInfo, data);
+        const metadata = getMetadata(req, [`speed:${prefix}Wind`, `direction:${prefix}Gust`, `speed:${prefix}Gust`, `direction:${prefix}Wind`], timeInfo, data);
 
         res.json({
             success: true,

@@ -2,12 +2,13 @@
 const API_BASE_URL = '/query';
 const STORAGE_KEY_STATE = 'dashboardTileState';
 
-
 let currentConditionsData = null;
 let allConditions = []; // Stores all conditions without filter
 let dbSensorList = null;
 let previousValues = {};
 let selectedTiles = new Set();
+
+const WIND = {};
 
 function saveTileState() {
     if (!selectedStation) return;
@@ -658,11 +659,12 @@ function loadChartForItem(item) {
 
     if (item.sensorDb.startsWith('vector:')) {
         const sensorRef = item.sensorDb.substring('vector:'.length);
+        const mode = sensorRef.includes('Gust') ? 'Gust' : 'Wind';
         // console.log(item.sensorDb, sensorRef, prefix);
-        loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindVectors/${sensorRef}?${count}&${start}`, item.period);
+        loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindVectors/${mode}?${count}&${start}`);
     } else if (item.sensorDb.startsWith('rose:')) {
         const sensorRef = item.sensorDb.substring('rose:'.length);
-        // loadRosePlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindRose/${sensorRef}?${count}&${start}`, item.period);
+        // loadRosePlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindRose/${sensorRef}?${count}&${start}`);
     } else {
         loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${count}&${start}`, item.period);
     }
@@ -909,20 +911,25 @@ function showDetailsFooter(keys) {
     
     // Special case for wind rose
     if (items.some(i => i.measurement === 'direction' || i.sensorDb.startsWith('vector:') || i.sensorDb.startsWith('rose:'))) {
+        const mode = firstItem.sensorDb.includes('Gust') ? 'Gust' : 'Wind';
         let prefix = '';
         if (firstItem.key.includes('_')) {
             prefix = firstItem.key.split(':')[1].split('_')[0] + '_';
         }
-        console.log('firstItem', firstItem.key, prefix);
         contentContainer.innerHTML = `
             <div class="wind-details-grid">
                 <div class="wind-top-row" id="windRoses-container"></div>
                 <div class="wind-bottom-row" id="vector-container"></div>
             </div>
         `;
-        const start = getStartDate(firstItem.period);
-        loadRosePlot('windRoses-container', `${API_BASE_URL}/${selectedStation.id}/WindRose?stepCount=24&startDate=${start}&prefix=${prefix}`);
-        const vectorUrl = `/query/${selectedStation.id}/WindVectors/${firstItem.sensorDb.split(':')[1]}?stepCount=600&startDate=${start}`;
+        // global windStart and windEnd, pour transmettre l'intervale du brush entre rose et vecteur
+        WIND.Start = getStartDate(firstItem.period);
+        WIND.End = new Date().toISOString().split('.')[0] + 'Z';
+        const roseUrl = `${API_BASE_URL}/${selectedStation.id}/WindRose?prefix=${prefix}`; // prefix peut être vide ou 'open-meteo_'
+        loadRosePlot('windRoses-container', roseUrl);
+        // si firstItem.sensorDb contien 'Gust'
+
+        const vectorUrl = `/query/${selectedStation.id}/WindVectors/${mode}?stepCount=600&startDate=${WIND.Start}&endDate=${WIND.End}`;
         loadVectorPlot('vector-container', vectorUrl);
         return;
     }
