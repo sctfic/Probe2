@@ -341,7 +341,12 @@ exports.getQueryRaws = async (req, res) => {
             let result = { d: row._time };
             // pour chaque key on arrondi à 2 décimales
             Object.keys(row).filter(key => key !== '_time' && key !== 'result' && key !== 'table').forEach(key => {
-                result[key] = Math.round(row[key] * 100) / 100;
+                // si null ou NaN on le laisse tel quel
+                if (row[key] === null || isNaN(row[key])) {
+                    // result[key] = row[key];
+                } else {
+                    result[key] = Math.round(row[key] * 100) / 100;
+                }
             });
             return result;
         });

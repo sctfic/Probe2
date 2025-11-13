@@ -928,13 +928,10 @@ function showDetailsFooter(keys) {
         return;
     }
 
-    const start = `startDate=${getStartDate('100d')}`;
-    const count = `stepCount=500`;
-
     const chartId = `details_chart_`;
     contentContainer.innerHTML = `<div id="${chartId}" style="width: 100%; height: 100%;"></div>`;
     const sensorsQuery = sensorDbs.join(',');
-    loadDatas(chartId, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}?${count}&${start}`, firstItem.period);
+    mainPlots(chartId, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}`,getStartDate('100d'));
     
 }
 
