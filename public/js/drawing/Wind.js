@@ -373,6 +373,53 @@ async function loadRosePlot(id, url) {
         return;
     }
 
+    // Vérification de la période - Ne pas charger si > 30 jours
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const periodDays = (new Date(WIND.End) - new Date(WIND.Start)) / msPerDay;
+    if (periodDays > 30) {
+        chartDiv.innerHTML = `
+        <div class="rose-container" id="prob-rose-container">
+        </div>
+        <div class="wind-period-display">
+             <div id="first-date">${WIND.Start}</div>
+             <div id="last-date">${WIND.End}</div>
+             <br />
+             <div class="error-message">Période trop longue (> 30 jours)<br></div>
+             <small style="font-size: 9px;">Veuillez selectionner une periode</small>
+        </div>
+        <div class="rose-container" id="speed-rose-container">
+        </div>`;
+        return;
+    }
+
+    // Afficher le message de chargement avec animation
+    chartDiv.innerHTML = `
+        <div class="rose-container" id="prob-rose-container">
+            <div style="border: 3px solid rgba(52, 152, 219, 0.2); border-top: 3px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: windSpinner 1s linear infinite; margin: 0 auto 10px;"></div>
+            <div style="color: #ccc; font-size: 12px;">Chargement des données...</div>
+        </div>
+        <div class="wind-period-display">
+             <div id="first-date">${WIND.Start}</div>
+             <div id="last-date">${WIND.End}</div>
+        </div>
+        <div class="rose-container" id="speed-rose-container">
+            <div style="border: 3px solid rgba(52, 152, 219, 0.2); border-top: 3px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: windSpinner 1s linear infinite; margin: 0 auto 10px;"></div>
+            <div style="color: #ccc; font-size: 12px;">Chargement des données...</div>
+        </div>`;
+    
+    // Injecter la keyframe d'animation si elle n'existe pas
+    if (!document.getElementById('wind-spinner-style')) {
+        const style = document.createElement('style');
+        style.id = 'wind-spinner-style';
+        style.textContent = `
+            @keyframes windSpinner {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
     try {
         // Cache de 10 minutes pour les données des roses de vent
         const apiResponse = await queryManager.query(url+`&startDate=${WIND.Start}&endDate=${WIND.End}`, { cacheDuration: 10 * 60 * 1000 });
@@ -741,7 +788,7 @@ const WIND = {
     Period: null
 };
 
-async function loadWindPlots(windContainer, url, sensor, period = '30d') {
+async function loadWindPlots(windContainer, url, sensor, period = '3y') {
     // Stocker les paramètres pour rechargement ultérieur
     WIND.Container = windContainer;
     WIND.Url = url;
@@ -749,7 +796,7 @@ async function loadWindPlots(windContainer, url, sensor, period = '30d') {
     WIND.Period = period;
     
     WIND.Start = getStartDate(period);
-    WIND.End = '';
+    WIND.End = new Date().toISOString().split('.')[0] + 'Z';
     
     let prefix = '';
     if (sensor.includes('_')) {
@@ -758,7 +805,8 @@ async function loadWindPlots(windContainer, url, sensor, period = '30d') {
     
     windContainer.innerHTML = `
         <div class="wind-details-grid">
-            <div class="wind-top-row" id="windRoses-container"></div>
+            <div class="wind-top-row" id="windRoses-container">
+            </div>
             <div class="wind-bottom-row" id="vector-container"></div>
         </div>
     `;
