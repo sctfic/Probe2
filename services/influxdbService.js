@@ -490,7 +490,6 @@ async function queryWindRose(stationId, startDate, endDate, intervalSeconds = 36
         |> yield()
     `;
     const results = await executeQuery(fluxQuery);
-    console.log(results);
     return parserWindRose(results);
 }
 

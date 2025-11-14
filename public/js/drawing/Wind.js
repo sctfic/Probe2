@@ -1,7 +1,7 @@
-// js/Wind.js - Graphique de vecteurs avec brush de zoom et Rose de vent
+// js/Wind.js - Graphique de vecteurs avec brush optionnel et Rose de vent
 
 // =======================================
-//  constuction de la Rose de vent
+//  Construction de la Rose de vent
 // =======================================
 
 function createRosePlot(data, metadata, id) {
@@ -10,10 +10,9 @@ function createRosePlot(data, metadata, id) {
         console.error(`Container with id ${id} not found.`);
         return;
     }
-    container.innerHTML = ''; // Clear previous content
+    container.innerHTML = '';
 
-    // Get speed conversion function and unit from metadata
-    const speedSensorKey = metadata.measurement.speed?.[0]; // e.g., "speed:Wind"
+    const speedSensorKey = metadata.measurement.speed?.[0];
     const speedUnit = speedSensorKey && metadata.toUserUnit[speedSensorKey]?.userUnit 
         ? metadata.toUserUnit[speedSensorKey].userUnit 
         : 'm/s';
@@ -21,7 +20,6 @@ function createRosePlot(data, metadata, id) {
         ? eval(metadata.toUserUnit[speedSensorKey].fnFromMetric) 
         : (v) => v;
     
-    // Color scales
     const speedToColorScale = d3.scaleLinear()
         .domain([2, 10, 25, 100])
         .range(["#fbb4ae", "#b3cde3", "#ccebc5", "#decbe4"])
@@ -35,7 +33,6 @@ function createRosePlot(data, metadata, id) {
     function speedToColor(d) { return speedToColorScale(d.s); }
     function probabilityToColor(d) { return probabilityToColorScale(d.p); }
 
-    // Utility functions
     function totalSpl(data) {
         return Object.values(data).reduce((sum, d) => sum + (d.Spl || 0), 0);
     }
@@ -79,11 +76,8 @@ function createRosePlot(data, metadata, id) {
     }
 
     function drawInfoText(svg, R, lines, align = 'end') {
-        // Remove any existing info text to avoid overlap
         svg.select(".info-text").remove();
-
         const xPos = align === 'start' ? -R - 12 : R + 12;
-
         const textGroup = svg.append("g")
             .attr("class", "info-text")
             .attr("font-size", "11px")
@@ -106,11 +100,9 @@ function createRosePlot(data, metadata, id) {
             .style("stroke-width", "0.5px");
 
         const cw = svg.append("g").attr("class", "calmwind");
-        
         cw.append("text")
             .attr("transform", "translate(0,-2)")
             .text(Math.round(calmPercentage * 100) + "%");
-        
         cw.append("text")
             .attr("transform", "translate(0,12)")
             .text("calm");
@@ -173,7 +165,7 @@ function createRosePlot(data, metadata, id) {
         drawGridScale(svg, tickmarks, d => `${(d * 100).toFixed(0)} %`, probabilityToRadiusScale);
         drawCalm(svg, windProbabilityArcOptions.from, t > 0 ? calm / t : 0);
         drawLevelGrid(svg, r);
-        // Zones invisibles pour le hover (20° par direction, de calm jusqu'à maxProb)
+
         const hoverArc = d3.arc()
             .startAngle(d => (d.d - 10) * Math.PI / 180)
             .endAngle(d => (d.d + 10) * Math.PI / 180)
@@ -188,7 +180,6 @@ function createRosePlot(data, metadata, id) {
             .style("pointer-events", "all");
 
         hoverZones.on("mouseover", function(event, d) {
-            // Mettre en valeur le pétale correspondant
             petals.filter(petal => petal.d === d.d)
                 .transition()
                 .duration(50)
@@ -199,7 +190,6 @@ function createRosePlot(data, metadata, id) {
             const infoLines = [`${(100 * d.p).toFixed(1)} %`, `${d.d}°`];
             drawInfoText(svg, r, infoLines);
         }).on("mouseout", function(event, d) {
-            // Retirer la mise en valeur
             petals.filter(petal => petal.d === d.d)
                 .transition()
                 .duration(800)
@@ -209,7 +199,6 @@ function createRosePlot(data, metadata, id) {
             
             svg.select(".info-text").remove();
         });
-
     }
 
     function plotSpeedRose(data, container, R) {
@@ -245,7 +234,6 @@ function createRosePlot(data, metadata, id) {
             width: 10, from: ip - 2, to: d => speedToRadiusScale(d.s)
         };
 
-        // Pétales pour les rafales (gusts)
         const windGustArcOptions = {
             width: 9, from: ip - 2, to: d => speedToRadiusScale(d.m)
         };
@@ -268,7 +256,7 @@ function createRosePlot(data, metadata, id) {
         drawGridScale(svg, tickmarks, d => `${d.toFixed(1)} ${speedUnit}`, speedToRadiusScale);
         drawCalm(svg, windSpeedArcOptions.from, t > 0 ? calm / t : 0);
         drawLevelGrid(svg, r);
-        // Zones invisibles pour le hover (20° par direction, de calm jusqu'à maxSpeed)
+
         const hoverArc = d3.arc()
             .startAngle(d => (d.d - 10) * Math.PI / 180)
             .endAngle(d => (d.d + 10) * Math.PI / 180)
@@ -283,7 +271,6 @@ function createRosePlot(data, metadata, id) {
             .style("pointer-events", "all");
 
         hoverZones.on("mouseover", function(event, d) {
-            // Mettre en valeur le pétale correspondant
             petals.filter(petal => petal.d === d.d)
                 .transition()
                 .duration(50)
@@ -291,7 +278,6 @@ function createRosePlot(data, metadata, id) {
                 .style("stroke-width", "2px")
                 .style("stroke", "#ff6b6b");
             
-            // Mettre en valeur le pétale de rafale correspondant
             gustPetals.filter(petal => petal.d === d.d)
                 .transition()
                 .duration(50)
@@ -301,7 +287,6 @@ function createRosePlot(data, metadata, id) {
             const infoLines = [ `Rafale: ${d.m.toFixed(1)} ${speedUnit}`, `Moy: ${d.s.toFixed(1)} ${speedUnit}`,`${d.d}°`];
             drawInfoText(svg, r, infoLines);
         }).on("mouseout", function(event, d) {
-            // Retirer la mise en valeur du pétale
             petals.filter(petal => petal.d === d.d)
                 .transition()
                 .duration(800)
@@ -309,7 +294,6 @@ function createRosePlot(data, metadata, id) {
                 .style("stroke-width", null)
                 .style("stroke", null);
             
-            // Retirer la mise en valeur du pétale de rafale
             gustPetals.filter(petal => petal.d === d.d)
                 .transition()
                 .duration(800)
@@ -317,7 +301,6 @@ function createRosePlot(data, metadata, id) {
                 .style("stroke", null);
             svg.select(".info-text").remove();
         });
-
     }
 
     function convertApiData(apiData) {
@@ -343,7 +326,6 @@ function createRosePlot(data, metadata, id) {
                     };
                 }
             }
-            // Aggregate all data into a single structure
             for (const [dir, values] of Object.entries(converted)) {
                 if (!result[dir]) {
                     result[dir] = { Dir: values.Dir, Spl: 0, Spd: 0, Max: 0, count: 0 };
@@ -355,7 +337,6 @@ function createRosePlot(data, metadata, id) {
             }
         }
 
-        // Average the speeds
         for (const dir in result) {
             if (result[dir].count > 0) {
                 result[dir].Spd /= result[dir].count;
@@ -369,7 +350,6 @@ function createRosePlot(data, metadata, id) {
     const firstDate = new Date(metadata.first).toLocaleString('fr-FR', {dateStyle: "medium",timeStyle: "short",hour12: false});
     const lastDate = new Date(metadata.last).toLocaleString('fr-FR', {dateStyle: "medium",timeStyle: "short",hour12: false});
 
-    // Create containers for the three charts
     container.innerHTML = `
         <div class="rose-container" id="prob-rose-container">
         </div>
@@ -381,8 +361,6 @@ function createRosePlot(data, metadata, id) {
         </div>
     `;
 
-    // Render the plots
-    // container height
     const height = container.clientHeight / 2 -12;
     plotProbabilityRose(aggregatedData, '#prob-rose-container', height);
     plotSpeedRose(aggregatedData, '#speed-rose-container', height); 
@@ -396,7 +374,7 @@ async function loadRosePlot(id, url) {
     }
 
     try {
-        const apiResponse = await fetchWithCache(url+'&startDate='+WIND.Start+'&endDate='+WIND.End);
+        const apiResponse = await fetchWithCache(url+`&startDate=${WIND.Start}&endDate=${WIND.End}`);
         if (apiResponse.success && Object.keys(apiResponse.data).length > 0) {
             createRosePlot(apiResponse.data, apiResponse.metadata, id);
         } else {
@@ -408,13 +386,11 @@ async function loadRosePlot(id, url) {
     }
 }
 
-
 // =======================================
-//  constuction du diagramme de vecteurs
+//  Construction du diagramme de vecteurs
 // =======================================
 
-
-function createVectorPlot(data, metadata, id) {
+function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
     const chartDiv = document.getElementById(id);
     if (!chartDiv) {
         console.error(`Div with ID ${id} not found`);
@@ -496,13 +472,6 @@ function createVectorPlot(data, metadata, id) {
     const g = svg.append("g")
         .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    // Ligne zéro
-    g.append("line")
-        .attr("class", "zero-line")
-        .attr("x1", 0).attr("x2", innerWidth)
-        .attr("y1", yScale(0)).attr("y2", yScale(0))
-        .attr("stroke", "#000").attr("stroke-width", 1);
-
     // Axe X
     const xAxis = d3.axisBottom(xScale)
         .ticks(3).tickFormat(d3.timeFormat("%d/%m")).tickSize(4);
@@ -512,7 +481,7 @@ function createVectorPlot(data, metadata, id) {
         .attr("transform", `translate(0,${yScale(0)})`)
         .call(xAxis);
 
-    // Labels hover (existants)
+    // Labels hover
     const dateText = g.append("text")
         .attr("class", "hover-date")
         .attr("x", 0).attr("y", -5)
@@ -533,44 +502,48 @@ function createVectorPlot(data, metadata, id) {
 
     // État du brush
     let isBrushing = false;
+    let brush, brushGroup, brushDurationLabel;
 
-    // Brush - Label de durée uniquement
-    const brushDurationLabel = g.append("text")
-        .attr("class", "brush-duration-label")
-        .attr("x", innerWidth / 2).attr("y", -5)
-        .attr("text-anchor", "middle")
-        .style("font-size", "9px")
-        .style("display", "none");
+    // Créer le brush seulement si fullUse est true
+    if (fullUse) {
+        // Label de durée
+        brushDurationLabel = g.append("text")
+            .attr("class", "brush-duration-label")
+            .attr("x", innerWidth / 2).attr("y", -5)
+            .attr("text-anchor", "middle")
+            .style("font-size", "9px")
+            .style("display", "none");
 
-    // Brush group
-    const brush = d3.brushX()
-        .extent([[0, 0], [innerWidth, innerHeight]])
-        .on("start", brushStarted)
-        .on("brush", brushBrushed)
-        .on("end", brushEnded);
+        // Brush group
+        brush = d3.brushX()
+            .extent([[0, 0], [innerWidth, innerHeight]])
+            .on("start", brushStarted)
+            .on("brush", brushBrushed)
+            .on("end", brushEnded);
 
-    const brushGroup = g.append("g")
-        .attr("class", "brush")
-        .call(brush);
+        brushGroup = g.append("g")
+            .attr("class", "brush")
+            .call(brush);
 
-    // Double-clic pour reset
-    brushGroup.select(".overlay")
-        .on("dblclick", (event) => {
-            event.stopPropagation();
-            resetZoom();
-        });
+        // Double-clic pour reset
+        brushGroup.select(".overlay")
+            .on("dblclick", (event) => {
+                event.stopPropagation();
+                resetZoom();
+            });
+    }
 
-    // Gestionnaires du brush
+    // Gestionnaires du brush (définis seulement si fullUse est true)
     function brushStarted() {
+        if (!fullUse) return;
         isBrushing = true;
         brushDurationLabel.style("display", null);
-        // Masquer les labels de hover pendant le brush
         dateText.style("opacity", 0);
         valueText.style("opacity", 0);
     }
 
     function brushBrushed(event) {
-        if (!event.selection) return;
+        if (!fullUse || !event.selection) return;
         const [mouseX] = d3.pointer(event, event.sourceEvent.currentTarget);
         const [x0, x1] = event.selection;
         const startDate = xScale.invert(x0);
@@ -581,11 +554,13 @@ function createVectorPlot(data, metadata, id) {
         brushDurationLabel
             .text(`${days.toFixed(1)} Days`)
             .attr("x", mouseX)
-            .style("fill", duration < 12 * 60 * 60 * 1000 ? "#888" : "#e74c3c")
-            .style("font-weight", duration < 12 * 60 * 60 * 1000 ? "normal" : "bold");
+            .style("fill", duration < 60 * 60 * 1000 ? "#888" : "#e74c3c") // 1h minimum
+            .style("font-weight", duration < 60 * 60 * 1000 ? "normal" : "bold");
     }
 
-    function brushEnded(event) {
+    async function brushEnded(event) {
+        if (!fullUse) return;
+        
         brushDurationLabel.style("display", "none");
         
         if (!event.selection) {
@@ -598,97 +573,78 @@ function createVectorPlot(data, metadata, id) {
         const endDate = xScale.invert(x1);
         const duration = endDate - startDate;
         
-        // Annuler la sélection visuelle
         brushGroup.call(brush.move, null);
         isBrushing = false;
         
-        // Validation durée minimale (12h)
-        const minDuration = 12 * 60 * 60 * 1000;
+        // Validation durée minimale (1h)
+        const minDuration = 60 * 60 * 1000;
         if (duration < minDuration) return;
         
-        // Filtrer les données sur la plage
+        // Mettre à jour les variables globales
+        WIND.Start = startDate.toISOString().split('.')[0] + 'Z';
+        WIND.End = endDate.toISOString().split('.')[0] + 'Z';
+        
+        // Filtrer les données pour le zoom visuel immédiat
         const filteredData = processedData.filter(d => 
             d.date >= startDate && d.date <= endDate
         );
         
         if (filteredData.length === 0) return;
         
-        // Mettre à jour le domaine X
+        // Mettre à jour les domaines
         xScale.domain([startDate, endDate]);
-        
-        // Recalculer le domaine Y sur les données filtrées
         const newMaxSpeed = d3.max(filteredData, d => d.Vy) || 1;
         const newMinSpeed = d3.min(filteredData, d => d.Vy) || -1;
         yScale.domain([newMinSpeed, newMaxSpeed]);
-        
-        // Recalculer le coefficient de proportionalité
         coef = (yScale.range()[0] - yScale.range()[1]) / (yScale.domain()[1] - yScale.domain()[0]);
         
-        // Mettre à jour l'axe X avec transition
-        xAxisGroup
-            .transition()
-            .duration(750)
+        // Transitions
+        xAxisGroup.transition().duration(750)
             .call(d3.axisBottom(xScale).ticks(3).tickFormat(d3.timeFormat("%d/%m")).tickSize(4));
         
-        // Mettre à jour la ligne zéro
-        g.select(".zero-line")
-            .transition()
-            .duration(750)
-            .attr("y1", yScale(0))
-            .attr("y2", yScale(0));
-        
-        // Mettre à jour les flèches
-        arrows.select(".hair")
-            .transition()
-            .duration(750)
+        arrows.select(".hair").transition().duration(750)
             .attr("x1", d => xScale(d.date))
             .attr("x2", d => xScale(d.date) + d.Ux * coef)
             .attr("y2", d => yScale(d.Vy));
 
-        arrows.select(".hair-hit")
-            .transition()
-            .duration(750)
+        arrows.select(".hair-hit").transition().duration(750)
             .attr("x1", d => xScale(d.date))
             .attr("x2", d => xScale(d.date) + d.Ux * coef)
             .attr("y2", d => yScale(d.Vy));
+        
+        // Recharger les données depuis l'API et reconstruire les visualisations
+        try {
+            const sensor = metadata.measurement.speed[0];
+            const prefix = sensor.includes('_') ? sensor.split(':')[1].split('_')[0] + '_' : '';
+            
+            const vectorBaseUrl = url.split('?')[0];
+            const vectorUrl = `${vectorBaseUrl}?stepCount=1000&startDate=${WIND.Start}&endDate=${WIND.End}`;
+            
+            const vectorResponse = await fetch(vectorUrl, { cache: 'no-store' });
+            const vectorData = await vectorResponse.json();
+            
+            if (vectorData.success) {
+                createVectorPlot(vectorData.data, vectorData.metadata, id, fullUse, url);
+                
+                const roseBaseUrl = url.split('/WindVectors')[0];
+                const roseUrl = `${roseBaseUrl}/WindRose?prefix=${prefix}`;
+                loadRosePlot('windRoses-container', roseUrl);
+            }
+        } catch (error) {
+            console.error('Erreur lors du rechargement des données:', error);
+        }
     }
 
     function resetZoom() {
-        // Restaurer domaines originaux
-        xScale.domain(d3.extent(processedData, d => d.date));
-        const originalMaxSpeed = d3.max(processedData, d => d.Vy) || 1;
-        const originalMinSpeed = d3.min(processedData, d => d.Vy) || -1;
-        yScale.domain([originalMinSpeed, originalMaxSpeed]);
+        if (!fullUse) return;
         
-        coef = (yScale.range()[0] - yScale.range()[1]) / (yScale.domain()[1] - yScale.domain()[0]);
-        
-        // Mettre à jour l'axe X
-        xAxisGroup
-            .transition()
-            .duration(750)
-            .call(d3.axisBottom(xScale).ticks(3).tickFormat(d3.timeFormat("%d/%m")).tickSize(4));
-        
-        // Mettre à jour la ligne zéro
-        g.select(".zero-line")
-            .transition()
-            .duration(750)
-            .attr("y1", yScale(0))
-            .attr("y2", yScale(0));
-        
-        // Mettre à jour les flèches
-        arrows.select(".hair")
-            .transition()
-            .duration(750)
-            .attr("x1", d => xScale(d.date))
-            .attr("x2", d => xScale(d.date) + d.Ux * coef)
-            .attr("y2", d => yScale(d.Vy));
-
-        arrows.select(".hair-hit")
-            .transition()
-            .duration(750)
-            .attr("x1", d => xScale(d.date))
-            .attr("x2", d => xScale(d.date) + d.Ux * coef)
-            .attr("y2", d => yScale(d.Vy));
+        // Recharger complètement les visualisations avec les paramètres d'origine
+        if (WIND.Container && WIND.Url && WIND.Sensor && WIND.Period) {
+            loadWindPlots(WIND.Container, WIND.Url, WIND.Sensor, WIND.Period);
+        } else {
+            // Fallback si les paramètres ne sont pas disponibles
+            console.warn('Paramètres de rechargement non disponibles');
+        }
     }
 
     // Flèches (filtrées sur spdOriginal > 0.01)
@@ -718,11 +674,11 @@ function createVectorPlot(data, metadata, id) {
         .attr("stroke-width", 1)
         .attr("marker-end", `url(#arrowhead-${id})`);
 
-    // Hover effects (désactivés pendant le brush)
+    // Hover effects (TOUJOURS ACTIFS, seulement désactivés si isBrushing)
     arrows
         .on("mouseover", function(event, d) {
-            if (isBrushing) return;
-            
+            if (isBrushing) return; // Seul le brush désactive les hovers
+                
             d3.select(this).select(".hair")
                 .attr("stroke", "#e74c3c")
                 .attr("stroke-width", 2)
@@ -754,7 +710,7 @@ function createVectorPlot(data, metadata, id) {
         });
 }
 
-async function loadVectorPlot(id, url, fullUse=false) {
+async function loadVectorPlot(id, url, fullUse = false) {
     const chartDiv = document.getElementById(id);
     if (!chartDiv) {
         console.error(`Div with ID ${id} not found`);
@@ -764,7 +720,7 @@ async function loadVectorPlot(id, url, fullUse=false) {
     try {
         const apiResponse = await fetchWithCache(url);
         if (apiResponse.success && Object.keys(apiResponse.data).length > 0) {
-            createVectorPlot(apiResponse.data, apiResponse.metadata, id);
+            createVectorPlot(apiResponse.data, apiResponse.metadata, id, fullUse, url);
         } else {
             chartDiv.innerHTML = `<div class="error-message">Aucune donnée de vent disponible.</div>`;
         }
@@ -776,24 +732,38 @@ async function loadVectorPlot(id, url, fullUse=false) {
 
 const WIND = {
     Start: null,
-    End: null
+    End: null,
+    Container: null,
+    Url: null,
+    Sensor: null,
+    Period: null
 };
-async function loadWindPlots(windContainer, url, sensor, period='7d') {
-        WIND.Start = getStartDate(period);
-        WIND.End = new Date().toISOString().split('.')[0] + 'Z';
-        let prefix = '';
-        if (sensor.includes('_')) {
-            prefix = sensor.split(':')[1].split('_')[0] + '_';
-        }
-        windContainer.innerHTML = `
-            <div class="wind-details-grid">
-                <div class="wind-top-row" id="windRoses-container"></div>
-                <div class="wind-bottom-row" id="vector-container"></div>
-            </div>
-        `;
-        // global windStart and windEnd, pour transmettre l'intervale du brush entre rose et vecteur
-        const roseUrl = `${url}/WindRose?prefix=${prefix}`; // prefix peut être vide ou 'open-meteo_'
-        loadRosePlot('windRoses-container', roseUrl);
-        const vectorUrl = `${url}/WindVectors/${sensor.split(':')[1]}?stepCount=600&startDate=${WIND.Start}&endDate=${WIND.End}`;
-        loadVectorPlot('vector-container', vectorUrl, true);
+
+async function loadWindPlots(windContainer, url, sensor, period = '30d') {
+    // Stocker les paramètres pour rechargement ultérieur
+    WIND.Container = windContainer;
+    WIND.Url = url;
+    WIND.Sensor = sensor;
+    WIND.Period = period;
+    
+    WIND.Start = getStartDate(period);
+    WIND.End = new Date().toISOString().split('.')[0] + 'Z';
+    
+    let prefix = '';
+    if (sensor.includes('_')) {
+        prefix = sensor.split(':')[1].split('_')[0] + '_';
+    }
+    
+    windContainer.innerHTML = `
+        <div class="wind-details-grid">
+            <div class="wind-top-row" id="windRoses-container"></div>
+            <div class="wind-bottom-row" id="vector-container"></div>
+        </div>
+    `;
+    
+    const roseUrl = `${url}/WindRose?prefix=${prefix}`;
+    loadRosePlot('windRoses-container', roseUrl);
+    
+    const vectorUrl = `${url}/WindVectors/${sensor.split(':')[1]}?stepCount=600&startDate=${WIND.Start}&endDate=${WIND.End}`;
+    loadVectorPlot('vector-container', vectorUrl, true); // fullUse = true en dur
 }
