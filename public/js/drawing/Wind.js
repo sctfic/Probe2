@@ -732,18 +732,23 @@ function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
                 .attr("stroke-width", 2)
                 .attr("marker-end", `url(#arrowheadHover-${id})`);
             
+            // Date sur 2 lignes
             const dateStr = d.date.toLocaleString('fr-FR', {
                 dateStyle: "medium",
                 timeStyle: "short"
             });
-            
-            dateText.text(dateStr)
-                .transition().duration(100)
-                .style("opacity", 1);
-            
-            valueText.text(`${d.spd} ${unit} • ${d.dir}°`)
-                .transition().duration(100)
-                .style("opacity", 1);
+            const dateParts = dateStr.split(', ');
+                        
+            dateText.selectAll('tspan').remove();
+            dateText.append('tspan').attr('x', 0).attr('dy', 0).text(dateParts[0]);
+            dateText.append('tspan').attr('x', 0).attr('dy', '1.2em').text(dateParts[1] || '');
+            dateText.transition().duration(100).style("opacity", 1);
+
+            // Valeurs sur 2 lignes
+            valueText.selectAll('tspan').remove();
+            valueText.append('tspan').attr('x', innerWidth).attr('dy', 0).attr('text-anchor', 'end').text(`${d.spd} ${unit}`);
+            valueText.append('tspan').attr('x', innerWidth).attr('dy', '1.2em').attr('text-anchor', 'end').text(`${d.dir}°`);
+            valueText.transition().duration(100).style("opacity", 1);
         })
         .on("mouseout", function() {
             if (isBrushing) return;
@@ -795,8 +800,12 @@ async function loadWindPlots(windContainer, url, sensor, period = '3y') {
     WIND.Sensor = sensor;
     WIND.Period = period;
     
+    const now = new Date();
+    WIND.End = new Date(now.setDate(now.getDate() + 1));
+    WIND.End = WIND.End.setHours(0,0,0,0)
+    WIND.End = new Date(WIND.End).toISOString().split('.')[0] + 'Z'
     WIND.Start = getStartDate(period);
-    WIND.End = new Date().toISOString().split('.')[0] + 'Z';
+
     
     let prefix = '';
     if (sensor.includes('_')) {

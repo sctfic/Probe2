@@ -66,7 +66,7 @@ exports.getStationInfo = async (req, res) => {
  * @returns {Promise<object>} The weather data object enriched with calculated values.
  */
 async function getCompositeProbes(weatherData, stationConfig) {
-    console.log(`${V.info} Calculating composite probes for current conditions`, weatherData    );
+    console.log(`${V.info} Calculating composite probes for current conditions`);
     try {
         // 1. Prepare script context (can be cached for performance)
         const scriptContext = {};

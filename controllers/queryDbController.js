@@ -397,7 +397,7 @@ exports.getQueryRaws = async (req, res) => {
                 });
                 
                 // Ajouter les valeurs composites pour ce timestamp
-                console.log(`Adding composite values for timestamp: ${timestamp}`, calcDataResults);
+                // console.log(`Adding composite values for timestamp: ${timestamp}`, calcDataResults);
                 calcDataResults.forEach(({ sensorRef, data }) => {
                     const matchingPoint = data.find(point => point.d === timestamp);
                     if (matchingPoint) {

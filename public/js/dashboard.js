@@ -632,10 +632,10 @@ function getStartDate (period){
         date = new Date((new Date(`${str}T00:00:00.000Z`)).getTime());
         console.log(str, date);
     } else {
-        if(typeof period === 'string'){
+        if (typeof period === 'string'){
             const P = eval(period.replace('y', '*365*24*60*60').replace('M', '*30*24*60*60').replace('w', '*24*60*60*7').replace('d', '*24*60*60').replace('h', '*60*60').replace('m', '*60'));
             date = new Date((Math.round((new Date()).getTime()/1000) - P)*1000);
-        }else{
+        } else {
             date = new Date((Math.round((new Date()).getTime()/1000) - period)*1000);
         }
     }
@@ -909,7 +909,7 @@ function showDetailsFooter(keys) {
     
     // Special case for wind rose
     if (items.some(i => i.measurement === 'direction' || i.sensorDb.startsWith('vector:') || i.sensorDb.startsWith('rose:'))) {
-        loadWindPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}`, firstItem.key);
+        loadWindPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}`, firstItem.sensorDb);
         return;
     }
 
