@@ -8,7 +8,7 @@
 class QueryManager {
     constructor(options = {}) {
         this.cache = new Map();
-        this.defaultCacheDuration = options.cacheDuration || 10000; // 10 secondes
+        this.defaultCacheDuration = options.cacheDuration || 1*60*1000; // 1 minute
         this.defaultRetries = options.retries || 2; // 2 tentatives
         this.defaultRetryDelay = options.retryDelay || 1500; // 1.5 secondes
 
@@ -22,9 +22,14 @@ class QueryManager {
     cleanCache() {
         const now = Date.now();
         for (const [url, cached] of this.cache.entries()) {
-            if (cached.status === 'resolved' && now > cached.expiresAt) {
+            if (cached.status === 'resolved' && now >= cached.expiresAt) {
                 this.cache.delete(url);
                 // console.log(`[QueryManager] Cache cleaned for: ${url}`);
+            }
+            // Supprimer les entrées pending trop anciennes (> 5 min) pour éviter les fuites mémoire
+            if (cached.status === 'pending' && now - cached.createdAt > 5 * 60 * 1000) {
+                console.warn(`[QueryManager] Removing stale pending entry for: ${url}`);
+                this.cache.delete(url);
             }
         }
     }
@@ -42,7 +47,7 @@ class QueryManager {
             for (const url of this.cache.keys()) {
                 if (url.includes(pattern)) {
                     this.cache.delete(url);
-                    console.log(`[QueryManager] Cache invalidated for URL matching "${pattern}": ${url}`);
+                    // console.log(`[QueryManager] Cache invalidated for URL matching "${pattern}": ${url}`);
                 }
             }
         }
@@ -57,27 +62,35 @@ class QueryManager {
      * @returns {Promise<object>} Une promesse qui résout avec la réponse de l'API.
      */
     async query(url, options = {}) {
-        this.cleanCache();
         const now = Date.now();
         const cached = this.cache.get(url);
 
         // 1. Vérifier le cache
         if (cached) {
             if (cached.status === 'pending') {
+                // console.log(`[QueryManager] Cache HIT (pending) for: ${url}`);
                 return cached.promise; // Requête déjà en cours
             }
             if (cached.status === 'resolved' && now < cached.expiresAt) {
+                // console.log(`[QueryManager] Cache HIT (resolved) for: ${url}, expires in ${Math.round((cached.expiresAt - now) / 1000)}s`);
                 return Promise.resolve(cached.data); // Donnée fraîche du cache
             }
+            // Entrée expirée ou invalide, la supprimer
+            // console.log(`[QueryManager] Cache entry expired for: ${url}`);
+            this.cache.delete(url);
+        } else {
+            // console.log(`[QueryManager] Cache MISS for: ${url}`);
         }
 
         // 2. Lancer la requête avec tentatives multiples
         const retries = options.retries ?? this.defaultRetries;
         const cacheDuration = options.cacheDuration ?? this.defaultCacheDuration;
 
+        // Créer la promesse de fetch
         const fetchPromise = this._fetchWithRetries(url, { method: 'GET' }, retries)
             .then(apiResponse => {
                 // Mettre à jour le cache avec la réponse
+                // console.log(`[QueryManager] Storing in cache for ${cacheDuration}ms: ${url}`);
                 this.cache.set(url, {
                     status: 'resolved',
                     expiresAt: Date.now() + cacheDuration,
@@ -87,14 +100,17 @@ class QueryManager {
             })
             .catch(error => {
                 this.cache.delete(url); // Supprimer du cache en cas d'échec final
+                console.error(`[QueryManager] Request failed, removed from cache: ${url}`);
                 throw error;
             });
 
-        // Stocker la promesse en cours pour éviter les requêtes parallèles
+        // 3. Stocker la promesse en cours pour éviter les requêtes parallèles
+        //    IMPORTANT: Stocker AVANT de retourner pour prévenir les race conditions
         this.cache.set(url, {
             status: 'pending',
             promise: fetchPromise,
-            expiresAt: 0 // N'expire pas tant qu'elle est en cours
+            createdAt: now, // Pour nettoyer les stale pending entries
+            expiresAt: 0
         });
 
         return fetchPromise;

@@ -639,6 +639,7 @@ function getStartDate (period){
             date = new Date((Math.round((new Date()).getTime()/1000) - period)*1000);
         }
     }
+    date.setHours(0,0,0,0);
     return date.toISOString().split('.')[0] + 'Z';
 }
 

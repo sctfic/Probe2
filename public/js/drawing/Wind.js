@@ -374,7 +374,8 @@ async function loadRosePlot(id, url) {
     }
 
     try {
-        const apiResponse = await fetchWithCache(url+`&startDate=${WIND.Start}&endDate=${WIND.End}`);
+        // Cache de 10 minutes pour les données des roses de vent
+        const apiResponse = await queryManager.query(url+`&startDate=${WIND.Start}&endDate=${WIND.End}`, { cacheDuration: 10 * 60 * 1000 });
         if (apiResponse.success && Object.keys(apiResponse.data).length > 0) {
             createRosePlot(apiResponse.data, apiResponse.metadata, id);
         } else {
@@ -620,8 +621,8 @@ function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
             const vectorBaseUrl = url.split('?')[0];
             const vectorUrl = `${vectorBaseUrl}?stepCount=1000&startDate=${WIND.Start}&endDate=${WIND.End}`;
             
-            const vectorResponse = await fetch(vectorUrl, { cache: 'no-store' });
-            const vectorData = await vectorResponse.json();
+            // Cache de 30 secondes pour les données vecteur lors du brush
+            const vectorData = await queryManager.query(vectorUrl, { cacheDuration: 30 * 1000 });
             
             if (vectorData.success) {
                 createVectorPlot(vectorData.data, vectorData.metadata, id, fullUse, url);
@@ -718,7 +719,8 @@ async function loadVectorPlot(id, url, fullUse = false) {
     }
 
     try {
-        const apiResponse = await fetchWithCache(url);
+        // Cache de 30 secondes pour les données vectorielles
+        const apiResponse = await queryManager.query(url, { cacheDuration: 30 * 1000 });
         if (apiResponse.success && Object.keys(apiResponse.data).length > 0) {
             createVectorPlot(apiResponse.data, apiResponse.metadata, id, fullUse, url);
         } else {
@@ -747,7 +749,7 @@ async function loadWindPlots(windContainer, url, sensor, period = '30d') {
     WIND.Period = period;
     
     WIND.Start = getStartDate(period);
-    WIND.End = new Date().toISOString().split('.')[0] + 'Z';
+    WIND.End = '';
     
     let prefix = '';
     if (sensor.includes('_')) {
