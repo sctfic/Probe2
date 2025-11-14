@@ -67,9 +67,8 @@
     },
     "lastArchiveDate": "2025-10-01 19:15",
     "cron": {
-        "comment": "Cron interval de collecte des données de la station",
-        "enabled": false,
         "value": 5,
+        "enabled": false,
         "openMeteo": false
     },
     "deltaTimeSeconds": 1.47,
