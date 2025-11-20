@@ -1,4 +1,4 @@
-// js/Wind.js - Graphique de vecteurs avec brush optionnel et Rose de vent
+// js/drawing/Wind.js - Graphique de rose des vents et histo vecteurs avec brush optionnel
 
 // =======================================
 //  Construction de la Rose de vent
@@ -365,7 +365,7 @@ function createRosePlot(data, metadata, id) {
     plotProbabilityRose(aggregatedData, '#prob-rose-container', height);
     plotSpeedRose(aggregatedData, '#speed-rose-container', height); 
 }
-
+// Build seulement les 2 diagrammes de rose des vents dans le container spécifié
 async function loadRosePlot(id, url) {
     const chartDiv = document.getElementById(id);
     if (!chartDiv) {
@@ -763,6 +763,7 @@ function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
         });
 }
 
+// Build seulement le diagramme de vecteurs dans le container spécifié
 async function loadVectorPlot(id, url, fullUse = false) {
     const chartDiv = document.getElementById(id);
     if (!chartDiv) {
@@ -793,6 +794,7 @@ const WIND = {
     Period: null
 };
 
+// build les diagrammes de vent (roses + vecteurs) dans le container spécifié
 async function loadWindPlots(windContainer, url, sensor, period = '3y') {
     // Stocker les paramètres pour rechargement ultérieur
     WIND.Container = windContainer;

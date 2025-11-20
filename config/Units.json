@@ -100,7 +100,7 @@
     "direction": {
         "title": "Direction",
         "description": "Unités de mesure de la direction cardinales",
-        "user": "cardinal",
+        "user": "°",
         "metric": "°",
         "available_units": {
             "°": {

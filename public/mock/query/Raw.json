@@ -1,39 +1,40 @@
 {
     "success": true,
-    "message": "(!) Last value is current !",
+    "message": "Calculated data loaded!",
     "metadata": {
         "stationId": "VP2_Serramoune",
-        "measurement": "pressure",
-        "sensor": "barometer",
-        "queryTime": "2025-08-29T00:27:30.962Z",
-        "first": "2025-08-19T16:55:00.000Z",
-        "last": "2025-08-28T22:20:00.000Z",
-        "intervalSeconds": 199275,
-        "count": 5,
-        "unit": "hpa",
-        "userUnit": "Bar",
-        "toUserUnit": "(hpa) => hpa/1000"
+        "gps": {
+            "latitude": 43.2,
+            "longitude": -0.5,
+            "altitude": 242.01
+        },
+        "measurement": "temperature",
+        "sensor": "THSW_calc",
+        "queryTime": "2025-11-19T10:06:39.330Z",
+        "first": "2025-11-11T23:00:00Z",
+        "last": "2025-11-19T10:05:00Z",
+        "intervalSeconds": 2700,
+        "count": 240,
+        "unit": "K",
+        "userUnit": "°C",
+        "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
     },
     "data": [
         {
-            "d": "2025-08-21T21:33:45Z",
-            "v": 1021.58
+            "d": "2025-11-11T23:15:00Z",
+            "v": 280.9
         },
         {
-            "d": "2025-08-24T04:55:00Z",
-            "v": 1023.27
+            "d": "2025-11-12T00:00:00Z",
+            "v": 280.6
         },
         {
-            "d": "2025-08-26T12:16:15Z",
-            "v": 1013.62
+            "d": "2025-11-12T00:45:00Z",
+            "v": 280.3
         },
         {
-            "d": "2025-08-28T19:37:30Z",
-            "v": 1011.92
-        },
-        {
-            "d": "2025-08-28T22:20:00Z",
-            "v": 1014.48
+            "d": "2025-11-12T01:30:00Z",
+            "v": 280
         }
     ]
 }

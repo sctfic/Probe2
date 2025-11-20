@@ -72,6 +72,6 @@
         "enabled": false,
         "openMeteo": false
     },
-    "deltaTimeSeconds": 1.47,
+    "deltaTimeSeconds": 1.48,
     "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\VP2_Serramoune.json"
 }

@@ -890,34 +890,28 @@ function showDetailsFooter(keys) {
 
     const items = keysArray.map(key => allConditions.find(c => c.key === key)).filter(Boolean);
     console.log(items)
-    if (items.length === 0) return;
-
     // S'assurer que le footer n'est pas caché par l'animation initiale
     detailsFooter.classList.remove('hidden-animated');
-
     // Affiche le footer
     detailsFooter.classList.add('details-open');
-    
-    // Utilise le premier item pour les propriétés communes comme la période
-    const firstItem = items[0];
-
-    const sensorDbs = items.map(i => i.sensorDb).filter(Boolean);
-    if (sensorDbs.length === 0) {
-        contentContainer.innerHTML = `<div class="error-message">Aucun capteur avec historique dans la sélection.</div>`;
-        return;
+    if (items.length === 1) {
+       // Special case for wind (rose & vector)
+        if (items[0].measurement === 'direction' || items[0].sensorDb.startsWith('vector:')) {
+            loadWindPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}`, items[0].sensorDb);
+        } else {
+            loadSpiralePlot(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raw/${items[0].sensorDb}`, 0);
+        }
+    } else if (items.length > 1) {
+        const sensorDbs = items.map(i => i.sensorDb.replace('vector:', 'speed:')).filter(Boolean);
+        if (sensorDbs.length === 0) {
+            contentContainer.innerHTML = `<div class="error-message">Aucun capteur avec historique dans la sélection.</div>`;
+            return;
+        }
+        const chartId = `details_chart_`;
+        contentContainer.innerHTML = `<div id="${chartId}" style="width: 100%; height: 100%;"></div>`;
+        const sensorsQuery = sensorDbs.join(',');
+        mainPlots(chartId, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}`,getStartDate('1y'));
     }
-    
-    // Special case for wind rose
-    if (items.some(i => i.measurement === 'direction' || i.sensorDb.startsWith('vector:') || i.sensorDb.startsWith('rose:'))) {
-        loadWindPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}`, firstItem.sensorDb);
-        return;
-    }
-
-    const chartId = `details_chart_`;
-    contentContainer.innerHTML = `<div id="${chartId}" style="width: 100%; height: 100%;"></div>`;
-    const sensorsQuery = sensorDbs.join(',');
-    mainPlots(chartId, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}`,getStartDate('100d'));
-    
 }
 
 function hideDetailsFooter() {
