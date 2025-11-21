@@ -238,6 +238,10 @@ function getFilter(sensorRef) {
  */
 async function queryDateRange(stationId, sensorRef, startDate, endDate) {
     let filter = '';
+        // si sensorRef endsWith '_calc', on ne peut pas utiliser ce capteur pour determiner la plage de temps
+    if (sensorRef.endsWith('_calc') || sensorRef.endsWith('_trend')) {
+        sensorRef = 'pressure:barometer'; // capteur par defaut pour le calcul de la plage de temps
+    }
     if (sensorRef) {
         filter = getFilter(sensorRef);
     }

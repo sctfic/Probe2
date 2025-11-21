@@ -44,10 +44,6 @@ const handleError = (res, stationId, error, controllerName) => {
 
 async function getIntervalSeconds(stationId, sensorRef, startDate, endDate, stepCount = 10000) {
 
-    // si sensorRef endsWith '_calc', on ne peut pas utiliser ce capteur pour determiner la plage de temps
-    if (sensorRef.endsWith('_calc') || sensorRef.endsWith('_trend')) {
-        sensorRef = 'pressure:barometer'; // capteur par defaut pour le calcul de la plage de temps
-    }
     // 1. Récupère la plage de dates réelle des données
     const dateRange = await influxdbService.queryDateRange(stationId, sensorRef, startDate, endDate);
 
