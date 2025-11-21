@@ -899,7 +899,7 @@ function showDetailsFooter(keys) {
         if (items[0].measurement === 'direction' || items[0].sensorDb.startsWith('vector:')) {
             loadWindPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}`, items[0].sensorDb);
         } else {
-            loadSpiralePlot(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raw/${items[0].sensorDb}`, 0);
+            loadSpiralePlot(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raw/${items[0].sensorDb}?stepCount=100000&startDate=1970-01-01T00:00:00Z`);
         }
     } else if (items.length > 1) {
         const sensorDbs = items.map(i => i.sensorDb.replace('vector:', 'speed:')).filter(Boolean);

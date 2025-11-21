@@ -148,7 +148,7 @@ async function getCompositeProbes(weatherData, stationConfig) {
 async function getDbProbes(stationConfig) {
     try {
         // 1. Get all sensors with data in the last 7 days from InfluxDB
-        const dbData = await influxdbService.queryLast(stationConfig.id, '-7d', 'now()');
+        const dbData = await influxdbService.queryLast(stationConfig.id, '-17d', 'now()');
         // on surchage dbData avec les données de dbProbes
         for (const sensorKey of Object.keys(dbData)) {
             // console.log(sensorKey);

@@ -67,7 +67,7 @@
     },
     "lastArchiveDate": "2025-10-01 19:15",
     "cron": {
-        "comment": "cron intervale value, collect enabled status, expand data with openMeteo history and every day",
+        "comment": "cron intervale value, collect enabled status, expand data with openMeteo history and every day.",
         "value": 5,
         "enabled": false,
         "openMeteo": false

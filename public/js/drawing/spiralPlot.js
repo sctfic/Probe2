@@ -1,7 +1,7 @@
 // js/drawing/spiralePlot.js
 // =======================================
 //  Visualisation Spirale 3D (Time Helix)
-//  Version: UX Améliorée
+//  Version: UX Améliorée + Fix Dates Locales + Axes Dynamiques
 // =======================================
 
 async function loadSpiralePlot(container, url, grouping = 'day') {
@@ -21,6 +21,7 @@ async function loadSpiralePlot(container, url, grouping = 'day') {
         const convertFn = getConversionFunction(metadata);
         
         const processedData = apiResponse.data.map(item => {
+            // Création de la date en local
             const date = new Date(item.d);
             return {
                 date: date,
@@ -82,7 +83,13 @@ class SpiralePlot {
         this.hoverText = null;
         this.sidePanel = null;
         this.scales = {};
-        this.lastClickedPoint = null; // Stocke le point de focus
+        this.lastClickedPoint = null;
+        
+        // Drag optimization state
+        this.isDragging = false;
+        this.gAxes = null;
+        this.gLabels = null;
+        this.gSpiral = null;
         
         this.initScales();
         this.precompute3DCoordinates();
@@ -119,7 +126,18 @@ class SpiralePlot {
             const angle = this.getAngle(d.date);
             const r = this.scales.radius(d.val);
             const y = this.scales.z(d.date);
-            let periodKey = this.grouping === 'day' ? d.date.toISOString().split('T')[0] : d.date.getFullYear().toString();
+            
+            // CORRECTION: Utilisation des dates locales pour la clé de regroupement
+            // toISOString() convertissait en UTC, ce qui décalait la clé (ex: 23:00 J-1)
+            let periodKey;
+            if (this.grouping === 'day') {
+                const Y = d.date.getFullYear();
+                const M = String(d.date.getMonth() + 1).padStart(2, '0');
+                const D = String(d.date.getDate()).padStart(2, '0');
+                periodKey = `${Y}-${M}-${D}`;
+            } else {
+                periodKey = d.date.getFullYear().toString();
+            }
 
             return {
                 original: d,
@@ -144,7 +162,7 @@ class SpiralePlot {
     }
 
     injectStyles() {
-        const id = 'spiral-styles-v7';
+        const id = 'spiral-styles-v10';
         if (document.getElementById(id)) return;
         
         d3.select("head").append("style").attr("id", id).text(`
@@ -152,7 +170,7 @@ class SpiralePlot {
                 position: absolute; top: 0; right: 0; bottom: 0; width: 50%;
                 background: #1a1a1a;
                 border-left: 1px solid #333;
-                padding-left: 10px; /* Modifié: padding-left seulement */
+                padding-left: 10px;
                 display: flex; flex-direction: column; justify-content: center;
                 pointer-events: none; overflow: hidden;
             }
@@ -160,12 +178,11 @@ class SpiralePlot {
             .spiral-panel-content { opacity: 1; transition: opacity 0.3s; z-index: 2; position: relative; padding: 20px; }
             
             .panel-date { font-size: 1.2rem; color: #ddd; font-family: sans-serif; margin-bottom: 5px; }
-            .panel-val { font-size: 2.2rem; font-weight: 300; color: #fff; font-family: sans-serif; margin-bottom: 20px; }
             
             .spiral-controls {
-                position: absolute; top: 10px; right: 10px;
+                position: absolute; top: 10px; right: 50%;
                 display: flex; gap: 6px; z-index: 10; pointer-events: auto;
-                padding-right: 20px; /* Modifié */
+                padding-right: 20px;
             }
             .spiral-btn {
                 background: rgba(40,40,40,0.8); border: 1px solid #555; color: #eee;
@@ -182,7 +199,7 @@ class SpiralePlot {
             .grid-ring { fill: none; stroke: #444; stroke-width: 1; opacity: 0.2; pointer-events: none; }
             .axis-line { stroke: #444; stroke-width: 1; stroke-dasharray: 3,3; opacity: 0.3; pointer-events: none; }
             
-            .sp-line { cursor: pointer; } /* Curseur pointer sur les lignes */
+            .sp-line { cursor: pointer; }
             .mini-chart-hover-dot { pointer-events: none; }
         `);
     }
@@ -196,11 +213,11 @@ class SpiralePlot {
         this.svg = container.append("svg")
             .attr("width", "50%").attr("height", "100%")
             .style("background", "#151515")
-            .style("cursor", "auto"); // Curseur par défaut/auto, change uniquement au drag
+            .style("cursor", "auto");
 
         this.gAxes = this.svg.append("g");
-        this.gLabels = this.svg.append("g"); // Labels derrière
-        this.gSpiral = this.svg.append("g"); // Lignes devant
+        this.gLabels = this.svg.append("g");
+        this.gSpiral = this.svg.append("g");
         
         this.hoverText = this.gLabels.append("text")
             .attr("class", "svg-hover-date")
@@ -221,13 +238,20 @@ class SpiralePlot {
         this.updateView();
 
         const drag = d3.drag()
-            .on("start", () => this.svg.style("cursor", "grabbing"))
+            .on("start", () => {
+                this.isDragging = true;
+                this.svg.style("cursor", "grabbing");
+            })
             .on("drag", (e) => {
                 this.beta -= e.dx * 0.008;
                 this.alpha = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.alpha - e.dy * 0.008));
-                this.updateView();
+                this.updateViewDrag();
             })
-            .on("end", () => this.svg.style("cursor", "auto")); // Retour au curseur par défaut
+            .on("end", () => {
+                this.isDragging = false;
+                this.svg.style("cursor", "auto");
+                this.updateView();
+            });
         this.svg.call(drag);
     }
 
@@ -252,6 +276,7 @@ class SpiralePlot {
     }
 
     drawAxes() {
+        // Cette fonction est maintenant appelée pendant le drag, elle doit être efficace
         this.gAxes.selectAll("*").remove();
         this.gLabels.selectAll(".lbl-dyn").remove();
         const botY = this.scales.z.range()[1];
@@ -294,16 +319,52 @@ class SpiralePlot {
         });
         
         const pt = this.project(0, this.scales.z.range()[0], 0);
-        const pb = this.project(0, botY, 0);
+        const pb = this.project(0, this.scales.z.range()[1], 0);
         this.gAxes.append("line").attr("x1", pt[0]).attr("y1", pt[1]).attr("x2", pb[0]).attr("y2", pb[1]).style("stroke", "#555");
     }
 
-    updateView() {
+    // Fast update during drag with AXES UPDATE
+    updateViewDrag() {
+        // CORRECTION: On redessine les axes pendant le drag pour qu'ils suivent le mouvement
         this.drawAxes();
+
         const segs = [];
         for(let i=0; i<this.points3D.length-1; i++) {
-            const p1 = this.points3D[i]; const p2 = this.points3D[i+1];
-            const pr1 = this.project(p1.wx, p1.wy, p1.wz); const pr2 = this.project(p2.wx, p2.wy, p2.wz);
+            if (i % 6 !== 0) continue;
+            
+            const p1 = this.points3D[i];
+            const p2 = this.points3D[i+1];
+            const pr1 = this.project(p1.wx, p1.wy, p1.wz);
+            const pr2 = this.project(p2.wx, p2.wy, p2.wz);
+            
+            if(Math.max(pr1[1], pr2[1]) < -50 || Math.min(pr1[1], pr2[1]) > this.height+50) continue;
+            segs.push({ id: i, x1: pr1[0], y1: pr1[1], x2: pr2[0], y2: pr2[1], d: p1.original, periodKey: p1.periodKey, c: this.scales.color(p1.original.val) });
+        }
+
+        const lines = this.gSpiral.selectAll(".sp-line").data(segs, d=>d.id);
+        lines.exit().remove();
+        lines.enter().append("line").attr("class", "sp-line")
+            .merge(lines)
+            .attr("x1", d=>d.x1).attr("y1", d=>d.y1).attr("x2", d=>d.x2).attr("y2", d=>d.y2)
+            .attr("stroke", d=>d.c).attr("stroke-width", 1).attr("stroke-opacity", 0.8).attr("stroke-linecap", "round");
+    }
+
+    // Full update (static)
+    updateView() {
+        if (this.isDragging) {
+            this.updateViewDrag();
+            return;
+        }
+
+        this.drawAxes();
+        const segs = [];
+        
+        for(let i=0; i<this.points3D.length-1; i++) {
+            const p1 = this.points3D[i];
+            const p2 = this.points3D[i+1];
+            const pr1 = this.project(p1.wx, p1.wy, p1.wz);
+            const pr2 = this.project(p2.wx, p2.wy, p2.wz);
+            
             if(Math.max(pr1[1], pr2[1]) < -50 || Math.min(pr1[1], pr2[1]) > this.height+50) continue;
             segs.push({ id: i, x1: pr1[0], y1: pr1[1], x2: pr2[0], y2: pr2[1], d: p1.original, periodKey: p1.periodKey, c: this.scales.color(p1.original.val) });
         }
@@ -320,7 +381,8 @@ class SpiralePlot {
     }
 
     handleOver(e, d) {
-        // Le curseur est géré par la classe .sp-line
+        if (this.isDragging) return;
+
         this.gSpiral.selectAll(".sp-line").filter(seg => seg.periodKey === d.periodKey)
             .attr("stroke-width", 3).style("stroke-opacity", 1).style("filter", "brightness(1.5)");
         
@@ -334,7 +396,8 @@ class SpiralePlot {
     }
 
     handleClick(e, d) {
-        this.lastClickedPoint = d.d; // Sauvegarde le point de focus
+        if (this.isDragging) return;
+        this.lastClickedPoint = d.d;
         this.updateSidePanel(d.d, d.periodKey);
     }
 
@@ -366,9 +429,6 @@ class SpiralePlot {
         content.html(`
             <div class="panel-info">
                 <div id="panel-date-dyn" class="panel-date">${dateFmt(dataPoint.date)}</div>
-                <div class="panel-val" style="color:${color}">
-                    <span id="panel-val-dyn">${dataPoint.val.toFixed(1)}</span> <span style="font-size:0.5em; color:#888">${unit}</span>
-                </div>
                 <div style="font-size:11px; color:#666; margin-bottom:10px; text-transform:uppercase;">${pTitle}</div>
             </div>
             <div id="mini-chart-container" style="width:100%; height:200px; margin-top:10px; position:relative;"></div>
@@ -387,23 +447,9 @@ class SpiralePlot {
             container.innerHTML = '<div style="color:#444">Pas de données</div>';
             return;
         }
-
-        // --- Définition des échelles D3 pour l'interactivité (doivent correspondre à Plot) ---
-        const margin = { top: 16, right: 40, bottom: 20, left: 0 }; // Estimation des marges Plot
-        const chartWidth = container.clientWidth - margin.right - margin.left;
-        const chartHeight = (container.clientHeight || 200) - margin.top - margin.bottom;
-
-        const xDomain = d3.extent(data, d => d.date);
-        const yDomain = d3.extent(data, d => d.val);
-        const yPadding = (yDomain[1] - yDomain[0]) * 0.1;
-        yDomain[0] -= yPadding;
-        yDomain[1] += yPadding;
-
-        const xScale = d3.scaleTime().domain(xDomain).range([0, chartWidth]); 
-        const yScale = d3.scaleLinear().domain(yDomain).range([chartHeight, 0]);
-        const marksOffset = {x: margin.left, y: margin.top};
-
-        // --- Rendu Plot ---
+        
+        const margin = { top: 16, right: 40, bottom: 20, left: 0 };
+        
         try {
             const chart = Plot.plot({
                 width: container.clientWidth,
@@ -411,70 +457,30 @@ class SpiralePlot {
                 marginLeft: margin.left, marginBottom: margin.bottom, marginRight: margin.right, marginTop: margin.top,
                 style: { background: "transparent", color: "#aaa", fontSize: "10px" },
                 x: { type: "time", tickFormat: this.grouping === 'day' ? "%H:%M" : "%b", grid: false },
-                y: { axis: "right", grid: true, nice: true, label: null, tickFormat: d => d.toFixed(0) },
+                y: { 
+                    axis: "right", grid: true, nice: true, label: null, tickFormat: d => d.toFixed(0),
+                    domain: [d3.min(data, d => d.val), d3.max(data, d => d.val)]
+                },
                 marks: [
                     Plot.lineY(data, { x: "date", y: "val", stroke: this.scales.color(d3.mean(data, d=>d.val)), strokeWidth: 1.5, curve: "monotone-x" }),
-                    Plot.areaY(data, { x: "date", y: "val", fillOpacity: 0.1, fill: this.scales.color(d3.mean(data, d=>d.val)), curve: "monotone-x" }),
-                    Plot.dot([focusPoint], { x: "date", y: "val", fill: "red", stroke: "white", strokeWidth: 2, r: 4 })
+                    Plot.dot(data, Plot.pointerX({x: "date", y: "val", stroke: "red"})),
+                    Plot.text(data, Plot.pointerX({
+                        px: "date", py: "val", dy: -16, dx: 30,
+                        frameAnchor: "top-right",
+                        fontVariant: "tabular-nums",
+                        fontSize: "14px",
+                        text: (d) => ` ${d.val} ${this.options.unit}`
+                    })),
+                    Plot.text(data, Plot.pointerX({
+                        px: "date", py: "val", dy: -16,
+                        frameAnchor: "top-left",
+                        fontVariant: "tabular-nums",
+                        fontSize: "14px",
+                        text: (d) => `${d.date.toLocaleString('fr-FR',{'dateStyle':"medium",'timeStyle':"short"})} `
+                    }))
                 ]
             });
             container.appendChild(chart);
-            
-            // --- D3 Interaction Layer ---
-            const chartSvg = d3.select(chart);
-
-            // 1. Hover Dot
-            const hoverDot = chartSvg.append("circle")
-                .attr("r", 4)
-                .attr("fill", "yellow") 
-                .attr("stroke", "black")
-                .attr("stroke-width", 1)
-                .attr("opacity", 0)
-                .attr("class", "mini-chart-hover-dot");
-
-            // 2. Overlay pour le tracking souris
-            const overlay = d3.select(container).append("div")
-                .attr("class", "mini-chart-interaction")
-                .style("position", "absolute").style("top", "0").style("left", "0")
-                .style("width", "100%").style("height", "100%")
-                .style("cursor", "default"); // Modifié: retire le crosshair
-
-            const dateFmtLong = d3.timeFormat("%d %B %Y %H:%M");
-            const dateFmtShort = d3.timeFormat("%d %B %Y");
-
-            overlay.on("mousemove", (e) => {
-                const [mx] = d3.pointer(e);
-                const dateHover = xScale.invert(mx - marksOffset.x); // mx est absolu, on retire la translation X des marks
-                
-                // Trouver le point le plus proche
-                const idx = d3.bisector(d => d.date).left(data, dateHover, 1);
-                const d0 = data[idx - 1]; const d1 = data[idx];
-                const d = d1 && d0 ? (dateHover - d0.date > d1.date - dateHover ? d1 : d0) : (d0 || d1);
-                
-                if(d) {
-                    // Update Textes DOM
-                    d3.select("#panel-val-dyn").text(d.val.toFixed(1));
-                    d3.select("#panel-date-dyn").text(dateFmtLong(d.date));
-                    
-                    // Update Hover Dot position
-                    const px = xScale(d.date);
-                    const py = yScale(d.val);
-                    
-                    hoverDot
-                        .attr("cx", px + marksOffset.x)
-                        .attr("cy", py + marksOffset.y)
-                        .attr("fill", this.scales.color(d.val))
-                        .attr("opacity", 1);
-                }
-            }).on("mouseleave", () => {
-                // Reset aux valeurs du point cliqué (focusPoint)
-                if (this.lastClickedPoint) {
-                    d3.select("#panel-val-dyn").text(this.lastClickedPoint.val.toFixed(1));
-                    d3.select("#panel-date-dyn").text(dateFmtShort(this.lastClickedPoint.date));
-                }
-                hoverDot.attr("opacity", 0);
-            });
-
         } catch (e) { console.error("Erreur Plot:", e); }
     }
 }
