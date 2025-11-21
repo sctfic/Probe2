@@ -899,7 +899,7 @@ function showDetailsFooter(keys) {
         if (items[0].measurement === 'direction' || items[0].sensorDb.startsWith('vector:')) {
             loadWindPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}`, items[0].sensorDb);
         } else {
-            loadSpiralePlot(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raw/${items[0].sensorDb}?stepCount=100000&startDate=1970-01-01T00:00:00Z`);
+            loadSpiralePlot(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raw/${items[0].sensorDb}`);
         }
     } else if (items.length > 1) {
         const sensorDbs = items.map(i => i.sensorDb.replace('vector:', 'speed:')).filter(Boolean);
@@ -908,7 +908,7 @@ function showDetailsFooter(keys) {
             return;
         }
         const chartId = `details_chart_`;
-        contentContainer.innerHTML = `<div id="${chartId}" style="width: 100%; height: 100%;"></div>`;
+        contentContainer.innerHTML = `<div id="${chartId}" style="width: 100%; height: 100%;padding-top: 10px;"></div>`;
         const sensorsQuery = sensorDbs.join(',');
         mainPlots(chartId, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}`,getStartDate('1y'));
     }

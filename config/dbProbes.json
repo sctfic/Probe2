@@ -99,14 +99,14 @@
         "sensorDb": "humidity:open-meteo_outHumidity",
         "measurement": "humidity"
     },
-    "humidity:open-meteo_soilMoisture": {
+    "soilMoisture:open-meteo_soilMoisture": {
         "label": "Humidité Sol (Open-Meteo)",
         "comment": "Humidité du sol -9cm à -27cm (Open-Meteo)",
         "currentMap": null,
         "period": 604800,
         "groupUsage": "db",
         "groupCustom": "open-meteo",
-        "sensorDb": "humidity:open-meteo_soilMoisture",
+        "sensorDb": "soilMoisture:open-meteo_soilMoisture",
         "measurement": "humidity"
     },
     "humidity:outHumidity": {

@@ -1743,7 +1743,7 @@ input:checked+.slider:before {
 
 .chart-container {
     flex-grow: 1;
-    padding-top: 10px;
+    /* padding-top: 10px; */
     overflow: auto;
 }
 
@@ -2254,3 +2254,65 @@ input:checked+.slider:before {
         .legend rect {
             stroke: none;
         }
+
+    .spiral-side-panel {
+        position: absolute; top: 0; right: 0; bottom: 0; width: 50%;
+        background: #1a1a1a;
+        border-left: 1px solid #333;
+        padding-left: 10px;
+        display: flex; flex-direction: column; justify-content: center;
+        pointer-events: none; overflow: hidden;
+    }
+    .spiral-side-panel figure, .spiral-side-panel svg, .mini-chart-interaction { pointer-events: auto !important; }
+    .spiral-panel-content { opacity: 1; transition: opacity 0.3s; z-index: 2; position: relative; padding: 20px; }
+    
+    .panel-date { font-size: 1.2rem; color: #ddd; font-family: sans-serif; margin-bottom: 5px; }
+    
+    .spiral-controls {
+        position: absolute; top: 10px; right: 50%;
+        display: flex; gap: 6px; z-index: 10; pointer-events: auto;
+        padding-right: 20px;
+    }
+    .spiral-btn {
+        background: rgba(40,40,40,0.8); border: 1px solid #555; color: #eee;
+        padding: 5px 10px; font-size: 11px; border-radius: 4px; cursor: pointer;
+        font-family: sans-serif; transition: background 0.2s;
+    }
+    .spiral-btn:hover { background: #666; }
+
+    .svg-hover-date {
+        font-family: 'Segoe UI', sans-serif; font-weight: 900;
+        fill: rgba(255, 255, 255, 0.5); pointer-events: none; text-anchor: middle;
+    }
+    .axis-label { font-family: sans-serif; font-size: 10px; fill: #999; pointer-events: none; }
+    .grid-ring { fill: none; stroke: #444; stroke-width: 1; opacity: 0.2; pointer-events: none; }
+    .axis-line { stroke: #444; stroke-width: 1; stroke-dasharray: 3,3; opacity: 0.3; pointer-events: none; }
+    
+    /* --- GESTION DE LA PROXIMITÉ (Path) --- */
+    
+    /* Le Ghost Path : invisible, large de 5px, capture les clics */
+    .sp-ghost-path {
+        stroke: transparent;
+        stroke-width: 5px; /* Largeur de la zone de détection */
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        cursor: pointer;
+        pointer-events: stroke;
+    }
+
+    /* La ligne visible : purement décorative, ignore les events */
+    .sp-line { 
+        stroke-linecap: round; 
+        pointer-events: none; 
+    } 
+    
+    /* Effet de survol appliqué au groupe */
+    .period-group.hover-active .sp-line {
+        stroke-width: 4 !important;
+        stroke-opacity: 1 !important;
+        filter: drop-shadow(0 0 4px rgba(0,0,0,0.8));
+    }
+    
+    .sp-path { fill: none; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+    .mini-chart-hover-dot { pointer-events: none; }

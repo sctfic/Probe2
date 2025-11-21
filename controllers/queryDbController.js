@@ -45,7 +45,7 @@ const handleError = (res, stationId, error, controllerName) => {
 async function getIntervalSeconds(stationId, sensorRef, startDate, endDate, stepCount = 10000) {
 
     // si sensorRef endsWith '_calc', on ne peut pas utiliser ce capteur pour determiner la plage de temps
-    if (sensorRef.endsWith('_calc') || !sensorRef.endsWith('_trend')) {
+    if (sensorRef.endsWith('_calc') || sensorRef.endsWith('_trend')) {
         sensorRef = 'pressure:barometer'; // capteur par defaut pour le calcul de la plage de temps
     }
     // 1. Récupère la plage de dates réelle des données
@@ -613,9 +613,9 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             startDate = new Date(lastTimestamp);
             startDate.setDate(startDate.getDate() - 1); // Commence le jour suivant pour éviter les doublons
         } else {
-            console.log(`${V.info} Aucune donnée Open-Meteo existante. Récupération des 15 dernières années.`);
+            console.log(`${V.info} Aucune donnée Open-Meteo existante. Récupération des 50 dernières années.`);
             startDate = new Date();
-            startDate.setFullYear(endDate.getFullYear() - 15);
+            startDate.setFullYear(endDate.getFullYear() - 50); // Récupère les 50 dernières années
         }
         
         const openMeteoUrl = `https://archive-api.open-meteo.com/v1/archive`;
@@ -659,7 +659,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             'wind_gusts_10m': { type: 'speed', sensor: ['open-meteo_Gust'], convert: (v) => v / 3.6 }, // km/h -> m/s
             'wind_direction_10m': { type: 'direction', sensor: ['open-meteo_Wind', 'open-meteo_Gust'] },
             'soil_temperature_7_to_28cm': { type: 'temperature', sensor: ['open-meteo_soilTemp'], convert: (v) => v + 273.15 }, // °C -> K
-            'soil_moisture_7_to_28cm': { type: 'soilMoisture', sensor: ['open-meteo_soilMoisture'] },
+            'soil_moisture_7_to_28cm': { type: 'soilMoisture', sensor: ['open-meteo_soilMoisture'], convert: (v) => v * 100 },
             'pressure_msl': { type: 'pressure', sensor: ['open-meteo_barometer'] },
             'shortwave_radiation': { type: 'irradiance', sensor: ['open-meteo_solar'] }
         };
