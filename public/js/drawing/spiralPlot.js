@@ -1,7 +1,7 @@
 // js/drawing/spiralePlot.js
 // =======================================
 //  Visualisation Spirale 3D (Time Helix)
-//  Version: RADIAL GRADIENT 3D PLANAR + AUTO-LOAD LAST + CENTERED LOADER + PLAYBACK & HIGHLIGHT
+//  Version: DYNAMIC GRADIENT CENTER + AUTO-STOP ANIMATION + AUTO-LOAD LAST
 // =======================================
 
 /**
@@ -379,7 +379,11 @@ class SpiralePlot {
         this.svg = this.wrapper.append("svg")
             .attr("width", "100%").attr("height", "100%")
             .style("background", "#151515")
-            .style("cursor", "auto");
+            .style("cursor", "auto")
+            .on("click", () => {
+                // Arrêt de l'animation si on clique n'importe où sur le fond
+                if (this.isPlaying) this.togglePlay();
+            });
 
         this.defs = this.svg.append("defs");
 
@@ -551,43 +555,12 @@ class SpiralePlot {
     updateView(isDragging = false) {
         this.drawAxes();
         
-        // --- 1. CONFIGURATION DU GRADIENT RADIAL UNIQUE AVEC PROJECTION 3D ---
+        // --- 1. CONFIGURATION DES GRADIENTS ---
         this.defs.selectAll("*").remove();
 
-        const globalGradId = "spiral-global-radial";
-        
+        // Calcul de l'écrasement global pour la 3D (perspective)
         const scaleY = Math.max(0.01, Math.abs(Math.sin(this.alpha)));
-        const matrix = `translate(${this.centerX}, ${this.centerY}) scale(1, ${scaleY}) translate(${-this.centerX}, ${-this.centerY})`;
-
-        const radialGradient = this.defs.append("radialGradient")
-            .attr("id", globalGradId)
-            .attr("gradientUnits", "userSpaceOnUse")
-            .attr("cx", this.centerX)
-            .attr("cy", this.centerY)
-            .attr("r", this.radiusMax)
-            .attr("fx", this.centerX)
-            .attr("fy", this.centerY)
-            .attr("gradientTransform", matrix);
-
-        const stopCount = 20;
-        for (let i = 0; i <= stopCount; i++) {
-            const offset = i / stopCount;
-            const currentRadius = offset * this.radiusMax;
-            
-            let color;
-            if (currentRadius < this.radiusMin) {
-                const minVal = this.scales.radius.domain()[0];
-                color = this.scales.color(minVal);
-            } else {
-                const val = this.scales.radius.invert(currentRadius);
-                color = this.scales.color(val);
-            }
-
-            radialGradient.append("stop")
-                .attr("offset", `${offset * 100}%`)
-                .attr("stop-color", color);
-        }
-
+        
         const groupsData = [];
         const groupedPoints = d3.group(this.points3D, d => d.periodKey);
         const that = this;
@@ -627,8 +600,49 @@ class SpiralePlot {
             if (pathD !== "") {
                 let strokeRef = meanColor;
 
+                // --- CREATION DU GRADIENT SPECIFIQUE AVEC POSITION AJUSTÉE ---
                 if (that.colorMode !== 'mean') {
-                    strokeRef = `url(#${globalGradId})`;
+                    // Calcul du centre projeté pour CETTE spirale (dépend du temps / hauteur 'wy')
+                    // Le centre de la spirale en 3D est à (0, wy, 0)
+                    const centerProj = that.project(0, points[0].wy, 0);
+                    const cx = centerProj[0];
+                    const cy = centerProj[1];
+
+                    // Matrice de transformation locale : on déplace au centre calculé, on applique le scaleY, on revient
+                    const matrix = `translate(${cx}, ${cy}) scale(1, ${scaleY}) translate(${-cx}, ${-cy})`;
+
+                    // ID unique basé sur la clé de période
+                    const gradId = "grad-" + key.replace(/[^a-zA-Z0-9]/g, '-');
+                    strokeRef = `url(#${gradId})`;
+
+                    const radialGradient = that.defs.append("radialGradient")
+                        .attr("id", gradId)
+                        .attr("gradientUnits", "userSpaceOnUse")
+                        .attr("cx", cx)
+                        .attr("cy", cy)
+                        .attr("r", that.radiusMax)
+                        .attr("fx", cx)
+                        .attr("fy", cy)
+                        .attr("gradientTransform", matrix);
+
+                    const stopCount = 20;
+                    for (let i = 0; i <= stopCount; i++) {
+                        const offset = i / stopCount;
+                        const currentRadius = offset * that.radiusMax;
+                        
+                        let color;
+                        if (currentRadius < that.radiusMin) {
+                            const minVal = that.scales.radius.domain()[0];
+                            color = that.scales.color(minVal);
+                        } else {
+                            const val = that.scales.radius.invert(currentRadius);
+                            color = that.scales.color(val);
+                        }
+
+                        radialGradient.append("stop")
+                            .attr("offset", `${offset * 100}%`)
+                            .attr("stop-color", color);
+                    }
                 }
 
                 groupsData.push({ 
@@ -791,6 +805,19 @@ class SpiralePlot {
     }
 
     stepAnimation() {
+        // Sécurité : si le mini-chart n'est plus dans le DOM, on arrête tout
+        const chartContainer = document.getElementById("mini-chart-container");
+        if (!chartContainer || !chartContainer.isConnected) {
+            if (this.playInterval) clearInterval(this.playInterval);
+            this.isPlaying = false;
+            if (this.sidePanel) {
+                // Reset bouton si le panel existe encore (peu probable si container absent mais possible)
+                const btn = this.sidePanel.select("#btn-play-toggle");
+                if(!btn.empty()) btn.text("▶ Play").style("background", "");
+            }
+            return;
+        }
+
         if (!this.sortedKeys || this.sortedKeys.length === 0) return;
         
         let idx = this.sortedKeys.indexOf(this.currentPlayKey);
@@ -812,7 +839,7 @@ class SpiralePlot {
         // 3. On met en évidence le path
         targetGroup.select(".sp-vis-path")
             .attr("stroke-opacity", 1)
-            .attr("stroke-width", 3);
+            .attr("stroke-width", 1.5);
         
         // 4. On le met au premier plan (Z-Index)
         targetGroup.raise();
@@ -898,10 +925,10 @@ class SpiralePlot {
 
         statsContainer.innerHTML = `
             <div style="display:flex; justify-content:space-between; font-size:13px; color:#999; margin-bottom:6px; font-family:sans-serif; padding-bottom:4px;">
-                <span>Min: <b style="color:#ccc">${min.toFixed(1)}${this.options.unit}</b></span>
-                <span>Moy: <b style="color:${this.scales.colorMean(mean)}">${mean.toFixed(1)}${this.options.unit}</b></span>
-                <span>Max: <b style="color:#ccc">${max.toFixed(1)}${this.options.unit}</b></span>
-                <span>σ: <b style="color:#888">${std ? std.toFixed(1) : '-'}${this.options.unit}</b></span>
+                <span>Min: <b style="color:#ccc">${min.toFixed(1)}</b></span>
+                <span>Moy: <b style="color:${this.scales.colorMean(mean)}">${mean.toFixed(1)}</b></span>
+                <span>Max: <b style="color:#ccc">${max.toFixed(1)}</b></span>
+                <span>σ: <b style="color:#888">${std ? std.toFixed(1) : '-'}</b></span>
             </div>`;
 
         const yearRef = focusPoint.date.getFullYear();
