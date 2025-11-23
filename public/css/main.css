@@ -154,7 +154,7 @@ body {
     transform: translateX(0);
     transition: transform .3s ease-out;
     flex: 1;
-    overflow: hidden; /* Le scroll est géré par .content-section */
+    /* overflow: hidden; /* Le scroll est géré par .content-section */
     position: relative;
     box-sizing: border-box;
 }
@@ -2320,6 +2320,11 @@ input:checked+.slider:before {
         border-left: none;
         border-top: 1px solid #333;
     }
+    .footer {
+        position: sticky;
+        bottom: 0;
+        width: 100%;
+    }
 }
 
 .spiral-panel-content {
@@ -2376,8 +2381,20 @@ input:checked+.slider:before {
     font-family: 'Segoe UI', sans-serif;
     font-weight: 900;
     fill: rgba(255, 255, 255, 0.5);
+    /* fill: rgba(255, 255, 255, 0.5); */
     pointer-events: none;
     text-anchor: middle;
+}
+
+.spiral-tooltip {
+    background: rgba(20, 20, 20, 0.9);
+    border: 1px solid #555;
+    border-radius: 4px;
+    color: #eee;
+    font-family: sans-serif;
+    font-size: 12px;
+    padding: 8px;
+    line-height: 1.4;
 }
 
 .axis-label {
