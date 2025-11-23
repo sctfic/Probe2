@@ -1,7 +1,7 @@
 // js/drawing/spiralePlot.js
 // =======================================
 //  Visualisation Spirale 3D (Time Helix)
-//  Version: GRADIENT PATH ENCODING + OPTIMIZED DRAG + ADVANCED TOOLTIP
+//  Version: RADIAL GRADIENT + FIXED LAYOUT + PURPLE MEAN
 // =======================================
 
 /**
@@ -148,7 +148,7 @@ class SpiralePlot {
         this.width = this.rect.width || 800;
         this.height = this.rect.height || 600;
         
-        this.svgWidth = this.width * 0.5;
+        this.svgWidth = 480;
         this.centerX = this.svgWidth / 2; 
         this.centerY = this.height / 2;
 
@@ -160,12 +160,16 @@ class SpiralePlot {
         this.radiusMax = minDim * 0.40;
         this.spiralHeight = this.height * 0.65;
         
-        this.wrapper = null; // Conteneur gauche (Visualization)
-        this.sidePanel = null; // Conteneur droit (Details)
+        this.wrapper = null; 
+        this.sidePanel = null;
         this.svg = null;
-        this.defs = null; // Conteneur pour les gradients
+        this.defs = null;
         this.hoverText = null;
-        this.tooltip = null;
+        
+        // Tooltip SVG Group
+        this.gTooltip = null;
+        this.tooltipBg = null;
+        this.tooltipText = null;
         
         this.scales = {};
         
@@ -196,7 +200,6 @@ class SpiralePlot {
     }
 
     initScales() {
-        // Regroupement par période pour analyse
         const groups = d3.group(this.data, d => this.getPeriodKeyForDate(d.date));
         
         const counts = Array.from(groups.values()).map(g => g.length);
@@ -320,22 +323,21 @@ class SpiralePlot {
             .style("height", "100%")
             .style("overflow", "hidden");
 
-        // 1. WRAPPER (Visualisation)
+        // 1. WRAPPER (Visualisation) - Largeur fixe 480px
         this.wrapper = container.append("div")
             .attr("class", "relative-wrapper")
             .style("position", "relative")
-            .style("flex", "1") 
-            .style("min-width", "0")
+            .style("width", "480px") // Largeur fixe
+            .style("flex", "none")   // Ne pas étirer
             .style("height", "100%")
             .style("overflow", "hidden");
 
-        // 2. SIDE PANEL (Détails)
+        // 2. SIDE PANEL (Détails) - Occupe le reste
         this.sidePanel = container.append("div")
             .attr("class", "spiral-side-panel")
             .style("position", "relative") 
             .style("top", "auto").style("right", "auto").style("bottom", "auto")
-            .style("width", "350px")
-            .style("flex-shrink", "0") 
+            .style("flex", "1")       // Occupe l'espace restant
             .style("height", "100%")
             .style("border-left", "1px solid #333")
             .style("background", "#1a1a1a")
@@ -347,9 +349,6 @@ class SpiralePlot {
             .style("background", "#151515")
             .style("cursor", "auto");
 
-        // 4. TOOLTIP
-        this.createTooltip();
-
         // Ajout du conteneur de definitions pour les gradients
         this.defs = this.svg.append("defs");
 
@@ -357,6 +356,9 @@ class SpiralePlot {
         this.gLabels = this.svg.append("g");
         this.gSpiral = this.svg.append("g");
         
+        // 4. Initialisation Tooltip SVG (caché par défaut)
+        this.initSvgTooltip();
+
         this.hoverText = this.gLabels.append("text")
             .attr("class", "svg-hover-date")
             .attr("x", this.centerX).attr("y", this.height * 0.15)
@@ -368,45 +370,48 @@ class SpiralePlot {
             .text(`Spirale 3D • ${this.options.unit}`);
 
         this.createControls();
-        this.updateView();
+        this.updateView(false); // Initial draw, no drag
 
         const drag = d3.drag()
             .on("start", () => {
                 this.isDragging = true;
                 this.svg.style("cursor", "grabbing");
-                this.tooltip.style("opacity", 0);
+                this.hideTooltip();
                 this.hoverText.style("opacity", 0);
-                // On nettoie les événements de survol/click pour éviter les conflits
-                this.gSpiral.selectAll(".period-group").on(".drag", null);
             })
             .on("drag", (e) => {
                 this.beta -= e.dx * 0.008;
                 this.alpha = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.alpha - e.dy * 0.008));
-                this.updateViewDrag();
+                // Pendant le drag : updateView avec isDragging = true
+                this.updateView(true);
             })
             .on("end", () => {
                 this.isDragging = false;
                 this.svg.style("cursor", "auto");
-                this.updateView(); // Rétablit les Ghost Paths et les groupes complets
+                // Fin du drag : rétablir la vue complète
+                this.updateView(false);
             });
         this.svg.call(drag);
     }
 
-    createTooltip() {
-        this.tooltip = this.wrapper.append("div")
-            .attr("class", "spiral-custom-tooltip")
-            .style("position", "absolute")
-            .style("opacity", 0)
+    initSvgTooltip() {
+        this.gTooltip = this.svg.append("g")
+            .attr("class", "svg-tooltip")
             .style("pointer-events", "none")
-            .style("background", "rgba(0, 0, 0, 0.85)")
-            .style("border", "1px solid #444")
-            .style("padding", "8px 12px")
-            .style("border-radius", "4px")
-            .style("color", "#fff")
-            .style("font-family", "sans-serif")
-            .style("font-size", "12px")
-            .style("z-index", 100)
-            .style("box-shadow", "0 2px 8px rgba(0,0,0,0.5)");
+            .style("opacity", 0);
+
+        // Fond du tooltip (taille dynamique gérée plus tard)
+        this.tooltipBg = this.gTooltip.append("rect")
+            .attr("fill", "rgba(0, 0, 0, 0.85)")
+            .attr("stroke", "#444")
+            .attr("rx", 4)
+            .attr("ry", 4);
+
+        // Texte du tooltip
+        this.tooltipText = this.gTooltip.append("text")
+            .attr("fill", "#fff")
+            .attr("font-family", "sans-serif")
+            .attr("font-size", "12px");
     }
 
     createControls() {
@@ -426,7 +431,7 @@ class SpiralePlot {
                         .tween("r", () => t => {
                             this.alpha = d3.interpolate(this.alpha, v.a)(t);
                             this.beta = d3.interpolate(this.beta, v.b)(t);
-                            this.updateView();
+                            this.updateView(false);
                         });
                 });
         });
@@ -460,7 +465,7 @@ class SpiralePlot {
             e.stopPropagation();
             this.colorMode = (this.colorMode === 'standard') ? 'mean' : 'standard';
             colorBtn.text(this.colorMode === 'mean' ? "Couleur: Moyenne" : "Couleur: Détail");
-            this.updateView();
+            this.updateView(false);
         });
     }
 
@@ -518,68 +523,44 @@ class SpiralePlot {
     }
 
     /**
-     * Mode DRAG optimisé : on dessine des paths simples.
-     * On supprime les groupes et les ghost-paths pour la fluidité.
+     * Mise à jour de la vue.
+     * @param {boolean} isDragging - Si true, on ne dessine pas les 'ghost paths' (zones de clic).
      */
-    updateViewDrag() {
+    updateView(isDragging = false) {
         this.drawAxes();
         
-        // Suppression complète des groupes complexes (Ghost + Gradient)
-        this.gSpiral.selectAll(".period-group").remove(); 
-        
-        const groups = d3.group(this.points3D, d => d.periodKey);
-        const pathsData = [];
-
-        for (const [key, points] of groups) {
-            if (points.length < 2) continue;
-            
-            // Calcul de la couleur moyenne
-            const color = this.scales.colorMean(points[0].meanVal);
-
-            let dStr = "";
-            let valid = false;
-            for (let i = 0; i < points.length; i++) {
-                const p = points[i];
-                const proj = this.project(p.wx, p.wy, p.wz);
-                if (proj[1] < -50 || proj[1] > this.height + 50) continue;
-
-                if (dStr === "") dStr = `M${proj[0]},${proj[1]}`;
-                else dStr += `L${proj[0]},${proj[1]}`;
-                valid = true;
-            }
-
-            if (valid) {
-                pathsData.push({ key, d: dStr, c: color });
-            }
-        }
-
-        const paths = this.gSpiral.selectAll(".sp-drag-path").data(pathsData, d => d.key);
-        paths.exit().remove();
-        paths.enter().append("path").attr("class", "sp-drag-path")
-            .merge(paths)
-            .attr("d", d => d.d)
-            .attr("stroke", d => d.c)
-            .attr("fill", "none")
-            .attr("stroke-width", 1.5)
-            .attr("stroke-opacity", 0.8);
-    }
-
-    /**
-     * Mise à jour complète (appelée à l'init et à la fin du drag).
-     * Restaure les Ghost Paths et la logique de survol avancée.
-     */
-    updateView() {
-        if (this.isDragging) {
-            this.updateViewDrag();
-            return;
-        }
-
-        this.drawAxes();
-        // Nettoyage des paths temporaires de drag
-        this.gSpiral.selectAll(".sp-drag-path").remove();
-        
-        // Nettoyage des gradients existants
+        // --- 1. CONFIGURATION DU GRADIENT RADIAL UNIQUE ---
         this.defs.selectAll("*").remove();
+
+        const globalGradId = "spiral-global-radial";
+        const radialGradient = this.defs.append("radialGradient")
+            .attr("id", globalGradId)
+            .attr("gradientUnits", "userSpaceOnUse")
+            .attr("cx", this.centerX)
+            .attr("cy", this.centerY)
+            .attr("r", this.radiusMax)
+            .attr("fx", this.centerX)
+            .attr("fy", this.centerY);
+
+        // Création des stops pour le gradient radial
+        const stopCount = 20;
+        for (let i = 0; i <= stopCount; i++) {
+            const offset = i / stopCount;
+            const currentRadius = offset * this.radiusMax;
+            
+            let color;
+            if (currentRadius < this.radiusMin) {
+                const minVal = this.scales.radius.domain()[0];
+                color = this.scales.color(minVal);
+            } else {
+                const val = this.scales.radius.invert(currentRadius);
+                color = this.scales.color(val);
+            }
+
+            radialGradient.append("stop")
+                .attr("offset", `${offset * 100}%`)
+                .attr("stop-color", color);
+        }
 
         const groupsData = [];
         const groupedPoints = d3.group(this.points3D, d => d.periodKey);
@@ -588,7 +569,6 @@ class SpiralePlot {
         for (const [key, points] of groupedPoints) {
             let pathD = "";
             let lastX = null, lastY = null;
-            let projectedPoints = []; 
             const values = points.map(p => p.original.val);
             
             const meanVal = points[0].meanVal;
@@ -603,7 +583,7 @@ class SpiralePlot {
                 std: d3.deviation(values) || 0
             };
 
-            // Construction du Path et collecte des points projetés
+            // Construction du Path
             for (let i = 0; i < points.length; i++) {
                 const p = points[i];
                 const proj = this.project(p.wx, p.wy, p.wz);
@@ -613,10 +593,6 @@ class SpiralePlot {
                     continue;
                 }
                 
-                if (that.colorMode !== 'mean') {
-                    projectedPoints.push({ y: proj[1], val: p.original.val });
-                }
-
                 if (lastX === null || (i > 0 && (proj[0] !== lastX || proj[1] !== lastY))) {
                      if (pathD === "") pathD = `M${proj[0]},${proj[1]}`;
                      else pathD += `L${proj[0]},${proj[1]}`;
@@ -627,35 +603,10 @@ class SpiralePlot {
             if (pathD !== "") {
                 let strokeRef = meanColor;
 
-                // --- LOGIQUE GRADIENT ENCODING (Mode Détail) ---
-                if (that.colorMode !== 'mean' && projectedPoints.length > 1) {
-                    const yExtent = d3.extent(projectedPoints, d => d.y);
-                    const yMin = yExtent[0];
-                    const yMax = yExtent[1];
-                    const yRange = yMax - yMin;
-
-                    if (yRange > 1) {
-                        const gradId = `grad-${key.replace(/[^a-zA-Z0-9]/g, '')}`;
-                        const gradient = that.defs.append("linearGradient")
-                            .attr("id", gradId)
-                            .attr("gradientUnits", "userSpaceOnUse")
-                            .attr("x1", 0).attr("y1", yMin)
-                            .attr("x2", 0).attr("y2", yMax);
-
-                        const sortedStops = projectedPoints.sort((a,b) => a.y - b.y);
-                        const stopsData = sortedStops.map(d => ({
-                            offset: ((d.y - yMin) / yRange) * 100,
-                            color: that.scales.color(d.val)
-                        }));
-
-                        gradient.selectAll("stop")
-                            .data(stopsData)
-                            .enter().append("stop")
-                            .attr("offset", d => `${d.offset}%`)
-                            .attr("stop-color", d => d.color);
-
-                        strokeRef = `url(#${gradId})`;
-                    }
+                // --- USAGE DU GRADIENT RADIAL UNIQUE ---
+                // Plus de création de linearGradient par segment
+                if (that.colorMode !== 'mean') {
+                    strokeRef = `url(#${globalGradId})`;
                 }
 
                 groupsData.push({ 
@@ -676,6 +627,8 @@ class SpiralePlot {
 
         groupsEnter.merge(groups)
             .on("mouseover", function(e, d) {
+                if (that.isDragging) return;
+
                 // 1. Gestion Opacité : Diminuer tous les autres
                 that.gSpiral.selectAll(".sp-vis-path")
                     .attr("stroke-opacity", 0.2)
@@ -685,15 +638,18 @@ class SpiralePlot {
                 const current = d3.select(this);
                 current.select(".sp-vis-path")
                     .attr("stroke-opacity", 1)
-                    .attr("stroke-width", 3); // Highlight blanc
+                    .attr("stroke-width", 2);
                 
                 current.raise(); // Mettre au premier plan
+                that.gTooltip.raise(); // S'assurer que le tooltip est au-dessus de tout
                 
                 // 3. Afficher Tooltip & Texte
                 that.updateHoverText(d.refPoint);
                 that.showTooltip(e, d.stats);
             })
             .on("mouseout", function(e, d) {
+                if (that.isDragging) return;
+
                 // Restaurer l'état normal
                 that.gSpiral.selectAll(".sp-vis-path")
                     .attr("stroke-opacity", 0.9)
@@ -710,15 +666,20 @@ class SpiralePlot {
         groupsEnter.merge(groups).each(function(d) {
             const g = d3.select(this);
             
-            // 1. Ghost Path (Zone de clic large et invisible)
-            g.selectAll(".sp-ghost-path")
-                .data([d])
-                .join("path")
-                .attr("class", "sp-ghost-path")
-                .attr("d", d.pathD)
-                .attr("stroke", "transparent")
-                .attr("stroke-width", 10) // Zone de détection large
-                .attr("fill", "none");
+            // 1. Ghost Path (Zone de clic large et invisible) - UNIQUEMENT SI PAS DE DRAG
+            if (!isDragging) {
+                g.selectAll(".sp-ghost-path")
+                    .data([d])
+                    .join("path")
+                    .attr("class", "sp-ghost-path")
+                    .attr("d", d.pathD)
+                    .attr("stroke", "transparent")
+                    .attr("stroke-width", 4) // Zone de détection large
+                    .attr("fill", "none");
+            } else {
+                // Si on drag, on s'assure que le ghost path est supprimé
+                g.selectAll(".sp-ghost-path").remove();
+            }
 
             // 2. Rendu Visuel (1 seul Path avec Gradient ou Couleur)
             g.selectAll(".sp-vis-path")
@@ -734,35 +695,51 @@ class SpiralePlot {
     }
 
     showTooltip(e, stats) {
-        if (!this.tooltip) return;
-        
-        const html = `
-            <div style="border-bottom:1px solid #666; padding-bottom:4px; margin-bottom:4px; font-weight:bold; color:#fff;">
-                ${stats.title}
-            </div>
-            <div style="display:grid; grid-template-columns:auto auto; gap:4px 12px; color:#ccc;">
-                <span>Max:</span> <span style="color:#ff5555; text-align:right;">${stats.max.toFixed(1)}</span>
-                <span>Moy:</span> <span style="color:#4DC0E0; text-align:right;">${stats.mean.toFixed(1)}</span>
-                <span>Min:</span> <span style="color:#aaa; text-align:right;">${stats.min.toFixed(1)}</span>
-                <span>σ:</span> <span style="color:#888; text-align:right;">${stats.std.toFixed(2)}</span>
-            </div>
-        `;
-        
-        // Positionnement simple près de la souris mais décalé
-        const x = e.pageX + 15;
-        const y = e.pageY + 15;
+        if (!this.gTooltip) return;
 
-        this.tooltip
-            .html(html)
-            .style("left", x + "px")
-            .style("top", y + "px")
+        // Positionnement relatif au SVG via d3.pointer
+        const coords = d3.pointer(e, this.svg.node());
+        let x = coords[0] + 15;
+        let y = coords[1] + 15;
+
+        // Mise à jour du contenu texte (Multiligne via tspan)
+        this.tooltipText.selectAll("*").remove();
+
+        const line1 = this.tooltipText.append("tspan")
+            .attr("x", 10).attr("dy", "1.2em")
+            .style("font-weight", "bold")
+            .text(stats.title);
+
+        const line2 = this.tooltipText.append("tspan")
+            .attr("x", 10).attr("dy", "1.4em")
+            .text(`Max: ${stats.max.toFixed(1)}  |  Moy: ${stats.mean.toFixed(1)}`);
+        
+        const line3 = this.tooltipText.append("tspan")
+            .attr("x", 10).attr("dy", "1.4em")
+            .text(`Min: ${stats.min.toFixed(1)}  |  σ: ${stats.std.toFixed(2)}`);
+
+        // Ajustement du rectangle de fond selon la taille du texte
+        const bbox = this.tooltipText.node().getBBox();
+        const padding = 8;
+        
+        this.tooltipBg
+            .attr("width", bbox.width + padding * 2)
+            .attr("height", bbox.height + padding * 2);
+        
+        // Repositionner le texte pour qu'il soit bien calé dans le rect
+        // Le texte commence à y=0 (relativement au groupe), le rect aussi.
+        // On a déjà géré le "dy", mais on peut ajuster si besoin.
+        
+        // Déplacement du groupe global
+        this.gTooltip
+            .attr("transform", `translate(${x}, ${y})`)
             .transition().duration(50)
             .style("opacity", 1);
     }
 
     hideTooltip() {
-        if (this.tooltip) {
-            this.tooltip.transition().duration(100).style("opacity", 0);
+        if (this.gTooltip) {
+            this.gTooltip.transition().duration(100).style("opacity", 0);
         }
     }
 
@@ -888,33 +865,40 @@ class SpiralePlot {
                 },
                 marks: [
                     // --- COUCHES DE FOND (Statistiques Globales) ---
-                    Plot.lineY(bgData, { x: "date", y: "gMin", stroke: "#00ffff", strokeOpacity: 0.2, strokeWidth: 1, id: "min-line" }),
-                    Plot.lineY(bgData, { x: "date", y: "gMax", stroke: "#ff5555", strokeOpacity: 0.2, strokeWidth: 1, id: "max-line" }),
-                    Plot.lineY(bgData, { x: "date", y: "gMean", stroke: "#ffffff", strokeOpacity: 0.3, strokeWidth: 1.5, strokeDasharray: "4,4", id: "mean-line" }),
+                    Plot.lineY(bgData, { x: "date", y: "gMin", stroke: "#00ffff", strokeOpacity: 0.3, strokeWidth: 1, id: "min-line" }),
+                    Plot.lineY(bgData, { x: "date", y: "gMax", stroke: "#ff5555", strokeOpacity: 0.3, strokeWidth: 1, id: "max-line" }),
+                    // Plot.lineY(bgData, { x: "date", y: "gMean", stroke: "#ffffff", strokeOpacity: 0.3, strokeWidth: 1.5, strokeDasharray: "4,4", id: "mean-line-hidden" }), // Optionnel: garder en fond léger si besoin, sinon supprimer
 
                     // --- COUCHE PRINCIPALE ---
-                    Plot.ruleY([mean], { stroke: this.scales.colorMean(mean), strokeDasharray: "3,3", strokeOpacity: 0.7 , id: "mean-rule" }),
-                    Plot.lineY(data, { x: "date", y: "val", stroke: "#ccc", strokeWidth: 2, curve: "monotone-x" , id: "data-line" }),
+                    // Plot.ruleY([mean], { stroke: this.scales.colorMean(mean), strokeDasharray: "3,3", strokeOpacity: 0.7 , id: "mean-rule" }),
+                    Plot.lineY(data, { x: "date", y: "val", stroke: "#ccc", strokeOpacity: 0.7, strokeWidth: 1 , id: "data-line" }),
+                    
+                    // --- MEAN LINE DESSUS (Déplacé) ---
+                    Plot.lineY(bgData, { x: "date", y: "gMean", stroke: "#ff55ff", strokeOpacity: 0.3, strokeWidth: 1, id: "mean-line" }),
+
                     Plot.dot(data, Plot.pointerX({x: "date", y: "val", stroke: "red", r: 4})),
                     
                     Plot.text(data, Plot.pointerX({
-                        px: "date", py: "val", dy: -10, dx: -10,
+                        px: "date", py: "val", dy: -8, dx: -10,
                         frameAnchor: "top-right",
                         fontVariant: "tabular-nums",
-                        fontSize: "12px",
-                        fill: "white",
+                        fontSize: "11px",
+                        fill: "#aaa",
                         text: (d) => ` ${d.val} ${this.options.unit}`
                     })),
                     Plot.text(data, Plot.pointerX({
-                        px: "date", py: "val", dy: -10,
+                        px: "date", py: "val", dy: -8,
                         frameAnchor: "top-left",
                         fontVariant: "tabular-nums",
-                        fontSize: "12px",
+                        fontSize: "11px",
                         fill: "#aaa",
                         text: (d) => `${d.date.toLocaleString('fr-FR',{'dateStyle':"medium",'timeStyle':"short"})} `
                     }))
                 ]
             });
+            // ajoute une legende sous le plot pour mean-line, max-line, min-line
+            
+
             plotWrapper.appendChild(chart);
         } catch (e) { console.error("Erreur Plot:", e); }
     }
