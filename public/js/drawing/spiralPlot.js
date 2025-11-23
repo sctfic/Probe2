@@ -925,15 +925,16 @@ class SpiralePlot {
 
         statsContainer.innerHTML = `
             <div style="display:flex; justify-content:space-between; font-size:13px; color:#999; margin-bottom:6px; font-family:sans-serif; padding-bottom:4px;">
-                <span>Min: <b style="color:#ccc">${min.toFixed(1)}</b></span>
-                <span>Moy: <b style="color:${this.scales.colorMean(mean)}">${mean.toFixed(1)}</b></span>
-                <span>Max: <b style="color:#ccc">${max.toFixed(1)}</b></span>
-                <span>σ: <b style="color:#888">${std ? std.toFixed(1) : '-'}</b></span>
+                <span>Min: <b style="color:#ccc">${min.toFixed(1)}${this.options.unit}</b></span>
+                <span>Moy: <b style="color:${this.scales.colorMean(mean)}">${mean.toFixed(1)}${this.options.unit}</b></span>
+                <span>Max: <b style="color:#ccc">${max.toFixed(1)}${this.options.unit}</b></span>
+                <span>σ: <b style="color:#888">${std ? std.toFixed(1) : '-'}${this.options.unit}</b></span>
             </div>`;
 
         const yearRef = focusPoint.date.getFullYear();
         const monthRef = focusPoint.date.getMonth();
         const dayRef = focusPoint.date.getDate();
+        console.log('yearRef', yearRef, 'monthRef', monthRef, 'dayRef', dayRef);
 
         const mappedBgData = this.bgDataForPlot.map(d => {
              let newDate;
@@ -994,7 +995,7 @@ class SpiralePlot {
         if (legendContainer) {
             legendContainer.innerHTML = `
                 <div style="display:flex; justify-content:center; gap:15px; font-size:10px; color:#888; font-family:sans-serif;">
-                    <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ccc; margin-right:4px;"></span> Donnée</div>
+                    <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ccc; margin-right:4px;"></span> Selected Data</div>
                     <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ff55ff; opacity:0.6; margin-right:4px;"></span> Moyenne Glob.</div>
                     <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ff5555; opacity:0.5; margin-right:4px;"></span> Max Glob.</div>
                     <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#00ffff; opacity:0.5; margin-right:4px;"></span> Min Glob.</div>
