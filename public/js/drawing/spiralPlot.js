@@ -359,7 +359,7 @@ class SpiralePlot {
             .style("overflow", "hidden");
 
         this.wrapper = container.append("div")
-            .attr("class", "relative-wrapper")
+            .attr("class", "spiralChart-main-panel")
             .style("position", "relative")
             .style("width", "480px") 
             .style("flex", "none")
@@ -367,7 +367,7 @@ class SpiralePlot {
             .style("overflow", "hidden");
 
         this.sidePanel = container.append("div")
-            .attr("class", "spiral-side-panel")
+            .attr("class", "spiralChart-side-panel")
             .style("position", "relative") 
             .style("top", "auto").style("right", "auto").style("bottom", "auto")
             .style("flex", "1")
@@ -898,10 +898,10 @@ class SpiralePlot {
 
         statsContainer.innerHTML = `
             <div style="display:flex; justify-content:space-between; font-size:13px; color:#999; margin-bottom:6px; font-family:sans-serif; padding-bottom:4px;">
-                <span>Min: <b style="color:#ccc">${min.toFixed(1)}</b></span>
-                <span>Moy: <b style="color:${this.scales.colorMean(mean)}">${mean.toFixed(1)}</b></span>
-                <span>Max: <b style="color:#ccc">${max.toFixed(1)}</b></span>
-                <span>σ: <b style="color:#888">${std ? std.toFixed(1) : '-'}</b></span>
+                <span>Min: <b style="color:#ccc">${min.toFixed(1)}${this.options.unit}</b></span>
+                <span>Moy: <b style="color:${this.scales.colorMean(mean)}">${mean.toFixed(1)}${this.options.unit}</b></span>
+                <span>Max: <b style="color:#ccc">${max.toFixed(1)}${this.options.unit}</b></span>
+                <span>σ: <b style="color:#888">${std ? std.toFixed(1) : '-'}${this.options.unit}</b></span>
             </div>`;
 
         const yearRef = focusPoint.date.getFullYear();
