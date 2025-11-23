@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Structure Responsive</title>
+</head>
+<body style="margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; font-family: Arial, sans-serif;">
+    
+    <!-- Navbar -->
+    <nav style="background-color: #2c3e50; color: white; padding: 1rem; position: fixed; top: 0; left: 0; right: 0; z-index: 1000; display: flex; align-items: center; justify-content: space-between; height: 60px; box-sizing: border-box;">
+        <div style="font-size: 1.2rem; font-weight: bold;">Logo</div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button onclick="goToPage(0)" style="background-color: #3498db; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">Page 1</button>
+            <button onclick="goToPage(1)" style="background-color: #3498db; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">Page 2</button>
+            <button onclick="goToPage(2)" style="background-color: #3498db; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">Page 3</button>
+            <button onclick="goToPage(3)" style="background-color: #3498db; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">Page 4</button>
+            <button onclick="goToPage(4)" style="background-color: #3498db; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">Page 5</button>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main style="background-color: #ecf0f1; flex: 1; margin-top: 60px; margin-bottom: 100px; overflow: hidden; position: relative; box-sizing: border-box;">
+        <div id="pages-container" style="display: flex; height: 100%; transition: transform 0.4s ease-in-out; width: 500%;">
+            
+            <!-- Page 1 -->
+            <div style="min-width: 100%; height: 100%; overflow-y: scroll; padding: 2rem; box-sizing: border-box; background-color: #ecf0f1;">
+                <h2 style="color: #2c3e50; margin-top: 0;">Page 1</h2>
+                <div style="background-color: #3498db; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc A</h3>
+                    <p>Contenu du premier bloc de la page 1</p>
+                </div>
+                <div style="background-color: #e74c3c; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc B</h3>
+                    <p>Contenu du deuxième bloc de la page 1</p>
+                </div>
+                <div style="background-color: #2ecc71; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc C</h3>
+                    <p>Contenu du troisième bloc avec plus de texte pour tester le scroll. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+                </div>
+                <div style="background-color: #f39c12; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc D</h3>
+                    <p>Encore un bloc pour voir le scroll vertical</p>
+                </div>
+                <div style="background-color: #9b59b6; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc E</h3>
+                    <p>Bloc supplémentaire avec du contenu</p>
+                </div>
+                <div style="background-color: #1abc9c; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc F</h3>
+                    <p>Encore plus de contenu pour activer le scroll</p>
+                </div>
+                <div style="background-color: #34495e; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc G</h3>
+                    <p>Un autre bloc pour remplir la page</p>
+                </div>
+                <div style="background-color: #e67e22; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc H</h3>
+                    <p>Continuons à ajouter du contenu</p>
+                </div>
+                <div style="background-color: #c0392b; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc I</h3>
+                    <p>Dernier bloc de la page 1</p>
+                </div>
+            </div>
+            
+            <!-- Page 2 -->
+            <div style="min-width: 100%; height: 100%; overflow-y: scroll; padding: 2rem; box-sizing: border-box; background-color: #f8f9fa;">
+                <h2 style="color: #2c3e50; margin-top: 0;">Page 2</h2>
+                <div style="background-color: #9b59b6; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc A</h3>
+                    <p>Premier bloc de la page 2</p>
+                </div>
+                <div style="background-color: #1abc9c; padding: 3rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc B</h3>
+                    <p>Un bloc plus grand pour varier les hauteurs</p>
+                    <p>Avec plusieurs paragraphes de contenu</p>
+                </div>
+                <div style="background-color: #34495e; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc C</h3>
+                    <p>Troisième bloc de cette page</p>
+                </div>
+                <div style="background-color: #e67e22; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc D</h3>
+                    <p>Bloc orange avec du contenu</p>
+                </div>
+                <div style="background-color: #27ae60; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc E</h3>
+                    <p>Bloc vert émeraude</p>
+                </div>
+                <div style="background-color: #c0392b; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc F</h3>
+                    <p>Bloc rouge profond</p>
+                </div>
+                <div style="background-color: #2980b9; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc G</h3>
+                    <p>Bloc bleu ocean</p>
+                </div>
+                <div style="background-color: #8e44ad; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc H</h3>
+                    <p>Avant dernier bloc</p>
+                </div>
+                <div style="background-color: #f39c12; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc I</h3>
+                    <p>Dernier bloc de la page 2</p>
+                </div>
+            </div>
+            
+            <!-- Page 3 -->
+            <div style="min-width: 100%; height: 100%; overflow-y: scroll; padding: 2rem; box-sizing: border-box; background-color: #e8f5e9;">
+                <h2 style="color: #2c3e50; margin-top: 0;">Page 3</h2>
+                <div style="background-color: #e67e22; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc A</h3>
+                    <p>Contenu de la page 3</p>
+                </div>
+                <div style="background-color: #16a085; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc B</h3>
+                    <p>Deuxième section avec du contenu différent</p>
+                </div>
+                <div style="background-color: #c0392b; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc C</h3>
+                    <p>Encore plus de contenu pour tester</p>
+                </div>
+                <div style="background-color: #8e44ad; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc D</h3>
+                    <p>Un quatrième bloc coloré</p>
+                </div>
+                <div style="background-color: #27ae60; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc E</h3>
+                    <p>Et un cinquième pour bien remplir la page</p>
+                </div>
+                <div style="background-color: #3498db; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc F</h3>
+                    <p>Bloc bleu clair</p>
+                </div>
+                <div style="background-color: #d35400; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc G</h3>
+                    <p>Bloc orange foncé</p>
+                </div>
+                <div style="background-color: #2c3e50; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc H</h3>
+                    <p>Bloc gris anthracite</p>
+                </div>
+                <div style="background-color: #e74c3c; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc I</h3>
+                    <p>Bloc rouge vif</p>
+                </div>
+                <div style="background-color: #1abc9c; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc J</h3>
+                    <p>Dernier bloc de la page 3</p>
+                </div>
+            </div>
+            
+            <!-- Page 4 -->
+            <div style="min-width: 100%; height: 100%; overflow-y: scroll; padding: 2rem; box-sizing: border-box; background-color: #fff3e0;">
+                <h2 style="color: #2c3e50; margin-top: 0;">Page 4</h2>
+                <div style="background-color: #d35400; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc A</h3>
+                    <p>Page 4 - Premier bloc</p>
+                </div>
+                <div style="background-color: #2980b9; padding: 4rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc B</h3>
+                    <p>Un bloc vraiment grand</p>
+                    <p>Avec beaucoup de contenu</p>
+                    <p>Pour tester le scroll</p>
+                </div>
+                <div style="background-color: #8e44ad; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc C</h3>
+                    <p>Contenu varié</p>
+                </div>
+                <div style="background-color: #16a085; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc D</h3>
+                    <p>Bloc turquoise</p>
+                </div>
+                <div style="background-color: #c0392b; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc E</h3>
+                    <p>Bloc rouge cardinal</p>
+                </div>
+                <div style="background-color: #f39c12; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc F</h3>
+                    <p>Bloc jaune orangé</p>
+                </div>
+                <div style="background-color: #27ae60; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc G</h3>
+                    <p>Bloc vert néphrite</p>
+                </div>
+                <div style="background-color: #34495e; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc H</h3>
+                    <p>Avant dernier bloc</p>
+                </div>
+                <div style="background-color: #9b59b6; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc I</h3>
+                    <p>Dernier bloc de la page 4</p>
+                </div>
+            </div>
+            
+            <!-- Page 5 -->
+            <div style="min-width: 100%; height: 100%; overflow-y: scroll; padding: 2rem; box-sizing: border-box; background-color: #fce4ec;">
+                <h2 style="color: #2c3e50; margin-top: 0;">Page 5</h2>
+                <div style="background-color: #c0392b; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc A</h3>
+                    <p>Dernière page - Bloc 1</p>
+                </div>
+                <div style="background-color: #16a085; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc B</h3>
+                    <p>Bloc numéro 2</p>
+                </div>
+                <div style="background-color: #f39c12; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc C</h3>
+                    <p>Bloc numéro 3 avec du texte</p>
+                </div>
+                <div style="background-color: #2c3e50; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc D</h3>
+                    <p>Bloc gris foncé</p>
+                </div>
+                <div style="background-color: #e74c3c; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc E</h3>
+                    <p>Bloc rouge alizarine</p>
+                </div>
+                <div style="background-color: #3498db; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc F</h3>
+                    <p>Bloc bleu peter river</p>
+                </div>
+                <div style="background-color: #9b59b6; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc G</h3>
+                    <p>Bloc violet améthyste</p>
+                </div>
+                <div style="background-color: #1abc9c; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc H</h3>
+                    <p>Bloc turquoise</p>
+                </div>
+                <div style="background-color: #27ae60; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc I</h3>
+                    <p>Avant-dernier bloc</p>
+                </div>
+                <div style="background-color: #d35400; padding: 2rem; margin-bottom: 1rem; border-radius: 8px; color: white;">
+                    <h3>Bloc J</h3>
+                    <p>Dernier bloc de la page 5</p>
+                </div>
+            </div>
+            
+        </div>
+    </main>
+    
+    <!-- Footer -->
+    <footer style="background-color: #34495e; position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; display: flex; flex-direction: column;">
+        
+        <!-- Container pour le graphique D3 (invisible par défaut) -->
+        <div id="d3-chart-container" style="background-color: #95a5a6; display: none; padding: 1rem; box-sizing: border-box; max-height: 70vh; overflow-y: auto;">
+            <div style="display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center;">
+                <!-- Premier bloc -->
+                <div style="background-color: #3498db; min-width: 480px; flex: 1; min-height: 300px; border-radius: 8px;">
+                </div>
+                
+                <!-- Second bloc -->
+                <div style="background-color: #e74c3c; min-width: 480px; flex: 1; min-height: 300px; border-radius: 8px;">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bloc version et auteur (toujours visible) -->
+        <div style="background-color: #2c3e50; color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <span style="font-size: 0.9rem;">Version 1.0.0</span>
+            <span style="font-size: 0.9rem;">Auteur: Nom de l'auteur</span>
+        </div>
+        
+    </footer>
+    
+    <script>
+        let currentPage = 0;
+        
+        function goToPage(pageIndex) {
+            currentPage = pageIndex;
+            const container = document.getElementById('pages-container');
+            const translateX = -(pageIndex * 100);
+            container.style.transform = `translateX(${translateX}%)`;
+            
+            // Mise à jour visuelle des boutons
+            const buttons = document.querySelectorAll('nav button');
+            buttons.forEach((btn, index) => {
+                if (index === pageIndex) {
+                    btn.style.backgroundColor = '#e74c3c';
+                } else {
+                    btn.style.backgroundColor = '#3498db';
+                }
+            });
+        }
+        
+        // Support du swipe sur mobile
+        let touchStartX = 0;
+        let touchEndX = 0;
+        
+        const pagesContainer = document.getElementById('pages-container');
+        
+        pagesContainer.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+        
+        pagesContainer.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        });
+        
+        function handleSwipe() {
+            if (touchEndX < touchStartX - 50 && currentPage < 4) {
+                // Swipe vers la gauche
+                goToPage(currentPage + 1);
+            }
+            if (touchEndX > touchStartX + 50 && currentPage > 0) {
+                // Swipe vers la droite
+                goToPage(currentPage - 1);
+            }
+        }
+        
+        // Script pour tester l'affichage/masquage du container D3
+        // Double-cliquer sur le footer pour toggle le container
+        document.querySelector('footer').addEventListener('dblclick', function() {
+            const container = document.getElementById('d3-chart-container');
+            if (container.style.display === 'none') {
+                container.style.display = 'block';
+            } else {
+                container.style.display = 'none';
+            }
+        });
+        
+        // Initialisation
+        goToPage(0);
+    </script>
+    
+</body>
+</html>

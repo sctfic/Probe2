@@ -39,29 +39,6 @@
             "THSW_calc"
         ]
     },
-    "density": {
-        "title": "Density",
-        "description": "Unités de mesure de la densité",
-        "user": "g/m³",
-        "metric": "g/m³",
-        "available_units": {
-            "ml/m³": {
-                "title": "milli-litre per cube meter",
-                "fnFromMetric": "(d) => Number((d).toFixed(1))"
-            },
-            "g/m³": {
-                "title": "gramme per cube meter",
-                "fnFromMetric": "(d) => Number((d).toFixed(4))"
-            },
-            "g/l": {
-                "title": "g per litre",
-                "fnFromMetric": "(d) => Number((d/1000).toFixed(4))"
-            }
-        },
-        "sensors": [
-            "AirWater_calc"
-        ]
-    },
     "speed": {
         "title": "Speed",
         "description": "Unités de mesure de la vitesse",
@@ -267,8 +244,8 @@
         ]
     },
     "humidity": {
-        "title": "Density",
-        "description": "",
+        "title": "Gaz saturation density",
+        "description": "Unités de mesure de la densité d'eau dans l'air en fonction de saturation",
         "user": "%",
         "metric": "%",
         "available_units": {
@@ -288,22 +265,22 @@
         ]
     },
     "soilMoisture": {
-        "title": "Density",
-        "description": "",
+        "title": "Liquid Density",
+        "description": "Unités de mesure de la densité d'eau du sol",
         "user": "%",
         "metric": "m³/m³",
         "available_units": {
             "l/m³": {
                 "title": "litre per cubic meter",
-                "fnFromMetric": "(m) => Number(1000*m.toFixed(1))"
+                "fnFromMetric": "(m) => Number(10*m.toFixed(1))"
             },
             "%": {
                 "title": "percent",
-                "fnFromMetric": "(m) => Number(100*m.toFixed(1))"
+                "fnFromMetric": "(m) => Number(m.toFixed(1))"
             },
             "m³/m³": {
                 "title": "volume per cubic meter",
-                "fnFromMetric": "(m) => Number(m.toFixed(1))"
+                "fnFromMetric": "(m) => Number(0.01*m.toFixed(3))"
             }
         },
         "sensors": [
@@ -312,6 +289,29 @@
             "extraSoilMoisture3",
             "extraSoilMoisture4",
             "open-meteo_soilMoisture"
+        ]
+    },
+    "density": {
+        "title": "Air Water Density",
+        "description": "Unités de mesure de la densité",
+        "user": "g/m³",
+        "metric": "g/m³",
+        "available_units": {
+            "ml/m³": {
+                "title": "milli-litre per cube meter",
+                "fnFromMetric": "(d) => Number((d).toFixed(1))"
+            },
+            "g/m³": {
+                "title": "gramme per cube meter",
+                "fnFromMetric": "(d) => Number((d).toFixed(4))"
+            },
+            "g/l": {
+                "title": "g per litre",
+                "fnFromMetric": "(d) => Number((d/1000).toFixed(4))"
+            }
+        },
+        "sensors": [
+            "AirWater_calc"
         ]
     },
     "battery": {
