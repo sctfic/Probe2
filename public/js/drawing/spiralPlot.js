@@ -739,12 +739,11 @@ class SpiralePlot {
 
         const line2 = this.tooltipText.append("tspan")
             .attr("x", 10).attr("dy", "1.4em")
-            .text(`Max: ${stats.max.toFixed(1)}  |  Moy: ${stats.mean.toFixed(1)}`);
+            .text(`Max: ${stats.max.toFixed(1)}${this.options.unit}  |  Moy: ${stats.mean.toFixed(1)}${this.options.unit}`);
         
         const line3 = this.tooltipText.append("tspan")
             .attr("x", 10).attr("dy", "1.4em")
-            .text(`Min: ${stats.min.toFixed(1)}  |  σ: ${stats.std.toFixed(2)}`);
-
+            .text(`Min: ${stats.min.toFixed(1)}${this.options.unit}  |  σ: ${stats.std.toFixed(2)}${this.options.unit}`);
         const bbox = this.tooltipText.node().getBBox();
         const padding = 8;
         
