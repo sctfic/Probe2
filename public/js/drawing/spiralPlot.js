@@ -1,7 +1,7 @@
 // js/drawing/spiralePlot.js
 // =======================================
 //  Visualisation Spirale 3D (Time Helix)
-//  Version: RADIAL GRADIENT 3D PLANAR + AUTO-LOAD LAST + CENTERED LOADER
+//  Version: RADIAL GRADIENT 3D PLANAR + AUTO-LOAD LAST + CENTERED LOADER + PLAYBACK & HIGHLIGHT
 // =======================================
 
 /**
@@ -175,17 +175,26 @@ class SpiralePlot {
         this.scales = {};
         
         this.periodMeans = new Map();
+        this.sortedKeys = []; // Pour l'animation
         this.globalStats = []; 
+        this.bgDataForPlot = []; // Cache pour le mini-chart
         
         this.colorMode = (this.grouping === 'year') ? 'mean' : 'standard';
 
         this.isDragging = false;
+        
+        // Playback state
+        this.isPlaying = false;
+        this.playInterval = null;
+        this.currentPlayKey = null;
+
         this.gAxes = null;
         this.gLabels = null;
         this.gSpiral = null;
         
         this.initScales();
         this.computeGlobalStats();
+        this.precomputeBgData(); // Optimisation
         this.precompute3DCoordinates();
     }
 
@@ -203,6 +212,9 @@ class SpiralePlot {
     initScales() {
         const groups = d3.group(this.data, d => this.getPeriodKeyForDate(d.date));
         
+        // Store keys sorted for playback
+        this.sortedKeys = Array.from(groups.keys()).sort();
+
         const counts = Array.from(groups.values()).map(g => g.length);
         const maxPoints = d3.max(counts) || 0;
         const threshold = maxPoints * 0.9;
@@ -278,6 +290,29 @@ class SpiralePlot {
         }
         
         this.globalStats.sort((a, b) => a.key - b.key);
+    }
+
+    precomputeBgData() {
+        const yearRef = 2024; 
+        this.bgDataForPlot = [];
+        this.globalStats.forEach(stat => {
+            let projectedDate;
+            if (this.grouping === 'day') {
+                const h = Math.floor(stat.key / 60);
+                const m = stat.key % 60;
+                projectedDate = new Date(yearRef, 0, 1, h, m); // 1er Janvier 2024
+            } else {
+                const m = Math.floor(stat.key / 100);
+                const d = stat.key % 100;
+                projectedDate = new Date(yearRef, m, d);
+            }
+            this.bgDataForPlot.push({
+                date: projectedDate,
+                gMin: stat.min,
+                gMax: stat.max,
+                gMean: stat.mean
+            });
+        });
     }
 
     precompute3DCoordinates() {
@@ -513,10 +548,6 @@ class SpiralePlot {
         this.gAxes.append("line").attr("x1", pt[0]).attr("y1", pt[1]).attr("x2", pb[0]).attr("y2", pb[1]).style("stroke", "#555");
     }
 
-    /**
-     * Mise à jour de la vue.
-     * @param {boolean} isDragging - Si true, on ne dessine pas les 'ghost paths' (zones de clic).
-     */
     updateView(isDragging = false) {
         this.drawAxes();
         
@@ -525,13 +556,7 @@ class SpiralePlot {
 
         const globalGradId = "spiral-global-radial";
         
-        // Calcul du facteur d'écrasement vertical basé sur l'angle alpha (tilt)
-        // alpha = -90 (-PI/2) => vue de dessus (cercle parfait) => sin = -1 => scale = 1
-        // alpha = 0 => vue de face (plat) => sin = 0 => scale = 0
         const scaleY = Math.max(0.01, Math.abs(Math.sin(this.alpha)));
-        
-        // Construction de la matrice de transformation pour aplatir le dégradé selon la perspective
-        // On translate au centre, on scale, on re-translate
         const matrix = `translate(${this.centerX}, ${this.centerY}) scale(1, ${scaleY}) translate(${-this.centerX}, ${-this.centerY})`;
 
         const radialGradient = this.defs.append("radialGradient")
@@ -542,7 +567,7 @@ class SpiralePlot {
             .attr("r", this.radiusMax)
             .attr("fx", this.centerX)
             .attr("fy", this.centerY)
-            .attr("gradientTransform", matrix); // Application de la transformation 3D simulée
+            .attr("gradientTransform", matrix);
 
         const stopCount = 20;
         for (let i = 0; i <= stopCount; i++) {
@@ -624,7 +649,7 @@ class SpiralePlot {
 
         groupsEnter.merge(groups)
             .on("mouseover", function(e, d) {
-                if (that.isDragging) return;
+                if (that.isDragging || that.isPlaying) return; 
 
                 that.gSpiral.selectAll(".sp-vis-path")
                     .attr("stroke-opacity", 0.2)
@@ -642,7 +667,7 @@ class SpiralePlot {
                 that.showTooltip(e, d.stats);
             })
             .on("mouseout", function(e, d) {
-                if (that.isDragging) return;
+                if (that.isDragging || that.isPlaying) return;
 
                 that.gSpiral.selectAll(".sp-vis-path")
                     .attr("stroke-opacity", 0.9)
@@ -736,13 +761,74 @@ class SpiralePlot {
 
     handleClick(e, d) {
         if (this.isDragging) return;
+        if(this.isPlaying) this.togglePlay();
+        
         this.lastClickedPoint = d.d;
         this.updateSidePanel(d.d, d.periodKey);
     }
 
-    updateSidePanel(dataPoint, periodKey) {
+    // --- Playback Logic ---
+    togglePlay() {
+        this.isPlaying = !this.isPlaying;
+        const btn = this.sidePanel.select("#btn-play-toggle");
+        
+        if (this.isPlaying) {
+            btn.text("⏹ Stop").style("background", "#552222");
+            this.playInterval = setInterval(() => this.stepAnimation(), 120); 
+        } else {
+            btn.text("▶ Play").style("background", "");
+            if (this.playInterval) clearInterval(this.playInterval);
+            this.playInterval = null;
+            this.resetHighlights(); // Reset visual state on stop
+        }
+    }
+
+    resetHighlights() {
+        // Remet l'état initial des paths
+        this.gSpiral.selectAll(".sp-vis-path")
+            .attr("stroke-opacity", 0.9)
+            .attr("stroke-width", 1);
+    }
+
+    stepAnimation() {
+        if (!this.sortedKeys || this.sortedKeys.length === 0) return;
+        
+        let idx = this.sortedKeys.indexOf(this.currentPlayKey);
+        idx++;
+        if (idx >= this.sortedKeys.length) idx = 0; // Loop
+        
+        this.currentPlayKey = this.sortedKeys[idx];
+
+        // --- Visual Highlight Logic (Comme le survol) ---
+        // 1. On atténue tout
+        this.gSpiral.selectAll(".sp-vis-path")
+            .attr("stroke-opacity", 0.15)
+            .attr("stroke-width", 1);
+        
+        // 2. On sélectionne le groupe correspondant à la clé courante
+        const targetGroup = this.gSpiral.selectAll(".period-group")
+            .filter(d => d.key === this.currentPlayKey);
+        
+        // 3. On met en évidence le path
+        targetGroup.select(".sp-vis-path")
+            .attr("stroke-opacity", 1)
+            .attr("stroke-width", 3);
+        
+        // 4. On le met au premier plan (Z-Index)
+        targetGroup.raise();
+        
+        // --- Mise à jour panel latéral ---
+        const pointsInPeriod = this.data.filter(d => this.getPeriodKeyForDate(d.date) === this.currentPlayKey);
+        if (pointsInPeriod.length > 0) {
+            this.updateSidePanel(pointsInPeriod[0], this.currentPlayKey, true);
+        }
+    }
+
+    updateSidePanel(dataPoint, periodKey, isAnimating = false) {
         if (!this.sidePanel) return;
         
+        this.currentPlayKey = periodKey; 
+
         const dateFmt = d3.timeFormat("%d %B %Y");
         const unit = this.options.unit;
         
@@ -764,13 +850,30 @@ class SpiralePlot {
             content = this.sidePanel.select(".spiral-panel-content");
         }
 
-        content.html(`
-            <div class="panel-info">
-                <div id="panel-date-dyn" class="panel-date">${dateFmt(dataPoint.date)}</div>
-                <div style="font-size:11px; color:#666; margin-bottom:10px; text-transform:uppercase;">${pTitle}</div>
-            </div>
-            <div id="mini-chart-container" style="width:100%; height:200px; margin-top:10px; position:relative;"></div>
-        `);
+        if (!isAnimating || content.select("#mini-chart-container").empty()) {
+            content.html(`
+                <div class="panel-info">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div id="panel-date-dyn" class="panel-date">${dateFmt(dataPoint.date)}</div>
+                        <button id="btn-play-toggle" style="font-size:11px; padding:2px 6px; background:#333; color:#fff; border:1px solid #555; cursor:pointer;">▶ Play</button>
+                    </div>
+                    <div style="font-size:11px; color:#666; margin-bottom:10px; text-transform:uppercase;">${pTitle}</div>
+                </div>
+                <div id="mini-stats-header"></div>
+                <div id="mini-chart-container" style="width:100%; height:200px; position:relative;"></div>
+                <div id="mini-chart-legend" style="padding-top:10px; border-top:1px solid #333; margin-top:5px;"></div>
+            `);
+
+            content.select("#btn-play-toggle").on("click", () => this.togglePlay());
+        } else {
+            content.select("#panel-date-dyn").text(dateFmt(dataPoint.date));
+        }
+        
+        if(this.isPlaying) {
+            content.select("#btn-play-toggle").text("⏹ Stop").style("background", "#552222");
+        } else {
+            content.select("#btn-play-toggle").text("▶ Play").style("background", "");
+        }
 
         const subset = this.data.filter(d => d.ts >= pStart.getTime() && d.ts <= pEnd.getTime());
         this.drawMiniChart(subset, dataPoint);
@@ -778,8 +881,10 @@ class SpiralePlot {
 
     drawMiniChart(data, focusPoint) {
         const container = document.getElementById("mini-chart-container");
-        if (!container) return;
-        container.innerHTML = '';
+        const statsContainer = document.getElementById("mini-stats-header");
+        const legendContainer = document.getElementById("mini-chart-legend");
+
+        if (!container || !statsContainer) return;
 
         if (!data || data.length === 0) {
             container.innerHTML = '<div style="color:#444">Pas de données</div>';
@@ -790,54 +895,39 @@ class SpiralePlot {
         const min = d3.min(data, d => d.val);
         const max = d3.max(data, d => d.val);
         const std = d3.deviation(data, d => d.val);
-        
-        const bgData = [];
-        
-        const yearRef = focusPoint.date.getFullYear();
-        const monthRef = focusPoint.date.getMonth();
-        const dayRef = focusPoint.date.getDate();
 
-        this.globalStats.forEach(stat => {
-            let projectedDate;
-            if (this.grouping === 'day') {
-                const h = Math.floor(stat.key / 60);
-                const m = stat.key % 60;
-                projectedDate = new Date(yearRef, monthRef, dayRef, h, m);
-            } else {
-                const m = Math.floor(stat.key / 100);
-                const d = stat.key % 100;
-                projectedDate = new Date(yearRef, m, d);
-            }
-            bgData.push({
-                date: projectedDate,
-                gMin: stat.min,
-                gMax: stat.max,
-                gMean: stat.mean
-            });
-        });
-
-        const statHtml = `
-            <div style="display:flex; justify-content:space-between; font-size:13px; color:#999; margin-bottom:6px; font-family:sans-serif; border-bottom:1px solid #333; padding-bottom:4px;">
+        statsContainer.innerHTML = `
+            <div style="display:flex; justify-content:space-between; font-size:13px; color:#999; margin-bottom:6px; font-family:sans-serif; padding-bottom:4px;">
                 <span>Min: <b style="color:#ccc">${min.toFixed(1)}</b></span>
                 <span>Moy: <b style="color:${this.scales.colorMean(mean)}">${mean.toFixed(1)}</b></span>
                 <span>Max: <b style="color:#ccc">${max.toFixed(1)}</b></span>
                 <span>σ: <b style="color:#888">${std ? std.toFixed(1) : '-'}</b></span>
             </div>`;
-        
-        const plotWrapper = document.createElement("div");
-        container.innerHTML = statHtml;
-        container.appendChild(plotWrapper);
-        
-        const margin = { top: 10, right: 40, bottom: 20, left: 0 };
-        
-        const yMin = Math.min(min, d3.min(bgData, d => d.gMin));
-        const yMax = Math.max(max, d3.max(bgData, d => d.gMax));
+
+        const yearRef = focusPoint.date.getFullYear();
+        const monthRef = focusPoint.date.getMonth();
+        const dayRef = focusPoint.date.getDate();
+
+        const mappedBgData = this.bgDataForPlot.map(d => {
+             let newDate;
+             if (this.grouping === 'day') {
+                 newDate = new Date(yearRef, monthRef, dayRef, d.date.getHours(), d.date.getMinutes());
+             } else {
+                 newDate = new Date(yearRef, d.date.getMonth(), d.date.getDate());
+             }
+             return { ...d, date: newDate };
+        });
+
+        const yMin = Math.min(min, d3.min(mappedBgData, d => d.gMin));
+        const yMax = Math.max(max, d3.max(mappedBgData, d => d.gMax));
+
+        container.innerHTML = '';
         
         try {
             const chart = Plot.plot({
                 width: container.clientWidth,
-                height: (container.clientHeight - 25) || 175, 
-                marginLeft: margin.left, marginBottom: margin.bottom, marginRight: margin.right, marginTop: margin.top,
+                height: (container.clientHeight) || 200, 
+                marginLeft: 0, marginBottom: 20, marginRight: 40, marginTop: 10,
                 style: { background: "transparent", color: "#aaa", fontSize: "10px" },
                 x: { type: "time", tickFormat: this.grouping === 'day' ? "%H:%M" : "%b", grid: false },
                 y: { 
@@ -845,18 +935,12 @@ class SpiralePlot {
                     domain: [yMin, yMax]
                 },
                 marks: [
-                    // --- COUCHES DE FOND (Statistiques Globales) ---
-                    Plot.lineY(bgData, { x: "date", y: "gMin", stroke: "#00ffff", strokeOpacity: 0.3, strokeWidth: 1, id: "min-line" }),
-                    Plot.lineY(bgData, { x: "date", y: "gMax", stroke: "#ff5555", strokeOpacity: 0.3, strokeWidth: 1, id: "max-line" }),
-                    // Plot.lineY(bgData, { x: "date", y: "gMean", stroke: "#ffffff", strokeOpacity: 0.3, strokeWidth: 1.5, strokeDasharray: "4,4", id: "mean-line-hidden" }), // Optionnel: garder en fond léger si besoin, sinon supprimer
-
-                    // --- COUCHE PRINCIPALE ---
-                    // Plot.ruleY([mean], { stroke: this.scales.colorMean(mean), strokeDasharray: "3,3", strokeOpacity: 0.7 , id: "mean-rule" }),
-                    Plot.lineY(data, { x: "date", y: "val", stroke: "#ccc", strokeOpacity: 0.7, strokeWidth: 1 , id: "data-line" }),
+                    Plot.lineY(mappedBgData, { x: "date", y: "gMin", stroke: "#00ffff", strokeOpacity: 0.3, strokeWidth: 1, id: "min-global-line" }),
+                    Plot.lineY(mappedBgData, { x: "date", y: "gMax", stroke: "#ff5555", strokeOpacity: 0.3, strokeWidth: 1, id: "max-global-line" }),
+                    Plot.lineY(mappedBgData, { x: "date", y: "gMean", stroke: "#ff55ff", strokeOpacity: 0.4, strokeWidth: 1, id: "mean-global-line" }),
                     
-                    // --- MEAN LINE DESSUS (Déplacé) ---
-                    Plot.lineY(bgData, { x: "date", y: "gMean", stroke: "#ff55ff", strokeOpacity: 0.3, strokeWidth: 1, id: "mean-line" }),
-
+                    Plot.lineY(data, { x: "date", y: "val", stroke: "#ccc", strokeOpacity: 0.8, strokeWidth: 1, id: "data-line" }),
+                    
                     Plot.dot(data, Plot.pointerX({x: "date", y: "val", stroke: "red", r: 4})),
                     
                     Plot.text(data, Plot.pointerX({
@@ -877,10 +961,18 @@ class SpiralePlot {
                     }))
                 ]
             });
-            // ajoute une legende sous le plot pour mean-line, max-line, min-line
-
-
-            plotWrapper.appendChild(chart);
+            container.appendChild(chart);
         } catch (e) { console.error("Erreur Plot:", e); }
+
+        if (legendContainer) {
+            legendContainer.innerHTML = `
+                <div style="display:flex; justify-content:center; gap:15px; font-size:10px; color:#888; font-family:sans-serif;">
+                    <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ccc; margin-right:4px;"></span> Donnée</div>
+                    <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ff55ff; opacity:0.6; margin-right:4px;"></span> Moyenne Glob.</div>
+                    <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ff5555; opacity:0.5; margin-right:4px;"></span> Max Glob.</div>
+                    <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#00ffff; opacity:0.5; margin-right:4px;"></span> Min Glob.</div>
+                </div>
+            `;
+        }
     }
 }
