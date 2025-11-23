@@ -882,11 +882,15 @@ function deinitDragAndDrop() {
 
 function showDetailsFooter(keys) {
     const detailsFooter = document.querySelector('footer.footer');
+    const mainContent = document.getElementById('content-container');
     const contentContainer = document.getElementById('d3-chart-container');
-    if (!detailsFooter || !contentContainer) return;
+    if (!detailsFooter || !contentContainer || !mainContent) return;
 
     const keysArray = Array.isArray(keys) ? keys : [keys];
     if (keysArray.length === 0) return;
+
+    const footerOpenHeight = '40vh';
+    mainContent.style.marginBottom = footerOpenHeight;
 
     const items = keysArray.map(key => allConditions.find(c => c.key === key)).filter(Boolean);
     console.log(items)
@@ -916,8 +920,12 @@ function showDetailsFooter(keys) {
 
 function hideDetailsFooter() {
     const detailsFooter = document.querySelector('footer.footer');
+    const mainContent = document.getElementById('content-container');
     const contentContainer = document.getElementById('d3-chart-container');
-    if (!detailsFooter || !contentContainer) return;
+    if (!detailsFooter || !contentContainer || !mainContent) return;
+
+    const footerClosedHeight = '40px'; // Doit correspondre à --footer-height dans le CSS
+    mainContent.style.marginBottom = footerClosedHeight;
 
     // Fonction pour nettoyer le contenu
     const cleanup = () => {

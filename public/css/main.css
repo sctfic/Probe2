@@ -1,11 +1,13 @@
 :root {
     --primary-dark: #333333;
     --accent-blue: #4DC0E0;
-    --background-white: #FFFFFF
+    --background-white: #FFFFFF;
+    --header-height: 50px; /* Hauteur du navbar */
+    --footer-height: 40px; /* Hauteur du footer en mode normal */
 }
 
 body {
-    font-family: Arial,sans-serif;
+    font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
     background-color: #fff;
@@ -13,8 +15,7 @@ body {
     width: 100%;
     overflow-x: hidden;
     display: flex;
-    flex-direction: column;
-    min-height: 100vh
+    flex-direction: column
 }
 
 .navbar {
@@ -22,8 +23,13 @@ body {
     justify-content: space-between;
     align-items: center;
     background-color: var(--primary-dark);
-    padding: 5px 10px 5px 20px;
+    padding: 0 10px 0 20px;
     color: #fff;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
     width: 100%;
     box-sizing: border-box;
     z-index: 1000
@@ -70,11 +76,15 @@ body {
 
 .station-selector {
     background-color: var(--accent-blue);
-    padding: 10px 20px;
+    padding: 5px 20px;
     width: 100%;
     box-sizing: border-box;
     z-index: 900;
     display: flex;
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
     justify-content: space-between;
     align-items: center
 }
@@ -137,15 +147,20 @@ body {
 }
 
 .content-container {
+    margin-top: calc(var(--header-height) + 48px); /* Navbar + Station Selector */
+    margin-bottom: var(--footer-height);
     display: flex;
     width: 500vw;
     transform: translateX(0);
     transition: transform .3s ease-out;
     flex: 1;
-    overflow-y: auto
+    overflow: hidden; /* Le scroll est géré par .content-section */
+    position: relative;
+    box-sizing: border-box;
 }
 
 .content-section {
+    height: 100%;
     min-width: 100vw;
     box-sizing: border-box;
     padding: 2px 12px;
@@ -383,12 +398,15 @@ label {
 }
 
 .footer {
-    background-color: var(--primary-dark); /* Couleur rouge pour le bandeau */
+    background-color: var(--primary-dark);
     color: white;
     width: 100vw;
-    height: 40px;
-    z-index: 1100; /* Augmenté pour être au-dessus du contenu principal */
-    box-shadow: 0 -2px 4px rgba(0,0,0,.1); /* Transition pour hauteur et transformation */
+    height: var(--footer-height);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    z-index: 1100;
+    box-shadow: 0 -2px 4px rgba(0,0,0,.1);
     transition: all .1s ease-in-out; /* Transition pour hauteur et transformation */
     display: flex;
     flex-direction: column;
@@ -2255,64 +2273,169 @@ input:checked+.slider:before {
             stroke: none;
         }
 
-    .spiral-side-panel {
-        position: absolute; top: 0; right: 0; bottom: 0; width: 50%;
-        background: #1a1a1a;
-        border-left: 1px solid #333;
-        padding-left: 10px;
-        display: flex; flex-direction: column; justify-content: center;
-        pointer-events: none; overflow: hidden;
-    }
-    .spiral-side-panel figure, .spiral-side-panel svg, .mini-chart-interaction { pointer-events: auto !important; }
-    .spiral-panel-content { opacity: 1; transition: opacity 0.3s; z-index: 2; position: relative; padding: 20px; }
-    
-    .panel-date { font-size: 1.2rem; color: #ddd; font-family: sans-serif; margin-bottom: 5px; }
-    
-    .spiral-controls {
-        position: absolute; top: 10px; right: 50%;
-        display: flex; gap: 6px; z-index: 10; pointer-events: auto;
-        padding-right: 20px;
-    }
-    .spiral-btn {
-        background: rgba(40,40,40,0.8); border: 1px solid #555; color: #eee;
-        padding: 5px 10px; font-size: 11px; border-radius: 4px; cursor: pointer;
-        font-family: sans-serif; transition: background 0.2s;
-    }
-    .spiral-btn:hover { background: #666; }
 
-    .svg-hover-date {
-        font-family: 'Segoe UI', sans-serif; font-weight: 900;
-        fill: rgba(255, 255, 255, 0.5); pointer-events: none; text-anchor: middle;
-    }
-    .axis-label { font-family: sans-serif; font-size: 10px; fill: #999; pointer-events: none; }
-    .grid-ring { fill: none; stroke: #444; stroke-width: 1; opacity: 0.2; pointer-events: none; }
-    .axis-line { stroke: #444; stroke-width: 1; stroke-dasharray: 3,3; opacity: 0.3; pointer-events: none; }
-    
-    /* --- GESTION DE LA PROXIMITÉ (Path) --- */
-    
-    /* Le Ghost Path : invisible, large de 5px, capture les clics */
-    .sp-ghost-path {
-        stroke: transparent;
-        stroke-width: 5px; /* Largeur de la zone de détection */
-        fill: none;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        cursor: pointer;
-        pointer-events: stroke;
-    }
 
-    /* La ligne visible : purement décorative, ignore les events */
-    .sp-line { 
-        stroke-linecap: round; 
-        pointer-events: none; 
-    } 
-    
-    /* Effet de survol appliqué au groupe */
-    .period-group.hover-active .sp-line {
-        stroke-width: 4 !important;
-        stroke-opacity: 1 !important;
-        filter: drop-shadow(0 0 4px rgba(0,0,0,0.8));
+/* main.css - Ajout des styles pour la Spirale Refactorisée */
+
+/* ... (Garder tout le contenu existant avant la section Spirale, je remplace/ajoute ici les parties pertinentes) ... */
+
+/* --- SPIRAL CHART STYLES REFACTORED --- */
+
+.spiral-layout-container {
+    display: flex;
+    flex-wrap: wrap; /* Permet le retour à la ligne sur mobile */
+    width: 100%;
+    height: 100%;
+    background: #151515;
+    overflow-y: auto; /* Scroll vertical si empilement */
+    overflow-x: hidden;
+}
+
+/* Bloc de gauche : La Spirale SVG */
+.spiral-viz-block {
+    flex: 1 1 480px; /* Grandit, Rétrécit, Base 480px */
+    min-height: 400px;
+    position: relative; /* Pour positionner les boutons de contrôle */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* Bloc de droite : Stats et Mini-Chart */
+.spiral-stats-block {
+    flex: 1 1 480px; /* Grandit, Rétrécit, Base 480px */
+    background: #1a1a1a;
+    border-left: 1px solid #333;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    min-height: 250px;
+}
+
+/* Sur mobile (quand ça wrap), on change la bordure */
+@media (max-width: 960px) {
+    .spiral-stats-block {
+        border-left: none;
+        border-top: 1px solid #333;
     }
-    
-    .sp-path { fill: none; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-    .mini-chart-hover-dot { pointer-events: none; }
+}
+
+.spiral-panel-content {
+    opacity: 1;
+    transition: opacity 0.3s;
+    z-index: 2;
+    position: relative;
+    padding: 20px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.panel-date {
+    font-size: 1.2rem;
+    color: #ddd;
+    font-family: sans-serif;
+    margin-bottom: 5px;
+}
+
+.spiral-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px; /* Déplacé à droite du bloc viz */
+    display: flex;
+    gap: 6px;
+    z-index: 10;
+    pointer-events: auto;
+}
+
+.spiral-controls-left {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 10;
+}
+
+.spiral-btn {
+    background: rgba(40, 40, 40, 0.8);
+    border: 1px solid #555;
+    color: #eee;
+    padding: 5px 10px;
+    font-size: 11px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: sans-serif;
+    transition: background 0.2s;
+}
+
+.spiral-btn:hover {
+    background: #666;
+}
+
+.svg-hover-date {
+    font-family: 'Segoe UI', sans-serif;
+    font-weight: 900;
+    fill: rgba(255, 255, 255, 0.5);
+    pointer-events: none;
+    text-anchor: middle;
+}
+
+.axis-label {
+    font-family: sans-serif;
+    font-size: 10px;
+    fill: #999;
+    pointer-events: none;
+}
+
+.grid-ring {
+    fill: none;
+    stroke: #444;
+    stroke-width: 1;
+    opacity: 0.2;
+    pointer-events: none;
+}
+
+.axis-line {
+    stroke: #444;
+    stroke-width: 1;
+    stroke-dasharray: 3, 3;
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+/* --- GESTION DES PATHS (Optimisation) --- */
+.sp-path {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none; /* Les clics sont gérés par le ghost-path */
+    transition: stroke-width 0.2s;
+}
+
+/* --- GESTION DE LA PROXIMITÉ (Path) --- */
+
+/* Le Ghost Path : invisible, large de 5px, capture les clics */
+.sp-ghost-path {
+    stroke: transparent;
+    stroke-width: 5px;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    cursor: pointer;
+    pointer-events: stroke;
+}
+
+/* La ligne détaillée (segments) */
+.sp-line {
+    stroke-linecap: round;
+    pointer-events: none;
+}
+
+/* Effet de survol appliqué au groupe */
+.period-group.hover-active .sp-line,
+.period-group.hover-active .sp-path {
+    stroke-width: 4 !important;
+    stroke-opacity: 1 !important;
+    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.8));
+    stroke: #fff !important; /* Surbrillance blanche au survol */
+}
