@@ -2,7 +2,7 @@
 // =======================================
 //  Visualisation Spirale 3D (Time Helix)
 //  Version: DYNAMIC GRADIENT CENTER + AUTO-STOP ANIMATION + AUTO-LOAD LAST
-//  Update: AGGRESSIVE BLINKING RECORDS + CLEAN TOOLTIPS
+//  Update: PROGRESSIVE STATS (HISTORY ONLY) + ALL RECORDS BLINKING
 // =======================================
 
 /**
@@ -14,23 +14,12 @@
 async function loadSpiralePlot(container, url, forcedMode = null) {
     if (!container || !(container instanceof HTMLElement)) return;
 
-    // 1. Loader centré + CSS pour l'animation de clignotement (RAPIDE ET PRONONCÉ)
+    // 1. Loader centré (Plus de CSS injecté ici, géré par votre fichier CSS externe)
     container.style.position = "relative"; 
     container.innerHTML = `
         <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; justify-content:center; align-items:center; background:#151515; z-index:100;">
             <div class="loader-spinner" style="width:20px; height:20px; border:2px solid #555; border-top:2px solid #fff; border-radius:50%; animation:spin 1s linear infinite;"></div>
-        </div>
-        <style>
-            @keyframes spin {0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-            @keyframes flashRecord { 
-                0% { opacity: 0.1; } 
-                50% { opacity: 1; } 
-                100% { opacity: 0.1; } 
-            }
-            .blink-record { 
-                animation: flashRecord 0.6s infinite ease-in-out !important; 
-            }
-        </style>`;
+        </div>`;
 
     try {
         // Récupération rapide de la plage (Metadata) via /Range/
@@ -187,8 +176,8 @@ class SpiralePlot {
         
         this.periodMeans = new Map();
         this.sortedKeys = []; // Pour l'animation
-        this.globalStats = []; 
-        this.bgDataForPlot = []; // Cache pour le mini-chart
+        this.globalStats = []; // Stats "totales" pour la 3D
+        this.bgDataForPlot = []; // Cache temporaire
         
         this.colorMode = (this.grouping === 'year') ? 'mean' : 'standard';
 
@@ -204,8 +193,7 @@ class SpiralePlot {
         this.gSpiral = null;
         
         this.initScales();
-        this.computeGlobalStats();
-        this.precomputeBgData(); // Optimisation
+        this.computeGlobalStats(); // Stats initiales pour la 3D
         this.precompute3DCoordinates();
     }
 
@@ -281,6 +269,7 @@ class SpiralePlot {
     }
 
     computeGlobalStats() {
+        // Cette fonction calcule les stats sur TOUT le dataset (pour la structure 3D)
         let getKey;
         if (this.grouping === 'day') {
             getKey = (d) => d.date.getHours() * 60 + d.date.getMinutes();
@@ -301,29 +290,6 @@ class SpiralePlot {
         }
         
         this.globalStats.sort((a, b) => a.key - b.key);
-    }
-
-    precomputeBgData() {
-        const yearRef = 2024; 
-        this.bgDataForPlot = [];
-        this.globalStats.forEach(stat => {
-            let projectedDate;
-            if (this.grouping === 'day') {
-                const h = Math.floor(stat.key / 60);
-                const m = stat.key % 60;
-                projectedDate = new Date(yearRef, 0, 1, h, m); // 1er Janvier 2024
-            } else {
-                const m = Math.floor(stat.key / 100);
-                const d = stat.key % 100;
-                projectedDate = new Date(yearRef, m, d);
-            }
-            this.bgDataForPlot.push({
-                date: projectedDate,
-                gMin: stat.min,
-                gMax: stat.max,
-                gMean: stat.mean
-            });
-        });
     }
 
     precompute3DCoordinates() {
@@ -916,6 +882,35 @@ class SpiralePlot {
         this.drawMiniChart(subset, dataPoint);
     }
 
+    // NOUVELLE FONCTION : Recalcule les stats globales en excluant le futur
+    computeProgressiveStats(limitDate) {
+        // On filtre pour ne garder que l'historique (jusqu'à l'année/jour sélectionné inclus)
+        const limitYear = limitDate.getFullYear();
+        
+        // Filtre : toutes les données dont l'année est <= à l'année affichée
+        // (Cela fonctionne pour comparer des années entières. Pour le mode "day" comparant des cycles, c'est aussi pertinent)
+        const historyData = this.data.filter(d => d.date.getFullYear() <= limitYear);
+
+        let getKey;
+        if (this.grouping === 'day') getKey = (d) => d.date.getHours() * 60 + d.date.getMinutes();
+        else getKey = (d) => d.date.getMonth() * 100 + d.date.getDate();
+
+        const timeGroups = d3.group(historyData, getKey);
+        const progressiveStats = [];
+
+        // On recalcule Min/Max/Moy sur cet historique partiel
+        for (const [timeKey, points] of timeGroups) {
+            progressiveStats.push({
+                key: timeKey,
+                min: d3.min(points, d => d.val),
+                max: d3.max(points, d => d.val),
+                mean: d3.mean(points, d => d.val)
+            });
+        }
+        progressiveStats.sort((a, b) => a.key - b.key);
+        return progressiveStats;
+    }
+
     drawMiniChart(data, focusPoint) {
         const container = document.getElementById("mini-chart-container");
         const statsContainer = document.getElementById("mini-stats-header");
@@ -945,50 +940,65 @@ class SpiralePlot {
         const monthRef = focusPoint.date.getMonth();
         const dayRef = focusPoint.date.getDate();
         
-        // Mapping des stats globales sur la période temporelle visualisée
-        const mappedBgData = this.bgDataForPlot.map(d => {
+        // --- LOGIC: PROGRESSIVE GLOBAL STATS ---
+        // On calcule les stats globales uniquement avec les données <= année courante
+        const currentProgressiveStats = this.computeProgressiveStats(focusPoint.date);
+
+        // Mapping des stats progressives sur la période temporelle visualisée
+        const mappedBgData = [];
+        // On projette ces stats sur l'année/jour visualisé pour l'affichage
+        currentProgressiveStats.forEach(stat => {
              let newDate;
              if (this.grouping === 'day') {
-                 newDate = new Date(yearRef, monthRef, dayRef, d.date.getHours(), d.date.getMinutes());
+                 // Reconstruire l'heure à partir de la clé (minutes)
+                 const h = Math.floor(stat.key / 60);
+                 const m = stat.key % 60;
+                 newDate = new Date(yearRef, monthRef, dayRef, h, m);
              } else {
-                 newDate = new Date(yearRef, d.date.getMonth(), d.date.getDate());
+                 // Reconstruire la date à partir de la clé (MMDD)
+                 const m = Math.floor(stat.key / 100);
+                 const d = stat.key % 100;
+                 newDate = new Date(yearRef, m, d);
              }
-             return { ...d, date: newDate };
+             mappedBgData.push({
+                 date: newDate,
+                 gMin: stat.min,
+                 gMax: stat.max,
+                 gMean: stat.mean,
+                 key: stat.key
+             });
         });
 
-        // --- Logic: Détection des Records (3 dernières années) ---
-        const allYears = Array.from(new Set(this.data.map(d => d.date.getFullYear()))).sort((a,b) => b-a);
-        const recentYears = allYears.slice(0, 3);
-        const isRecent = recentYears.includes(yearRef);
-        
+        // --- Logic: Détection des Records (TOUTES SÉRIES) ---
+        // Un record est détecté si la valeur actuelle touche les bornes historiques (progressiveStats)
+        const statMap = new Map();
+        currentProgressiveStats.forEach(s => statMap.set(s.key, s));
+
         // Préparation des données pour les segments de records (avec null pour les ruptures)
-        let highRecData = [], lowRecData = [];
+        let highRecData = [];
+        let lowRecData = [];
         
-        if (isRecent) {
-            const statMap = new Map();
-            this.globalStats.forEach(s => statMap.set(s.key, s));
+        highRecData = data.map(d => {
+            let key;
+            if (this.grouping === 'day') key = d.date.getHours() * 60 + d.date.getMinutes();
+            else key = d.date.getMonth() * 100 + d.date.getDate();
+            
+            const stat = statMap.get(key);
+            // Si la valeur est >= au Max historique connu à ce moment là
+            if (stat && d.val >= stat.max) return { date: d.date, val: d.val };
+            return { date: d.date, val: null };
+        });
 
-            // On mappe les données en remplaçant les valeurs non-record par null
-            highRecData = data.map(d => {
-                let key;
-                if (this.grouping === 'day') key = d.date.getHours() * 60 + d.date.getMinutes();
-                else key = d.date.getMonth() * 100 + d.date.getDate();
-                
-                const stat = statMap.get(key);
-                if (stat && d.val >= stat.max) return { date: d.date, val: d.val };
-                return { date: d.date, val: null };
-            });
-
-            lowRecData = data.map(d => {
-                let key;
-                if (this.grouping === 'day') key = d.date.getHours() * 60 + d.date.getMinutes();
-                else key = d.date.getMonth() * 100 + d.date.getDate();
-                
-                const stat = statMap.get(key);
-                if (stat && d.val <= stat.min) return { date: d.date, val: d.val };
-                return { date: d.date, val: null };
-            });
-        }
+        lowRecData = data.map(d => {
+            let key;
+            if (this.grouping === 'day') key = d.date.getHours() * 60 + d.date.getMinutes();
+            else key = d.date.getMonth() * 100 + d.date.getDate();
+            
+            const stat = statMap.get(key);
+            // Si la valeur est <= au Min historique connu à ce moment là
+            if (stat && d.val <= stat.min) return { date: d.date, val: d.val };
+            return { date: d.date, val: null };
+        });
         // --------------------------------------------------------
 
         const yMin = Math.min(min, d3.min(mappedBgData, d => d.gMin));
@@ -1008,10 +1018,10 @@ class SpiralePlot {
                     domain: [yMin, yMax]
                 },
                 marks: [
-                    // --- Arrière-plan (Range global) ---
+                    // --- Arrière-plan (Range global HISTORIQUE) ---
                     Plot.areaY(mappedBgData, { x: "date", y1: "gMin", y2: "gMax", fill: "#333", fillOpacity: 0.2 }),
                     
-                    // Lignes globales
+                    // Lignes globales HISTORIQUES
                     Plot.lineY(mappedBgData, { x: "date", y: "gMin", stroke: "#00ffff", strokeOpacity: 0.3, strokeWidth: 1 }),
                     Plot.lineY(mappedBgData, { x: "date", y: "gMax", stroke: "#ff5555", strokeOpacity: 0.3, strokeWidth: 1 }),
                     Plot.lineY(mappedBgData, { x: "date", y: "gMean", stroke: "#ff55ff", strokeOpacity: 0.4, strokeWidth: 1 }),
@@ -1041,8 +1051,7 @@ class SpiralePlot {
                     
                     Plot.dot(data, Plot.pointerX({x: "date", y: "val", stroke: "red", r: 4})),
                     
-                    // --- HIGHLIGHT RECORDS (Path clignotant) ---
-                    // Note: strokeOpacity supprimé pour laisser la main au CSS
+                    // --- HIGHLIGHT RECORDS (Path clignotant via classe CSS) ---
                     Plot.lineY(highRecData, { 
                         x: "date", y: "val", 
                         stroke: "red", strokeWidth: 5, strokeLinecap: "round",
@@ -1083,7 +1092,7 @@ class SpiralePlot {
                     <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ff55ff; opacity:0.6; margin-right:4px;"></span> Moyenne Glob.</div>
                     <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ff5555; opacity:0.5; margin-right:4px;"></span> Max Glob.</div>
                     <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#00ffff; opacity:0.5; margin-right:4px;"></span> Min Glob.</div>
-                    ${isRecent ? `<div style="display:flex; align-items:center; margin-left:10px;"><span style="display:inline-block; width:10px; height:4px; background:red; opacity:0.4; margin-right:4px;"></span> Record Zone</div>` : ''}
+                    <div style="display:flex; align-items:center; margin-left:10px;"><span style="display:inline-block; width:10px; height:4px; background:red; opacity:0.4; margin-right:4px;"></span> Record Zone</div>
                 </div>
             `;
         }
