@@ -21,7 +21,6 @@
         "sensors": [
             "inTemp",
             "outTemp",
-            "open-meteo_outTemp",
             "dewPoint",
             "heatIndex",
             "windChill",
@@ -32,6 +31,7 @@
             "soilTemp2",
             "soilTemp3",
             "soilTemp4",
+            "soilTemp",
             "open-meteo_soilTemp",
             "extraTemp1",
             "extraTemp2",
@@ -288,6 +288,7 @@
             "extraSoilMoisture2",
             "extraSoilMoisture3",
             "extraSoilMoisture4",
+            "soilMoisture",
             "open-meteo_soilMoisture"
         ]
     },

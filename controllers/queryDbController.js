@@ -66,6 +66,7 @@ async function getIntervalSeconds(stationId, sensorRef, startDate, endDate, step
     };
 };
 
+
 function getMetadata(req, sensorRefs, { start, end, intervalSeconds }, data) {
     const measurements = [];
     const sensors = [];

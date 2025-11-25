@@ -46,6 +46,53 @@ function loadAndInitialize() {
     initialize(influxConfig);
 }
 loadAndInitialize(); // Initialisation au démarrage
+// router.get('/:stationId/clear', queryDbController.clearDeprecated);
+
+/**
+ * Supprime les données spécifiques (humidity/soilMoisture) pour une station donnée.
+ * @param {Object} req - La requête Express
+ * @param {Object} res - La réponse Express
+ */
+async function clearDeprecated(req, res)  {
+    // 1. Définition de la plage de temps (Large pour tout nettoyer)
+    const start = '2016-01-01T00:00:00Z';
+    const stop = '2017-01-01T00:00:00Z'; // Maintenant
+    
+    // Récupération de l'ID depuis l'URL (ex: VP2_Serramoune)
+    const stationId = req.params.stationId; 
+
+    console.log(`${V.Warn} Tentative de suppression des données 'humidity/soilMoisture' pour 'VP2_Serramoune' dans '${org}/${bucket}'`);
+
+    // 2. Le prédicat DOIT utiliser la syntaxe InfluxDB Delete (PAS de syntaxe Flux ici)
+    // Format: tag="valeur" AND _measurement="valeur"
+    // Attention aux guillemets doubles (") autour des valeurs.
+    const predicate = `_measurement="humidity" AND sensor="open-meteo_soilMoisture" AND station_id="VP2_Serramoune"`;
+
+    try {
+        await deleteApi.postDelete({
+            org,
+            bucket,
+            body: {
+                start: start,
+                stop: stop,
+                predicate: predicate
+            }
+        });
+
+        console.log(`${V.Check} Suppression réussie pour 'VP2_Serramoune'.`);
+        
+        // Important: Renvoyer une réponse au client HTTP
+        if (res) res.status(200).json({ success: true, message: `Données supprimées pour VP2_Serramoune` });
+        return true;
+
+    } catch (error) {
+        console.error(`${V.error} Erreur lors de la suppression dans '${bucket}':`, error);
+        
+        // Renvoyer l'erreur au client
+        if (res) res.status(500).json({ success: false, error: error.message });
+        return false;
+    }
+}
 
 /**
  * Teste la connexion à une instance InfluxDB avec une configuration donnée.
@@ -82,31 +129,6 @@ function reinitializeInfluxDB(newConfig) {
     initialize(influxConfig);
 }
 
-/**
- * Supprime toutes les données d'un bucket dans une plage de temps donnée.
- * @returns {Promise<boolean>} Retourne `true` si la suppression a réussi, sinon `false`.
- */
-async function clearBucket() {
-    const stop = new Date();
-    const start = new Date(0); // 1970-01-01T00:00:00Z
-    console.log(`${V.Warn} Tentative de suppression de toutes les données du bucket '${org}/${bucket}' de ${start.toISOString()} à ${stop.toISOString()}`);
-
-    try {
-        await deleteApi.postDelete({
-            org,
-            bucket,
-            body: {
-                start: start.toISOString(),
-                stop: stop.toISOString()
-            }
-        });
-        console.log(`${V.Check} Toutes les données du bucket '${bucket}' ont été supprimées avec succès.`);
-        return true;
-    } catch (error) {
-        console.error(`${V.error} Erreur lors de la suppression des données du bucket '${bucket}':`, error);
-        return false;
-    }
-}
 
 /**
  * Supprime les données de prévisions (tag forecast=true) d'une station antérieures à une date donnée.
@@ -708,7 +730,6 @@ module.exports = {
     reinitializeInfluxDB,
     writePoints,
     Point,
-    // queryData,
     getInfluxMetadata  ,
     queryDateRange,
     queryRaw,
@@ -716,8 +737,7 @@ module.exports = {
     queryWindRose,
     queryWindVectors,
     queryCandle,
-    clearBucket,
     queryLast,
+    clearDeprecated,
     deleteForecasts // Export de la nouvelle fonction de suppression
-    // findLastOpenMeteoTimestamp
 };
