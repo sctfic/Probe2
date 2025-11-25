@@ -1,8 +1,10 @@
+// services/influxdbService.js
 const { InfluxDB, Point } = require('@influxdata/influxdb-client');
 const { DeleteAPI, HealthAPI } = require('@influxdata/influxdb-client-apis');
 const fs = require('fs');
 const path = require('path');
 const { V } = require('../utils/icons');
+const { get } = require('http');
 
 const configPath = path.join(__dirname, '..', 'config', 'influx.json');
 let influxConfig;
@@ -103,6 +105,46 @@ async function clearBucket() {
     } catch (error) {
         console.error(`${V.error} Erreur lors de la suppression des données du bucket '${bucket}':`, error);
         return false;
+    }
+}
+
+/**
+ * Supprime les données de prévisions (tag forecast=true) d'une station antérieures à une date donnée.
+ * @param {string} stationId - L'ID de la station.
+ * @param {string} untilDateISO - Date limite (exclusive) pour la suppression (ISO string).
+ * @returns {Promise<number>} Retourne le nombre estimé de suppressions ou lance une erreur.
+ */
+async function deleteForecasts(stationId) {
+    const start = new Date(0).toISOString(); // Du début du temps
+    const stop = new Date().toISOString(); // Jusqu'à maintenant (exclusive)
+    
+    // Le prédicat pour cibler les données: tag 'station_id' et tag 'forecast'
+    const predicate = `station_id="${stationId}" AND forecast="true"`;
+
+    console.log(`${V.trash} Tentative de suppression des prévisions obsolètes pour ${stationId} de ${start} à ${stop}`);
+    console.log(`${V.trash} Prédicat de suppression: ${predicate}`);
+    
+    try {
+        await deleteApi.postDelete({
+            org,
+            bucket,
+            body: {
+                start: 0,
+                stop: stop,
+                predicate: predicate
+            }
+        });
+        // La fonction postDelete ne retourne pas le nombre de lignes supprimées.
+        // On retourne une valeur arbitraire pour indiquer le succès, ou l'on pourrait implémenter
+        // un query avant delete pour estimer le nombre, mais c'est lourd.
+        // Ici, on retourne 1 pour indiquer qu'au moins l'opération a été tentée avec succès.
+        console.log(`${V.Check} Suppression des prévisions obsolètes pour ${stationId} réussie (jusqu'à ${stop}).`);
+        // On renvoie un nombre arbitraire car l'API de suppression ne donne pas le compte
+        // Dans une application réelle, on pourrait logger l'heure et le prédicat.
+        return 1; 
+    } catch (error) {
+        // si il n'y a rien a supprimer, on ignore l'erreur
+        console.error(`${V.error} Erreur lors de la suppression des prévisions pour ${stationId}:`, error);
     }
 }
 
@@ -245,20 +287,23 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate) {
     if (sensorRef) {
         filter = getFilter(sensorRef);
     }
-
+const now = new Date();
+const endStop = now.setUTCDate(now.getUTCDate() + 30);
     const query = `
       import "array"
         // Premier timestamp
         first = from(bucket: "${bucket}")
-            |> range(start: ${startDate ? startDate : 0}${endDate ? `, stop: ${endDate}` : ''}) 
+            |> range(start: ${startDate ? startDate : 0}${endDate ? `, stop: ${endDate}` : `, stop: ${(new Date(endStop)).toISOString()}`}) 
             |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
+            |> group()
             |> first()
             |> findRecord(fn: (key) => true, idx: 0)
 
         // Dernier timestamp - lecture inverse plus rapide
         last = from(bucket: "${bucket}")
-            |> range(start: ${startDate ? startDate : 0}${endDate ? `, stop: ${endDate}` : ''}) 
+            |> range(start: ${startDate ? startDate : 0}${endDate ? `, stop: ${endDate}` : `, stop: ${(new Date(endStop)).toISOString()}`}) 
             |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
+            |> group()
             |> last()
             |> findRecord(fn: (key) => true, idx: 0)
 
@@ -278,6 +323,7 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate) {
         return { firstUtc: null, lastUtc: null, count: 0, unit: '' };
     }
     const data = result[0];
+    
 
     return {
         firstUtc: data.first || (new Date().toISOString()),
@@ -671,6 +717,7 @@ module.exports = {
     queryWindVectors,
     queryCandle,
     clearBucket,
-    queryLast
+    queryLast,
+    deleteForecasts // Export de la nouvelle fonction de suppression
     // findLastOpenMeteoTimestamp
 };

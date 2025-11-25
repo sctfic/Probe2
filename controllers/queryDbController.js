@@ -261,6 +261,7 @@ exports.getQueryRaw = async (req, res) => {
         // --- Common setup ---
         const { type, sensor } = getTypeAndSensor(sensorRef);
         const timeInfo = await getIntervalSeconds(stationId, type+':'+sensor, startDate, endDate, stepCount);
+        console.log(`${V.info} Demande de données brutes pour ${stationId} - ${sensorRef}`, timeInfo);
         const { start, end, intervalSeconds } = timeInfo;
 
         let Data;
@@ -765,5 +766,147 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
 
     } catch (error) {
         handleError(res, stationId, error, 'expandDbWithOpenMeteo');
+    }
+};
+
+exports.getOpenMeteoForecast = async (req, res) => {
+    const { stationId } = req.params;
+    const stationConfig = req.stationConfig;
+
+    try {
+        console.log(V.Travaux, `Récupération et écriture des prévisions Open-Meteo pour ${stationId}.`);
+
+        const { latitude, longitude, elevation } = {
+            latitude: stationConfig.latitude.lastReadValue,
+            longitude: stationConfig.longitude.lastReadValue,
+            elevation: stationConfig.altitude.lastReadValue
+        };
+
+        if (!latitude || !longitude) {
+            throw new Error("Les coordonnées GPS de la station ne sont pas définies.");
+        }
+
+        const openMeteoUrl = `https://api.open-meteo.com/v1/forecast`;
+        const params = {
+            latitude: latitude.toFixed(6),
+            longitude: longitude.toFixed(6),
+            elevation: elevation.toFixed(0),
+            hourly: [
+                'temperature_2m',
+                'relative_humidity_2m',
+                'precipitation',
+                'pressure_msl',
+                'evapotranspiration',
+                'wind_speed_10m',
+                'wind_direction_10m',
+                'wind_gusts_10m',
+                'soil_temperature_18cm',
+                'soil_moisture_9_to_27cm',
+                'shortwave_radiation'
+            ],
+            models: 'best_match',
+            timezone: 'auto',
+            forecast_days: 14 // Récupère 14 jours de prévisions
+        };
+
+        // Appel à l'API de prévisions
+        const response = await axios.get(openMeteoUrl, { params });
+        const openMeteoData = response.data;
+        console.log(`${V.Parabol} Appel à Open-Meteo Forecast avec les paramètres:`, params, response.request.res.responseUrl);
+
+        if (!openMeteoData || !openMeteoData.hourly || !openMeteoData.hourly.time) {
+            throw new Error("Format de données JSON invalide de l'API Open-Meteo Forecast.");
+        }
+        
+        const { time, ...metrics } = openMeteoData.hourly;
+        console.log(`${V.gear} Traitement de ${time.length} points de données de prévisions...`);
+        let pointsChunk = [];
+        let totalPointsGenerated = 0;
+
+        // Mapping sans le préfixe 'open-meteo_'
+        const mapping = {
+            'temperature_2m': { type: 'temperature', sensor: ['outTemp'], convert: (v) => v + 273.15 }, // °C -> K
+            'relative_humidity_2m': { type: 'humidity', sensor: ['outHumidity'] },
+            'precipitation': { type: 'rain', sensor: ['rainFall'] },
+            'evapotranspiration': { type: 'rain', sensor: ['ET'] },
+            'wind_speed_10m': { type: 'speed', sensor: ['Wind'], convert: (v) => v / 3.6 }, // km/h -> m/s
+            'wind_gusts_10m': { type: 'speed', sensor: ['Gust'], convert: (v) => v / 3.6 }, // km/h -> m/s
+            'wind_direction_10m': { type: 'direction', sensor: ['Wind', 'Gust'] },
+            'soil_temperature_18cm': { type: 'temperature', sensor: ['soilTemp'], convert: (v) => v + 273.15 }, // °C -> K
+            'soil_moisture_9_to_27cm': { type: 'soilMoisture', sensor: ['soilMoisture'], convert: (v) => v * 100 },
+            'pressure_msl': { type: 'pressure', sensor: ['barometer'] },
+            'shortwave_radiation': { type: 'irradiance', sensor: ['solar'] }
+        };
+
+
+        for (let i = 0; i < time.length; i++) {
+            const timestamp = new Date(time[i]); // Le temps est déjà un ISO string dans le forecast
+            timestamp.setMinutes(0, 0, 0);
+
+            for (const [openMeteoKey, values] of Object.entries(metrics)) {
+                const value = values[i];
+                if (value !== null && mapping[openMeteoKey]) {
+                    const { type, sensor, convert } = mapping[openMeteoKey];
+                    const metricValue = convert ? convert(value) : value;
+                    sensor.forEach(s => {
+                        pointsChunk.push(new influxdbService.Point(type)
+                            .tag('station_id', stationId)
+                            .tag('sensor', s)
+                            .tag('forecast', 'true') // Tag pour les prévisions
+                            .floatField('value', metricValue.toFixed(2))
+                            .timestamp(timestamp));
+                    });
+                }
+            }
+
+            const Wind = metrics.wind_speed_10m[i] / 3.6;
+            const WindDir = metrics.wind_direction_10m[i];
+            const UxWind = Math.round(Wind * Math.sin(Math.PI * WindDir / 180.0) * 1000) / 1000;
+            const VyWind = Math.round(Wind * Math.cos(Math.PI * WindDir / 180.0) * 1000) / 1000;
+            pointsChunk.push(new influxdbService.Point('vector')
+                .tag('station_id', stationId)
+                .floatField('Ux', UxWind)
+                .floatField('Vy', VyWind)
+                .tag('sensor', 'Wind')
+                .tag('forecast', 'true') // Tag pour les prévisions
+                .timestamp(timestamp));
+
+            const Gust = metrics.wind_gusts_10m[i] / 3.6;
+            const GustDir = metrics.wind_direction_10m[i];
+            const UxGust = Math.round(Gust * Math.sin(Math.PI * GustDir / 180.0) * 1000) / 1000;
+            const VyGust = Math.round(Gust * Math.cos(Math.PI * GustDir / 180.0) * 1000) / 1000;
+            pointsChunk.push(new influxdbService.Point('vector')
+                .tag('station_id', stationId)
+                .floatField('Ux', UxGust)
+                .floatField('Vy', VyGust)
+                .tag('sensor', 'Gust')
+                .tag('forecast', 'true') // Tag pour les prévisions
+                .timestamp(timestamp));
+
+            totalPointsGenerated += (Object.keys(mapping).length * 2) + 2; // Estimation grossière du nombre de points
+        }
+        
+        let writtenCount = 0;
+        if (pointsChunk.length > 0) {
+            writtenCount = await influxdbService.writePoints(pointsChunk);
+            console.log(V.database, `Écriture de ${writtenCount} points de prévisions dans InfluxDB...`, V.Check);
+        }
+
+        // Suppression des points de prévisions obsolètes (ceux qui sont déjà passés)
+        const now = new Date();
+        const deletedCount = await influxdbService.deleteForecasts(stationId);
+        // console.log(V.trash, ` Suppression de ${deletedCount} points de prévisions obsolètes pour ${stationId}.`, V.Check);
+
+
+        res.json({
+            success: true,
+            stationId: stationId,
+            message: `${writtenCount} points de données de prévisions ont été importés avec succès pour la station ${stationId}.`,
+            pointsWritten: writtenCount,
+            pointsDeleted: deletedCount
+        });
+
+    } catch (error) {
+        handleError(res, stationId, error, 'getOpenMeteoForecast');
     }
 };

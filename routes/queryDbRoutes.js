@@ -44,6 +44,9 @@ router.get('/:stationId/Candle/:sensorRef', queryDbController.getQueryCandle); /
 // Route pour compléter la base de données avec les archives Open-Meteo
 router.get('/:stationId/dbexpand', queryDbController.expandDbWithOpenMeteo); // http://probe2.lpz.ovh/api/station/VP2_Serramoune/dbexpand
 
+// Route pour compléter la base de données avec les archives Open-Meteo
+router.get('/:stationId/forecast', queryDbController.getOpenMeteoForecast); // http://probe2.lpz.ovh/api/station/VP2_Serramoune/dbexpand
+
 
 
 module.exports = router;

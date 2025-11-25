@@ -1,4 +1,4 @@
-// js/drawing/Wind.js - Graphique de rose des vents et histo vecteurs avec brush optionnel
+// js/drawing/Wind.js
 
 // =======================================
 //  Construction de la Rose de vent
@@ -395,7 +395,7 @@ async function loadRosePlot(id, url) {
     // Afficher le message de chargement avec animation
     chartDiv.innerHTML = `
         <div class="rose-container" id="prob-rose-container">
-            <div style="border: 3px solid rgba(52, 152, 219, 0.2); border-top: 3px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: windSpinner 1s linear infinite; margin: 0 auto 10px;"></div>
+            <div style="border: 3px solid rgba(52, 152, 219, 0.2); border-top: 3px solid #3397d1; border-radius: 50%; width: 30px; height: 30px; animation: windSpinner 1s linear infinite; margin: 0 auto 10px;"></div>
             <div style="color: #ccc; font-size: 12px;">Chargement des données...</div>
         </div>
         <div class="wind-period-display">
@@ -403,7 +403,7 @@ async function loadRosePlot(id, url) {
              <div id="last-date">${WIND.End}</div>
         </div>
         <div class="rose-container" id="speed-rose-container">
-            <div style="border: 3px solid rgba(52, 152, 219, 0.2); border-top: 3px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: windSpinner 1s linear infinite; margin: 0 auto 10px;"></div>
+            <div style="border: 3px solid rgba(52, 152, 219, 0.2); border-top: 3px solid #3397d1; border-radius: 50%; width: 30px; height: 30px; animation: windSpinner 1s linear infinite; margin: 0 auto 10px;"></div>
             <div style="color: #ccc; font-size: 12px;">Chargement des données...</div>
         </div>`;
     
@@ -454,6 +454,11 @@ function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
         return;
     }
 
+    // Date courante pour séparation historique / prévision
+    const now = new Date();
+    // Limite de 14 jours pour le calcul d'opacité
+    const futureLimit = 14 * 24 * 60 * 60 * 1000; 
+
     // Dimensions
     const margin = {top: 16, right: 25, bottom: 17, left: 25};
     const width = chartDiv.clientWidth;
@@ -476,8 +481,13 @@ function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
         .domain(d3.extent(processedData, d => d.date))
         .range([0, innerWidth]);
 
-    const maxSpeed = d3.max(processedData, d => d.Vy) || 1;
-    const minSpeed = d3.min(processedData, d => d.Vy) || -1;
+    let maxSpeed = d3.max(processedData, d => d.Vy) || 1;
+    let minSpeed = d3.min(processedData, d => d.Vy) || -1;
+    
+    // Forcer l'inclusion de 0 dans le domaine pour l'axe X visible
+    if (minSpeed > 0) minSpeed = 0;
+    if (maxSpeed < 0) maxSpeed = 0;
+
     const yScale = d3.scaleLinear()
         .domain([minSpeed, maxSpeed])
         .range([innerHeight, 0]);
@@ -494,6 +504,8 @@ function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
 
     // Defs with markers
     const defs = svg.append("defs");
+    
+    // Marqueur Historique (Bleu)
     defs.append("marker")
         .attr("id", `arrowhead-${id}`)
         .attr("refX", 2).attr("refY", 0)
@@ -502,9 +514,22 @@ function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
         .attr("markerWidth", 6).attr("markerHeight", 12)
         .attr("orient", "auto")
         .append("polygon")
-        .attr("stroke", "#3498db").attr("fill", "#3498db")
+        .attr("stroke", "#3397d1").attr("fill", "#3397d1")
         .attr("points", "0,0 -2.5,-2.5 5,0 -2.5,2.5");
 
+    // Marqueur Forecast (Violet)
+    defs.append("marker")
+        .attr("id", `arrowheadForecast-${id}`)
+        .attr("refX", 2).attr("refY", 0)
+        .attr("viewBox", "-5 -5 12 10")
+        .attr("markerUnits", "strokeWidth")
+        .attr("markerWidth", 6).attr("markerHeight", 12)
+        .attr("orient", "auto")
+        .append("polygon")
+        .attr("stroke", "#9b59b6").attr("fill", "#9b59b6")
+        .attr("points", "0,0 -2.5,-2.5 5,0 -2.5,2.5");
+
+    // Marqueur Hover (Rouge)
     defs.append("marker")
         .attr("id", `arrowheadHover-${id}`)
         .attr("refX", 2).attr("refY", 0)
@@ -641,13 +666,20 @@ function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
         
         // Mettre à jour les domaines
         xScale.domain([startDate, endDate]);
-        const newMaxSpeed = d3.max(filteredData, d => d.Vy) || 1;
-        const newMinSpeed = d3.min(filteredData, d => d.Vy) || -1;
+        
+        let newMaxSpeed = d3.max(filteredData, d => d.Vy) || 1;
+        let newMinSpeed = d3.min(filteredData, d => d.Vy) || -1;
+        
+        // Forcer l'inclusion de 0 dans le domaine lors du zoom/brush
+        if (newMinSpeed > 0) newMinSpeed = 0;
+        if (newMaxSpeed < 0) newMaxSpeed = 0;
+
         yScale.domain([newMinSpeed, newMaxSpeed]);
         coef = (yScale.range()[0] - yScale.range()[1]) / (yScale.domain()[1] - yScale.domain()[0]);
         
         // Transitions
         xAxisGroup.transition().duration(750)
+            .attr("transform", `translate(0,${yScale(0)})`) // S'assurer que l'axe suit le 0
             .call(d3.axisBottom(xScale).ticks(3).tickFormat(d3.timeFormat("%d/%m")).tickSize(4));
         
         arrows.select(".hair").transition().duration(750)
@@ -718,9 +750,16 @@ function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
         .attr("y1", yScale(0))
         .attr("x2", d => xScale(d.date) + d.Ux * coef)
         .attr("y2", d => yScale(d.Vy))
-        .attr("stroke", "#3498db")
+        .attr("stroke", d => d.date > now ? "#9b59b6" : "#3397d1") // Violet pour le futur
         .attr("stroke-width", 1)
-        .attr("marker-end", `url(#arrowhead-${id})`);
+        .attr("marker-end", d => d.date > now ? `url(#arrowheadForecast-${id})` : `url(#arrowhead-${id})`)
+        .style("opacity", d => {
+            if (d.date <= now) return 1;
+            // Opacité linéaire de 0.8 à 0.4 sur 14 jours
+            const diff = d.date - now;
+            let op = 0.8 - (diff / futureLimit) * 0.4;
+            return Math.max(0.4, op);
+        });
 
     // Hover effects (TOUJOURS ACTIFS, seulement désactivés si isBrushing)
     arrows
@@ -750,13 +789,16 @@ function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
             valueText.append('tspan').attr('x', innerWidth).attr('dy', '1.2em').attr('text-anchor', 'end').text(`${d.dir}°`);
             valueText.transition().duration(100).style("opacity", 1);
         })
-        .on("mouseout", function() {
+        .on("mouseout", function(event, d) {
             if (isBrushing) return;
             
+            // Rétablissement de la couleur selon l'historique ou le forecast
+            const isForecast = d.date > now;
+            
             d3.select(this).select(".hair")
-                .attr("stroke", "#3498db")
+                .attr("stroke", isForecast ? "#9b59b6" : "#3397d1")
                 .attr("stroke-width", 1)
-                .attr("marker-end", `url(#arrowhead-${id})`);
+                .attr("marker-end", isForecast ? `url(#arrowheadForecast-${id})` : `url(#arrowhead-${id})`);
             
             dateText.transition().duration(1600).style("opacity", 0);
             valueText.transition().duration(1600).style("opacity", 0);
@@ -825,6 +867,6 @@ async function loadWindPlots(windContainer, url, sensor, period = '3y') {
     const roseUrl = `${url}/WindRose?prefix=${prefix}`;
     loadRosePlot('windRoses-container', roseUrl);
     
-    const vectorUrl = `${url}/WindVectors/${sensor.split(':')[1]}?stepCount=600&startDate=${WIND.Start}&endDate=${WIND.End}`;
+    const vectorUrl = `${url}/WindVectors/${sensor.split(':')[1]}?stepCount=1000&startDate=${WIND.Start}`;
     loadVectorPlot('vector-container', vectorUrl, true); // fullUse = true en dur
 }
