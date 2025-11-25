@@ -4,6 +4,7 @@ const router = express.Router();
 const queryDbController = require('../controllers/queryDbController');
 const { loadStationConfig } = require('../middleware/stationMiddleware');
 const { isAuthenticated } = require('../middleware/authMiddleware');
+// const influxdbService = require('../services/influxdbService');
 
 module.exports = router;
 
@@ -14,7 +15,7 @@ module.exports = router;
 router.use('/:stationId', loadStationConfig);
 
 // Route to clear all data from the bucket
-// router.get('/clear', queryDbController.clearAllData); // http://probe2.lpz.ovh/query/clear
+// router.get('/:stationId/clear', influxdbService.clearDeprecated); // http://probe2.lpz.ovh/query/clear
 // .\influx-client.exe delete --bucket Probe --start '2025-09-02T20:30:00Z'  --stop '2025-09-02T23:00:00Z'
 
 

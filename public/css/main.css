@@ -2456,3 +2456,12 @@ input:checked+.slider:before {
     filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.8));
     stroke: #fff !important; /* Surbrillance blanche au survol */
 }
+            @keyframes spin {0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+            @keyframes flashRecord { 
+                0% { opacity: 0.1; } 
+                50% { opacity: 0.6; } 
+                100% { opacity: 0.1; } 
+            }
+            .blink-record { 
+                animation: flashRecord 0.6s infinite ease-in-out; 
+            }
