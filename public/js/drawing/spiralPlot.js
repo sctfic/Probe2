@@ -3,7 +3,6 @@
 //  Visualisation Spirale 3D (Time Helix)
 //  Version: DYNAMIC GRADIENT CENTER + AUTO-STOP ANIMATION + AUTO-LOAD LAST
 //  Update: PROGRESSIVE STATS (HISTORY ONLY) + ALL RECORDS BLINKING
-//  Modif: REDUCED CENTER RADIUS
 // =======================================
 
 /**
@@ -157,11 +156,10 @@ class SpiralePlot {
         this.beta = 0;
         this.alpha = -20 * (Math.PI / 180);
         
-        const minDim = Math.min(this.svgWidth, this.height)/2;
-        // MODIFICATION: Réduction du rayon interne pour rapprocher du centre (0.15 -> 0.05)
-        this.radiusMin = minDim * 0.01;
-        this.radiusMax = minDim * 0.80;
-        this.spiralHeight = this.height * 0.65;
+        const minDim = Math.min(this.svgWidth, this.height);
+        this.radiusMin = minDim * 0.05; // Rayon min de la spirale
+        this.radiusMax = minDim * 0.45; // Rayon max de la spirale
+        this.spiralHeight = this.height * 0.60; // espace entre les periodes
         
         this.wrapper = null; 
         this.sidePanel = null;
@@ -217,15 +215,15 @@ class SpiralePlot {
         this.sortedKeys = Array.from(groups.keys()).sort();
 
         const counts = Array.from(groups.values()).map(g => g.length);
-        const maxPoints = d3.max(counts) || 0;
-        const threshold = maxPoints * 0.9;
+        const maxPoints = d3.max(counts) || 0; // Nombre max de points dans une période
+        const threshold = maxPoints * 0.9; // Seuil à 90% du max pour filtrer les périodes complètes pour le calcul des échelles
 
         let validValues = [];
         let validMeans = [];
 
         this.periodMeans = new Map();
-
-        for (const [key, points] of groups) {
+        console.log('SpiralePlot - groups:', groups, counts, threshold);
+        for (const [key, points] of groups) { // Pour chaque période
             const mean = d3.mean(points, d => d.val);
             this.periodMeans.set(key, mean);
 
@@ -238,6 +236,7 @@ class SpiralePlot {
         }
 
         if (validValues.length === 0) {
+            console.warn('SpiralePlot - No valid values for scale computation, using all data.');
             validValues = this.data.map(d => d.val);
             validMeans = Array.from(this.periodMeans.values());
         }
@@ -246,9 +245,11 @@ class SpiralePlot {
         const extentMean = d3.extent(validMeans);
 
         const padding = (extentVal[1] - extentVal[0]) * 0.1;
+        console.log('SpiralePlot - Scale Extents:', extentVal, extentMean, validValues, this.data);
         this.scales.radius = d3.scaleLinear()
             .domain([extentVal[0] - padding, extentVal[1] + padding])
             .range([this.radiusMin, this.radiusMax]);
+
         this.scales.color = d3.scaleSequential(d3.interpolateTurbo).domain(extentVal);
         this.scales.colorMean = d3.scaleSequential(t => d3.interpolateRdBu(1 - t)).domain(extentMean);
 

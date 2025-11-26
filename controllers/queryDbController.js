@@ -904,7 +904,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
             stationId: stationId,
             message: `${writtenCount} points de données de prévisions ont été importés avec succès pour la station ${stationId}.`,
             pointsWritten: writtenCount,
-            pointsDeleted: deletedCount
+            pointsDeleted: deletedCount ? 'success' : 'error',
         });
 
     } catch (error) {

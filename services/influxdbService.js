@@ -151,7 +151,7 @@ async function deleteForecasts(stationId) {
             org,
             bucket,
             body: {
-                start: 0,
+                start: start,
                 stop: stop,
                 predicate: predicate
             }
@@ -300,7 +300,7 @@ function getFilter(sensorRef) {
  * @param {string} endDate - Date de fin (optionnelle).
  * @returns {Promise<Object>} Un objet contenant la plage de dates.
  */
-async function queryDateRange(stationId, sensorRef, startDate, endDate) {
+async function queryDateRange(stationId, sensorRef, startDate, endDate, archivesOnly = false) {
     let filter = '';
         // si sensorRef endsWith '_calc', on ne peut pas utiliser ce capteur pour determiner la plage de temps
     if (sensorRef.endsWith('_calc') || sensorRef.endsWith('_trend')) {
@@ -309,6 +309,9 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate) {
     if (sensorRef) {
         filter = getFilter(sensorRef);
     }
+    let scope = ' |> filter(fn: (r) => r.forecast != "true")';
+    if (!archivesOnly) {scope = '            |> group()'}
+
 const now = new Date();
 const endStop = now.setUTCDate(now.getUTCDate() + 30);
     const query = `
@@ -317,7 +320,7 @@ const endStop = now.setUTCDate(now.getUTCDate() + 30);
         first = from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : 0}${endDate ? `, stop: ${endDate}` : `, stop: ${(new Date(endStop)).toISOString()}`}) 
             |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
-            |> group()
+            ${scope}
             |> first()
             |> findRecord(fn: (key) => true, idx: 0)
 
@@ -325,7 +328,7 @@ const endStop = now.setUTCDate(now.getUTCDate() + 30);
         last = from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : 0}${endDate ? `, stop: ${endDate}` : `, stop: ${(new Date(endStop)).toISOString()}`}) 
             |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
-            |> group()
+            ${scope}
             |> last()
             |> findRecord(fn: (key) => true, idx: 0)
 

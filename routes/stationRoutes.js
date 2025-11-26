@@ -20,7 +20,6 @@ router.get('/:stationId/collect', talkStationWithLamp(stationController.getArchi
 // Routes pour les stations météorologiques
 router.get('/:stationId/info', stationController.getStationInfo); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/info
 
-
 router.get('/:stationId/update-datetime',isAuthenticated, talkStationWithLamp(stationController.updateTime)); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/update-datetime
 
 router.get('/:stationId/sync-settings', talkStationWithLamp(stationController.syncSettings)); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/sync-settings
