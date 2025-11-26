@@ -5,7 +5,6 @@ npm-debug.log*
 package-lock.json
 coverage/
 logs/
-docs/
 config/influxDb.json
 config/influx.json
 config/influx.save

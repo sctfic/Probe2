@@ -3,6 +3,7 @@
 //  Visualisation Spirale 3D (Time Helix)
 //  Version: DYNAMIC GRADIENT CENTER + AUTO-STOP ANIMATION + AUTO-LOAD LAST
 //  Update: PROGRESSIVE STATS (HISTORY ONLY) + ALL RECORDS BLINKING
+//  Modif: REDUCED CENTER RADIUS
 // =======================================
 
 /**
@@ -156,9 +157,10 @@ class SpiralePlot {
         this.beta = 0;
         this.alpha = -20 * (Math.PI / 180);
         
-        const minDim = Math.min(this.svgWidth, this.height);
-        this.radiusMin = minDim * 0.15;
-        this.radiusMax = minDim * 0.40;
+        const minDim = Math.min(this.svgWidth, this.height)/2;
+        // MODIFICATION: Réduction du rayon interne pour rapprocher du centre (0.15 -> 0.05)
+        this.radiusMin = minDim * 0.01;
+        this.radiusMax = minDim * 0.80;
         this.spiralHeight = this.height * 0.65;
         
         this.wrapper = null; 
@@ -244,11 +246,9 @@ class SpiralePlot {
         const extentMean = d3.extent(validMeans);
 
         const padding = (extentVal[1] - extentVal[0]) * 0.1;
-        
         this.scales.radius = d3.scaleLinear()
             .domain([extentVal[0] - padding, extentVal[1] + padding])
             .range([this.radiusMin, this.radiusMax]);
-
         this.scales.color = d3.scaleSequential(d3.interpolateTurbo).domain(extentVal);
         this.scales.colorMean = d3.scaleSequential(t => d3.interpolateRdBu(1 - t)).domain(extentMean);
 
