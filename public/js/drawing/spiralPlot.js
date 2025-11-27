@@ -5,6 +5,7 @@
 //  Update: PROGRESSIVE STATS (HISTORY ONLY) + ALL RECORDS BLINKING
 //  Modif: CLOCKWISE ROTATION + REDUCED CENTER + MINI-CHART DOTS & LABELS
 //  Update: NAV BUTTONS (PREV/NEXT) + EXTERNAL LINK ICON
+//  Fix: RESIZE OBSERVER (Fix crushed layout on first load)
 // =======================================
 
 /**
@@ -18,12 +19,21 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
 
     // 1. Loader centré
     container.style.position = "relative"; 
+    // On force une hauteur minimale temporaire pour éviter que le loader ne soit écrasé si le conteneur est encore en transition
+    container.style.minHeight = "30vw"; 
+    
     container.innerHTML = `
         <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; justify-content:center; align-items:center; background:#151515; z-index:100;">
             <div class="loader-spinner" style="width:20px; height:20px; border:2px solid #555; border-top:2px solid #fff; border-radius:50%; animation:spin 1s linear infinite;"></div>
         </div>`;
 
     try {
+        // Nettoyage de l'instance précédente si elle existe (pour arrêter les observers)
+        if (container._spiraleInstance) {
+            container._spiraleInstance.destroy();
+            delete container._spiraleInstance;
+        }
+
         // Récupération rapide de la plage (Metadata) via /Range/
         const rangeUrl = url.replace('/Raw/', '/Range/');
         const rangeResponse = await (window.fetchWithCache ? window.fetchWithCache(rangeUrl, 300000) : fetch(rangeUrl).then(r => r.json()));
@@ -102,6 +112,8 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
 
         // Initialisation du Plot
         container.innerHTML = '';
+        container.style.minHeight = ""; // On retire la contrainte temporaire
+        
         const plot = new SpiralePlot(container, processedData, { 
             grouping: mode, 
             metadata: meta, 
@@ -146,10 +158,13 @@ class SpiralePlot {
         this.options = options;
         this.grouping = options.grouping || 'day';
         
+        this.resizeObserver = null;
         this.rect = this.container.getBoundingClientRect();
-        console.log("Container rect:", this.rect);
+        
+        // FIX: Gestion de la hauteur initiale si le conteneur est écrasé (animation CSS en cours)
+        // Si height < 50px, on suppose que c'est une erreur de transition et on prend une valeur par défaut
         this.width = this.rect.width || 800;
-        this.height = this.rect.height || 600;
+        this.height = (this.rect.height > 50) ? this.rect.height : 350; 
         
         this.svgWidth = 480;
         this.centerX = this.svgWidth / 2; 
@@ -159,9 +174,9 @@ class SpiralePlot {
         this.alpha = -20 * (Math.PI / 180);
         
         const minDim = Math.min(this.svgWidth, this.height);
-        this.radiusMin = minDim * 0.05; // Rayon min de la spirale
-        this.radiusMax = minDim * 0.45; // Rayon max de la spirale
-        this.spiralHeight = this.height * 0.60; // espace entre les periodes
+        this.radiusMin = minDim * 0.05; 
+        this.radiusMax = minDim * 0.45; 
+        this.spiralHeight = this.height * 0.60; 
         
         this.wrapper = null; 
         this.sidePanel = null;
@@ -197,6 +212,65 @@ class SpiralePlot {
         this.initScales();
         this.computeGlobalStats();
         this.precompute3DCoordinates();
+        
+        // FIX: Activation de l'observer pour gérer la fin de l'animation CSS du footer
+        this.initResizeObserver();
+    }
+
+    destroy() {
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = null;
+        }
+        if (this.playInterval) clearInterval(this.playInterval);
+    }
+
+    initResizeObserver() {
+        this.resizeObserver = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                const newHeight = entry.contentRect.height;
+                // On ne redessine que si la hauteur est valide (>50) et a changé significativement (>5px)
+                // Cela évite les boucles infinies ou les micro-ajustements
+                if (newHeight > 50 && Math.abs(newHeight - this.height) > 5) {
+                    this.height = newHeight;
+                    this.updateDimensions();
+                    this.draw(); // Redessine complètement
+                    
+                    // Si on avait une clé sélectionnée, on essaie de restaurer l'état du panneau
+                    if (this.currentPlayKey) {
+                        const pointsInPeriod = this.data.filter(d => this.getPeriodKeyForDate(d.date) === this.currentPlayKey);
+                        if (pointsInPeriod.length > 0) {
+                            // On update le panel sans animation pour restaurer le contenu
+                            this.updateSidePanel(pointsInPeriod[0], this.currentPlayKey, false);
+                            // On ré-applique le highlight visuel
+                            setTimeout(() => this.highlightPeriod(this.currentPlayKey), 50);
+                        }
+                    }
+                }
+            }
+        });
+        this.resizeObserver.observe(this.container);
+    }
+
+    updateDimensions() {
+        this.centerY = this.height / 2;
+        const minDim = Math.min(this.svgWidth, this.height);
+        this.radiusMin = minDim * 0.05;
+        this.radiusMax = minDim * 0.45;
+        this.spiralHeight = this.height * 0.60;
+        
+        // Mise à jour de l'échelle Z et Radius si nécessaire
+        if (this.scales.z) {
+            this.scales.z.range([-this.spiralHeight / 2, this.spiralHeight / 2]);
+        }
+        if (this.scales.radius) {
+            // Recalcul simple basé sur minDim actuel
+            // Note: scales.radius.domain est déjà set
+             const extentVal = this.scales.radius.domain();
+             this.scales.radius.range([this.radiusMin, this.radiusMax]);
+        }
+        // On re-calcule les coordonnées 3D car elles dépendent de scale.radius et scale.z
+        this.precompute3DCoordinates();
     }
 
     getPeriodKeyForDate(date) {
@@ -216,8 +290,8 @@ class SpiralePlot {
         this.sortedKeys = Array.from(groups.keys()).sort();
 
         const counts = Array.from(groups.values()).map(g => g.length);
-        const maxPoints = d3.max(counts) || 0; // Nombre max de points dans une période
-        const threshold = maxPoints * 0.9; // Seuil à 90% du max pour filtrer les périodes complètes pour le calcul des échelles
+        const maxPoints = d3.max(counts) || 0; 
+        const threshold = maxPoints * 0.9; 
 
         let validValues = [];
         let validMeans = [];
@@ -258,7 +332,6 @@ class SpiralePlot {
             .range([-this.spiralHeight / 2, this.spiralHeight / 2]); 
             
         this.getAngle = (date) => {
-            // NOTE: Ajout du signe négatif pour la rotation Sens Horaire
             if (this.grouping === 'day') {
                 const start = new Date(date); start.setHours(0,0,0,0);
                 return -((date - start) / 86400000) * 2 * Math.PI;
@@ -271,7 +344,6 @@ class SpiralePlot {
     }
 
     computeGlobalStats() {
-        // Cette fonction calcule les stats sur TOUT le dataset (pour la structure 3D)
         let getKey;
         if (this.grouping === 'day') {
             getKey = (d) => d.date.getHours() * 60 + d.date.getMinutes();
@@ -360,7 +432,6 @@ class SpiralePlot {
             .style("background", "#151515")
             .style("cursor", "auto")
             .on("click", () => {
-                // Arrêt de l'animation si on clique n'importe où sur le fond
                 if (this.isPlaying) this.togglePlay();
             });
 
@@ -460,18 +531,14 @@ class SpiralePlot {
         });
 
         // Bouton Lien Externe
-        // Extraction de station et sensor depuis l'URL (ex: .../Raw/Station/Sensor)
         let extLink = "#";
-        console.log("Original URL spirale:", this.options.originalUrl);
         if (this.options.originalUrl && this.options.originalUrl.includes('/Raw/')) {
             try {
                 const parts = this.options.originalUrl.split('/Raw/');
-                console.log("Parts extraction lien externe spirale:", parts);
                 if (parts.length >= 2) {
                     const st = parts[0].split('/').pop();
                     const sn = parts[1].split('/').shift();
                     extLink = `/spirale3DChart.html?station=${st}&sensor=${sn}`;
-                    console.log("Lien externe spirale:", extLink);
                 }
             } catch(err) {
                 console.error("Erreur extraction lien externe spirale:", err);
@@ -486,7 +553,6 @@ class SpiralePlot {
         
         linkBtn.on("click", (e) => {
             e.stopPropagation();
-            console.log("Ouverture lien externe spirale:", extLink);
             if (extLink !== "#") {
                 window.open(extLink, '_blank');
             }
@@ -534,7 +600,6 @@ class SpiralePlot {
 
         const steps = 12;
         for(let i=0; i<steps; i++) {
-            // NOTE: Inversion du sens de rotation des axes (th est négatif)
             const th = -((i/steps)*Math.PI*2) - Math.PI/2;
             const r = this.radiusMax;
             const p1 = this.project(0, ringY, 0);
@@ -800,7 +865,6 @@ class SpiralePlot {
             btn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`).style("background", "");
             if (this.playInterval) clearInterval(this.playInterval);
             this.playInterval = null;
-            // Note: on ne reset pas highlights ici pour laisser la sélection active
         }
     }
 
@@ -811,13 +875,11 @@ class SpiralePlot {
     }
 
     stepAnimation() {
-        // Sécurité : si le mini-chart n'est plus dans le DOM, on arrête tout
         const chartContainer = document.getElementById("mini-chart-container");
         if (!chartContainer || !chartContainer.isConnected) {
             if (this.playInterval) clearInterval(this.playInterval);
             this.isPlaying = false;
             if (this.sidePanel) {
-                // Reset bouton si le panel existe encore (peu probable si container absent mais possible)
                 const btn = this.sidePanel.select("#btn-play-toggle");
                 if(!btn.empty()) btn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`).style("background", "");
             }
@@ -831,10 +893,9 @@ class SpiralePlot {
         if (idx >= this.sortedKeys.length) idx = 0; 
         
         const nextKey = this.sortedKeys[idx];
-        this.changePeriod(0, nextKey); // 0 offset, direct key assignment
+        this.changePeriod(0, nextKey); 
     }
 
-    // Helper pour navigation manuelle (Prev/Next) ou auto
     changePeriod(offset, directKey = null) {
         if (!this.sortedKeys || this.sortedKeys.length === 0) return;
 
@@ -842,7 +903,6 @@ class SpiralePlot {
         
         if (!nextKey) {
             let idx = this.sortedKeys.indexOf(this.currentPlayKey);
-            // Fallback si la clé courante n'est pas trouvée
             if(idx === -1) idx = 0;
 
             idx += offset;
@@ -854,7 +914,6 @@ class SpiralePlot {
         this.currentPlayKey = nextKey;
         this.highlightPeriod(this.currentPlayKey);
 
-        // Mise à jour panel latéral
         const pointsInPeriod = this.data.filter(d => this.getPeriodKeyForDate(d.date) === this.currentPlayKey);
         if (pointsInPeriod.length > 0) {
             this.updateSidePanel(pointsInPeriod[0], this.currentPlayKey, true);
@@ -862,22 +921,17 @@ class SpiralePlot {
     }
 
     highlightPeriod(key) {
-        // --- Visual Highlight Logic (Comme le survol) ---
-        // 1. On atténue tout
         this.gSpiral.selectAll(".sp-vis-path")
             .attr("stroke-opacity", 0.15)
             .attr("stroke-width", 1);
         
-        // 2. On sélectionne le groupe correspondant à la clé courante
         const targetGroup = this.gSpiral.selectAll(".period-group")
             .filter(d => d.key === key);
         
-        // 3. On met en évidence le path
         targetGroup.select(".sp-vis-path")
             .attr("stroke-opacity", 1)
             .attr("stroke-width", 1.5);
         
-        // 4. On le met au premier plan (Z-Index)
         targetGroup.raise();
     }
 
@@ -886,7 +940,6 @@ class SpiralePlot {
         
         this.currentPlayKey = periodKey; 
         
-        // Si c'est la première ouverture (pas d'animation), on highlight quand même
         if(!isAnimating && !this.isPlaying) {
              this.highlightPeriod(periodKey);
         }
@@ -912,7 +965,6 @@ class SpiralePlot {
             content = this.sidePanel.select(".spiral-panel-content");
         }
 
-        // Si le conteneur du chart n'existe pas, on reconstruit toute l'interface du panel
         if (content.select("#mini-chart-container").empty()) {
             content.html(`
                 <div class="panel-info">
@@ -948,11 +1000,9 @@ class SpiralePlot {
             });
 
         } else {
-            // Mise à jour juste de la date si le DOM existe déjà
             content.select("#panel-date-dyn").text(dateFmt(dataPoint.date));
         }
         
-        // Update état du bouton Play
         const playBtn = content.select("#btn-play-toggle");
         if(this.isPlaying) {
             playBtn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>`).style("background", "#552222");
@@ -964,13 +1014,8 @@ class SpiralePlot {
         this.drawMiniChart(subset, dataPoint);
     }
 
-    // NOUVELLE FONCTION : Recalcule les stats globales en excluant le futur
     computeProgressiveStats(limitDate) {
-        // On filtre pour ne garder que l'historique (jusqu'à l'année/jour sélectionné inclus)
         const limitYear = limitDate.getFullYear();
-        
-        // Filtre : toutes les données dont l'année est <= à l'année affichée
-        // (Cela fonctionne pour comparer des années entières. Pour le mode "day" comparant des cycles, c'est aussi pertinent)
         const historyData = this.data.filter(d => d.date.getFullYear() <= limitYear);
 
         let getKey;
@@ -980,7 +1025,6 @@ class SpiralePlot {
         const timeGroups = d3.group(historyData, getKey);
         const progressiveStats = [];
 
-        // On recalcule Min/Max/Moy sur cet historique partiel
         for (const [timeKey, points] of timeGroups) {
             progressiveStats.push({
                 key: timeKey,
@@ -1022,22 +1066,16 @@ class SpiralePlot {
         const monthRef = focusPoint.date.getMonth();
         const dayRef = focusPoint.date.getDate();
         
-        // --- LOGIC: PROGRESSIVE GLOBAL STATS ---
-        // On calcule les stats globales uniquement avec les données <= année courante
         const currentProgressiveStats = this.computeProgressiveStats(focusPoint.date);
 
-        // Mapping des stats progressives sur la période temporelle visualisée
         const mappedBgData = [];
-        // On projette ces stats sur l'année/jour visualisé pour l'affichage
         currentProgressiveStats.forEach(stat => {
              let newDate;
              if (this.grouping === 'day') {
-                 // Reconstruire l'heure à partir de la clé (minutes)
                  const h = Math.floor(stat.key / 60);
                  const m = stat.key % 60;
                  newDate = new Date(yearRef, monthRef, dayRef, h, m);
              } else {
-                 // Reconstruire la date à partir de la clé (MMDD)
                  const m = Math.floor(stat.key / 100);
                  const d = stat.key % 100;
                  newDate = new Date(yearRef, m, d);
@@ -1051,12 +1089,9 @@ class SpiralePlot {
              });
         });
 
-        // --- Logic: Détection des Records (TOUTES SÉRIES) ---
-        // Un record est détecté si la valeur actuelle touche les bornes historiques (progressiveStats)
         const statMap = new Map();
         currentProgressiveStats.forEach(s => statMap.set(s.key, s));
 
-        // Préparation des données pour les segments de records (avec null pour les ruptures)
         let highRecData = [];
         let lowRecData = [];
         
@@ -1066,7 +1101,6 @@ class SpiralePlot {
             else key = d.date.getMonth() * 100 + d.date.getDate();
             
             const stat = statMap.get(key);
-            // Si la valeur est >= au Max historique connu à ce moment là
             if (stat && d.val >= stat.max) return { date: d.date, val: d.val };
             return { date: d.date, val: null };
         });
@@ -1077,7 +1111,6 @@ class SpiralePlot {
             else key = d.date.getMonth() * 100 + d.date.getDate();
             
             const stat = statMap.get(key);
-            // Si la valeur est <= au Min historique connu à ce moment là
             if (stat && d.val <= stat.min) return { date: d.date, val: d.val };
             return { date: d.date, val: null };
         });
@@ -1099,30 +1132,24 @@ class SpiralePlot {
                     domain: [yMin, yMax]
                 },
                 marks: [
-                    // --- Arrière-plan (Range global HISTORIQUE) ---
                     Plot.areaY(mappedBgData, { x: "date", y1: "gMin", y2: "gMax", fill: "#333", fillOpacity: 0.2 }),
                     
-                    // Lignes globales HISTORIQUES
                     Plot.lineY(mappedBgData, { x: "date", y: "gMin", stroke: "#00ffff", strokeOpacity: 0.3, strokeWidth: 1 }),
                     Plot.lineY(mappedBgData, { x: "date", y: "gMax", stroke: "#ff5555", strokeOpacity: 0.3, strokeWidth: 1 }),
                     Plot.lineY(mappedBgData, { x: "date", y: "gMean", stroke: "#ff55ff", strokeOpacity: 0.4, strokeWidth: 1 }),
 
-                    // --- Segment vertical interactif ---
                     Plot.link(mappedBgData, Plot.pointerX({
                         x1: "date", y1: "gMin", x2: "date", y2: "gMax", 
                         stroke: "#666", strokeDasharray: "2,3", strokeOpacity: 0.8
                     })),
 
-                    // --- DOTS pour les valeurs globales ---
                     Plot.dot(mappedBgData, Plot.pointerX({ x: "date", y: "gMax", fill: "#ff5555", r: 2 })),
                     Plot.dot(mappedBgData, Plot.pointerX({ x: "date", y: "gMean", fill: "#ff55ff", r: 2 })),
                     Plot.dot(mappedBgData, Plot.pointerX({ x: "date", y: "gMin", fill: "#00ffff", r: 2 })),
                     
-                    // --- Data courante ---
                     Plot.lineY(data, { x: "date", y: "val", stroke: "#ccc", strokeOpacity: 0.8, strokeWidth: 1, id: "data-line" }),
                     Plot.dot(data, Plot.pointerX({x: "date", y: "val", stroke: "#ccc", r: 3, fill: "red" })),
                     
-                    // --- HIGHLIGHT RECORDS (Path clignotant via classe CSS) ---
                     Plot.lineY(highRecData, { 
                         x: "date", y: "val", 
                         stroke: "red", strokeWidth: 5, strokeLinecap: "round",
@@ -1134,7 +1161,6 @@ class SpiralePlot {
                         className: "blink-record"
                     }),
                     
-                    // --- Textes simplifiés au survol pour les lignes globales ---
                     Plot.text(mappedBgData, Plot.pointerX({
                         x: "date", y: "gMax", text: d => `${d.gMax.toFixed(1)} ${this.options.unit}`, 
                         dy: -10, className: "hover-value", fill: "#ff5555", textAnchor: "middle"
@@ -1148,12 +1174,9 @@ class SpiralePlot {
                         dy: 10, fill: "#00ffff", textAnchor: "middle", className: "hover-value"
                     })),
                     
-                    // --- Textes MODIFIÉS ---
-                    
-                    // 1. Valeur courante : alignée à droite du point rouge
                     Plot.text(data, Plot.pointerX({
                         x: "date", y: "val", 
-                        dy: 3, dx: 8, // Décalage à droite, centré verticalement
+                        dy: 3, dx: 8, 
                         textAnchor: "start",
                         fontVariant: "tabular-nums",
                         fontSize: "11px",
@@ -1163,11 +1186,10 @@ class SpiralePlot {
                         text: (d) => ` ${d.val} ${this.options.unit}`
                     })),
 
-                    // 2. Date : alignée sur l'axe X (bas)
                     Plot.text(data, Plot.pointerX({
                         x: "date", 
-                        frameAnchor: "bottom", // Colle au bas du cadre
-                        dy: 15, // Pousse dans la marge inférieure
+                        frameAnchor: "bottom", 
+                        dy: 15, 
                         fontVariant: "tabular-nums",
                         fontSize: "11px",
                         fill: "#aaa",
