@@ -780,8 +780,9 @@ exports.getOpenMeteoForecast = async (req, res) => {
         const { latitude, longitude, elevation } = {
             latitude: stationConfig.latitude.lastReadValue,
             longitude: stationConfig.longitude.lastReadValue,
-            elevation: stationConfig.altitude.lastReadValue
+            elevation: stationConfig.altitude.lastReadValue,
         };
+        const model = stationConfig.cron.model || 'best_match';
 
         if (!latitude || !longitude) {
             throw new Error("Les coordonnées GPS de la station ne sont pas définies.");

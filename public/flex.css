@@ -1,0 +1,201 @@
+/* style.css */
+
+/* Variables et Réinitialisation de base */
+:root {
+    --header-height: 50px;
+    --footer-height: 30px;
+    --active-color: #007bff; /* Bleu pour l'élément actif */
+    --border-color: #ccc;
+    --scroll-color: #5cb85c; /* Vert pour la barre de scroll */
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: sans-serif;
+    /* Empêche le scroll global pour laisser le scroll aux sections */
+    overflow: hidden; 
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* 1. NAV Toujours Visible (Header) */
+.nav-visible {
+    height: var(--header-height);
+    background-color: #f8f8f8;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed; /* Rendu Fixe */
+    top: 0;
+    left: 0;
+    width: 100vw;
+    z-index: 10;
+}
+
+.logo {
+    font-weight: bold;
+    padding-right: 15px;
+}
+
+.user-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.icon-button {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+/* 2. UL/Li de section lateral avec slider */
+.section-slider {
+    flex-grow: 1; /* Prend l'espace restant au centre */
+    overflow-x: auto; /* Permet le scroll latéral (slider) */
+    -webkit-overflow-scrolling: touch; /* Améliore le scroll sur iOS */
+}
+
+/* Cacher la barre de défilement par défaut pour le slider */
+.section-slider::-webkit-scrollbar {
+    display: none;
+}
+.section-slider {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+#section-nav-list {
+    list-style: none;
+    display: flex;
+    height: 100%;
+    align-items: center;
+    white-space: nowrap; /* Empêche le retour à la ligne des LI */
+}
+
+#section-nav-list li {
+    padding: 5px 15px;
+    margin-right: 5px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    transition: all 0.2s;
+}
+
+#section-nav-list li.active {
+    border-color: var(--active-color);
+    font-weight: bold;
+    color: var(--active-color);
+    background-color: #e6f7ff;
+}
+
+/* 3. FOOTER Toujours Visible */
+.footer-visible {
+    height: var(--footer-height);
+    background-color: #f0f0f0;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8em;
+    color: #666;
+    position: fixed; /* Rendu Fixe */
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    z-index: 10;
+}
+
+/* 4. Contenu Principal (MAIN) */
+#main-content-container {
+    /* Espace entre le header et le footer */
+    flex: 1;
+    margin-top: var(--header-height);
+    margin-bottom: var(--footer-height);
+    
+    /* Layout des sections */
+    display: flex;
+    position: relative;
+    /* Pour la transition de changement de section */
+    transition: transform 0.3s ease-in-out; 
+}
+
+.page-section {
+    min-width: 100%; /* Chaque section prend toute la largeur */
+    padding: 10px;
+    padding-right: 20px; /* Espace pour la barre de scroll personnalisée */
+    overflow-y: auto; /* Permet le scroll vertical DANS la section */
+    height: 100%;
+    position: relative;
+}
+
+.page-section h2 {
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+.section-version {
+    text-align: center;
+    color: #999;
+    padding-top: 15px;
+    font-size: 0.7em;
+}
+
+/* 5. Layout des Cards (Grille) */
+.content-grid {
+    display: grid;
+    /* Deux colonnes pour le mobile, comme sur le croquis */
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 10px;
+}
+
+.card {
+    background-color: white;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    height: 80px; /* Hauteur fixe pour ressembler au croquis */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9em;
+}
+
+/* 6. Barre de Scroll Personnalisée (pour SECTION 2 sur le croquis) */
+
+/* Style des barres de défilement (Webkit: Chrome, Safari) */
+.page-section::-webkit-scrollbar {
+    width: 10px; /* Largeur de la barre */
+}
+
+.page-section::-webkit-scrollbar-track {
+    background: #f1f1f1; /* Couleur de la piste */
+    border-radius: 5px;
+}
+
+/* Couleur de la poignée de défilement (Scroll de la Section 2 sur le croquis) */
+.page-section::-webkit-scrollbar-thumb {
+    background: var(--scroll-color); /* Vert pour la Section 2 */
+    border-radius: 5px;
+}
+
+/* On peut changer la couleur pour Section 1, si nécessaire */
+#section-1::-webkit-scrollbar-thumb {
+    background: var(--active-color); /* Bleu pour la Section 1 (exemple) */
+}
+
+/* Style de la barre de scroll du MAIN visible seulement pour les sections 1 et 2 (ceci simule le scroll à droite sur le croquis) */
+/* La barre verte dans le croquis semble être une indication d'une barre de scroll personnalisée/stylée */
+/* Comme le croquis montre une barre "Visible pour section 1 et 2" à côté du scroll de "Section 2", 
+   nous gardons la barre de scroll active pour les sections, comme implémenté ci-dessus. */

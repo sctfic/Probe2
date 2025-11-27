@@ -57,8 +57,11 @@ router.put('/:stationId', isAuthenticated, (req, res) => {
         const stationConfig = req.stationConfig;
         const updates = req.body;
         const configManager = require('../services/configManager');
+        
+        // Détection des changements dans la configuration CRON
         const cronChanged = stationConfig.cron.enabled !== updates.cron.enabled || stationConfig.cron.value !== updates.cron.value;
         const openMeteoChanged = stationConfig.cron.openMeteo !== updates.cron.openMeteo;
+        const forecastChanged = stationConfig.cron.forecast !== updates.cron.forecast || stationConfig.cron.model !== updates.cron.model;
 
         // Fusionner les modifications avec la configuration existante de manière récursive
         const mergeDeep = (target, source) => {
@@ -84,6 +87,11 @@ router.put('/:stationId', isAuthenticated, (req, res) => {
             console.log(`[CRON] Le paramètre de collecte Open-Meteo a changé pour ${stationConfig.id}. Replanification...`);
             cronService.scheduleOpenMeteoJob(stationConfig.id, updatedConfig);
         }
+        if (forecastChanged) {
+            console.log(`[CRON] Le paramètre de prévision Open-Meteo a changé pour ${stationConfig.id}. Replanification...`);
+            cronService.scheduleOpenMeteoForecastJob(stationConfig.id, updatedConfig);
+        }
+
         // Sauvegarder la configuration mise à jour
         const success = configManager.saveConfig(stationConfig.id, updatedConfig);
         

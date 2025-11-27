@@ -94,16 +94,71 @@ body {
 
 .station-info {
     color: #fff;
-    font-size: 14px;
-    font-weight: 700
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1; /* Peut rétrécir */
+    min-width: 0;
 }
 
 .station-selector-container {
     display: flex;
     align-items: center;
-    gap: 10px
+    gap: 5px;
+    flex: 1; /* Grandit pour remplir l'espace */
+    min-width: 0; /* Permet aux enfants de rétrécir */
 }
 
+.station-selector-container:last-child {
+    flex: 0 1 auto; /* Le dernier conteneur ne grandit pas */
+    justify-content: flex-end;
+}
+
+#global-station-select {
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    background-color: #fff;
+    color: var(--primary-dark);
+    border: 1px solid #ddd;
+    min-width: 150px; /* Largeur minimale raisonnable */
+    max-width: 250px; /* Largeur maximale */
+    width: auto; /* Laisse le navigateur décider */
+    box-sizing: border-box;
+    flex-shrink: 1; /* Peut rétrécir */
+}
+
+.station-icon-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    opacity: .5;
+    border-radius: 50%;
+    background-color: var(--primary-dark);
+    cursor: pointer;
+    transition: all .3s ease;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0; /* N'enrètrécit pas */
+}
+
+.station-icon-btn:hover {
+    background-color: var(--primary-dark);
+    opacity: .8;
+    transform: scale(1.1)
+}
+
+.station-icon-btn .nav-icon {
+    width: 24px;
+    height: 24px;
+    margin-right: 0;
+    margin-inline: 0;
+}
 
 .condition-tile.value-changed .condition-value {
     color: #4CAF50;
@@ -272,6 +327,9 @@ button:hover,input[type=button]:hover,input[type=submit]:hover {
     display: flex;
     flex-direction: row;
     align-items: center;
+    gap: 5px;
+    flex: 1;
+    min-width: 200px;
 }
 
 .btn-text {
@@ -280,8 +338,8 @@ button:hover,input[type=button]:hover,input[type=submit]:hover {
 
 .btn-spinner {
     display: none;
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     border: 3px solid rgba(255,255,255,.3);
     border-radius: 50%;
     border-top-color: #fff;
@@ -427,7 +485,7 @@ label {
 }
 
 .footer-bottom {
-    padding: 12px 20px;
+    padding: 6px 12px;
     text-align: center;
     border-top: 1px solid rgba(255,255,255,.1)
 }
@@ -740,11 +798,11 @@ input:checked+.slider:before {
 
 .conditions-controls {
     background: #f8f9fa;
-    padding: 2px;
+    padding: 8px;
     border-radius: 8px;
     margin-bottom: 2px;
     display: flex;
-    gap: 20px;
+    gap: 10px;
     align-items: center;
     flex-wrap: wrap;
     justify-content: space-between
@@ -1369,12 +1427,6 @@ input:checked+.slider:before {
     position: relative
 }
 
-.settings-field label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 600;
-    color: var(--primary-dark)
-}
 
 .settings-field input,.settings-field select {
     width: 100%;
@@ -1623,18 +1675,6 @@ input:checked+.slider:before {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px
-}
-
-.settings-field {
-    display: flex;
-    flex-direction: column
-}
-
-.settings-field label {
-    margin-bottom: 5px;
-    font-weight: 700;
-    font-size: .9em;
-    color: #555
 }
 
 .settings-field input[type=number],.settings-field input[type=text] {

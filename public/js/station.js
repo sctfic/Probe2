@@ -1,3 +1,4 @@
+// public/js/station.js
 let currentStationSettings = null;
 /**
  * Formate une durée en secondes au format HH:MM:SS.
@@ -65,7 +66,7 @@ async function displaySettingsForm() {
         },
         database: {
             title: 'Base de données',
-            fields: ['dbexpand', 'cron']
+            fields: ['dbexpand', 'forecast', 'cron']
         }
     };
 
@@ -89,12 +90,14 @@ async function displaySettingsForm() {
         `;
         
         group.fields.forEach(fieldKey => {
-            if (currentStationSettings.hasOwnProperty(fieldKey) && !excludeKeys.includes(fieldKey)) {
+            if (fieldKey === 'dbexpand') { // Special case for our new button
+                const field = { comment: "Complète la base de données avec les archives d'Open-Meteo sur 50 ans pour cette localisation. (chaque jour a 23h30)" };
+                formHTML += createDbExpandFieldHTML(field, openMeteoRange, currentStationSettings.cron?.openMeteo);
+            } else if (fieldKey === 'forecast') { // Special case for forecast switch and model
+                formHTML += createForecastFieldHTML(currentStationSettings.cron);
+            } else if (currentStationSettings.hasOwnProperty(fieldKey) && !excludeKeys.includes(fieldKey)) {
                 const field = currentStationSettings[fieldKey]; // Standard fields
                 formHTML += createSettingFieldHTML(fieldKey, field);
-            } else if (fieldKey === 'dbexpand') { // Special case for our new button
-                const field = { comment: "Complète la base de données avec les archives d'Open-Meteo sur 15 ans pour cette localisation." };
-                formHTML += createDbExpandFieldHTML(field, openMeteoRange, currentStationSettings.cron?.openMeteo);
             }
         });
         
@@ -204,6 +207,41 @@ async function displaySettingsForm() {
             }
         });
     }
+
+    // 3. Switch et Select pour les prévisions Open-Meteo
+    const forecastSwitch = document.getElementById('setting-cron-forecast');
+    const forecastModelSelect = document.getElementById('setting-cron-model');
+
+    if (forecastSwitch) {
+        forecastSwitch.addEventListener('change', async (e) => {
+            const switchElement = e.target;
+            const isEnabled = switchElement.checked;
+            
+            if (forecastModelSelect) {
+                forecastModelSelect.disabled = !isEnabled;
+            }
+
+            const settings = { cron: { ...currentStationSettings.cron, forecast: isEnabled } };
+            const success = await updatePartialSettings(settings);
+            if (!success) {
+                switchElement.checked = !isEnabled;
+                if (forecastModelSelect) forecastModelSelect.disabled = isEnabled;
+            }
+        });
+    }
+
+    if (forecastModelSelect) {
+        forecastModelSelect.addEventListener('change', async (e) => {
+            const selectElement = e.target;
+            const modelValue = selectElement.value;
+
+            const settings = { cron: { ...currentStationSettings.cron, model: modelValue } };
+            const success = await updatePartialSettings(settings);
+            if (!success) {
+                // On pourrait remettre l'ancienne valeur ici si on la gardait en mémoire
+            }
+        });
+    }
 }
 function createSettingFieldHTML(key, field) {
     if (key === 'cron') {
@@ -241,8 +279,8 @@ function createSettingFieldHTML(key, field) {
 
 function createDbExpandFieldHTML(field, range, isEnabled) {
     const rangeText = (range.first && range.last)
-        ? `Données présentes du ${new Date(range.first).toLocaleDateString()} au ${new Date(range.last).toLocaleDateString()}`
-        : "Aucune donnée Open-Meteo.";
+        ? `Archived since ${new Date(range.first).toLocaleDateString()} to ${new Date(range.last).toLocaleDateString()}`
+        : "No Open-Meteo data !";
 
     return `
         <div class="settings-field condition-tile">
@@ -256,9 +294,44 @@ function createDbExpandFieldHTML(field, range, isEnabled) {
                         <input type="checkbox" id="setting-cron-openMeteo" ${isEnabled ? 'checked' : ''}>
                         <span class="slider round"></span>
                     </label>
-                    <label for="setting-cron-openMeteo" style="margin-left: 8px;">Importation quotidienne des archives à 23h30.</label>
-                <span class="db-expand-range">${rangeText}</span>
+                    <text>${rangeText}</text>
                 </div>
+            </div>
+        </div>
+    `;
+}
+
+function createForecastFieldHTML(cronSettings) {
+    const isEnabled = cronSettings && cronSettings.forecast === true;
+    const currentModel = (cronSettings && cronSettings.model) ? cronSettings.model : 'best_match';
+
+    const models = [
+        { value: 'best_match', label: 'Best Match (14d)' },
+        { value: 'meteofrance_arome_france', label: 'Météo-France AROME France (4d)' },
+        { value: 'meteofrance_arome_france_hd', label: 'Météo-France AROME France HD (2d)' },
+        { value: 'meteofrance_arpege_europe', label: 'Météo-France ARPEGE Europe (4d)' },
+        { value: 'meteofrance_arpege_world', label: 'Météo-France ARPEGE World (4d)' },
+        { value: 'meteofrance_seamless', label: 'Météo-France Seamless (4d)' }
+    ];
+
+    let optionsHTML = models.map(m => 
+        `<option value="${m.value}" ${m.value === currentModel ? 'selected' : ''}>${m.label}</option>`
+    ).join('');
+
+    return `
+        <div class="settings-field condition-tile">
+            <label>
+                Collecte local forecast
+                <span class="tooltip" data-tooltip="Récupération automatique des prévisions toutes les heures, pour cette localisation">?</span>
+            </label>
+            <div class="cron-container">
+                <label class="switch" title="Activer la récupération horaire">
+                    <input type="checkbox" id="setting-cron-forecast" ${isEnabled ? 'checked' : ''}>
+                    <span class="slider round"></span>
+                </label>
+                <select id="setting-cron-model" ${!isEnabled ? 'disabled' : ''}>
+                    ${optionsHTML}
+                </select>
             </div>
         </div>
     `;
@@ -389,7 +462,7 @@ function formatSettingLabel(key) {
         'latitudeNorthSouth': 'Latitude Nord/Sud',
         'longitudeEastWest': 'Longitude Est/Ouest',
         'cron': 'Collecte auto. (station)',
-        'dbexpand': 'Activer l\'historique Open-Meteo',
+        'dbexpand': 'Collect historical data',
     };
     
     return labelMap[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
@@ -421,24 +494,37 @@ async function handleSettingsSubmit(e) {
 
     // Handle special cron field
     if (currentStationSettings.cron) {
+        // Collecte Station
         const cronToggleSwitch = document.getElementById('setting-cron-enabled');
         const cronValueSelect = document.getElementById('setting-cron-value');
         
+        // Collecte Historique OpenMeteo
+        const openMeteoToggle = document.getElementById('setting-cron-openMeteo');
+
+        // Prévisions OpenMeteo
+        const forecastToggle = document.getElementById('setting-cron-forecast');
+        const forecastModel = document.getElementById('setting-cron-model');
+        
+        // Reconstruire l'objet cron complet
+        settings.cron = {
+            ...currentStationSettings.cron,
+        };
+
         if (cronToggleSwitch && cronValueSelect) {
-            settings.cron = {
-                ...currentStationSettings.cron,
-                enabled: cronToggleSwitch.checked,
-                value: Number(cronValueSelect.value)
-            };
+            settings.cron.enabled = cronToggleSwitch.checked;
+            settings.cron.value = Number(cronValueSelect.value);
         }
 
-        // Handle special openMeteo cron field
-        const openMeteoToggle = document.getElementById('setting-cron-openMeteo');
         if (openMeteoToggle) {
-            settings.cron = {
-                ...settings.cron, // Keep existing cron settings
-                openMeteo: openMeteoToggle.checked
-            };
+            settings.cron.openMeteo = openMeteoToggle.checked;
+        }
+
+        if (forecastToggle) {
+            settings.cron.forecast = forecastToggle.checked;
+        }
+        
+        if (forecastModel) {
+            settings.cron.model = forecastModel.value;
         }
     }
     showGlobalStatus('Enregistrement des paramètres...', 'loading');

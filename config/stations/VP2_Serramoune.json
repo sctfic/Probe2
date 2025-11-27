@@ -70,7 +70,9 @@
         "comment": "cron intervale value, collect enabled status, expand data with openMeteo history and every day.",
         "value": 5,
         "enabled": false,
-        "openMeteo": false
+        "openMeteo": false,
+        "forecast": true,
+        "model": "meteofrance_arome_france_hd"
     },
     "deltaTimeSeconds": 1.48,
     "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\VP2_Serramoune.json"

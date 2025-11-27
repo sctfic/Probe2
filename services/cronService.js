@@ -103,8 +103,8 @@ function scheduleOpenMeteoForecastJob(stationId, stationConfig) {
         removeOpenMeteoForecastJob(stationId);
     }
 
-    // Optionnellement, vous pourriez ajouter une condition dans stationConfig.cron pour l'activer/désactiver
-    if (!stationConfig.cron || !stationConfig.cron.enabled) {
+    // Vérifie si la fonctionnalité forecast est activée spécifiquement
+    if (!stationConfig.cron || !stationConfig.cron.forecast) {
          console.log(`${V.info} [CRON] La tâche de prévision n'est pas activée pour ${stationId}.`);
          return;
     }
