@@ -547,7 +547,6 @@
                 globalStationSelect.value = stationToSelect;
                 // Mettre à jour manuellement l'état de la station sélectionnée
                 selectedStation = globalStations.find(s => s.id === stationToSelect) || null;
-                console.log('loadFromURL', selectedStation);
                 if (selectedStation) {
                     stationInfo.textContent = `${selectedStation.location} (${selectedStation.host}:${selectedStation.port})`;
                     updateCollectButtonTitle(selectedStation.id);

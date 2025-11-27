@@ -583,7 +583,6 @@ function createConditionTileHTML(item) {
                     style="transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${windDirection}deg)">
             </div>
         `;
-        console.log(item);
         if (item.userUnit === "cardinal" ) unitDisplay = '';
     } else if (item.unit === 'dateStormRain' || item.unit === 'iso8601'){
         unitDisplay = '';
@@ -893,16 +892,18 @@ function showDetailsFooter(keys) {
     mainContent.style.marginBottom = footerOpenHeight;
 
     const items = keysArray.map(key => allConditions.find(c => c.key === key)).filter(Boolean);
-    console.log(items)
     // S'assurer que le footer n'est pas caché par l'animation initiale
     detailsFooter.classList.remove('hidden-animated');
     // Affiche le footer
     detailsFooter.classList.add('details-open');
+    console.log(items, items.length)
     if (items.length === 1) {
        // Special case for wind (rose & vector)
         if (items[0].measurement === 'direction' || items[0].sensorDb.startsWith('vector:')) {
+            console.log('loadWindPlots', items[0].sensorDb);
             loadWindPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}`, items[0].sensorDb);
         } else {
+            console.log('==================== loadSpiralePlot =====================', items[0].sensorDb);
             loadSpiralePlot(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raw/${items[0].sensorDb}`);
         }
     } else if (items.length > 1) {
@@ -911,10 +912,11 @@ function showDetailsFooter(keys) {
             contentContainer.innerHTML = `<div class="error-message">Aucun capteur avec historique dans la sélection.</div>`;
             return;
         }
-        const chartId = `details_chart_`;
-        contentContainer.innerHTML = `<div id="${chartId}" style="width: 100%; height: 100%;padding-top: 10px;"></div>`;
+        // const chartId = `details_chart_`;
+        // contentContainer.innerHTML = `<div id="${chartId}" style="width: 100%; height: 100%;padding-top: 10px;"></div>`;
         const sensorsQuery = sensorDbs.join(',');
-        mainPlots(chartId, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}`,getStartDate('1y'));
+        console.log('Loading mainPlots for sensors:', sensorsQuery);
+        mainPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}`,getStartDate('1y'));
     }
 }
 
@@ -990,11 +992,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 showDetailsFooter([...selectedTiles]);
             }
         } else {
-            console.log('selectedTiles', selectedTiles);
             const key = tile.dataset.key;
-            console.log('key', key);
             const item = allConditions.find(c => c.key === key);
-            console.log('item', item);
             if (item && item.sensorDb) {
                 console.log(selectedTiles.size);
                 if (tile.classList.contains('selected') && selectedTiles.size === 1) {

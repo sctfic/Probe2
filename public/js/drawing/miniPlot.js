@@ -15,7 +15,14 @@ function transformDataForPlot(apiData, metadata) {
 }
 
 function createPlot(data, metadata, id, period) {
-    // console.log(period);
+    const chartDiv = document.getElementById(id);
+    if (!chartDiv) {
+        return;
+    }
+    if (data.length === 0) {
+        chartDiv.innerHTML = `<div class="error-message">No data!</div>`;
+        return;
+    }
     if (typeof period !== 'number') { // gere le decalage
         period = '0 day';
     } else if(period <= 24*3600) {
@@ -29,18 +36,6 @@ function createPlot(data, metadata, id, period) {
     } else {
         period = '1 day';
     }
-// console.log(data, metadata, id, period);
-
-    const chartDiv = document.getElementById(id);
-    if (!chartDiv) {
-        console.error(`Div avec l'ID ${id} non trouvée`);
-        return;
-    }
-    if (data.length === 0) {
-        chartDiv.innerHTML = `<div class="error-message">No data!</div>`;
-        return;
-    }
-
     const now = new Date();
     const forecastColor = "#9b59b6"; // Couleur violette pour le forecast
     // Création d'un ID unique pour le gradient afin d'éviter les conflits si plusieurs graphes sont affichés
@@ -87,10 +82,10 @@ function createPlot(data, metadata, id, period) {
     }
 
     try {
-        // console.log(metadata, chartDiv.clientWidth, chartDiv.clientHeight);
+        // console.log( chartDiv, chartDiv.clientWidth, chartDiv.clientHeight, chartDiv.getBoundingClientRect());
         const plot = Plot.plot({
-            width: chartDiv.clientWidth,
-            height: chartDiv.clientHeight || 100,
+            width: chartDiv.clientWidth || 240, // permet de generer le chart hors écran
+            height: chartDiv.clientHeight || 100, // permet de generer le chart hors écran
             marginLeft: 0,
             marginTop: 16,
             marginBottom: 17,

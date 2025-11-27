@@ -6,6 +6,8 @@
 //  Modif: CLOCKWISE ROTATION + REDUCED CENTER + MINI-CHART DOTS & LABELS
 //  Update: NAV BUTTONS (PREV/NEXT) + EXTERNAL LINK ICON
 //  Fix: RESIZE OBSERVER (Fix crushed layout on first load)
+//  Refactor: ADAPTED TO USER CUSTOM HTML LAYOUT (Flex panels)
+//  Layout Update: DYNAMIC ORIENTATION (Vertical/Horizontal based on Aspect Ratio)
 // =======================================
 
 /**
@@ -19,16 +21,16 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
 
     // 1. Loader centré
     container.style.position = "relative"; 
-    // On force une hauteur minimale temporaire pour éviter que le loader ne soit écrasé si le conteneur est encore en transition
+    // On force une hauteur minimale temporaire pour éviter que le loader ne soit écrasé
     container.style.minHeight = "30vw"; 
     
     container.innerHTML = `
-        <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; justify-content:center; align-items:center; background:#151515; z-index:100;">
+        <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; justify-content:center; align-items:center; background:#151515; z-index:100; border-radius:8px;">
             <div class="loader-spinner" style="width:20px; height:20px; border:2px solid #555; border-top:2px solid #fff; border-radius:50%; animation:spin 1s linear infinite;"></div>
         </div>`;
 
     try {
-        // Nettoyage de l'instance précédente si elle existe (pour arrêter les observers)
+        // Nettoyage de l'instance précédente si elle existe
         if (container._spiraleInstance) {
             container._spiraleInstance.destroy();
             delete container._spiraleInstance;
@@ -112,7 +114,7 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
 
         // Initialisation du Plot
         container.innerHTML = '';
-        container.style.minHeight = ""; // On retire la contrainte temporaire
+        container.style.minHeight = ""; 
         
         const plot = new SpiralePlot(container, processedData, { 
             grouping: mode, 
@@ -161,12 +163,15 @@ class SpiralePlot {
         this.resizeObserver = null;
         this.rect = this.container.getBoundingClientRect();
         
-        // FIX: Gestion de la hauteur initiale si le conteneur est écrasé (animation CSS en cours)
-        // Si height < 50px, on suppose que c'est une erreur de transition et on prend une valeur par défaut
+        // Dimensions initiales
         this.width = this.rect.width || 800;
         this.height = (this.rect.height > 50) ? this.rect.height : 350; 
         
-        this.svgWidth = 480;
+        // Calcul du positionnement initial
+        this.calculateLayoutState('initial');
+
+        // On définit svgWidth arbitrairement, il sera recalculé dans updateDimensions
+        this.svgWidth = 480; 
         this.centerX = this.svgWidth / 2; 
         this.centerY = this.height / 2;
 
@@ -213,7 +218,6 @@ class SpiralePlot {
         this.computeGlobalStats();
         this.precompute3DCoordinates();
         
-        // FIX: Activation de l'observer pour gérer la fin de l'animation CSS du footer
         this.initResizeObserver();
     }
 
@@ -228,21 +232,23 @@ class SpiralePlot {
     initResizeObserver() {
         this.resizeObserver = new ResizeObserver(entries => {
             for (let entry of entries) {
+                // On observe le conteneur principal
                 const newHeight = entry.contentRect.height;
-                // On ne redessine que si la hauteur est valide (>50) et a changé significativement (>5px)
-                // Cela évite les boucles infinies ou les micro-ajustements
-                if (newHeight > 50 && Math.abs(newHeight - this.height) > 5) {
+                const newWidth = entry.contentRect.width;
+                
+                // Vérification basique pour éviter le thrashing
+                if (newHeight > 50 && (Math.abs(newHeight - this.height) > 5 || Math.abs(newWidth - this.width) > 5)) {
                     this.height = newHeight;
-                    this.updateDimensions();
-                    this.draw(); // Redessine complètement
+                    this.width = newWidth;
                     
-                    // Si on avait une clé sélectionnée, on essaie de restaurer l'état du panneau
+                    this.updateDimensions();
+                    this.draw(); // Redessine complètement avec la nouvelle structure flex
+                    
+                    // Restauration de l'état
                     if (this.currentPlayKey) {
                         const pointsInPeriod = this.data.filter(d => this.getPeriodKeyForDate(d.date) === this.currentPlayKey);
                         if (pointsInPeriod.length > 0) {
-                            // On update le panel sans animation pour restaurer le contenu
                             this.updateSidePanel(pointsInPeriod[0], this.currentPlayKey, false);
-                            // On ré-applique le highlight visuel
                             setTimeout(() => this.highlightPeriod(this.currentPlayKey), 50);
                         }
                     }
@@ -252,24 +258,49 @@ class SpiralePlot {
         this.resizeObserver.observe(this.container);
     }
 
+    calculateLayoutState(x) {
+        this.ratio = Math.round(this.width / this.height * 100);
+        this.positionement = this.ratio > 250 ? 'Horizontal' : 'Vertical';
+        console.log(`[SpiralePlot] Layout: ${this.positionement} [ratio: ${this.ratio}]`, this.width, this.height, x);
+    }
+
     updateDimensions() {
+        // this.calculateLayoutState('updated');
+
+        // Si le wrapper existe, on utilise sa largeur pour le SVG
+        if (this.wrapper && !this.wrapper.empty()) {
+            const wrapperNode = this.wrapper.node();
+            if (wrapperNode) {
+                this.svgWidth = wrapperNode.getBoundingClientRect().width;
+                // La hauteur du SVG dépend maintenant du wrapper (carré)
+                this.height = wrapperNode.getBoundingClientRect().height;
+            }
+        } else {
+            // Fallback estimation avant rendu
+            if (this.positionement === 'Horizontal') {
+                 this.svgWidth = this.height; // Carré
+            } else {
+                 // Vertical : Hauteur 60%, Largeur = Hauteur
+                 this.svgWidth = this.height * 0.6;
+            }
+        }
+
+        // Recalcul des centres et rayons basé sur svgWidth
+        this.centerX = this.svgWidth / 2;
         this.centerY = this.height / 2;
+        
         const minDim = Math.min(this.svgWidth, this.height);
         this.radiusMin = minDim * 0.05;
         this.radiusMax = minDim * 0.45;
         this.spiralHeight = this.height * 0.60;
         
-        // Mise à jour de l'échelle Z et Radius si nécessaire
         if (this.scales.z) {
             this.scales.z.range([-this.spiralHeight / 2, this.spiralHeight / 2]);
         }
         if (this.scales.radius) {
-            // Recalcul simple basé sur minDim actuel
-            // Note: scales.radius.domain est déjà set
              const extentVal = this.scales.radius.domain();
              this.scales.radius.range([this.radiusMin, this.radiusMax]);
         }
-        // On re-calcule les coordonnées 3D car elles dépendent de scale.radius et scale.z
         this.precompute3DCoordinates();
     }
 
@@ -402,34 +433,113 @@ class SpiralePlot {
         const container = d3.select(this.container);
         container.selectAll("*").remove(); 
 
-        container
-            .style("display", "flex")
-            .style("flex-direction", "row") 
-            .style("width", "100%")
-            .style("height", "100%")
-            .style("overflow", "hidden");
+        // ----------------------------------------------------------------
+        // MISE EN PAGE DYNAMIQUE : Horizontal ou Vertical
+        // ----------------------------------------------------------------
+        
+        let containerStyle, mainStyle, sideStyle;
 
-        this.wrapper = container.append("div")
-            .attr("class", "spiralChart-main-panel")
-            .style("position", "relative")
-            .style("width", "480px") 
-            .style("flex", "none")
-            .style("height", "100%")
-            .style("overflow", "hidden");
+        if (this.positionement === 'Horizontal') {
+            // Main: gauche, hauteur 100%, largeur = hauteur (carré)
+            // Side: droite, occupe tout l'espace restant, centré verticalement via align-self
+            containerStyle = `
+                display: flex; 
+                flex-direction: row; 
+                align-items: center; 
+                justify-content: flex-start;
+                gap: 5px; 
+                width: 100%; 
+                height: 100%;
+                overflow: hidden;
+            `;
+            
+            mainStyle = `
+                background-color: #151515; 
+                height: 100%; 
+                aspect-ratio: 1 / 1; 
+                border-radius: 8px; 
+                position: relative; 
+                overflow: hidden; 
+                flex-shrink: 0;
+            `;
 
-        this.sidePanel = container.append("div")
-            .attr("class", "spiralChart-side-panel")
-            .style("position", "relative") 
-            .style("top", "auto").style("right", "auto").style("bottom", "auto")
-            .style("flex", "1")
-            .style("height", "100%")
-            .style("border-left", "1px solid #333")
-            .style("background", "#1a1a1a")
-            .html(`<div class="spiral-panel-content"><div style="text-align:center; color:#555; font-family:sans-serif;">Cliquez sur une période</div></div>`);
+            sideStyle = `
+                background-color: #1a1a1a; 
+                flex: 1; 
+                height: 98%; 
+                align-self: center;
+                border-radius: 8px; 
+                border-left: 1px solid #333; 
+                position: relative;
+            `;
+        } else {
+            // Mode Vertical
+            // Main: haut, hauteur 60%, largeur = hauteur (carré)
+            // Side: bas, largeur 100%, occupe toute la hauteur restante
+            containerStyle = `
+                display: flex; 
+                flex-direction: column; 
+                align-items: center; 
+                justify-content: flex-start;
+                gap: 5px;
+                width: 100%; 
+                height: 100%;
+                overflow: hidden;
+            `;
 
+            mainStyle = `
+                background-color: #151515; 
+                height: 60%; 
+                aspect-ratio: 1 / 1; 
+                border-radius: 8px; 
+                position: relative; 
+                overflow: hidden; 
+                flex-shrink: 0;
+            `;
+
+            sideStyle = `
+                background-color: #1a1a1a; 
+                width: 100%; 
+                flex: 1; 
+                border-radius: 8px; 
+                border-top: 1px solid #333; 
+                position: relative;
+            `;
+        }
+        
+        container.html(`
+            <div style="${containerStyle}">
+                <div id="spiralChart-main-panel" style="${mainStyle}"></div>
+                <div id="spiralChart-side-panel" style="${sideStyle}"></div>
+            </div>
+        `);
+
+        // Sélection des sous-conteneurs créés
+        this.wrapper = container.select("#spiralChart-main-panel");
+        this.sidePanel = container.select("#spiralChart-side-panel");
+
+        // Initialisation contenu vide Side Panel
+        this.sidePanel.append("div").attr("class", "spiral-panel-content")
+            .html(`<div style="text-align:center; color:#555; font-family:sans-serif; padding-top:20px;">Cliquez sur une période</div>`);
+
+        // Calcul de la largeur réelle disponible pour le SVG après injection du DOM
+        // Note: Grâce à aspect-ratio, la largeur est maintenant liée à la hauteur.
+        const wrapperNode = this.wrapper.node();
+        if (wrapperNode) {
+            const rect = wrapperNode.getBoundingClientRect();
+            this.svgWidth = rect.width || 480;
+            // On met à jour la hauteur interne utilisée pour le dessin pour qu'elle corresponde au conteneur carré
+            this.height = rect.height;
+            this.centerX = this.svgWidth / 2;
+            this.centerY = this.height / 2;
+            // Mise à jour rapide des paramètres de dessin
+            this.updateDimensions(); 
+        }
+
+        // --- Création du SVG dans le Main Panel ---
         this.svg = this.wrapper.append("svg")
             .attr("width", "100%").attr("height", "100%")
-            .style("background", "#151515")
+            .style("background", "transparent")
             .style("cursor", "auto")
             .on("click", () => {
                 if (this.isPlaying) this.togglePlay();

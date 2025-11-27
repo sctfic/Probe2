@@ -4,7 +4,19 @@
  * @param {string} id - ID de l'élément DOM dans lequel créer le SVG
  * @param {string} url - URL API initiale (longue période)
  */
-async function mainPlots(id, url, startDate='', endDate='', stepCount=1000) {
+async function mainPlots(container, url, startDate='', endDate='', stepCount=1000) {
+        if (!container || !(container instanceof HTMLElement)) return;
+
+    // 1. Loader centré
+    container.style.position = "relative"; 
+    // On force une hauteur minimale temporaire pour éviter que le loader ne soit écrasé
+    container.style.minHeight = "30vw"; 
+    
+    container.innerHTML = `
+        <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; justify-content:center; align-items:center; background:#151515; z-index:100; border-radius:8px;">
+            <div class="loader-spinner" style="width:20px; height:20px; border:2px solid #555; border-top:2px solid #fff; border-radius:50%; animation:spin 1s linear infinite;"></div>
+        </div>`;
+        
     try {
         // Appel API initial avec cache
         APIURL = url.split('?')[0];
@@ -17,7 +29,7 @@ async function mainPlots(id, url, startDate='', endDate='', stepCount=1000) {
         const plotData = processData(apiResponse.data, apiResponse.metadata);
         
         // Créer l'instance de visualisation
-        const plot = new TimeSeriesPlot(id, plotData, apiResponse.metadata);
+        const plot = new TimeSeriesPlot(container, plotData, apiResponse.metadata);
         
         // Construire le graphique
         plot.create();
@@ -30,8 +42,9 @@ async function mainPlots(id, url, startDate='', endDate='', stepCount=1000) {
 
 // Classe principale pour gérer la visualisation
 class TimeSeriesPlot {
-    constructor(id, data, metadata) {
-        this.id = id;
+    constructor(container, data, metadata) {
+        this.container = container;
+        this.id = container.id;
         this.data = data;
         this.metadata = metadata;
         this.margin = { top: 10, right: 40, bottom: 20, left: 40 };

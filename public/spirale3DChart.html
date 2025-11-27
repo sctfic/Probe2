@@ -24,7 +24,8 @@
 
         #chart-container {
             width: 100%;
-            top: 54px;
+            top: 48px;
+            height: calc(100vh - 48px);
             position: relative;
         }
 
@@ -47,6 +48,10 @@
         #fs-btn:hover {
             background: #333;
             color: #fff;
+        }
+        #spiralChart-main-panel{
+            min-width: 40vh;
+            max-height: 50vh;
         }
 
         /* Animation pour les records (référencé dans spiralPlot.js via className: "blink-record") */

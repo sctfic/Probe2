@@ -1801,10 +1801,9 @@ input:checked+.slider:before {
 }
 
 .chart-container {
-    display: block;
     padding: 0.1rem;
     box-sizing: border-box;
-    max-height: 70vh;
+    /* max-height: 70vh; */
     overflow-y: auto;
 }
 
