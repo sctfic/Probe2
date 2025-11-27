@@ -3,6 +3,7 @@
 //  Visualisation Spirale 3D (Time Helix)
 //  Version: DYNAMIC GRADIENT CENTER + AUTO-STOP ANIMATION + AUTO-LOAD LAST
 //  Update: PROGRESSIVE STATS (HISTORY ONLY) + ALL RECORDS BLINKING
+//  Modif: CLOCKWISE ROTATION + REDUCED CENTER + MINI-CHART DOTS & LABELS
 // =======================================
 
 /**
@@ -14,7 +15,7 @@
 async function loadSpiralePlot(container, url, forcedMode = null) {
     if (!container || !(container instanceof HTMLElement)) return;
 
-    // 1. Loader centré (Plus de CSS injecté ici, géré par votre fichier CSS externe)
+    // 1. Loader centré
     container.style.position = "relative"; 
     container.innerHTML = `
         <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; justify-content:center; align-items:center; background:#151515; z-index:100;">
@@ -114,7 +115,6 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
         if (processedData.length > 0) {
             const lastPoint = processedData[processedData.length - 1];
             const lastKey = plot.getPeriodKeyForDate(lastPoint.date);
-            // On déclenche l'affichage du side panel pour le dernier point
             plot.updateSidePanel(lastPoint, lastKey);
         }
 
@@ -175,9 +175,9 @@ class SpiralePlot {
         this.scales = {};
         
         this.periodMeans = new Map();
-        this.sortedKeys = []; // Pour l'animation
-        this.globalStats = []; // Stats "totales" pour la 3D
-        this.bgDataForPlot = []; // Cache temporaire
+        this.sortedKeys = []; 
+        this.globalStats = []; 
+        this.bgDataForPlot = []; 
         
         this.colorMode = (this.grouping === 'year') ? 'mean' : 'standard';
 
@@ -193,7 +193,7 @@ class SpiralePlot {
         this.gSpiral = null;
         
         this.initScales();
-        this.computeGlobalStats(); // Stats initiales pour la 3D
+        this.computeGlobalStats();
         this.precompute3DCoordinates();
     }
 
@@ -211,7 +211,6 @@ class SpiralePlot {
     initScales() {
         const groups = d3.group(this.data, d => this.getPeriodKeyForDate(d.date));
         
-        // Store keys sorted for playback
         this.sortedKeys = Array.from(groups.keys()).sort();
 
         const counts = Array.from(groups.values()).map(g => g.length);
@@ -222,8 +221,8 @@ class SpiralePlot {
         let validMeans = [];
 
         this.periodMeans = new Map();
-        console.log('SpiralePlot - groups:', groups, counts, threshold);
-        for (const [key, points] of groups) { // Pour chaque période
+
+        for (const [key, points] of groups) {
             const mean = d3.mean(points, d => d.val);
             this.periodMeans.set(key, mean);
 
@@ -236,7 +235,6 @@ class SpiralePlot {
         }
 
         if (validValues.length === 0) {
-            console.warn('SpiralePlot - No valid values for scale computation, using all data.');
             validValues = this.data.map(d => d.val);
             validMeans = Array.from(this.periodMeans.values());
         }
@@ -245,7 +243,7 @@ class SpiralePlot {
         const extentMean = d3.extent(validMeans);
 
         const padding = (extentVal[1] - extentVal[0]) * 0.1;
-        console.log('SpiralePlot - Scale Extents:', extentVal, extentMean, validValues, this.data);
+        
         this.scales.radius = d3.scaleLinear()
             .domain([extentVal[0] - padding, extentVal[1] + padding])
             .range([this.radiusMin, this.radiusMax]);
@@ -258,13 +256,14 @@ class SpiralePlot {
             .range([-this.spiralHeight / 2, this.spiralHeight / 2]); 
             
         this.getAngle = (date) => {
+            // NOTE: Ajout du signe négatif pour la rotation Sens Horaire
             if (this.grouping === 'day') {
                 const start = new Date(date); start.setHours(0,0,0,0);
-                return ((date - start) / 86400000) * 2 * Math.PI;
+                return -((date - start) / 86400000) * 2 * Math.PI;
             } else {
                 const start = new Date(date.getFullYear(), 0, 1);
                 const dayOfYear = (date - start) / 86400000;
-                return (dayOfYear / 365.25) * 2 * Math.PI;
+                return -(dayOfYear / 365.25) * 2 * Math.PI;
             }
         };
     }
@@ -499,7 +498,8 @@ class SpiralePlot {
 
         const steps = 12;
         for(let i=0; i<steps; i++) {
-            const th = (i/steps)*Math.PI*2 - Math.PI/2;
+            // NOTE: Inversion du sens de rotation des axes (th est négatif)
+            const th = -((i/steps)*Math.PI*2) - Math.PI/2;
             const r = this.radiusMax;
             const p1 = this.project(0, ringY, 0);
             const p2 = this.project(r*Math.cos(th), ringY, r*Math.sin(th));
@@ -536,7 +536,6 @@ class SpiralePlot {
         // --- 1. CONFIGURATION DES GRADIENTS ---
         this.defs.selectAll("*").remove();
 
-        // Calcul de l'écrasement global pour la 3D (perspective)
         const scaleY = Math.max(0.01, Math.abs(Math.sin(this.alpha)));
         
         const groupsData = [];
@@ -578,18 +577,13 @@ class SpiralePlot {
             if (pathD !== "") {
                 let strokeRef = meanColor;
 
-                // --- CREATION DU GRADIENT SPECIFIQUE AVEC POSITION AJUSTÉE ---
                 if (that.colorMode !== 'mean') {
-                    // Calcul du centre projeté pour CETTE spirale (dépend du temps / hauteur 'wy')
-                    // Le centre de la spirale en 3D est à (0, wy, 0)
                     const centerProj = that.project(0, points[0].wy, 0);
                     const cx = centerProj[0];
                     const cy = centerProj[1];
 
-                    // Matrice de transformation locale : on déplace au centre calculé, on applique le scaleY, on revient
                     const matrix = `translate(${cx}, ${cy}) scale(1, ${scaleY}) translate(${-cx}, ${-cy})`;
 
-                    // ID unique basé sur la clé de période
                     const gradId = "grad-" + key.replace(/[^a-zA-Z0-9]/g, '-');
                     strokeRef = `url(#${gradId})`;
 
@@ -770,12 +764,11 @@ class SpiralePlot {
             btn.text("▶ Play").style("background", "");
             if (this.playInterval) clearInterval(this.playInterval);
             this.playInterval = null;
-            this.resetHighlights(); // Reset visual state on stop
+            this.resetHighlights(); 
         }
     }
 
     resetHighlights() {
-        // Remet l'état initial des paths
         this.gSpiral.selectAll(".sp-vis-path")
             .attr("stroke-opacity", 0.9)
             .attr("stroke-width", 1);
@@ -799,7 +792,7 @@ class SpiralePlot {
         
         let idx = this.sortedKeys.indexOf(this.currentPlayKey);
         idx++;
-        if (idx >= this.sortedKeys.length) idx = 0; // Loop
+        if (idx >= this.sortedKeys.length) idx = 0; 
         
         this.currentPlayKey = this.sortedKeys[idx];
 
@@ -1000,7 +993,6 @@ class SpiralePlot {
             if (stat && d.val <= stat.min) return { date: d.date, val: d.val };
             return { date: d.date, val: null };
         });
-        // --------------------------------------------------------
 
         const yMin = Math.min(min, d3.min(mappedBgData, d => d.gMin));
         const yMax = Math.max(max, d3.max(mappedBgData, d => d.gMax));
@@ -1026,31 +1018,21 @@ class SpiralePlot {
                     Plot.lineY(mappedBgData, { x: "date", y: "gMin", stroke: "#00ffff", strokeOpacity: 0.3, strokeWidth: 1 }),
                     Plot.lineY(mappedBgData, { x: "date", y: "gMax", stroke: "#ff5555", strokeOpacity: 0.3, strokeWidth: 1 }),
                     Plot.lineY(mappedBgData, { x: "date", y: "gMean", stroke: "#ff55ff", strokeOpacity: 0.4, strokeWidth: 1 }),
-                    
-                    // --- Textes simplifiés au survol pour les lignes globales ---
-                    Plot.text(mappedBgData, Plot.pointerX({
-                        x: "date", y: "gMax", text: d => `${d.gMax.toFixed(1)} ${this.options.unit}`, 
-                        dy: -10, fill: "#ff5555", textAnchor: "middle"
-                    })),
-                    Plot.text(mappedBgData, Plot.pointerX({
-                        x: "date", y: "gMean", text: d => `${d.gMean.toFixed(1)} ${this.options.unit}`, 
-                        dy: -5, fill: "#ff55ff", textAnchor: "end", dx: -5
-                    })),
-                    Plot.text(mappedBgData, Plot.pointerX({
-                        x: "date", y: "gMin", text: d => `${d.gMin.toFixed(1)} ${this.options.unit}`, 
-                        dy: 10, fill: "#00ffff", textAnchor: "middle"
-                    })),
 
                     // --- Segment vertical interactif ---
                     Plot.link(mappedBgData, Plot.pointerX({
                         x1: "date", y1: "gMin", x2: "date", y2: "gMax", 
                         stroke: "#666", strokeDasharray: "2,3", strokeOpacity: 0.8
                     })),
+
+                    // --- DOTS pour les valeurs globales ---
+                    Plot.dot(mappedBgData, Plot.pointerX({ x: "date", y: "gMax", fill: "#ff5555", r: 2 })),
+                    Plot.dot(mappedBgData, Plot.pointerX({ x: "date", y: "gMean", fill: "#ff55ff", r: 2 })),
+                    Plot.dot(mappedBgData, Plot.pointerX({ x: "date", y: "gMin", fill: "#00ffff", r: 2 })),
                     
                     // --- Data courante ---
                     Plot.lineY(data, { x: "date", y: "val", stroke: "#ccc", strokeOpacity: 0.8, strokeWidth: 1, id: "data-line" }),
-                    
-                    Plot.dot(data, Plot.pointerX({x: "date", y: "val", stroke: "red", r: 4})),
+                    Plot.dot(data, Plot.pointerX({x: "date", y: "val", stroke: "#ccc", r: 3, fill: "red" })),
                     
                     // --- HIGHLIGHT RECORDS (Path clignotant via classe CSS) ---
                     Plot.lineY(highRecData, { 
@@ -1063,23 +1045,46 @@ class SpiralePlot {
                         stroke: "cyan", strokeWidth: 5, strokeLinecap: "round",
                         className: "blink-record"
                     }),
-
-                    // --- Textes Data courante ---
+                    
+                    // --- Textes simplifiés au survol pour les lignes globales ---
+                    Plot.text(mappedBgData, Plot.pointerX({
+                        x: "date", y: "gMax", text: d => `${d.gMax.toFixed(1)} ${this.options.unit}`, 
+                        dy: -10, className: "hover-value", fill: "#ff5555", textAnchor: "middle"
+                    })),
+                    Plot.text(mappedBgData, Plot.pointerX({
+                        x: "date", y: "gMean", text: d => `${d.gMean.toFixed(1)} ${this.options.unit}`, 
+                        dy: -5, fill: "#ff55ff", textAnchor: "end", dx: -5, className: "hover-value"
+                    })),
+                    Plot.text(mappedBgData, Plot.pointerX({
+                        x: "date", y: "gMin", text: d => `${d.gMin.toFixed(1)} ${this.options.unit}`, 
+                        dy: 10, fill: "#00ffff", textAnchor: "middle", className: "hover-value"
+                    })),
+                    
+                    // --- Textes MODIFIÉS ---
+                    
+                    // 1. Valeur courante : alignée à droite du point rouge
                     Plot.text(data, Plot.pointerX({
-                        px: "date", py: "val", dy: -8, dx: -10,
-                        frameAnchor: "top-right",
+                        x: "date", y: "val", 
+                        dy: 3, dx: 8, // Décalage à droite, centré verticalement
+                        textAnchor: "start",
                         fontVariant: "tabular-nums",
                         fontSize: "11px",
-                        fill: "#aaa",
+                        fill: "#fff",
+                        className: "hover-value",
+                        strokeWidth: 2,
                         text: (d) => ` ${d.val} ${this.options.unit}`
                     })),
+
+                    // 2. Date : alignée sur l'axe X (bas)
                     Plot.text(data, Plot.pointerX({
-                        px: "date", py: "val", dy: -8,
-                        frameAnchor: "top-left",
+                        x: "date", 
+                        frameAnchor: "bottom", // Colle au bas du cadre
+                        dy: 15, // Pousse dans la marge inférieure
                         fontVariant: "tabular-nums",
                         fontSize: "11px",
                         fill: "#aaa",
-                        text: (d) => `${d.date.toLocaleString('fr-FR',{'dateStyle':"medium",'timeStyle':"short"})} `
+                        className: "hover-value",
+                        text: (d) => `${d.date.toLocaleString('fr-FR',{'dateStyle':"medium",'timeStyle':"short"})}`
                     }))
                 ]
             });
@@ -1090,9 +1095,9 @@ class SpiralePlot {
             legendContainer.innerHTML = `
                 <div style="display:flex; justify-content:center; gap:15px; font-size:10px; color:#888; font-family:sans-serif;">
                     <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ccc; margin-right:4px;"></span> Selected Data</div>
-                    <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ff55ff; opacity:0.6; margin-right:4px;"></span> Moyenne Glob.</div>
-                    <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ff5555; opacity:0.5; margin-right:4px;"></span> Max Glob.</div>
-                    <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#00ffff; opacity:0.5; margin-right:4px;"></span> Min Glob.</div>
+                    <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ff55ff; opacity:0.6; margin-right:4px;"></span>Previous Mean</div>
+                    <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ff5555; opacity:0.5; margin-right:4px;"></span>Previous Max</div>
+                    <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#00ffff; opacity:0.5; margin-right:4px;"></span>Previous Min</div>
                     <div style="display:flex; align-items:center; margin-left:10px;"><span style="display:inline-block; width:10px; height:4px; background:red; opacity:0.4; margin-right:4px;"></span> Record Zone</div>
                 </div>
             `;

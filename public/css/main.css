@@ -1397,12 +1397,13 @@ input:checked+.slider:before {
     width: 16px;
     height: 16px;
     background: var(--accent-blue);
-    color: #fff;
+    color: white;
+    fill: white;
     border-radius: 50%;
     text-align: center;
     line-height: 16px;
     font-size: 12px;
-    cursor: help
+    cursor: help;
 }
 
 .tooltip:hover::after {
@@ -1412,14 +1413,15 @@ input:checked+.slider:before {
     left: 50%;
     transform: translateX(-50%);
     background: #333;
-    color: #fff;
+    color: white;
     padding: 8px 12px;
     border-radius: 4px;
-    white-space: nowrap;
+    white-space: pre-wrap;
     z-index: 1000;
     font-size: 12px;
     min-width: 200px;
-    text-align: center
+    max-width: 300px;
+    text-align: left;
 }
 
 .tooltip:hover::before {
@@ -1430,9 +1432,8 @@ input:checked+.slider:before {
     transform: translateX(-50%);
     border: 5px solid transparent;
     border-top-color: #333;
-    z-index: 1000
+    z-index: 1000;
 }
-
 .settings-actions {
     margin-top: 0;
     padding: 10px 10px 0 10px;
@@ -1891,50 +1892,6 @@ input:checked+.slider:before {
     gap: 15px;
 }
 
-.tooltip {
-    position: relative;
-    display: inline-block;
-    margin-left: 5px;
-    width: 16px;
-    height: 16px;
-    background: var(--accent-blue);
-    color: white;
-    border-radius: 50%;
-    text-align: center;
-    line-height: 16px;
-    font-size: 12px;
-    cursor: help;
-}
-
-.tooltip:hover::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    bottom: 125%;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #333;
-    color: white;
-    padding: 8px 12px;
-    border-radius: 4px;
-    white-space: pre-wrap;
-    z-index: 1000;
-    font-size: 12px;
-    min-width: 200px;
-    max-width: 300px;
-    text-align: left;
-}
-
-.tooltip:hover::before {
-    content: '';
-    position: absolute;
-    bottom: 115%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 5px solid transparent;
-    border-top-color: #333;
-    z-index: 1000;
-}
-
 /* ---
    2. Station Section Specifics
    --------------------------- */
@@ -2243,9 +2200,9 @@ input:checked+.slider:before {
         }
         
         .focus text, .legend text, .axis-label, .hover-date, .hover-value, .info-text {
-            font-size: 11px;
+            /* font-size: 11px; */
             font-weight: bold;
-            fill: #eeeeee;
+            /* fill: #eeeeee; */
             text-shadow:
                 1px 0px 1px #333,   /* droite */
                 -1px 0px 1px #333,  /* gauche */
@@ -2266,7 +2223,8 @@ input:checked+.slider:before {
         }
         
         .legend {
-            font-size: 12px;
+            font-size: 11px;
+            fill: #eeeeee; 
         }
         
         .legend rect {
