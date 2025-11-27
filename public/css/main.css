@@ -465,7 +465,7 @@ label {
     left: 0;
     z-index: 1100;
     box-shadow: 0 -2px 4px rgba(0,0,0,.1);
-    transition: all .1s ease-in-out; /* Transition pour hauteur et transformation */
+    /* transition: all .1s ease-in-out; /* Transition pour hauteur et transformation */
     display: flex;
     flex-direction: column;
 }

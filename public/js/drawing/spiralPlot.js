@@ -147,7 +147,8 @@ class SpiralePlot {
         this.grouping = options.grouping || 'day';
         
         this.rect = this.container.getBoundingClientRect();
-        console.log("Container rect:", this.rect);
+        this.ratio = Math.round((this.rect.width / this.rect.height) * 100);
+        console.log("Container rect:", this.rect, window.devicePixelRatio, this.ratio);
         this.width = this.rect.width || 800;
         this.height = this.rect.height || 600;
         

@@ -898,6 +898,7 @@ function showDetailsFooter(keys) {
     detailsFooter.classList.remove('hidden-animated');
     // Affiche le footer
     detailsFooter.classList.add('details-open');
+    contentContainer.innerHTML = ''; // Réinitialiser le contenu
     if (items.length === 1) {
        // Special case for wind (rose & vector)
         if (items[0].measurement === 'direction' || items[0].sensorDb.startsWith('vector:')) {
@@ -911,10 +912,8 @@ function showDetailsFooter(keys) {
             contentContainer.innerHTML = `<div class="error-message">Aucun capteur avec historique dans la sélection.</div>`;
             return;
         }
-        const chartId = `details_chart_`;
-        contentContainer.innerHTML = `<div id="${chartId}" style="width: 100%; height: 100%;padding-top: 10px;"></div>`;
         const sensorsQuery = sensorDbs.join(',');
-        mainPlots(chartId, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}`,getStartDate('1y'));
+        mainPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}`,getStartDate('1y'));
     }
 }
 
@@ -929,7 +928,7 @@ function hideDetailsFooter() {
 
     // Fonction pour nettoyer le contenu
     const cleanup = () => {
-        // contentContainer.innerHTML = '';
+        contentContainer.innerHTML = ''; // <--- Ligne décommentée ici
         detailsFooter.removeEventListener('transitionend', cleanup);
     }
 
@@ -996,7 +995,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const item = allConditions.find(c => c.key === key);
             console.log('item', item);
             if (item && item.sensorDb) {
-                console.log(selectedTiles.size);
                 if (tile.classList.contains('selected') && selectedTiles.size === 1) {
                     clearSelection();
                 } else {

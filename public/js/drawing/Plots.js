@@ -1,10 +1,12 @@
-        let APIURL = '';
+// Plots.js
+let APIURL = '';
+
 /**
  * Construit et gère tout le SVG de visualisation
- * @param {string} id - ID de l'élément DOM dans lequel créer le SVG
+ * @param {HTMLElement} container - L'élément DOM dans lequel créer le SVG
  * @param {string} url - URL API initiale (longue période)
  */
-async function mainPlots(id, url, startDate='', endDate='', stepCount=1000) {
+async function mainPlots(container, url, startDate='', endDate='', stepCount=1000) {
     try {
         // Appel API initial avec cache
         APIURL = url.split('?')[0];
@@ -17,7 +19,7 @@ async function mainPlots(id, url, startDate='', endDate='', stepCount=1000) {
         const plotData = processData(apiResponse.data, apiResponse.metadata);
         
         // Créer l'instance de visualisation
-        const plot = new TimeSeriesPlot(id, plotData, apiResponse.metadata);
+        const plot = new TimeSeriesPlot(container, plotData, apiResponse.metadata);
         
         // Construire le graphique
         plot.create();
@@ -30,8 +32,15 @@ async function mainPlots(id, url, startDate='', endDate='', stepCount=1000) {
 
 // Classe principale pour gérer la visualisation
 class TimeSeriesPlot {
-    constructor(id, data, metadata) {
-        this.id = id;
+    /**
+     * @param {HTMLElement} container - L'élément DOM conteneur
+     * @param {Array} data - Les données traitées
+     * @param {Object} metadata - Les métadonnées
+     */
+    constructor(container, data, metadata) {
+        this.container = container;
+        // Générer un ID unique pour les définitions SVG (clip-path) si le conteneur n'a pas d'ID
+        this.id = container.id || 'plot-' + Math.random().toString(36).substr(2, 9);
         this.data = data;
         this.metadata = metadata;
         this.margin = { top: 10, right: 40, bottom: 20, left: 40 };
@@ -89,7 +98,8 @@ class TimeSeriesPlot {
     
     // Créer la structure SVG de base
     createSVG() {
-        const container = d3.select(`#${this.id}`);
+        // Sélection directe de l'élément DOM passé en paramètre
+        const container = d3.select(this.container);
         container.selectAll("*").remove();
         
         this.svg = container
@@ -100,7 +110,7 @@ class TimeSeriesPlot {
         this.g = this.svg.append("g")
             .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
         
-        // Clip path pour les lignes
+        // Clip path pour les lignes (utilise l'ID généré/récupéré)
         this.svg.append("defs").append("clipPath")
             .attr("id", `clip-${this.id}`)
             .append("rect")
@@ -262,99 +272,99 @@ class TimeSeriesPlot {
     }
         
     // GESTIONNAIRE BRUSH - Recalcule Y avant appel API
-brushEnded(event) {
-    // Masquer le label de durée
-    this.brushDurationLabel.style("display", "none");
-    
-    // Vérifier si une sélection existe
-    if (!event.selection) {
-        this.isBrushing = false;
+    brushEnded(event) {
+        // Masquer le label de durée
+        this.brushDurationLabel.style("display", "none");
+        
+        // Vérifier si une sélection existe
+        if (!event.selection) {
+            this.isBrushing = false;
+            this.brushStartLabel.style("display", "none");
+            this.brushEndLabel.style("display", "none");
+            return;
+        }
+        
+        // Extraire les coordonnées de la sélection
+        const [x0, x1] = event.selection;
+        const startDate = this.xScale.invert(x0);
+        const endDate = this.xScale.invert(x1);
+        const duration = endDate - startDate;
+        
+        // Annuler la sélection visuelle
+        this.g.select(".brush").call(this.brush.move, null);
         this.brushStartLabel.style("display", "none");
         this.brushEndLabel.style("display", "none");
-        return;
+        this.isBrushing = false;
+        
+        // Vérifier la durée minimale (12 heures)
+        const minDuration = 12 * 60 * 60 * 1000; // 12 heures en millisecondes
+        if (duration < minDuration) {
+            setTimeout(hideStatus, 3000);
+            return;
+        }
+        
+        // Filtrer les données sur la plage sélectionnée
+        const filteredData = this.data.filter(d => 
+            d.datetime >= startDate && d.datetime <= endDate
+        );
+        
+        if (filteredData.length === 0) {
+            setTimeout(hideStatus, 3000);
+            return;
+        }
+        
+        // Mettre à jour le domaine X
+        this.xScale.domain([startDate, endDate]);
+        
+        // Recalculer les domaines Y basés sur les données filtrées
+        this.updateYDomains(filteredData);
+        
+        // Mettre à jour les axes avec transition
+        this.updateAxes();
+        
+        // Mettre à jour les lignes avec transition
+        this.updateLines();
+        
+        // Préparer les dates avec marge pour l'API
+        const durationMargin = duration * 0.2; // 20% de marge
+        const adjustedStartDate = new Date(startDate.getTime() - durationMargin);
+        const adjustedEndDate = new Date(endDate.getTime() + durationMargin);
+        
+        // Formater les dates pour l'API
+        const formatDateAPI = d3.timeFormat("%Y-%m-%dT%H:%M:00Z");
+        const apiStartDate = formatDateAPI(adjustedStartDate);
+        const apiEndDate = formatDateAPI(adjustedEndDate);
+        
+        // Construire l'URL API sans cache
+        const sensors = Object.values(this.metadata.measurement).flat().join(',');
+        let apiUrl = `${APIURL}?stepCount=1000`;
+        apiUrl += `&startDate=${apiStartDate}`;
+        apiUrl += `&endDate=${apiEndDate}`;
+        
+        // Appel API sans cache
+        fetch(apiUrl, { cache: 'no-store' })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(apiResponse => {
+                if (!apiResponse.success) {
+                    throw new Error(apiResponse.message || 'Erreur API');
+                }
+                
+                // Traiter les nouvelles données
+                const newData = processData(apiResponse.data, apiResponse.metadata);
+                
+                // Mettre à jour la visualisation
+                this.data = newData;
+                setTimeout(() => this.updateLines(false), 1000);
+            })
+            .catch(error => {
+                console.error('Erreur API:', error);
+            });
     }
-    
-    // Extraire les coordonnées de la sélection
-    const [x0, x1] = event.selection;
-    const startDate = this.xScale.invert(x0);
-    const endDate = this.xScale.invert(x1);
-    const duration = endDate - startDate;
-    
-    // Annuler la sélection visuelle
-    this.g.select(".brush").call(this.brush.move, null);
-    this.brushStartLabel.style("display", "none");
-    this.brushEndLabel.style("display", "none");
-    this.isBrushing = false;
-    
-    // Vérifier la durée minimale (12 heures)
-    const minDuration = 12 * 60 * 60 * 1000; // 12 heures en millisecondes
-    if (duration < minDuration) {
-        setTimeout(hideStatus, 3000);
-        return;
-    }
-    
-    // Filtrer les données sur la plage sélectionnée
-    const filteredData = this.data.filter(d => 
-        d.datetime >= startDate && d.datetime <= endDate
-    );
-    
-    if (filteredData.length === 0) {
-        setTimeout(hideStatus, 3000);
-        return;
-    }
-    
-    // Mettre à jour le domaine X
-    this.xScale.domain([startDate, endDate]);
-    
-    // Recalculer les domaines Y basés sur les données filtrées
-    this.updateYDomains(filteredData);
-    
-    // Mettre à jour les axes avec transition
-    this.updateAxes();
-    
-    // Mettre à jour les lignes avec transition
-    this.updateLines();
-    
-    // Préparer les dates avec marge pour l'API
-    const durationMargin = duration * 0.2; // 20% de marge
-    const adjustedStartDate = new Date(startDate.getTime() - durationMargin);
-    const adjustedEndDate = new Date(endDate.getTime() + durationMargin);
-    
-    // Formater les dates pour l'API
-    const formatDateAPI = d3.timeFormat("%Y-%m-%dT%H:%M:00Z");
-    const apiStartDate = formatDateAPI(adjustedStartDate);
-    const apiEndDate = formatDateAPI(adjustedEndDate);
-    
-    // Construire l'URL API sans cache
-    const sensors = Object.values(this.metadata.measurement).flat().join(',');
-    let apiUrl = `${APIURL}?stepCount=1000`;
-    apiUrl += `&startDate=${apiStartDate}`;
-    apiUrl += `&endDate=${apiEndDate}`;
-    
-    // Appel API sans cache
-    fetch(apiUrl, { cache: 'no-store' })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            return response.json();
-        })
-        .then(apiResponse => {
-            if (!apiResponse.success) {
-                throw new Error(apiResponse.message || 'Erreur API');
-            }
-            
-            // Traiter les nouvelles données
-            const newData = processData(apiResponse.data, apiResponse.metadata);
-            
-            // Mettre à jour la visualisation
-            this.data = newData;
-            setTimeout(() => this.updateLines(false), 1000);
-        })
-        .catch(error => {
-            console.error('Erreur API:', error);
-        });
-}
     
     // Appliquer le zoom sur une plage de dates
     zoomToSelection(startDate, endDate) {
