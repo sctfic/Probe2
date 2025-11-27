@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualisation Spirale 3D</title>
+
+    <script src="js/queryManager.js"></script> <!-- appel API avec cache -->
+    <script src="js/drawing/d3.min.js"></script>
+    <script src="js/drawing/plot.umd.js"></script>
+    <script src="js/drawing/miniPlot.js"></script> <!-- mini courbe dans les tuile -->
+    <script src="js/drawing/spiralPlot.js"></script> <!-- coparaison annuel -->
+    <style >@import url('css/main.css');</style>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #151515;
+            overflow: hidden; /* Empêche le scroll global */
+            font-family: sans-serif;
+        }
+
+        #chart-container {
+            width: 100%;
+            top: 54px;
+            position: relative;
+        }
+
+        /* Bouton Fullscreen */
+        #fs-btn {
+            position: absolute;
+            margin : 10px;
+            right: 0px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        #fs-btn:hover {
+            background: #333;
+            color: #fff;
+        }
+
+        /* Animation pour les records (référencé dans spiralPlot.js via className: "blink-record") */
+        @keyframes blink-anim {
+            0% { stroke-opacity: 1; stroke-width: 5px; }
+            50% { stroke-opacity: 0.2; stroke-width: 3px; }
+            100% { stroke-opacity: 1; stroke-width: 5px; }
+        }
+
+        .blink-record {
+            animation: blink-anim 1s infinite;
+        }
+
+        /* Styles additionnels pour le tooltip SVG du spiralPlot.js */
+        .svg-tooltip text {
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <button id="fs-btn">⛶ Plein écran</button>
+
+    <div id="chart-container"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            
+            // 1. Récupération des paramètres URL
+            const params = new URLSearchParams(window.location.search);
+            
+            // Valeurs par défaut demandées
+            const station = params.get('station') || 'VP2_Serramoune';
+            const sensor = params.get('sensor') || 'temperature:open-meteo_outTemp';
+            const startDate = params.get('startDate') || '0';
+
+            // 2. Construction de l'URL dynamique
+            // Format demandé : /query/VP2_Serramoune/Raw/temperature:open-meteo_outTemp
+            const dataUrl = `/query/${station}/Raw/${sensor}`;
+
+            console.log(`Chargement Spirale pour : Station=${station}, Sensor=${sensor}`);
+            console.log(`URL API : ${dataUrl}`);
+
+            // 3. Gestion du Fullscreen
+            const fsBtn = document.getElementById('fs-btn');
+            fsBtn.addEventListener('click', () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.error(`Erreur activation plein écran: ${err.message}`);
+                    });
+                    fsBtn.textContent = "⛶ Quitter";
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                        fsBtn.textContent = "⛶ Plein écran";
+                    }
+                }
+            });
+
+            // 4. Chargement du graphique
+            const container = document.getElementById('chart-container');
+            
+            if (typeof loadSpiralePlot === 'function') {
+                // On passe l'URL générée à la fonction principale
+                await loadSpiralePlot(container, dataUrl);
+            } else {
+                container.innerHTML = `<div style="color:red; text-align:center; padding-top:20%;">
+                    Erreur: La fonction loadSpiralePlot n'est pas chargée.<br>
+                    Vérifiez que le fichier js/drawing/spiralePlot.js existe.
+                </div>`;
+            }
+        });
+    </script>
+</body>
+</html>

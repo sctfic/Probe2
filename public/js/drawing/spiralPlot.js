@@ -4,6 +4,7 @@
 //  Version: DYNAMIC GRADIENT CENTER + AUTO-STOP ANIMATION + AUTO-LOAD LAST
 //  Update: PROGRESSIVE STATS (HISTORY ONLY) + ALL RECORDS BLINKING
 //  Modif: CLOCKWISE ROTATION + REDUCED CENTER + MINI-CHART DOTS & LABELS
+//  Update: NAV BUTTONS (PREV/NEXT) + EXTERNAL LINK ICON
 // =======================================
 
 /**
@@ -62,7 +63,7 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
         }
 
         // Calcul du stepCount
-        let stepCount = 0;
+        let stepCount = 1000;
         if (daysToLoad > 3600) {
             stepCount = Math.ceil(daysToLoad);
             if (forcedMode === null) mode = 'year'; 
@@ -104,7 +105,7 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
         const plot = new SpiralePlot(container, processedData, { 
             grouping: mode, 
             metadata: meta, 
-            unit: meta.userUnit || 'Unit',
+            unit: meta.userUnit || '',
             originalUrl: url,
             originalMeta: meta
         });
@@ -146,6 +147,7 @@ class SpiralePlot {
         this.grouping = options.grouping || 'day';
         
         this.rect = this.container.getBoundingClientRect();
+        console.log("Container rect:", this.rect);
         this.width = this.rect.width || 800;
         this.height = this.rect.height || 600;
         
@@ -445,6 +447,7 @@ class SpiralePlot {
 
         c.append("div").style("width", "1px").style("background", "#444").style("margin", "0 8px");
 
+        // Bouton Toggle Mode
         const toggleBtn = c.append("button")
             .attr("class", "spiral-btn")
             .style("font-weight", "bold")
@@ -454,6 +457,39 @@ class SpiralePlot {
             e.stopPropagation();
             const newMode = (this.grouping === 'year') ? 'day' : 'year';
             loadSpiralePlot(this.container, this.options.originalUrl, newMode);
+        });
+
+        // Bouton Lien Externe
+        // Extraction de station et sensor depuis l'URL (ex: .../Raw/Station/Sensor)
+        let extLink = "#";
+        console.log("Original URL spirale:", this.options.originalUrl);
+        if (this.options.originalUrl && this.options.originalUrl.includes('/Raw/')) {
+            try {
+                const parts = this.options.originalUrl.split('/Raw/');
+                console.log("Parts extraction lien externe spirale:", parts);
+                if (parts.length >= 2) {
+                    const st = parts[0].split('/').pop();
+                    const sn = parts[1].split('/').shift();
+                    extLink = `/spirale3DChart.html?station=${st}&sensor=${sn}`;
+                    console.log("Lien externe spirale:", extLink);
+                }
+            } catch(err) {
+                console.error("Erreur extraction lien externe spirale:", err);
+            }
+        }
+
+        const linkBtn = c.append("button")
+            .attr("class", "spiral-btn")
+            .style("margin-left", "4px")
+            .attr("title", "Ouvrir dans un nouvel onglet")
+            .html(`<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`);
+        
+        linkBtn.on("click", (e) => {
+            e.stopPropagation();
+            console.log("Ouverture lien externe spirale:", extLink);
+            if (extLink !== "#") {
+                window.open(extLink, '_blank');
+            }
         });
 
         // 2. Contrôles Gauche (Toggle Heatmap)
@@ -758,13 +794,13 @@ class SpiralePlot {
         const btn = this.sidePanel.select("#btn-play-toggle");
         
         if (this.isPlaying) {
-            btn.text("⏹ Stop").style("background", "#552222");
+            btn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>`).style("background", "#552222");
             this.playInterval = setInterval(() => this.stepAnimation(), 120); 
         } else {
-            btn.text("▶ Play").style("background", "");
+            btn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`).style("background", "");
             if (this.playInterval) clearInterval(this.playInterval);
             this.playInterval = null;
-            this.resetHighlights(); 
+            // Note: on ne reset pas highlights ici pour laisser la sélection active
         }
     }
 
@@ -783,7 +819,7 @@ class SpiralePlot {
             if (this.sidePanel) {
                 // Reset bouton si le panel existe encore (peu probable si container absent mais possible)
                 const btn = this.sidePanel.select("#btn-play-toggle");
-                if(!btn.empty()) btn.text("▶ Play").style("background", "");
+                if(!btn.empty()) btn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`).style("background", "");
             }
             return;
         }
@@ -794,8 +830,38 @@ class SpiralePlot {
         idx++;
         if (idx >= this.sortedKeys.length) idx = 0; 
         
-        this.currentPlayKey = this.sortedKeys[idx];
+        const nextKey = this.sortedKeys[idx];
+        this.changePeriod(0, nextKey); // 0 offset, direct key assignment
+    }
 
+    // Helper pour navigation manuelle (Prev/Next) ou auto
+    changePeriod(offset, directKey = null) {
+        if (!this.sortedKeys || this.sortedKeys.length === 0) return;
+
+        let nextKey = directKey;
+        
+        if (!nextKey) {
+            let idx = this.sortedKeys.indexOf(this.currentPlayKey);
+            // Fallback si la clé courante n'est pas trouvée
+            if(idx === -1) idx = 0;
+
+            idx += offset;
+            if (idx >= this.sortedKeys.length) idx = 0; 
+            if (idx < 0) idx = this.sortedKeys.length - 1;
+            nextKey = this.sortedKeys[idx];
+        }
+
+        this.currentPlayKey = nextKey;
+        this.highlightPeriod(this.currentPlayKey);
+
+        // Mise à jour panel latéral
+        const pointsInPeriod = this.data.filter(d => this.getPeriodKeyForDate(d.date) === this.currentPlayKey);
+        if (pointsInPeriod.length > 0) {
+            this.updateSidePanel(pointsInPeriod[0], this.currentPlayKey, true);
+        }
+    }
+
+    highlightPeriod(key) {
         // --- Visual Highlight Logic (Comme le survol) ---
         // 1. On atténue tout
         this.gSpiral.selectAll(".sp-vis-path")
@@ -804,7 +870,7 @@ class SpiralePlot {
         
         // 2. On sélectionne le groupe correspondant à la clé courante
         const targetGroup = this.gSpiral.selectAll(".period-group")
-            .filter(d => d.key === this.currentPlayKey);
+            .filter(d => d.key === key);
         
         // 3. On met en évidence le path
         targetGroup.select(".sp-vis-path")
@@ -813,18 +879,17 @@ class SpiralePlot {
         
         // 4. On le met au premier plan (Z-Index)
         targetGroup.raise();
-        
-        // --- Mise à jour panel latéral ---
-        const pointsInPeriod = this.data.filter(d => this.getPeriodKeyForDate(d.date) === this.currentPlayKey);
-        if (pointsInPeriod.length > 0) {
-            this.updateSidePanel(pointsInPeriod[0], this.currentPlayKey, true);
-        }
     }
 
     updateSidePanel(dataPoint, periodKey, isAnimating = false) {
         if (!this.sidePanel) return;
         
         this.currentPlayKey = periodKey; 
+        
+        // Si c'est la première ouverture (pas d'animation), on highlight quand même
+        if(!isAnimating && !this.isPlaying) {
+             this.highlightPeriod(periodKey);
+        }
 
         const dateFmt = d3.timeFormat("%d %B %Y");
         const unit = this.options.unit;
@@ -847,12 +912,23 @@ class SpiralePlot {
             content = this.sidePanel.select(".spiral-panel-content");
         }
 
-        if (!isAnimating || content.select("#mini-chart-container").empty()) {
+        // Si le conteneur du chart n'existe pas, on reconstruit toute l'interface du panel
+        if (content.select("#mini-chart-container").empty()) {
             content.html(`
                 <div class="panel-info">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <div id="panel-date-dyn" class="panel-date">${dateFmt(dataPoint.date)}</div>
-                        <button id="btn-play-toggle" style="font-size:11px; padding:2px 6px; background:#333; color:#fff; border:1px solid #555; cursor:pointer;">▶ Play</button>
+                        <div class="panel-controls" style="display:flex; gap:2px;">
+                            <button id="btn-prev" style="padding:4px; background:#333; color:#fff; border:1px solid #555; cursor:pointer; display:flex; align-items:center;">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                            </button>
+                            <button id="btn-play-toggle" style="padding:4px 10px; background:#333; color:#fff; border:1px solid #555; cursor:pointer; display:flex; align-items:center;">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+                            </button>
+                            <button id="btn-next" style="padding:4px; background:#333; color:#fff; border:1px solid #555; cursor:pointer; display:flex; align-items:center;">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+                            </button>
+                        </div>
                     </div>
                     <div style="font-size:11px; color:#666; margin-bottom:10px; text-transform:uppercase;">${pTitle}</div>
                 </div>
@@ -862,14 +938,26 @@ class SpiralePlot {
             `);
 
             content.select("#btn-play-toggle").on("click", () => this.togglePlay());
+            content.select("#btn-prev").on("click", () => {
+                if(this.isPlaying) this.togglePlay();
+                this.changePeriod(-1);
+            });
+            content.select("#btn-next").on("click", () => {
+                if(this.isPlaying) this.togglePlay();
+                this.changePeriod(1);
+            });
+
         } else {
+            // Mise à jour juste de la date si le DOM existe déjà
             content.select("#panel-date-dyn").text(dateFmt(dataPoint.date));
         }
         
+        // Update état du bouton Play
+        const playBtn = content.select("#btn-play-toggle");
         if(this.isPlaying) {
-            content.select("#btn-play-toggle").text("⏹ Stop").style("background", "#552222");
+            playBtn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>`).style("background", "#552222");
         } else {
-            content.select("#btn-play-toggle").text("▶ Play").style("background", "");
+            playBtn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`).style("background", "");
         }
 
         const subset = this.data.filter(d => d.ts >= pStart.getTime() && d.ts <= pEnd.getTime());

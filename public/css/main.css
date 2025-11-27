@@ -1801,9 +1801,11 @@ input:checked+.slider:before {
 }
 
 .chart-container {
-    flex-grow: 1;
-    /* padding-top: 10px; */
-    overflow: auto;
+    display: block;
+    padding: 0.1rem;
+    box-sizing: border-box;
+    max-height: 70vh;
+    overflow-y: auto;
 }
 
 :where(.plot-d6a7b5) {

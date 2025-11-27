@@ -110,7 +110,7 @@ function scheduleOpenMeteoForecastJob(stationId, stationConfig) {
     }
 
     // Toutes les heures à la minute 3
-    const cronPattern = '3 * * * * *';
+    const cronPattern = '0 3 * * * *';
 
     const task = cron.schedule(cronPattern, async () => {
         const port = process.env.PORT || 3000;
