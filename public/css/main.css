@@ -1,5 +1,5 @@
 :root {
-    --primary-dark: #333333;
+    --primary-dark: rgb(26, 26, 26); /* Anciennement #333333 */
     --accent-blue: #4DC0E0;
     --background-white: #FFFFFF;
     --header-height: 50px; /* Hauteur du navbar */
@@ -1263,6 +1263,13 @@ input:checked+.slider:before {
 }
 
 @media (max-width: 768px) {
+    .footer.details-open {
+        height: 70vh !important;
+        /* Optionnel : ajuster le max-height du chart container pour correspondre */
+    }
+    /* .footer.details-open .chart-container {
+        max-height: 65vh; 
+    } */
     .station-info {
         display: none;
     }
@@ -2292,7 +2299,7 @@ input:checked+.slider:before {
     flex-wrap: wrap; /* Permet le retour à la ligne sur mobile */
     width: 100%;
     height: 100%;
-    background: #151515;
+    background: var(--primary-dark); /* Anciennement #151515 */
     overflow-y: auto; /* Scroll vertical si empilement */
     overflow-x: hidden;
 }
