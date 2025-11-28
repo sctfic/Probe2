@@ -923,16 +923,19 @@ function hideDetailsFooter() {
     const contentContainer = document.getElementById('d3-chart-container');
     if (!detailsFooter || !contentContainer || !mainContent) return;
 
-    const footerClosedHeight = '40px'; // Doit correspondre à --footer-height dans le CSS
+    const footerClosedHeight = '40px'; 
     mainContent.style.marginBottom = footerClosedHeight;
 
     // Fonction pour nettoyer le contenu
-    const cleanup = () => {
-        contentContainer.innerHTML = ''; // <--- Ligne décommentée ici
+    const cleanup = (e) => {
+        // AJOUT: On ignore l'événement s'il vient d'un enfant (bouton, etc.)
+        if (e && e.target !== detailsFooter) return;
+
+        contentContainer.innerHTML = ''; 
         detailsFooter.removeEventListener('transitionend', cleanup);
     }
 
-    detailsFooter.addEventListener('transitionend', cleanup, { once: true });
+    detailsFooter.addEventListener('transitionend', cleanup); // Retirez { once: true } car on filtre manuellement maintenant
     detailsFooter.classList.remove('details-open');
 }
 

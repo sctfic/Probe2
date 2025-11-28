@@ -1,10 +1,11 @@
-// js/drawing/spiralePlot.js
+// js/drawing/spiralPlot.js
 // =======================================
 //  Visualisation Spirale 3D (Time Helix)
 //  Version: DYNAMIC GRADIENT CENTER + AUTO-STOP ANIMATION + AUTO-LOAD LAST
 //  Update: PROGRESSIVE STATS (HISTORY ONLY) + ALL RECORDS BLINKING
 //  Modif: CLOCKWISE ROTATION + REDUCED CENTER + MINI-CHART DOTS & LABELS
-//  Update: NAV BUTTONS (PREV/NEXT) + EXTERNAL LINK ICON
+//  Update: NAV BUTTONS (PREV/NEXT) + EXTERNAL LINK ICON + FULLSCREEN STATE FIX
+//  Fix: RESIZE OBSERVER DEBOUNCED (Performance optimization)
 // =======================================
 
 /**
@@ -16,15 +17,23 @@
 async function loadSpiralePlot(container, url, forcedMode = null) {
     if (!container || !(container instanceof HTMLElement)) return;
 
-    // 1. Loader centré
+    // 1. Loader centré et hauteur minimale temporaire
     container.style.position = "relative"; 
+    container.style.minHeight = "200px"; 
+    
     container.innerHTML = `
         <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; justify-content:center; align-items:center; background:#151515; z-index:100;">
             <div class="loader-spinner" style="width:20px; height:20px; border:2px solid #555; border-top:2px solid #fff; border-radius:50%; animation:spin 1s linear infinite;"></div>
         </div>`;
 
     try {
-        // Récupération rapide de la plage (Metadata) via /Range/
+        // Nettoyage de l'instance précédente
+        if (container._spiraleInstance) {
+            container._spiraleInstance.destroy();
+            delete container._spiraleInstance;
+        }
+
+        // Récupération rapide de la plage (Metadata)
         const rangeUrl = url.replace('/Raw/', '/Range/');
         const rangeResponse = await (window.fetchWithCache ? window.fetchWithCache(rangeUrl, 300000) : fetch(rangeUrl).then(r => r.json()));
         
@@ -35,7 +44,7 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
         const dateLast = new Date(meta.last);
         const totalRangeDays = (dateLast - dateFirst) / (1000 * 60 * 60 * 24);
 
-        // Détermination du mode et de la plage à charger
+        // Détermination du mode et de la plage
         let mode = 'day';
         let fetchStartDate = dateFirst;
         let daysToLoad = totalRangeDays;
@@ -102,6 +111,8 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
 
         // Initialisation du Plot
         container.innerHTML = '';
+        container.style.minHeight = ""; 
+        
         const plot = new SpiralePlot(container, processedData, { 
             grouping: mode, 
             metadata: meta, 
@@ -138,6 +149,12 @@ function getConversionFunction(metadata) {
     }
     return (v) => v;
 }
+function isOccupying90Percent(element) {
+    const el = typeof element === 'string' ? document.getElementById(element) : element;
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+``    return (r.width * r.height) >= (window.innerWidth * window.innerHeight * 0.9);
+}
 
 class SpiralePlot {
     constructor(container, data, options = {}) {
@@ -146,11 +163,13 @@ class SpiralePlot {
         this.options = options;
         this.grouping = options.grouping || 'day';
         
+        this.resizeObserver = null;
+        this.resizeTimer = null; // Timer pour le debounce
         this.rect = this.container.getBoundingClientRect();
         this.ratio = Math.round((this.rect.width / this.rect.height) * 100);
         console.log("Container rect:", this.rect, window.devicePixelRatio, this.ratio);
         this.width = this.rect.width || 800;
-        this.height = this.rect.height || 600;
+        this.height = (this.rect.height > 50) ? this.rect.height : 350; 
         
         this.svgWidth = 480;
         this.centerX = this.svgWidth / 2; 
@@ -160,9 +179,9 @@ class SpiralePlot {
         this.alpha = -20 * (Math.PI / 180);
         
         const minDim = Math.min(this.svgWidth, this.height);
-        this.radiusMin = minDim * 0.05; // Rayon min de la spirale
-        this.radiusMax = minDim * 0.45; // Rayon max de la spirale
-        this.spiralHeight = this.height * 0.60; // espace entre les periodes
+        this.radiusMin = minDim * 0.05; 
+        this.radiusMax = minDim * 0.45; 
+        this.spiralHeight = this.height * 0.60; 
         
         this.wrapper = null; 
         this.sidePanel = null;
@@ -197,6 +216,68 @@ class SpiralePlot {
         
         this.initScales();
         this.computeGlobalStats();
+        this.precompute3DCoordinates();
+        
+        this.initResizeObserver();
+    }
+
+    destroy() {
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = null;
+        }
+        if (this.resizeTimer) {
+            clearTimeout(this.resizeTimer);
+            this.resizeTimer = null;
+        }
+        if (this.playInterval) clearInterval(this.playInterval);
+    }
+
+    initResizeObserver() {
+        this.resizeObserver = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                // DEBOUNCE: On annule le timer précédent s'il existe
+                if (this.resizeTimer) clearTimeout(this.resizeTimer);
+
+                // On attend 200ms après le dernier changement pour exécuter le redimensionnement
+                this.resizeTimer = setTimeout(() => {
+                    const newHeight = entry.contentRect.height;
+                    
+                    // On ne redessine que si la hauteur est valide (>200) et a changé significativement
+                    if (newHeight > 200 && Math.abs(newHeight - this.height) > 5) {
+                        this.height = newHeight;
+                        this.updateDimensions();
+                        this.draw(); 
+                        
+                        // Restauration de l'état du panneau si nécessaire
+                        if (this.currentPlayKey) {
+                            const pointsInPeriod = this.data.filter(d => this.getPeriodKeyForDate(d.date) === this.currentPlayKey);
+                            if (pointsInPeriod.length > 0) {
+                                this.updateSidePanel(pointsInPeriod[0], this.currentPlayKey, false);
+                                setTimeout(() => this.highlightPeriod(this.currentPlayKey), 50);
+                            }
+                        }
+                    }
+                }, 100); // 100ms de délai
+            }
+        });
+        this.resizeObserver.observe(this.container);
+    }
+
+    updateDimensions() {
+        this.centerY = this.height / 2;
+        const minDim = Math.min(this.svgWidth, this.height);
+        this.radiusMin = minDim * 0.05;
+        this.radiusMax = minDim * 0.45;
+        this.spiralHeight = this.height * 0.60;
+        
+        if (this.scales.z) {
+            this.scales.z.range([-this.spiralHeight / 2, this.spiralHeight / 2]);
+        }
+        if (this.scales.radius) {
+             const extentVal = this.scales.radius.domain();
+             this.scales.radius.range([this.radiusMin, this.radiusMax]);
+        }
         this.precompute3DCoordinates();
     }
 
@@ -463,32 +544,66 @@ class SpiralePlot {
         // Bouton Lien Externe
         // Extraction de station et sensor depuis l'URL (ex: .../Raw/Station/Sensor)
         let extLink = "#";
-        console.log("Original URL spirale:", this.options.originalUrl);
         if (this.options.originalUrl && this.options.originalUrl.includes('/Raw/')) {
             try {
                 const parts = this.options.originalUrl.split('/Raw/');
-                console.log("Parts extraction lien externe spirale:", parts);
                 if (parts.length >= 2) {
                     const st = parts[0].split('/').pop();
                     const sn = parts[1].split('/').shift();
                     extLink = `/spirale3DChart.html?station=${st}&sensor=${sn}`;
-                    console.log("Lien externe spirale:", extLink);
                 }
             } catch(err) {
                 console.error("Erreur extraction lien externe spirale:", err);
             }
         }
 
+        // --- DEFINITION DES ICONES ---
+        const iconMinimize = `<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path></svg>`;
+        const iconOriginal = `<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
+
+        // Vérification de l'état actuel (important si redessiné par ResizeObserver)
+        const isFullscreen = !!document.fullscreenElement;
+
         const linkBtn = c.append("button")
             .attr("class", "spiral-btn")
             .style("margin-left", "4px")
-            .attr("title", "Ouvrir dans un nouvel onglet")
-            .html(`<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`);
+            .attr("title", isFullscreen ? "Quitter plein écran" : "Agrandir")
+            .html(isFullscreen ? iconMinimize : iconOriginal);
         
         linkBtn.on("click", (e) => {
             e.stopPropagation();
-            console.log("Ouverture lien externe spirale:", extLink);
-            if (extLink !== "#") {
+
+            // Priorité : Si on est sur une page .html? (standalone) ou si extLink est présent mais qu'on veut le fullscreen
+            // On vérifie d'abord si l'URL actuelle supporte le fullscreen direct (standalone)
+            if (isOccupying90Percent(this.container)) { // document.location.href.includes('.html?')) {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().then(() => {
+                        // Mise à jour visuelle immédiate (au cas où le redraw tarde)
+                        d3.select(e.currentTarget).html(iconMinimize).attr("title", "Quitter plein écran");
+                        
+                        // Note: le ResizeObserver va probablement déclencher draw() -> createControls()
+                        // et recréer le bouton, mais comme document.fullscreenElement sera true, 
+                        // le nouveau bouton aura la bonne icône.
+                        
+                        // Ecouteur de sortie via Echap (sécurité supplémentaire)
+                        const onFullScreenChange = () => {
+                            if (!document.fullscreenElement) {
+                                // On ne fait rien ici car le ResizeObserver s'occupera de redessiner le bouton correctement
+                                document.removeEventListener("fullscreenchange", onFullScreenChange);
+                            }
+                        };
+                        document.addEventListener("fullscreenchange", onFullScreenChange);
+
+                    }).catch(err => {
+                        console.error(`Erreur activation plein écran: ${err.message}`);
+                    });
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    }
+                }
+            } else if (extLink !== "#") {
+                console.log("Ouverture lien externe spirale:", extLink);
                 window.open(extLink, '_blank');
             }
         });
@@ -832,7 +947,7 @@ class SpiralePlot {
         if (idx >= this.sortedKeys.length) idx = 0; 
         
         const nextKey = this.sortedKeys[idx];
-        this.changePeriod(0, nextKey); // 0 offset, direct key assignment
+        this.changePeriod(0, nextKey); 
     }
 
     // Helper pour navigation manuelle (Prev/Next) ou auto
