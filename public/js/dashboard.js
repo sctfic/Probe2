@@ -1,3 +1,4 @@
+// dashboard.js
 // Variables for dashboard section
 const API_BASE_URL = '/query';
 const STORAGE_KEY_STATE = 'dashboardTileState';
@@ -881,6 +882,15 @@ function deinitDragAndDrop() {
 }
 
 function showDetailsFooter(keys) {
+    // Vérification smartphone et plein écran (déplacé ici car déclenché par user interaction)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    
+    if (isMobile && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch((err) => {
+            // console.warn("Erreur plein écran :", err);
+        });
+    }
+
     const detailsFooter = document.querySelector('footer.footer');
     const mainContent = document.getElementById('content-container');
     const contentContainer = document.getElementById('d3-chart-container');
