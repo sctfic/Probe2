@@ -931,7 +931,8 @@ function hideDetailsFooter() {
         // AJOUT: On ignore l'événement s'il vient d'un enfant (bouton, etc.)
         if (e && e.target !== detailsFooter) return;
 
-        contentContainer.innerHTML = ''; 
+        contentContainer.innerHTML = '';
+        contentContainer.style = '';
         detailsFooter.removeEventListener('transitionend', cleanup);
     }
 

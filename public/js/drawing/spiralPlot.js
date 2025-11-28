@@ -153,7 +153,7 @@ function isOccupying90Percent(element) {
     const el = typeof element === 'string' ? document.getElementById(element) : element;
     if (!el) return false;
     const r = el.getBoundingClientRect();
-``    return (r.width * r.height) >= (window.innerWidth * window.innerHeight * 0.9);
+    return (r.width * r.height) >= (window.innerWidth * window.innerHeight * 0.9);
 }
 
 class SpiralePlot {
@@ -166,8 +166,10 @@ class SpiralePlot {
         this.resizeObserver = null;
         this.resizeTimer = null; // Timer pour le debounce
         this.rect = this.container.getBoundingClientRect();
-        this.ratio = Math.round((this.rect.width / this.rect.height) * 100);
-        console.log("Container rect:", this.rect, window.devicePixelRatio, this.ratio);
+        this.ratio = Math.round((this.rect.width / this.rect.height) *100)/100;
+        this.positionment = this.ratio > 2 ? 'Horizontal' : 'Vertical'
+        console.log("Container rect:", this.rect, window.devicePixelRatio, this.ratio, this.positionment);
+
         this.width = this.rect.width || 800;
         this.height = (this.rect.height > 50) ? this.rect.height : 350; 
         
@@ -533,7 +535,7 @@ class SpiralePlot {
         const toggleBtn = c.append("button")
             .attr("class", "spiral-btn")
             .style("font-weight", "bold")
-            .text(this.grouping === 'year' ? "Mode: Année" : "Mode: Jour");
+            .html(this.grouping === 'year' ? "Year / <small>Day</small>" : "<small>Year</small> / Day");
 
         toggleBtn.on("click", (e) => {
             e.stopPropagation();
@@ -618,12 +620,12 @@ class SpiralePlot {
 
         const colorBtn = leftC.append("button")
             .attr("class", "spiral-btn")
-            .text(this.colorMode === 'mean' ? "Couleur: Moyenne" : "Couleur: Détail");
+            .html(this.colorMode === 'mean' ? "<small>Amplitude</small> / Mean" : "Amplitude / <small>Mean</small>");
             
         colorBtn.on("click", (e) => {
             e.stopPropagation();
             this.colorMode = (this.colorMode === 'standard') ? 'mean' : 'standard';
-            colorBtn.text(this.colorMode === 'mean' ? "Couleur: Moyenne" : "Couleur: Détail");
+            colorBtn.html(this.colorMode === 'mean' ? "<small>Amplitude</small> / Mean" : "Amplitude / <small>Mean</small>");
             this.updateView(false);
         });
     }
