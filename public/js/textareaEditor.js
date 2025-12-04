@@ -1,3 +1,7 @@
+// Author: LOPEZ Alban
+// License: AGPL
+// Project: https://probe.lpz.ovh/
+
 function createCodeEditor(textareaId, autoCompletions = []) {
     const textarea = document.getElementById(textareaId);
     if (!textarea) {
@@ -248,15 +252,15 @@ function createCodeEditor(textareaId, autoCompletions = []) {
         );
         const currentWord = value.substring(wordStart, cursorPos);
 
-        if (currentWord.length < 1) {
+        if (currentWord.length < 2) {
             hideAutocomplete();
             hideGhostText();
             return;
         }
 
-        // Filtrer uniquement avec startsWith
+        // Filtrer les suggestions qui incluent le mot courant
         const matches = autoCompletions.filter(completion => 
-            completion.toLowerCase().startsWith(currentWord.toLowerCase())
+            completion.toLowerCase().includes(currentWord.toLowerCase())
         ).slice(0, 10); // Limiter à 10 suggestions
 
         if (matches.length === 0) {

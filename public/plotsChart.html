@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualisation Série Temporelle</title>
+
+    <script src="js/queryManager.js"></script> <script src="js/drawing/d3.min.js"></script>
+    <script src="js/drawing/Plots.js"></script> 
+    <script src="js/tracker.js"></script>
+    <style >@import url('css/main.css');</style>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--primary-dark);
+            overflow: hidden; /* Empêche le scroll global */
+            font-family: sans-serif;
+        }
+
+        #chart-container {
+            width: 100%;
+            height: 100%;
+            top: 0;
+            position: relative;
+        }
+
+        /* Styles de base pour le graphique TimeSeriesPlot */
+        .axis line, .axis path {
+            stroke: #444;
+        }
+        .axis text {
+            fill: #999;
+            font-size: 10px;
+        }
+        .line {
+            fill: none;
+            stroke-width: 1.5px;
+        }
+        #chart-container {
+            padding-top: 36px;
+            padding-right: 0px;
+        }
+        
+        /* Styles pour le bouton Fullscreen */
+        #fs-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 3px 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: background 0.2s, color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        #fs-btn:hover {
+            background: #333;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div id="chart-container"></div>
+    <button id="fs-btn"></button>
+    <script>
+        // Icônes SVG pour le bouton Fullscreen
+        const iconMaximize = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>`;
+        const iconMinimize = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path></svg>`;
+
+        function updateFsButton(isFullscreen) {
+            const btn = document.getElementById('fs-btn');
+            if (isFullscreen) {
+                btn.innerHTML = iconMinimize + ' Quitter';
+                btn.title = 'Quitter le mode plein écran';
+            } else {
+                btn.innerHTML = iconMaximize + ' Plein écran';
+                btn.title = 'Passer en mode plein écran';
+            }
+        }
+        
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`Erreur pour le plein écran: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        document.getElementById('fs-btn').addEventListener('click', toggleFullscreen);
+
+        // Mettre à jour le bouton à chaque changement d'état du fullscreen
+        document.addEventListener('fullscreenchange', () => {
+            updateFsButton(!!document.fullscreenElement);
+            // Déclenchez le redimensionnement du graphique pour qu'il s'adapte au nouveau conteneur
+            window.dispatchEvent(new Event('resize')); 
+        });
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            
+            updateFsButton(!!document.fullscreenElement); // Initialisation de l'icône
+            
+            // 1. Récupération des paramètres URL
+            const params = new URLSearchParams(window.location.search);
+            
+            // Les paramètres sont désormais passés par Plots.js
+            const station = params.get('station');
+            const sensorList = params.get('sensorList');
+
+            if (!station || !sensorList) {
+                document.getElementById('chart-container').innerHTML = 
+                    `<div style="color:red; text-align:center; padding-top:20%;">
+                        Erreur: Paramètres 'station' ou 'sensorList' manquants.
+                    </div>`;
+                return;
+            }
+
+            // 2. Construction de l'URL dynamique (similaire à la logique de la page source)
+            // L'URL de base utilise /Raw/, je corrige le s dans /Raws/ pour être cohérent avec l'URL API
+            const dataUrl = `/query/${station}/Raw/${sensorList}`;
+
+            console.log(`Chargement Série Temporelle pour : Station=${station}, Sensors=${sensorList}`);
+            console.log(`URL API de base : ${dataUrl}`);
+
+            // 3. Charger le graphique TimeSeriesPlot en plein écran
+            const container = document.getElementById('chart-container');
+            
+            // Pour le plein écran, on adapte la hauteur et la largeur
+            container.style.width = window.innerWidth + 'px';
+            container.style.height = window.innerHeight + 'px';
+            
+            if (typeof mainPlots === 'function') {
+                // mainPlots va s'occuper de créer un graphique d'une taille adaptative
+                await mainPlots(container, dataUrl);
+            } else {
+                container.innerHTML = `<div style="color:red; text-align:center; padding-top:20%;">
+                    Erreur: La fonction mainPlots n'est pas chargée.<br>
+                    Vérifiez que le fichier js/drawing/Plots.js existe.
+                </div>`;
+            }
+
+            // Réadaptation si la fenêtre change de taille (utile en mode plein écran)
+            window.addEventListener('resize', () => {
+                const currentPlot = container.__current_plot_instance; // Si vous avez un moyen de stocker l'instance
+                if (currentPlot && typeof currentPlot.create === 'function') {
+                    // Mettre à jour les dimensions de l'instance
+                    currentPlot.width = window.innerWidth;
+                    currentPlot.height = window.innerHeight;
+                    currentPlot.innerWidth = currentPlot.width - currentPlot.margin.left - currentPlot.margin.right;
+                    currentPlot.innerHeight = currentPlot.height - currentPlot.margin.top - currentPlot.margin.bottom;
+                    
+                    // Recréer le graphique avec les nouvelles dimensions
+                    currentPlot.create(); 
+                }
+            });
+        });
+    </script>
+    </body>
+</html>

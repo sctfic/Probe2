@@ -1,3 +1,7 @@
+// Author: LOPEZ Alban
+// License: AGPL
+// Project: https://probe.lpz.ovh/
+
 let currentProbesSettings = {};
 let unitCategories = {};
 
@@ -412,6 +416,7 @@ async function handleProbesFormSubmit(event) {
         const { dataNeeded, currentMap } = parseFnCalc(probeData.fnCalc);
         probeData.dataNeeded = dataNeeded;
         probeData.currentMap = currentMap;
+        probeData.groupCustom = "CompositesNew";
         probeData.groupUsage = "Composites";
         
         currentProbesSettings[probeKey] = probeData;

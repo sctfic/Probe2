@@ -1,4 +1,7 @@
-// DEM values for different skin types
+// Author: LOPEZ Alban
+// License: AGPL
+// Project: https://probe.lpz.ovh/
+
 const SKIN_TYPES = {
     1: { name: "Type 1", description: "Brûle rapidement et ne bronze pas. Peau très claire avec des taches de rousseur, cheveux roux ou blonds, yeux clairs.", dem: 18 },
     2: { name: "Type 2", description: "Brûle facilement et bronze lentement. Peau claire, cheveux blonds, yeux clairs.", dem: 32 },

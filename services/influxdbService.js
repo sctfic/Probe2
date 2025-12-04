@@ -302,18 +302,19 @@ function getFilter(sensorRef) {
  */
 async function queryDateRange(stationId, sensorRef, startDate, endDate, archivesOnly = false) {
     let filter = '';
-        // si sensorRef endsWith '_calc', on ne peut pas utiliser ce capteur pour determiner la plage de temps
-    if (sensorRef.endsWith('_calc') || sensorRef.endsWith('_trend')) {
-        sensorRef = 'pressure:barometer'; // capteur par defaut pour le calcul de la plage de temps
-    }
+    // si sensorRef endsWith '_calc', on ne peut pas utiliser ce capteur pour determiner la plage de temps
+    console.log(stationId, sensorRef);
     if (sensorRef) {
+        if (sensorRef.endsWith('_calc') || sensorRef.endsWith('_trend')) {
+            sensorRef = 'pressure:barometer'; // capteur par defaut pour le calcul de la plage de temps
+        }
         filter = getFilter(sensorRef);
     }
     let scope = ' |> filter(fn: (r) => r.forecast != "true")';
     if (!archivesOnly) {scope = '            |> group()'}
 
-const now = new Date();
-const endStop = now.setUTCDate(now.getUTCDate() + 30);
+    const now = new Date();
+    const endStop = now.setUTCDate(now.getUTCDate() + 30);
     const query = `
       import "array"
         // Premier timestamp

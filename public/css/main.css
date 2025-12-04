@@ -1,5 +1,5 @@
 :root {
-    --primary-dark: #333333;
+    --primary-dark: rgb(26, 26, 26); /* Anciennement #333333 */
     --accent-blue: #4DC0E0;
     --background-white: #FFFFFF;
     --header-height: 50px; /* Hauteur du navbar */
@@ -458,16 +458,22 @@ label {
 .footer {
     background-color: var(--primary-dark);
     color: white;
-    width: 100vw;
+    /* width: 100vw;  <-- REMPLACEZ CECI */
+    width: 100%;      /* Plus sûr que vw sur mobile */
+    left: 0;
+    right: 0;         /* Assure que ça prend toute la largeur */
+    
     height: var(--footer-height);
     position: fixed;
-    bottom: 0;
-    left: 0;
+    bottom: 0 !important; /* Forcez la priorité */
     z-index: 1100;
-    box-shadow: 0 -2px 4px rgba(0,0,0,.1);
-    transition: all .1s ease-in-out; /* Transition pour hauteur et transformation */
-    display: flex;
-    flex-direction: column;
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, .1);
+    
+    /* CORRECTION MAGIQUE POUR MOBILE : */
+    transform: translateZ(0); /* Force l'accélération matérielle et fixe le contexte */
+    -webkit-transform: translateZ(0);
+    
+    transition: transform .2s ease-in-out, height .2s ease-in-out; /* Soyez spécifique sur la transition */
 }
 
 .footer.hidden-animated {
@@ -1257,6 +1263,13 @@ input:checked+.slider:before {
 }
 
 @media (max-width: 768px) {
+    .footer.details-open {
+        height: 70vh !important;
+        /* Optionnel : ajuster le max-height du chart container pour correspondre */
+    }
+    /* .footer.details-open .chart-container {
+        max-height: 65vh; 
+    } */
     .station-info {
         display: none;
     }
@@ -1801,9 +1814,10 @@ input:checked+.slider:before {
 }
 
 .chart-container {
+    display: block;
     padding: 0.1rem;
     box-sizing: border-box;
-    /* max-height: 70vh; */
+    max-height: 70vh;
     overflow-y: auto;
 }
 
@@ -2285,7 +2299,7 @@ input:checked+.slider:before {
     flex-wrap: wrap; /* Permet le retour à la ligne sur mobile */
     width: 100%;
     height: 100%;
-    background: #151515;
+    background: var(--primary-dark); /* Anciennement #151515 */
     overflow-y: auto; /* Scroll vertical si empilement */
     overflow-x: hidden;
 }
@@ -2318,11 +2332,6 @@ input:checked+.slider:before {
     .spiral-stats-block {
         border-left: none;
         border-top: 1px solid #333;
-    }
-    .footer {
-        position: sticky;
-        bottom: 0;
-        width: 100%;
     }
 }
 

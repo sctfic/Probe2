@@ -1,4 +1,7 @@
-// js/drawing/Wind.js
+// Probe2\public\js\drawing\Wind.js
+// Author: LOPEZ Alban
+// License: AGPL
+// Project: https://probe.lpz.ovh/
 
 // =======================================
 //  Construction de la Rose de vent

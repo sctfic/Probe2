@@ -1,7 +1,13 @@
-// public/js/redirect.js - Gestion des redirections LAN/WAN automatiques
+// public/js/redirect.js
+// Author: LOPEZ Alban
+// License: AGPL
+// Project: https://probe.lpz.ovh/
+// - Gestion des redirections LAN/WAN automatiques
+
+
 const RedirectManager = {
     LAN_URL: 'http://probe.lan',
-    WAN_URL: 'https://probe.lpz.ovh',// redirect.js - Version minimaliste réactive
+    WAN_URL: 'https://probe.lpz.ovh',
     TEST_TIMEOUT: 2000,        // 2s max pour tester
     INTERVAL_DELAY: 30000,     // 30s entre vérif. (mode interval)
     COOLDOWN_DURATION: 15000,  // 15s anti-boucle après redirect
@@ -42,18 +48,33 @@ const RedirectManager = {
     });
   },
 
+  /**
+   * Vérifie l'accessibilité d'une URL.
+   * Utilise l'objet Image au lieu de fetch pour contourner (partiellement)
+   * les blocages "Mixed Content" (HTTPS -> HTTP).
+   */
   async isReachable(url) {
-    const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), this.TEST_TIMEOUT);
-    
-    try {
-      await fetch(`${url}/favicon.ico`, { mode: 'no-cors', signal: ctrl.signal });
-      clearTimeout(timeout);
-      return true;
-    } catch {
-      clearTimeout(timeout);
-      return false;
-    }
+    return new Promise(resolve => {
+      const img = new Image();
+      const timer = setTimeout(() => {
+        img.src = ''; // Annule la requête en cas de timeout
+        resolve(false);
+      }, this.TEST_TIMEOUT);
+
+      img.onload = () => {
+        clearTimeout(timer);
+        resolve(true);
+      };
+
+      img.onerror = () => {
+        clearTimeout(timer);
+        // Si l'image ne charge pas (ou est bloquée strict par le navigateur), on considère hors ligne
+        resolve(false);
+      };
+
+      // Ajout d'un timestamp pour éviter le cache du navigateur
+      img.src = `${url}/favicon.ico?_=${Date.now()}`;
+    });
   },
 
   redirect(url) {

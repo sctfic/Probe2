@@ -1,3 +1,7 @@
+// Author: LOPEZ Alban
+// License: AGPL
+// Project: https://probe.lpz.ovh/
+
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const stepCount = 5000;

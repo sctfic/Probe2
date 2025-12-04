@@ -1,3 +1,7 @@
+// Author: LOPEZ Alban
+// License: AGPL
+// Project: https://probe.lpz.ovh/
+
 let currentIntegratorProbesSettings = {};
 let integratorUnitCategories = {};
 
@@ -412,6 +416,7 @@ async function handleIntegratorProbesFormSubmit(event) {
         const { dataNeeded, currentMap } = parseFnModel(probeData.fnModel);
         probeData.dataNeeded = dataNeeded;
         probeData.currentMap = currentMap;
+        probeData.groupCustom = "IntegratorNew";
         probeData.groupUsage = "Integrator";
         
         currentIntegratorProbesSettings[probeKey] = probeData;

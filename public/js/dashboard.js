@@ -1,3 +1,7 @@
+// Author: LOPEZ Alban
+// License: AGPL
+// Project: https://probe.lpz.ovh/
+
 // Variables for dashboard section
 const API_BASE_URL = '/query';
 const STORAGE_KEY_STATE = 'dashboardTileState';
@@ -583,6 +587,7 @@ function createConditionTileHTML(item) {
                     style="transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${windDirection}deg)">
             </div>
         `;
+        console.log(item);
         if (item.userUnit === "cardinal" ) unitDisplay = '';
     } else if (item.unit === 'dateStormRain' || item.unit === 'iso8601'){
         unitDisplay = '';
@@ -880,6 +885,15 @@ function deinitDragAndDrop() {
 }
 
 function showDetailsFooter(keys) {
+    // Vérification smartphone et plein écran (déplacé ici car déclenché par user interaction)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    
+    if (isMobile && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch((err) => {
+            // console.warn("Erreur plein écran :", err);
+        });
+    }
+
     const detailsFooter = document.querySelector('footer.footer');
     const mainContent = document.getElementById('content-container');
     const contentContainer = document.getElementById('d3-chart-container');
@@ -892,18 +906,17 @@ function showDetailsFooter(keys) {
     mainContent.style.marginBottom = footerOpenHeight;
 
     const items = keysArray.map(key => allConditions.find(c => c.key === key)).filter(Boolean);
+    console.log(items)
     // S'assurer que le footer n'est pas caché par l'animation initiale
     detailsFooter.classList.remove('hidden-animated');
     // Affiche le footer
     detailsFooter.classList.add('details-open');
-    console.log(items, items.length)
+    contentContainer.innerHTML = ''; // Réinitialiser le contenu
     if (items.length === 1) {
        // Special case for wind (rose & vector)
         if (items[0].measurement === 'direction' || items[0].sensorDb.startsWith('vector:')) {
-            console.log('loadWindPlots', items[0].sensorDb);
             loadWindPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}`, items[0].sensorDb);
         } else {
-            console.log('==================== loadSpiralePlot =====================', items[0].sensorDb);
             loadSpiralePlot(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raw/${items[0].sensorDb}`);
         }
     } else if (items.length > 1) {
@@ -912,10 +925,7 @@ function showDetailsFooter(keys) {
             contentContainer.innerHTML = `<div class="error-message">Aucun capteur avec historique dans la sélection.</div>`;
             return;
         }
-        // const chartId = `details_chart_`;
-        // contentContainer.innerHTML = `<div id="${chartId}" style="width: 100%; height: 100%;padding-top: 10px;"></div>`;
         const sensorsQuery = sensorDbs.join(',');
-        console.log('Loading mainPlots for sensors:', sensorsQuery);
         mainPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}`,getStartDate('1y'));
     }
 }
@@ -926,16 +936,20 @@ function hideDetailsFooter() {
     const contentContainer = document.getElementById('d3-chart-container');
     if (!detailsFooter || !contentContainer || !mainContent) return;
 
-    const footerClosedHeight = '40px'; // Doit correspondre à --footer-height dans le CSS
+    const footerClosedHeight = '40px'; 
     mainContent.style.marginBottom = footerClosedHeight;
 
     // Fonction pour nettoyer le contenu
-    const cleanup = () => {
-        // contentContainer.innerHTML = '';
+    const cleanup = (e) => {
+        // AJOUT: On ignore l'événement s'il vient d'un enfant (bouton, etc.)
+        if (e && e.target !== detailsFooter) return;
+
+        contentContainer.innerHTML = '';
+        contentContainer.style = '';
         detailsFooter.removeEventListener('transitionend', cleanup);
     }
 
-    detailsFooter.addEventListener('transitionend', cleanup, { once: true });
+    detailsFooter.addEventListener('transitionend', cleanup); // Retirez { once: true } car on filtre manuellement maintenant
     detailsFooter.classList.remove('details-open');
 }
 
@@ -992,10 +1006,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 showDetailsFooter([...selectedTiles]);
             }
         } else {
+            console.log('selectedTiles', selectedTiles);
             const key = tile.dataset.key;
+            console.log('key', key);
             const item = allConditions.find(c => c.key === key);
+            console.log('item', item);
             if (item && item.sensorDb) {
-                console.log(selectedTiles.size);
                 if (tile.classList.contains('selected') && selectedTiles.size === 1) {
                     clearSelection();
                 } else {

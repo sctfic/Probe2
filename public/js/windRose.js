@@ -1,4 +1,7 @@
 // public/js/windRose.js
+// Author: LOPEZ Alban
+// License: AGPL
+// Project: https://probe.lpz.ovh/
 
 /**
  * Renders an animated wind rose visualization in a specified container.

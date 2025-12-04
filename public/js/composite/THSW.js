@@ -1,3 +1,7 @@
+// Author: LOPEZ Alban
+// License: AGPL
+// Project: https://probe.lpz.ovh/
+
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         define([], factory);

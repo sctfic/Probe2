@@ -1,4 +1,8 @@
 // public/js/station.js
+// Author: LOPEZ Alban
+// License: AGPL
+// Project: https://probe.lpz.ovh/
+
 let currentStationSettings = null;
 /**
  * Formate une durée en secondes au format HH:MM:SS.
@@ -321,7 +325,7 @@ function createForecastFieldHTML(cronSettings) {
     return `
         <div class="settings-field condition-tile">
             <label>
-                Collecte local forecast
+                Collect local forecast
                 <span class="tooltip" data-tooltip="Récupération automatique des prévisions toutes les heures, pour cette localisation">?</span>
             </label>
             <div class="cron-container">

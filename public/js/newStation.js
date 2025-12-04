@@ -1,3 +1,7 @@
+// Author: LOPEZ Alban
+// License: AGPL
+// Project: https://probe.lpz.ovh/
+
 class StationManager {
     constructor() {
         this.modal = document.getElementById('station-modal');

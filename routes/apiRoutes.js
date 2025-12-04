@@ -4,6 +4,7 @@ const router = express.Router();
 const appController = require('../controllers/appController');
 const authController = require('../controllers/authController');
 const updateController = require('../controllers/updateController');
+const analyticsController = require('../controllers/analyticsController'); // Nouveau contrôleur
 const { isAuthenticated } = require('../middleware/authMiddleware');
 
 // Route pour les informations générales de l'application
@@ -15,6 +16,9 @@ router.post('/login', authController.login);
 router.post('/logout', authController.logout);
 router.get('/auth/status', authController.getAuthStatus);
 router.put('/password', isAuthenticated, authController.changePassword);
+
+// Nouvelle route pour le compteur de visites
+router.post('/visit', analyticsController.recordVisit);
 
 // Routes pour la configuration des unités
 router.get('/settings', appController.getUnitsSettings); // http://probe2.lpz.ovh/api/settings

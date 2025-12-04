@@ -1,4 +1,8 @@
-// controllers/queryDbController.js
+// Probe2\controllers\queryDbController.js
+// Author: LOPEZ Alban
+// License: AGPL
+// Project: https://probe.lpz.ovh/
+
 const influxdbService = require('../services/influxdbService');
 const { V, O } = require('../utils/icons');
 const units = require('../config/Units.json');
@@ -223,6 +227,8 @@ async function getCalculatedData(stationConfig, probeConfig, start, end, interva
                 if (!loadedScripts.has(scriptPath)) { // evite de charger plusieurs fois le même script
                     const fullPath = path.join(__dirname, '..', 'public', scriptPath);
                     try {
+                        console.log('require ', fullPath);
+
                         const requiredModule = require(fullPath); // charge le script
                         Object.assign(scriptContext, requiredModule); // ajoute les fonctions exportees au contexte
                         loadedScripts.add(scriptPath); // marque le script comme charge
@@ -241,6 +247,8 @@ async function getCalculatedData(stationConfig, probeConfig, start, end, interva
         .replace("%altitude%", stationConfig.altitude.lastReadValue);
 
     const fnCalc = vm.runInNewContext(`(${fnCalcStr})`, scriptContext);
+    console.log('fnCalc()', fnCalcStr, fnCalc(0.5, 43.2, 242.01, 45));
+
     // Fetch needed data from InfluxDB
     const { dataNeeded } = probeConfig;
     const rawData = await influxdbService.queryRaws(stationConfig.id, dataNeeded, start, end, intervalSeconds);

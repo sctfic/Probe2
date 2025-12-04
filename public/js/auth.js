@@ -1,4 +1,7 @@
-// public/js/auth.js
+// Probe2\public\js\drawing\auth.js
+// Author: LOPEZ Alban
+// License: AGPL
+// Project: https://probe.lpz.ovh/
 
 let isAuthenticated = false;
 let isPasswordSet = false;

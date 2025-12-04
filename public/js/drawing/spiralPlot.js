@@ -1,13 +1,11 @@
-// js/drawing/spiralePlot.js
+// Probe2\public\js\drawing\spiralPlot.js
+// Author: LOPEZ Alban
+// License: AGPL
+// Project: https://probe.lpz.ovh/
+
 // =======================================
 //  Visualisation Spirale 3D (Time Helix)
-//  Version: DYNAMIC GRADIENT CENTER + AUTO-STOP ANIMATION + AUTO-LOAD LAST
-//  Update: PROGRESSIVE STATS (HISTORY ONLY) + ALL RECORDS BLINKING
-//  Modif: CLOCKWISE ROTATION + REDUCED CENTER + MINI-CHART DOTS & LABELS
-//  Update: NAV BUTTONS (PREV/NEXT) + EXTERNAL LINK ICON
-//  Fix: RESIZE OBSERVER (Fix crushed layout on first load)
-//  Refactor: ADAPTED TO USER CUSTOM HTML LAYOUT (Flex panels)
-//  Layout Update: DYNAMIC ORIENTATION (Vertical/Horizontal based on Aspect Ratio)
+//  Version: CONTROLS IN PARENT + ADAPTIVE LAYOUT (Compact Vert / Full Horiz)
 // =======================================
 
 /**
@@ -19,24 +17,24 @@
 async function loadSpiralePlot(container, url, forcedMode = null) {
     if (!container || !(container instanceof HTMLElement)) return;
 
-    // 1. Loader centré
+    // 1. Loader centré et hauteur minimale temporaire
     container.style.position = "relative"; 
-    // On force une hauteur minimale temporaire pour éviter que le loader ne soit écrasé
-    container.style.minHeight = "30vw"; 
+    container.style.minHeight = "200px"; 
     
+    // Couleur unifiée rgb(26, 26, 26)
     container.innerHTML = `
-        <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; justify-content:center; align-items:center; background:#151515; z-index:100; border-radius:8px;">
+        <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; justify-content:center; align-items:center; background:rgb(26, 26, 26); z-index:100;">
             <div class="loader-spinner" style="width:20px; height:20px; border:2px solid #555; border-top:2px solid #fff; border-radius:50%; animation:spin 1s linear infinite;"></div>
         </div>`;
 
     try {
-        // Nettoyage de l'instance précédente si elle existe
+        // Nettoyage de l'instance précédente
         if (container._spiraleInstance) {
             container._spiraleInstance.destroy();
             delete container._spiraleInstance;
         }
 
-        // Récupération rapide de la plage (Metadata) via /Range/
+        // Récupération rapide de la plage (Metadata)
         const rangeUrl = url.replace('/Raw/', '/Range/');
         const rangeResponse = await (window.fetchWithCache ? window.fetchWithCache(rangeUrl, 300000) : fetch(rangeUrl).then(r => r.json()));
         
@@ -47,7 +45,7 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
         const dateLast = new Date(meta.last);
         const totalRangeDays = (dateLast - dateFirst) / (1000 * 60 * 60 * 24);
 
-        // Détermination du mode et de la plage à charger
+        // Détermination du mode et de la plage
         let mode = 'day';
         let fetchStartDate = dateFirst;
         let daysToLoad = totalRangeDays;
@@ -152,6 +150,12 @@ function getConversionFunction(metadata) {
     }
     return (v) => v;
 }
+function isOccupying90Percent(element) {
+    const el = typeof element === 'string' ? document.getElementById(element) : element;
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    return (r.width * r.height) >= (window.innerWidth * window.innerHeight * 0.9);
+}
 
 class SpiralePlot {
     constructor(container, data, options = {}) {
@@ -161,27 +165,17 @@ class SpiralePlot {
         this.grouping = options.grouping || 'day';
         
         this.resizeObserver = null;
-        this.rect = this.container.getBoundingClientRect();
+        this.resizeTimer = null; // Timer pour le debounce
+        this.updateDimensionsFromRect();
         
-        // Dimensions initiales
-        this.width = this.rect.width || 800;
-        this.height = (this.rect.height > 50) ? this.rect.height : 350; 
-        
-        // Calcul du positionnement initial
-        this.calculateLayoutState('initial');
-
-        // On définit svgWidth arbitrairement, il sera recalculé dans updateDimensions
-        this.svgWidth = 480; 
+        this.svgWidth = 480; // Valeur de base, sera écrasée par draw()
         this.centerX = this.svgWidth / 2; 
         this.centerY = this.height / 2;
 
         this.beta = 0;
         this.alpha = -20 * (Math.PI / 180);
         
-        const minDim = Math.min(this.svgWidth, this.height);
-        this.radiusMin = minDim * 0.05; 
-        this.radiusMax = minDim * 0.45; 
-        this.spiralHeight = this.height * 0.60; 
+        this.updateRadii();
         
         this.wrapper = null; 
         this.sidePanel = null;
@@ -226,74 +220,63 @@ class SpiralePlot {
             this.resizeObserver.disconnect();
             this.resizeObserver = null;
         }
+        if (this.resizeTimer) {
+            clearTimeout(this.resizeTimer);
+            this.resizeTimer = null;
+        }
         if (this.playInterval) clearInterval(this.playInterval);
+    }
+
+    updateDimensionsFromRect() {
+        this.rect = this.container.getBoundingClientRect();
+        this.width = this.rect.width || 800;
+        this.height = (this.rect.height > 50) ? this.rect.height : 350;
+        
+        // Calcul du positionnement basé sur le ratio
+        this.ratio = Math.round((this.rect.width / this.rect.height) * 100) / 100;
+        this.positionment = this.ratio > 2 ? 'Horizontal' : 'Vertical';
+        console.log("Layout:", this.positionment, "Ratio:", this.ratio, "Dim:", this.width, "x", this.height);
+    }
+
+    updateRadii() {
+        // Ces valeurs seront recalculées dynamiquement dans draw() en fonction de la taille réelle du SVG
+        const minDim = Math.min(this.svgWidth, this.height);
+        this.radiusMin = minDim * 0.05; 
+        this.radiusMax = minDim * 0.45; 
+        this.spiralHeight = this.height * 0.60;
     }
 
     initResizeObserver() {
         this.resizeObserver = new ResizeObserver(entries => {
             for (let entry of entries) {
-                // On observe le conteneur principal
-                const newHeight = entry.contentRect.height;
-                const newWidth = entry.contentRect.width;
-                
-                // Vérification basique pour éviter le thrashing
-                if (newHeight > 50 && (Math.abs(newHeight - this.height) > 5 || Math.abs(newWidth - this.width) > 5)) {
-                    this.height = newHeight;
-                    this.width = newWidth;
+                if (this.resizeTimer) clearTimeout(this.resizeTimer);
+
+                this.resizeTimer = setTimeout(() => {
+                    const r = entry.contentRect;
+                    const oldPos = this.positionment;
                     
-                    this.updateDimensions();
-                    this.draw(); // Redessine complètement avec la nouvelle structure flex
-                    
-                    // Restauration de l'état
-                    if (this.currentPlayKey) {
-                        const pointsInPeriod = this.data.filter(d => this.getPeriodKeyForDate(d.date) === this.currentPlayKey);
-                        if (pointsInPeriod.length > 0) {
-                            this.updateSidePanel(pointsInPeriod[0], this.currentPlayKey, false);
-                            setTimeout(() => this.highlightPeriod(this.currentPlayKey), 50);
+                    // On ne redessine que si dimensions valides et changement
+                    if (r.width > 50 && r.height > 50) {
+                        this.updateDimensionsFromRect();
+                        this.draw(); 
+                        
+                        // Restauration de l'état du panneau
+                        if (this.currentPlayKey) {
+                            const pointsInPeriod = this.data.filter(d => this.getPeriodKeyForDate(d.date) === this.currentPlayKey);
+                            if (pointsInPeriod.length > 0) {
+                                this.updateSidePanel(pointsInPeriod[0], this.currentPlayKey, false);
+                                setTimeout(() => this.highlightPeriod(this.currentPlayKey), 50);
+                            }
                         }
                     }
-                }
+                }, 100);
             }
         });
         this.resizeObserver.observe(this.container);
     }
 
-    calculateLayoutState(x) {
-        this.ratio = Math.round(this.width / this.height * 100);
-        this.positionement = this.ratio > 250 ? 'Horizontal' : 'Vertical';
-        console.log(`[SpiralePlot] Layout: ${this.positionement} [ratio: ${this.ratio}]`, this.width, this.height, x);
-    }
-
-    updateDimensions() {
-        // this.calculateLayoutState('updated');
-
-        // Si le wrapper existe, on utilise sa largeur pour le SVG
-        if (this.wrapper && !this.wrapper.empty()) {
-            const wrapperNode = this.wrapper.node();
-            if (wrapperNode) {
-                this.svgWidth = wrapperNode.getBoundingClientRect().width;
-                // La hauteur du SVG dépend maintenant du wrapper (carré)
-                this.height = wrapperNode.getBoundingClientRect().height;
-            }
-        } else {
-            // Fallback estimation avant rendu
-            if (this.positionement === 'Horizontal') {
-                 this.svgWidth = this.height; // Carré
-            } else {
-                 // Vertical : Hauteur 60%, Largeur = Hauteur
-                 this.svgWidth = this.height * 0.6;
-            }
-        }
-
-        // Recalcul des centres et rayons basé sur svgWidth
-        this.centerX = this.svgWidth / 2;
-        this.centerY = this.height / 2;
-        
-        const minDim = Math.min(this.svgWidth, this.height);
-        this.radiusMin = minDim * 0.05;
-        this.radiusMax = minDim * 0.45;
-        this.spiralHeight = this.height * 0.60;
-        
+    updatePlotGeometry() {
+        // Met à jour les échelles Z et Radius en fonction des nouvelles dimensions du SVG
         if (this.scales.z) {
             this.scales.z.range([-this.spiralHeight / 2, this.spiralHeight / 2]);
         }
@@ -321,8 +304,8 @@ class SpiralePlot {
         this.sortedKeys = Array.from(groups.keys()).sort();
 
         const counts = Array.from(groups.values()).map(g => g.length);
-        const maxPoints = d3.max(counts) || 0; 
-        const threshold = maxPoints * 0.9; 
+        const maxPoints = d3.max(counts) || 0; // Nombre max de points dans une période
+        const threshold = maxPoints * 0.9; // Seuil à 90% du max pour filtrer les périodes complètes pour le calcul des échelles
 
         let validValues = [];
         let validMeans = [];
@@ -363,6 +346,7 @@ class SpiralePlot {
             .range([-this.spiralHeight / 2, this.spiralHeight / 2]); 
             
         this.getAngle = (date) => {
+            // NOTE: Ajout du signe négatif pour la rotation Sens Horaire
             if (this.grouping === 'day') {
                 const start = new Date(date); start.setHours(0,0,0,0);
                 return -((date - start) / 86400000) * 2 * Math.PI;
@@ -433,110 +417,71 @@ class SpiralePlot {
         const container = d3.select(this.container);
         container.selectAll("*").remove(); 
 
-        // ----------------------------------------------------------------
-        // MISE EN PAGE DYNAMIQUE : Horizontal ou Vertical
-        // ----------------------------------------------------------------
+        const isHorizontal = this.positionment === 'Horizontal';
         
-        let containerStyle, mainStyle, sideStyle;
+        // MODIF: Le conteneur doit être relatif pour que les boutons (absolus) se positionnent dedans
+        container
+            .style("position", "relative") 
+            .style("display", "flex")
+            .style("flex-direction", isHorizontal ? "row" : "column") 
+            .style("width", "100%")
+            .style("height", "100%")
+            .style("overflow", "hidden")
+            .style("align-items", "center")
+            .style("justify-content", "center");
 
-        if (this.positionement === 'Horizontal') {
-            // Main: gauche, hauteur 100%, largeur = hauteur (carré)
-            // Side: droite, occupe tout l'espace restant, centré verticalement via align-self
-            containerStyle = `
-                display: flex; 
-                flex-direction: row; 
-                align-items: center; 
-                justify-content: flex-start;
-                gap: 5px; 
-                width: 100%; 
-                height: 100%;
-                overflow: hidden;
-            `;
-            
-            mainStyle = `
-                background-color: #151515; 
-                height: 100%; 
-                aspect-ratio: 1 / 1; 
-                border-radius: 8px; 
-                position: relative; 
-                overflow: hidden; 
-                flex-shrink: 0;
-            `;
-
-            sideStyle = `
-                background-color: #1a1a1a; 
-                flex: 1; 
-                height: 98%; 
-                align-self: center;
-                border-radius: 8px; 
-                border-left: 1px solid #333; 
-                position: relative;
-            `;
+        let mainPanelSize;
+        if (isHorizontal) {
+            mainPanelSize = this.height;
         } else {
-            // Mode Vertical
-            // Main: haut, hauteur 60%, largeur = hauteur (carré)
-            // Side: bas, largeur 100%, occupe toute la hauteur restante
-            containerStyle = `
-                display: flex; 
-                flex-direction: column; 
-                align-items: center; 
-                justify-content: flex-start;
-                gap: 5px;
-                width: 100%; 
-                height: 100%;
-                overflow: hidden;
-            `;
-
-            mainStyle = `
-                background-color: #151515; 
-                height: 60%; 
-                aspect-ratio: 1 / 1; 
-                border-radius: 8px; 
-                position: relative; 
-                overflow: hidden; 
-                flex-shrink: 0;
-            `;
-
-            sideStyle = `
-                background-color: #1a1a1a; 
-                width: 100%; 
-                flex: 1; 
-                border-radius: 8px; 
-                border-top: 1px solid #333; 
-                position: relative;
-            `;
+            const targetHeight = this.height * 0.60;
+            mainPanelSize = Math.min(targetHeight, this.width);
         }
+
+        // Création Main Panel
+        this.wrapper = container.append("div")
+            .attr("class", "spiralChart-main-panel")
+            .style("position", "relative")
+            .style("width", `${mainPanelSize}px`) 
+            .style("height", `${mainPanelSize}px`) // Toujours carré pour la spirale
+            .style("flex", "none")
+            .style("overflow", "hidden")
+            .style("background", "rgb(26, 26, 26)"); 
+
+        // Mise à jour des props internes pour le dessin SVG
+        this.svgWidth = mainPanelSize;
+        this.height = mainPanelSize; 
+        this.centerX = this.svgWidth / 2;
+        this.centerY = this.height / 2;
         
-        container.html(`
-            <div style="${containerStyle}">
-                <div id="spiralChart-main-panel" style="${mainStyle}"></div>
-                <div id="spiralChart-side-panel" style="${sideStyle}"></div>
-            </div>
-        `);
+        const minDim = mainPanelSize;
+        this.radiusMin = minDim * 0.05; 
+        this.radiusMax = minDim * 0.45; 
+        this.spiralHeight = minDim * 0.60;
+        this.updatePlotGeometry(); 
 
-        // Sélection des sous-conteneurs créés
-        this.wrapper = container.select("#spiralChart-main-panel");
-        this.sidePanel = container.select("#spiralChart-side-panel");
-
-        // Initialisation contenu vide Side Panel
-        this.sidePanel.append("div").attr("class", "spiral-panel-content")
-            .html(`<div style="text-align:center; color:#555; font-family:sans-serif; padding-top:20px;">Cliquez sur une période</div>`);
-
-        // Calcul de la largeur réelle disponible pour le SVG après injection du DOM
-        // Note: Grâce à aspect-ratio, la largeur est maintenant liée à la hauteur.
-        const wrapperNode = this.wrapper.node();
-        if (wrapperNode) {
-            const rect = wrapperNode.getBoundingClientRect();
-            this.svgWidth = rect.width || 480;
-            // On met à jour la hauteur interne utilisée pour le dessin pour qu'elle corresponde au conteneur carré
-            this.height = rect.height;
-            this.centerX = this.svgWidth / 2;
-            this.centerY = this.height / 2;
-            // Mise à jour rapide des paramètres de dessin
-            this.updateDimensions(); 
+        // Création Side Panel
+        this.sidePanel = container.append("div")
+            .attr("class", "spiralChart-side-panel")
+            .style("position", "relative")
+            .style("border-left", isHorizontal ? "1px solid #333" : "none")
+            .style("border-top", isHorizontal ? "none" : "1px solid #333")
+            .style("background", "rgb(26, 26, 26)")
+            .style("flex", isHorizontal ? "none" : "none") // On fixe manuellement les tailles maintenant
+            .style("width", isHorizontal ? "auto" : "100%")
+            // MODIF: En mode Horizontal, 80% de la hauteur du mainPanel
+            .style("height", isHorizontal ? `${mainPanelSize * 0.8}px` : "auto") 
+            .style("max-height", isHorizontal ? "" : `${mainPanelSize * 0.6}px`) 
+            .style("display", "flex")
+            .style("flex-direction", "column")
+            .style("justify-content", "center") 
+            .html(`<div class="spiral-panel-content" style="width:100%; padding: 10px;"><div style="text-align:center; color:#555; font-family:sans-serif;">Cliquez sur une période</div></div>`);
+            
+        // Si mode horizontal, on donne un peu de flexibilité en largeur au sidePanel
+        if (isHorizontal) {
+             this.sidePanel.style("flex", "1");
         }
 
-        // --- Création du SVG dans le Main Panel ---
         this.svg = this.wrapper.append("svg")
             .attr("width", "100%").attr("height", "100%")
             .style("background", "transparent")
@@ -556,7 +501,8 @@ class SpiralePlot {
         this.hoverText = this.gLabels.append("text")
             .attr("class", "svg-hover-date")
             .attr("x", this.centerX).attr("y", this.height * 0.15)
-            .attr("font-size", "3rem").style("opacity", 0).text("");
+            .attr("font-size", `${Math.max(12, mainPanelSize * 0.08)}px`) 
+            .style("opacity", 0).text("");
 
         this.gLabels.append("text")
             .attr("x", 10).attr("y", this.height - 10)
@@ -574,7 +520,7 @@ class SpiralePlot {
                 this.hoverText.style("opacity", 0);
             })
             .on("drag", (e) => {
-                this.beta -= e.dx * 0.008;
+                this.beta += e.dx * 0.008; 
                 this.alpha = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.alpha - e.dy * 0.008));
                 this.updateView(true);
             })
@@ -605,15 +551,73 @@ class SpiralePlot {
     }
 
     createControls() {
-        this.wrapper.selectAll(".spiral-controls").remove();
-        this.wrapper.selectAll(".spiral-controls-left").remove();
-
-        // 1. Contrôles Droite (Vue + Mode)
-        const c = this.wrapper.append("div").attr("class", "spiral-controls");
+        // MODIF: Sélection du container parent au lieu du wrapper
+        const controlsContainer = this.wrapper;
         
+        
+        controlsContainer.selectAll(".spiral-controls").remove();
+        controlsContainer.selectAll(".spiral-controls-left").remove();
+
+        const iconMinimize = `<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path></svg>`;
+        const iconOriginal = `<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
+
+        // MODIF: Attaché au container parent
+        const rightC = controlsContainer.append("div")
+            .attr("class", "spiral-controls")
+            .style("position", "absolute")
+            .style("top", "10px")
+            .style("right", "10px")
+            .style("display", "flex")
+            .style("flex-direction", "column")
+            .style("gap", "6px")
+            .style("align-items", "flex-end")
+            .style("z-index", "20"); // Augmenté pour être au dessus
+        
+        const isFullscreen = !!document.fullscreenElement;
+        
+        let extLink = "#";
+        if (this.options.originalUrl && this.options.originalUrl.includes('/Raw/')) {
+            try {
+                const parts = this.options.originalUrl.split('/Raw/');
+                if (parts.length >= 2) {
+                    const st = parts[0].split('/').pop();
+                    const sn = parts[1].split('/').shift();
+                    extLink = `spirale3DChart.html?station=${st}&sensor=${sn}`;
+                }
+            } catch(err) {}
+        }
+
+        const linkBtn = rightC.append("button")
+            .attr("class", "spiral-btn")
+            .attr("title", isFullscreen ? "Quitter plein écran" : "Agrandir")
+            .html(isFullscreen ? iconMinimize : iconOriginal);
+        
+        linkBtn.on("click", (e) => {
+            e.stopPropagation();
+            if (isOccupying90Percent(this.container)) { 
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().then(() => {
+                        const onFullScreenChange = () => {
+                            if (!document.fullscreenElement) {
+                                document.removeEventListener("fullscreenchange", onFullScreenChange);
+                            }
+                        };
+                        document.addEventListener("fullscreenchange", onFullScreenChange);
+                    }).catch(err => console.error(err));
+                } else {
+                    if (document.exitFullscreen) document.exitFullscreen();
+                }
+            } else if (extLink !== "#") {
+                window.open(extLink, '_blank');
+            }
+        });
+
         [{ l: "Dessus", a: -Math.PI/2, b: 0 }, { l: "Face", a: 0, b: 0 }, { l: "Iso", a: -Math.PI/6, b: Math.PI/4 }]
         .forEach(v => {
-            c.append("button").attr("class", "spiral-btn").text(v.l)
+            rightC.append("button")
+                .attr("class", "spiral-btn")
+                .style("width", "100%") 
+                .text(v.l)
                 .on("click", (e) => {
                     e.stopPropagation();
                     const d = { a: this.alpha, b: this.beta };
@@ -626,65 +630,38 @@ class SpiralePlot {
                 });
         });
 
-        c.append("div").style("width", "1px").style("background", "#444").style("margin", "0 8px");
+        // MODIF: Attaché au container parent
+        const leftC = controlsContainer.append("div")
+            .attr("class", "spiral-controls-left")
+            .style("position", "absolute")
+            .style("top", "10px")
+            .style("left", "10px")
+            .style("display", "flex")
+            .style("flex-direction", "column")
+            .style("gap", "6px")
+            .style("align-items", "flex-start")
+            .style("z-index", "20"); // Augmenté pour être au dessus
 
-        // Bouton Toggle Mode
-        const toggleBtn = c.append("button")
+        const colorBtn = leftC.append("button")
+            .attr("class", "spiral-btn")
+            .html(this.colorMode === 'mean' ? "<small>Amplitude</small> / Mean" : "Amplitude / <small>Mean</small>");
+            
+        colorBtn.on("click", (e) => {
+            e.stopPropagation();
+            this.colorMode = (this.colorMode === 'standard') ? 'mean' : 'standard';
+            colorBtn.html(this.colorMode === 'mean' ? "<small>Amplitude</small> / Mean" : "Amplitude / <small>Mean</small>");
+            this.updateView(false);
+        });
+
+        const toggleBtn = leftC.append("button")
             .attr("class", "spiral-btn")
             .style("font-weight", "bold")
-            .text(this.grouping === 'year' ? "Mode: Année" : "Mode: Jour");
+            .html(this.grouping === 'year' ? "Year / <small>Day</small>" : "<small>Year</small> / Day");
 
         toggleBtn.on("click", (e) => {
             e.stopPropagation();
             const newMode = (this.grouping === 'year') ? 'day' : 'year';
             loadSpiralePlot(this.container, this.options.originalUrl, newMode);
-        });
-
-        // Bouton Lien Externe
-        let extLink = "#";
-        if (this.options.originalUrl && this.options.originalUrl.includes('/Raw/')) {
-            try {
-                const parts = this.options.originalUrl.split('/Raw/');
-                if (parts.length >= 2) {
-                    const st = parts[0].split('/').pop();
-                    const sn = parts[1].split('/').shift();
-                    extLink = `/spirale3DChart.html?station=${st}&sensor=${sn}`;
-                }
-            } catch(err) {
-                console.error("Erreur extraction lien externe spirale:", err);
-            }
-        }
-
-        const linkBtn = c.append("button")
-            .attr("class", "spiral-btn")
-            .style("margin-left", "4px")
-            .attr("title", "Ouvrir dans un nouvel onglet")
-            .html(`<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`);
-        
-        linkBtn.on("click", (e) => {
-            e.stopPropagation();
-            if (extLink !== "#") {
-                window.open(extLink, '_blank');
-            }
-        });
-
-        // 2. Contrôles Gauche (Toggle Heatmap)
-        const leftC = this.wrapper.append("div")
-            .attr("class", "spiral-controls-left")
-            .style("position", "absolute")
-            .style("top", "10px")
-            .style("left", "10px")
-            .style("z-index", "10");
-
-        const colorBtn = leftC.append("button")
-            .attr("class", "spiral-btn")
-            .text(this.colorMode === 'mean' ? "Couleur: Moyenne" : "Couleur: Détail");
-            
-        colorBtn.on("click", (e) => {
-            e.stopPropagation();
-            this.colorMode = (this.colorMode === 'standard') ? 'mean' : 'standard';
-            colorBtn.text(this.colorMode === 'mean' ? "Couleur: Moyenne" : "Couleur: Détail");
-            this.updateView(false);
         });
     }
 
@@ -744,7 +721,6 @@ class SpiralePlot {
     updateView(isDragging = false) {
         this.drawAxes();
         
-        // --- 1. CONFIGURATION DES GRADIENTS ---
         this.defs.selectAll("*").remove();
 
         const scaleY = Math.max(0.01, Math.abs(Math.sin(this.alpha)));
@@ -1006,6 +982,7 @@ class SpiralePlot {
         this.changePeriod(0, nextKey); 
     }
 
+    // Helper pour navigation manuelle (Prev/Next) ou auto
     changePeriod(offset, directKey = null) {
         if (!this.sortedKeys || this.sortedKeys.length === 0) return;
 
@@ -1071,32 +1048,44 @@ class SpiralePlot {
 
         let content = this.sidePanel.select(".spiral-panel-content");
         if (content.empty()) {
-            this.sidePanel.html(`<div class="spiral-panel-content"></div>`);
+            this.sidePanel.html(`<div class="spiral-panel-content" style="padding:10px;"></div>`);
             content = this.sidePanel.select(".spiral-panel-content");
         }
+        
+        // MODIF: Détection mode compact (Vertical) vs mode normal (Horizontal)
+        const isCompact = (this.positionment !== 'Horizontal');
+        const chartHeight = isCompact ? 140 : 200;
 
         if (content.select("#mini-chart-container").empty()) {
-            content.html(`
-                <div class="panel-info">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div id="panel-date-dyn" class="panel-date">${dateFmt(dataPoint.date)}</div>
-                        <div class="panel-controls" style="display:flex; gap:2px;">
-                            <button id="btn-prev" style="padding:4px; background:#333; color:#fff; border:1px solid #555; cursor:pointer; display:flex; align-items:center;">
-                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-                            </button>
-                            <button id="btn-play-toggle" style="padding:4px 10px; background:#333; color:#fff; border:1px solid #555; cursor:pointer; display:flex; align-items:center;">
-                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-                            </button>
-                            <button id="btn-next" style="padding:4px; background:#333; color:#fff; border:1px solid #555; cursor:pointer; display:flex; align-items:center;">
-                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
-                            </button>
+            
+            // Layout HTML Adaptatif
+            let infoHtml = '';
+            if (isCompact) {
+                // Version compacte (Vertical)
+                 infoHtml = `
+                    <div class="panel-info" style="margin-bottom: 5px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div id="panel-date-dyn" class="panel-date" style="font-size:1.1rem; margin-bottom:0;">${dateFmt(dataPoint.date)}</div>
+                            ${getControlsHtml()}
                         </div>
-                    </div>
-                    <div style="font-size:11px; color:#666; margin-bottom:10px; text-transform:uppercase;">${pTitle}</div>
-                </div>
-                <div id="mini-stats-header"></div>
-                <div id="mini-chart-container" style="width:100%; height:200px; position:relative;"></div>
-                <div id="mini-chart-legend" style="padding-top:10px; border-top:1px solid #333; margin-top:5px;"></div>
+                    </div>`;
+            } else {
+                // Version complète (Horizontal)
+                infoHtml = `
+                    <div class="panel-info" style="margin-bottom: 15px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div id="panel-date-dyn" class="panel-date" style="font-size:1.2rem; margin-bottom:0;">${dateFmt(dataPoint.date)}</div>
+                            ${getControlsHtml()}
+                        </div>
+                         <div style="font-size:11px; color:#666; margin-top:4px; text-transform:uppercase;">${pTitle}</div>
+                    </div>`;
+            }
+
+            content.html(`
+                ${infoHtml}
+                <div id="mini-stats-header" style="margin-bottom:2px;"></div>
+                <div id="mini-chart-container" style="width:100%; height:${chartHeight}px; position:relative;"></div>
+                <div id="mini-chart-legend" style="padding-top:4px; border-top:1px solid #333; margin-top:2px;"></div>
             `);
 
             content.select("#btn-play-toggle").on("click", () => this.togglePlay());
@@ -1121,7 +1110,7 @@ class SpiralePlot {
         }
 
         const subset = this.data.filter(d => d.ts >= pStart.getTime() && d.ts <= pEnd.getTime());
-        this.drawMiniChart(subset, dataPoint);
+        this.drawMiniChart(subset, dataPoint, chartHeight); // On passe la hauteur
     }
 
     computeProgressiveStats(limitDate) {
@@ -1147,7 +1136,7 @@ class SpiralePlot {
         return progressiveStats;
     }
 
-    drawMiniChart(data, focusPoint) {
+    drawMiniChart(data, focusPoint, chartHeight) {
         const container = document.getElementById("mini-chart-container");
         const statsContainer = document.getElementById("mini-stats-header");
         const legendContainer = document.getElementById("mini-chart-legend");
@@ -1233,7 +1222,7 @@ class SpiralePlot {
         try {
             const chart = Plot.plot({
                 width: container.clientWidth,
-                height: (container.clientHeight) || 200, 
+                height: (container.clientHeight) || chartHeight, // Use dynamic height
                 marginLeft: 0, marginBottom: 20, marginRight: 40, marginTop: 10,
                 style: { background: "transparent", color: "#aaa", fontSize: "10px" },
                 x: { type: "time", tickFormat: this.grouping === 'day' ? "%H:%M" : "%b", grid: false },
@@ -1323,4 +1312,19 @@ class SpiralePlot {
             `;
         }
     }
+}
+
+function getControlsHtml() {
+    return `
+    <div class="panel-controls" style="display:flex; gap:2px;">
+        <button id="btn-prev" style="padding:4px; background:#333; color:#fff; border:1px solid #555; cursor:pointer; display:flex; align-items:center;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+        </button>
+        <button id="btn-play-toggle" style="padding:4px 10px; background:#333; color:#fff; border:1px solid #555; cursor:pointer; display:flex; align-items:center;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+        </button>
+        <button id="btn-next" style="padding:4px; background:#333; color:#fff; border:1px solid #555; cursor:pointer; display:flex; align-items:center;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </button>
+    </div>`;
 }
