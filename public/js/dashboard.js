@@ -1,7 +1,11 @@
+<<<<<<< HEAD
 // Author: LOPEZ Alban
 // License: AGPL
 // Project: https://probe.lpz.ovh/
 
+=======
+// dashboard.js
+>>>>>>> 2a55ff8eee9013f73c72f630bfbad4c5dc4d649c
 // Variables for dashboard section
 const API_BASE_URL = '/query';
 const STORAGE_KEY_STATE = 'dashboardTileState';
