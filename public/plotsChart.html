@@ -1,3 +1,4 @@
+// Probe2\plotsChart.html
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -77,6 +78,7 @@
         const iconMaximize = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>`;
         const iconMinimize = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path></svg>`;
 
+        // Fonction pour mettre à jour l'icône du bouton
         function updateFsButton(isFullscreen) {
             const btn = document.getElementById('fs-btn');
             if (isFullscreen) {
@@ -88,6 +90,7 @@
             }
         }
         
+        // Fonction pour basculer le plein écran
         function toggleFullscreen() {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(err => {
@@ -102,71 +105,64 @@
 
         document.getElementById('fs-btn').addEventListener('click', toggleFullscreen);
 
-        // Mettre à jour le bouton à chaque changement d'état du fullscreen
-        document.addEventListener('fullscreenchange', () => {
-            updateFsButton(!!document.fullscreenElement);
-            // Déclenchez le redimensionnement du graphique pour qu'il s'adapte au nouveau conteneur
-            window.dispatchEvent(new Event('resize')); 
-        });
+        let resizeTimeout;
 
         document.addEventListener('DOMContentLoaded', async () => {
             
-            updateFsButton(!!document.fullscreenElement); // Initialisation de l'icône
+            updateFsButton(!!document.fullscreenElement);
             
             // 1. Récupération des paramètres URL
             const params = new URLSearchParams(window.location.search);
-            
-            // Les paramètres sont désormais passés par Plots.js
             const station = params.get('station');
             const sensorList = params.get('sensorList');
 
+            const container = document.getElementById('chart-container');
+
             if (!station || !sensorList) {
-                document.getElementById('chart-container').innerHTML = 
+                container.innerHTML = 
                     `<div style="color:red; text-align:center; padding-top:20%;">
                         Erreur: Paramètres 'station' ou 'sensorList' manquants.
                     </div>`;
                 return;
             }
 
-            // 2. Construction de l'URL dynamique (similaire à la logique de la page source)
-            // L'URL de base utilise /Raw/, je corrige le s dans /Raws/ pour être cohérent avec l'URL API
-            const dataUrl = `/query/${station}/Raw/${sensorList}`;
-
+            // URL de l'API
+            const dataUrl = `/query/${station}/Raws/${sensorList}`;
             console.log(`Chargement Série Temporelle pour : Station=${station}, Sensors=${sensorList}`);
-            console.log(`URL API de base : ${dataUrl}`);
 
-            // 3. Charger le graphique TimeSeriesPlot en plein écran
-            const container = document.getElementById('chart-container');
-            
-            // Pour le plein écran, on adapte la hauteur et la largeur
-            container.style.width = window.innerWidth + 'px';
-            container.style.height = window.innerHeight + 'px';
-            
-            if (typeof mainPlots === 'function') {
-                // mainPlots va s'occuper de créer un graphique d'une taille adaptative
-                await mainPlots(container, dataUrl);
-            } else {
-                container.innerHTML = `<div style="color:red; text-align:center; padding-top:20%;">
-                    Erreur: La fonction mainPlots n'est pas chargée.<br>
-                    Vérifiez que le fichier js/drawing/Plots.js existe.
-                </div>`;
+            // Fonction centrale pour (re)tracer le graphique
+            async function drawChart() {
+                // Ajuster la largeur du conteneur à la fenêtre (le height reste géré par CSS/Plots.js)
+                container.style.width = window.innerWidth + 'px';
+                
+                // Appel de mainPlots qui va vider le conteneur et recréer le SVG
+                // Plots.js définit par défaut height=300, ce qui corrige le problème de hauteur.
+                if (typeof mainPlots === 'function') {
+                    await mainPlots(container, dataUrl);
+                } else {
+                    container.innerHTML = `<div style="color:red; text-align:center; padding-top:20%;">
+                        Erreur: mainPlots introuvable.
+                    </div>`;
+                }
             }
 
-            // Réadaptation si la fenêtre change de taille (utile en mode plein écran)
+            // 2. Premier tracé
+            await drawChart();
+
+            // 3. Gestionnaire de redimensionnement (avec debounce pour éviter les appels multiples)
             window.addEventListener('resize', () => {
-                const currentPlot = container.__current_plot_instance; // Si vous avez un moyen de stocker l'instance
-                if (currentPlot && typeof currentPlot.create === 'function') {
-                    // Mettre à jour les dimensions de l'instance
-                    currentPlot.width = window.innerWidth;
-                    currentPlot.height = window.innerHeight;
-                    currentPlot.innerWidth = currentPlot.width - currentPlot.margin.left - currentPlot.margin.right;
-                    currentPlot.innerHeight = currentPlot.height - currentPlot.margin.top - currentPlot.margin.bottom;
-                    
-                    // Recréer le graphique avec les nouvelles dimensions
-                    currentPlot.create(); 
-                }
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(drawChart, 200);
+            });
+
+            // 4. Gestionnaire spécifique pour le changement de plein écran
+            // On retrace mainPlots comme demandé explicitement
+            document.addEventListener('fullscreenchange', () => {
+                updateFsButton(!!document.fullscreenElement);
+                // Petit délai pour s'assurer que le navigateur a fini la transition
+                setTimeout(drawChart, 100);
             });
         });
     </script>
-    </body>
+</body>
 </html>

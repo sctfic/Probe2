@@ -1,4 +1,5 @@
 // public/js/queryManager.js
+// Probe2\public\js\queryManager.js
 // Author: LOPEZ Alban
 // License: AGPL
 // Project: https://probe.lpz.ovh/

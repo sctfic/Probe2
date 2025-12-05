@@ -12,9 +12,7 @@ let APIURL = '';
  */
 async function mainPlots(container, url, startDate='', endDate='', stepCount=1000) {
     try {
-        // Correction de l'URL de base si elle contient /Raws/ au lieu de /Raw/
-        const correctedUrl = url.replace('/Raws/', '/Raw/'); 
-        APIURL = correctedUrl.split('?')[0];
+        APIURL = url.split('?')[0];
         const apiResponse = await fetchWithCache(APIURL+`?startDate=${startDate}&endDate=${endDate}&stepCount=${stepCount}`, 300000);
         
         // Stocker métadonnées globalement pour les tooltips
