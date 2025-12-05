@@ -8,10 +8,8 @@ let APIURL = '';
 /**
  * Construit et gère tout le SVG de visualisation
  * @param {HTMLElement} container - L'élément DOM dans lequel créer le SVG
- * @param {HTMLElement} container - L'élément DOM dans lequel créer le SVG
  * @param {string} url - URL API initiale (longue période)
  */
-async function mainPlots(container, url, startDate='', endDate='', stepCount=1000) {
 async function mainPlots(container, url, startDate='', endDate='', stepCount=1000) {
     try {
         APIURL = url.split('?')[0];
@@ -23,7 +21,7 @@ async function mainPlots(container, url, startDate='', endDate='', stepCount=100
         // Traiter les données
         const plotData = processData(apiResponse.data, apiResponse.metadata);
         
-        // EXTRACTION : /query/{station}/Raw/{sensorList}
+        // EXTRACTION : /query/{station}/Raws/{sensorList}
         const urlParts = APIURL.split('/');
         const stationName = urlParts[urlParts.length - 3];
         const sensorList = urlParts[urlParts.length - 1]; // Dans le cas du Plots, c'est une liste séparée par des virgules
