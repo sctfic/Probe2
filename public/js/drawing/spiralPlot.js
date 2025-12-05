@@ -1,4 +1,3 @@
-
 // Probe2\public\js\drawing\spiralPlot.js
 // Author: LOPEZ Alban
 // License: AGPL
@@ -558,7 +557,6 @@ class SpiralePlot {
         
         controlsContainer.selectAll(".spiral-controls").remove();
         controlsContainer.selectAll(".spiral-controls-left").remove();
-
 
         const iconMinimize = `<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path></svg>`;
         const iconOriginal = `<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
@@ -1120,8 +1118,6 @@ class SpiralePlot {
         const historyData = this.data.filter(d => d.date.getFullYear() <= limitYear);
 
         let getKey;
-        const isRain = this.options.metadata.measurement === 'rain';
-
         if (this.grouping === 'day') getKey = (d) => d.date.getHours() * 60 + d.date.getMinutes();
         else getKey = (d) => d.date.getMonth() * 100 + d.date.getDate();
 
@@ -1130,9 +1126,10 @@ class SpiralePlot {
 
         for (const [timeKey, points] of timeGroups) {
             progressiveStats.push({
+                key: timeKey,
                 min: d3.min(points, d => d.val),
                 max: d3.max(points, d => d.val),
-                mean: isRain ? d3.sum(points, d => d.val) : d3.mean(points, d => d.val)
+                mean: d3.mean(points, d => d.val)
             });
         }
         progressiveStats.sort((a, b) => a.key - b.key);
@@ -1158,7 +1155,6 @@ class SpiralePlot {
         const min = d3.min(data, d => d.val);
         const max = d3.max(data, d => d.val);
         const std = d3.deviation(data, d => d.val);
-
 
         statsContainer.innerHTML = `
             <div style="display:flex; justify-content:space-between; font-size:13px; color:#999; margin-bottom:6px; font-family:sans-serif; padding-bottom:4px;">
