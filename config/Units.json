@@ -74,6 +74,33 @@
             "windGust10Min"
         ]
     },
+    "ticksByMin": {
+        "title": "countByMin",
+        "description": "conteur par minute",
+        "user": "t/min",
+        "metric": "ticks/min",
+        "available_units": {
+            "rpm": {
+                "title": "tours par minute",
+                "fnFromMetric": "(c) => c"
+            },
+            "t/min": {
+                "title": "ticks par minute",
+                "fnFromMetric": "(c) => c"
+            },
+            "t/sec": {
+                "title": "ticks par minute",
+                "fnFromMetric": "(c) => Number((c/60).toFixed(1))"
+            },
+            "t/h": {
+                "title": "ticks par minute",
+                "fnFromMetric": "(c) => Number((c*60).toFixed(1))"
+            }
+        },
+        "sensors": [
+            ""
+        ]
+    },
     "direction": {
         "title": "Direction",
         "description": "Unités de mesure de la direction cardinales",
