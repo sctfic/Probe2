@@ -1120,6 +1120,8 @@ class SpiralePlot {
         const historyData = this.data.filter(d => d.date.getFullYear() <= limitYear);
 
         let getKey;
+        const isRain = this.options.metadata.measurement === 'rain';
+
         if (this.grouping === 'day') getKey = (d) => d.date.getHours() * 60 + d.date.getMinutes();
         else getKey = (d) => d.date.getMonth() * 100 + d.date.getDate();
 
@@ -1128,10 +1130,9 @@ class SpiralePlot {
 
         for (const [timeKey, points] of timeGroups) {
             progressiveStats.push({
-                key: timeKey,
                 min: d3.min(points, d => d.val),
                 max: d3.max(points, d => d.val),
-                mean: d3.mean(points, d => d.val)
+                mean: isRain ? d3.sum(points, d => d.val) : d3.mean(points, d => d.val)
             });
         }
         progressiveStats.sort((a, b) => a.key - b.key);
@@ -1150,15 +1151,19 @@ class SpiralePlot {
             return;
         }
 
-        const mean = d3.mean(data, d => d.val);
+        const isRain = this.options.metadata.measurement === 'rain';
+        const aggregateValue = isRain ? d3.sum(data, d => d.val) : d3.mean(data, d => d.val);
+        const aggregateLabel = isRain ? 'Cumul' : 'Moyenne';
+
         const min = d3.min(data, d => d.val);
         const max = d3.max(data, d => d.val);
         const std = d3.deviation(data, d => d.val);
 
+
         statsContainer.innerHTML = `
             <div style="display:flex; justify-content:space-between; font-size:13px; color:#999; margin-bottom:6px; font-family:sans-serif; padding-bottom:4px;">
                 <span>Min: <b style="color:#ccc">${min.toFixed(1)}${this.options.unit}</b></span>
-                <span>Moy: <b style="color:${this.scales.colorMean(mean)}">${mean.toFixed(1)}${this.options.unit}</b></span>
+                <span>${aggregateLabel}: <b style="color:${this.scales.colorMean(aggregateValue)}">${aggregateValue.toFixed(1)}${this.options.unit}</b></span>
                 <span>Max: <b style="color:#ccc">${max.toFixed(1)}${this.options.unit}</b></span>
                 <span>σ: <b style="color:#888">${std ? std.toFixed(1) : '-'}${this.options.unit}</b></span>
             </div>`;

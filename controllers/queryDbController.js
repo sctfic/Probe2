@@ -197,6 +197,7 @@ exports.getQueryRange = async (req, res) => {
                     longitude: req.stationConfig.longitude.lastReadValue,
                     altitude: req.stationConfig.altitude.lastReadValue,
                 },
+                measurement: type,
                 sensor: sensor,
                 queryTime: new Date().toISOString(),
                 first: data.firstUtc ? new Date(data.firstUtc).toISOString() : null,
