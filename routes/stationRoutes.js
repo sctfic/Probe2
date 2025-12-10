@@ -58,10 +58,24 @@ router.put('/:stationId', isAuthenticated, (req, res) => {
         const updates = req.body;
         const configManager = require('../services/configManager');
         
-        // Détection des changements dans la configuration CRON
-        const cronChanged = stationConfig.cron.enabled !== updates.cron.enabled || stationConfig.cron.value !== updates.cron.value;
-        const openMeteoChanged = stationConfig.cron.openMeteo !== updates.cron.openMeteo;
-        const forecastChanged = stationConfig.cron.forecast !== updates.cron.forecast || stationConfig.cron.model !== updates.cron.model;
+        // --- CORRECTION DEBUT ---
+        // Sécurisation : on vérifie si updates.cron existe avant de lire ses propriétés
+        const updatesCron = updates.cron;
+
+        const cronChanged = updatesCron && (
+            stationConfig.cron.enabled !== updatesCron.enabled || 
+            stationConfig.cron.value !== updatesCron.value
+        );
+        
+        const openMeteoChanged = updatesCron && (
+            stationConfig.cron.openMeteo !== updatesCron.openMeteo
+        );
+        
+        const forecastChanged = updatesCron && (
+            stationConfig.cron.forecast !== updatesCron.forecast || 
+            stationConfig.cron.model !== updatesCron.model
+        );
+        // --- CORRECTION FIN ---
 
         // Fusionner les modifications avec la configuration existante de manière récursive
         const mergeDeep = (target, source) => {

@@ -2,9 +2,26 @@
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+
 const { V } = require('../utils/icons');
 
 const credentialsPath = path.join(__dirname, '..', 'config', 'credential.json');
+
+/**
+ * Génère une clé API unique et URL-safe.
+ * @param {number} bytes La longueur de la clé en octets avant l'encodage (par défaut 32).
+ * @returns {string} La clé API générée (URL-safe).
+ */
+function generateUrlSafeApiKey(bytes = 32) {
+    // 1. Générer des octets aléatoires cryptographiquement sûrs.
+    const buffer = crypto.randomBytes(bytes);
+    // 2. Encoder les octets en Base64 standard.
+    let apiKey = buffer.toString('base64');
+    // 3. Convertir en Base64 URL-Safe :
+    apiKey = apiKey.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return apiKey;
+}
 
 function getCredentials() {
     if (!fs.existsSync(credentialsPath)) {

@@ -4,6 +4,16 @@
 // Project: https://probe.lpz.ovh/
 
 let currentStationSettings = null;
+// Variable globale pour stocker l'état des extendeurs pendant l'édition
+// Structure: { "WhisperEye": [ {name, host...} ], "Venti'Connect": [] }
+let localExtendersState = {
+    "WhisperEye": [],
+    "Venti'Connect": [] 
+};
+
+// Variable pour suivre l'onglet actif (identifié par type + index, ex: "WhisperEye-0")
+let activeExtenderTab = null;
+
 /**
  * Formate une durée en secondes au format HH:MM:SS.
  * @param {number} totalSeconds - Le nombre total de secondes.
@@ -18,7 +28,17 @@ function formatDeltaTime(totalSeconds) {
     return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }
 
-async function fetchStationSettings() {
+// Génère une clé API sécurisée pour les URLs
+function generateApiKey() {
+    const array = new Uint8Array(16);
+    window.crypto.getRandomValues(array);
+    return btoa(String.fromCharCode.apply(null, array))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+}
+
+async function fetchStationSettings(data=null) {
     if (!selectedStation) {
         showGlobalStatus('Aucune station sélectionnée', 'error');
         return;
@@ -27,12 +47,23 @@ async function fetchStationSettings() {
     showGlobalStatus('Chargement des paramètres...', 'loading');
 
     try {
-        const response = await fetch(`/api/station/${selectedStation.id}`);
-        if (!response.ok) throw new Error('Erreur de récupération des paramètres');
         
-        const data = await response.json();
+        if(!data){
+            const response = await fetch(`/api/station/${selectedStation.id}`);
+            if (!response.ok) throw new Error('Erreur de récupération des paramètres');
+            data = await response.json();
+        }
+        
         if (data.success && data.settings) {
             currentStationSettings = data.settings;
+            
+            // Initialisation de l'état local des extendeurs
+            if (currentStationSettings.extenders) {
+                localExtendersState = JSON.parse(JSON.stringify(currentStationSettings.extenders));
+            } else {
+                localExtendersState = { "WhisperEye": [], "Venti'Connect": [] };
+            }
+
             displaySettingsForm();
             showGlobalStatus('Paramètres chargés avec succès', 'success');
         } else {
@@ -49,7 +80,114 @@ async function displaySettingsForm() {
     const settingsContainer = document.getElementById('settings-container');
     if (!settingsContainer || !currentStationSettings) return;
 
-    const excludeKeys = ['id', 'lastArchiveDate', 'deltaTimeSeconds', 'path'];
+    // Injection du style CSS UNIQUEMENT pour les onglets et le contenu des extendeurs
+    // Le style de la MODALE est désormais géré par le CSS global de index.html
+    if (!document.getElementById('extender-styles')) {
+        const style = document.createElement('style');
+        style.id = 'extender-styles';
+        style.textContent = `
+            /* Styles des onglets */
+            .extender-tabs-container {
+                display: flex;
+                align-items: center;
+            }
+            .extender-tabs-list {
+                display: flex;
+                gap: 5px;
+                flex-grow: 1;
+                overflow-x: auto;
+            }
+            .extender-tab { 
+                background: #333; 
+                border: none; 
+                color: #aaa; 
+                padding: 6px 10px; 
+                cursor: pointer; 
+                font-weight: bold;
+                border-top-left-radius: 5px;
+                border-top-right-radius: 5px;
+                transition: all 0.2s;
+                white-space: nowrap;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .extender-tab:hover { background: #444; color: #fff; }
+            .extender-tab.active { background: #555; color: #fff; border-bottom: 2px solid #007bff; }
+            
+            /* Badge de type caché par défaut, visible au survol */
+            .extender-type-badge {
+                font-size: 0.7em;
+                background: #222;
+                padding: 2px 5px;
+                border-radius: 4px;
+                color: #888;
+                display: none; 
+            }
+            .extender-tab:hover .extender-type-badge, 
+            .extender-tab.active .extender-type-badge {
+                display: inline-block;
+            }
+
+            /* Bouton Ajout dans la barre d'onglets */
+            .btn-add-tab {
+                background: #28a745;
+                color: white;
+                border: none;
+                padding: 5px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: bold;
+                margin-left: 10px;
+                height: 30px;
+                display: flex;
+                align-items: center;
+            }
+            .btn-add-tab:hover { background: #218838; }
+
+            /* Contenu de l'extendeur */
+            .extender-details { 
+                background: #2a2a2a; 
+                padding: 15px; 
+                border-radius: 6px; 
+                border: 1px solid #444; 
+            }
+            
+            /* Header de l'extendeur */
+            .extender-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 15px;
+                border-bottom: 1px solid #444;
+                padding-bottom: 10px;
+            }
+
+            .extender-form-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+            .extender-form-row label { width: 120px; font-size: 0.9em; color: #ccc; }
+            .extender-form-row input { flex: 1; background: #111; border: 1px solid #555; color: white; padding: 6px; border-radius: 4px; }
+            .extender-form-row input:focus { border-color: #007bff; outline: none; }
+            
+            .ping-indicator {
+                display: inline-block; width: 10px; height: 10px; border-radius: 50%; 
+                background-color: #555; margin-right: 5px;
+            }
+            .ping-success { background-color: #28a745; box-shadow: 0 0 5px #28a745; }
+            .ping-fail { background-color: #dc3545; }
+            
+            .btn-delete-extender {
+                cursor: pointer;
+                opacity: 0.7;
+                transition: opacity 0.2s;
+            }
+            .btn-delete-extender:hover {
+                opacity: 1;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    const excludeKeys = ['id', 'lastArchiveDate', 'deltaTimeSeconds', 'path', 'extenders'];
     
     const groups = {
         identity: {
@@ -71,6 +209,10 @@ async function displaySettingsForm() {
         database: {
             title: 'Base de données',
             fields: ['dbexpand', 'forecast', 'cron']
+        },
+        extenders: {
+            title: 'Extendeurs (Périphériques additionnels)',
+            fields: ['extendersManager'] // Champ spécial
         }
     };
 
@@ -94,13 +236,15 @@ async function displaySettingsForm() {
         `;
         
         group.fields.forEach(fieldKey => {
-            if (fieldKey === 'dbexpand') { // Special case for our new button
+            if (fieldKey === 'dbexpand') { 
                 const field = { comment: "Complète la base de données avec les archives d'Open-Meteo sur 50 ans pour cette localisation. (chaque jour a 23h30)" };
                 formHTML += createDbExpandFieldHTML(field, openMeteoRange, currentStationSettings.cron?.openMeteo);
-            } else if (fieldKey === 'forecast') { // Special case for forecast switch and model
+            } else if (fieldKey === 'forecast') { 
                 formHTML += createForecastFieldHTML(currentStationSettings.cron);
+            } else if (fieldKey === 'extendersManager') {
+                formHTML += `<div id="extenders-manager-container" style="width: 100%;"></div>`;
             } else if (currentStationSettings.hasOwnProperty(fieldKey) && !excludeKeys.includes(fieldKey)) {
-                const field = currentStationSettings[fieldKey]; // Standard fields
+                const field = currentStationSettings[fieldKey]; 
                 formHTML += createSettingFieldHTML(fieldKey, field);
             }
         });
@@ -125,6 +269,9 @@ async function displaySettingsForm() {
     `;
 
     settingsContainer.innerHTML = formHTML;
+
+    // Initialiser le gestionnaire d'onglets pour les extendeurs
+    renderExtendersManager();
 
     const form = document.getElementById('station-settings-form');
     const resetBtn = document.getElementById('reset-settings');
@@ -172,9 +319,7 @@ async function displaySettingsForm() {
         });
     }
 
-    // --- Ajout des écouteurs pour les switchs avec mise à jour instantanée ---
-
-    // 1. Switch pour la collecte automatique Open-Meteo
+    // --- Switchs Listeners ---
     const openMeteoCronSwitch = document.getElementById('setting-cron-openMeteo');
     if (openMeteoCronSwitch) {
         openMeteoCronSwitch.addEventListener('change', async (e) => {
@@ -183,36 +328,27 @@ async function displaySettingsForm() {
             const settings = { cron: { ...currentStationSettings.cron, openMeteo: isEnabled } };
             const success = await updatePartialSettings(settings);
             if (!success) {
-                // Revenir à l'état précédent en cas d'échec
                 switchElement.checked = !isEnabled;
             }
         });
     }
 
-    // 2. Switch pour la collecte automatique de la station
     const cronToggleSwitch = document.getElementById('setting-cron-enabled');
     if (cronToggleSwitch) {
         cronToggleSwitch.addEventListener('change', async (e) => {
             const switchElement = e.target;
             const cronValueSelect = document.getElementById('setting-cron-value');
             const isEnabled = switchElement.checked;
-
-            // Mettre à jour l'état visuel du select
-            if (cronValueSelect) {
-                cronValueSelect.disabled = !isEnabled;
-            }
-
+            if (cronValueSelect) cronValueSelect.disabled = !isEnabled;
             const settings = { cron: { ...currentStationSettings.cron, enabled: isEnabled, value: Number(cronValueSelect.value) } };
             const success = await updatePartialSettings(settings);
             if (!success) {
-                // Revenir à l'état précédent en cas d'échec
                 switchElement.checked = !isEnabled;
-                if (cronValueSelect) cronValueSelect.disabled = isEnabled; // Inverser aussi l'état du select
+                if (cronValueSelect) cronValueSelect.disabled = isEnabled;
             }
         });
     }
 
-    // 3. Switch et Select pour les prévisions Open-Meteo
     const forecastSwitch = document.getElementById('setting-cron-forecast');
     const forecastModelSelect = document.getElementById('setting-cron-model');
 
@@ -220,11 +356,7 @@ async function displaySettingsForm() {
         forecastSwitch.addEventListener('change', async (e) => {
             const switchElement = e.target;
             const isEnabled = switchElement.checked;
-            
-            if (forecastModelSelect) {
-                forecastModelSelect.disabled = !isEnabled;
-            }
-
+            if (forecastModelSelect) forecastModelSelect.disabled = !isEnabled;
             const settings = { cron: { ...currentStationSettings.cron, forecast: isEnabled } };
             const success = await updatePartialSettings(settings);
             if (!success) {
@@ -238,15 +370,318 @@ async function displaySettingsForm() {
         forecastModelSelect.addEventListener('change', async (e) => {
             const selectElement = e.target;
             const modelValue = selectElement.value;
-
             const settings = { cron: { ...currentStationSettings.cron, model: modelValue } };
             const success = await updatePartialSettings(settings);
-            if (!success) {
-                // On pourrait remettre l'ancienne valeur ici si on la gardait en mémoire
-            }
         });
     }
 }
+
+// ------------------------------------------------------------------
+// Gestion des Extendeurs
+// ------------------------------------------------------------------
+
+function renderExtendersManager() {
+    const container = document.getElementById('extenders-manager-container');
+    if (!container) return;
+
+    const allExtenders = [];
+    Object.keys(localExtendersState).forEach(type => {
+        localExtendersState[type].forEach((ext, index) => {
+            allExtenders.push({
+                type: type,
+                index: index,
+                name: ext.name || `${type} #${index+1}`
+            });
+        });
+    });
+
+    if (!activeExtenderTab && allExtenders.length > 0) {
+        activeExtenderTab = `${allExtenders[0].type}-${allExtenders[0].index}`;
+    }
+
+    let tabsHTML = '';
+    allExtenders.forEach(item => {
+        const tabId = `${item.type}-${item.index}`;
+        const isActive = tabId === activeExtenderTab ? 'active' : '';
+        const safeType = item.type.replace(/'/g, "\\'");
+        
+        tabsHTML += `
+            <button type="button" class="extender-tab ${isActive}" onclick="switchExtenderDevice('${safeType}', ${item.index})">
+                ${item.name}
+                <span class="extender-type-badge">${item.type}</span>
+            </button>
+        `;
+    });
+
+    container.innerHTML = `
+        <div class="extender-tabs-container">
+            <div class="extender-tabs-list">
+                ${tabsHTML.length > 0 ? tabsHTML : '<span style="color:#666; padding:5px;">Aucun périphérique configuré.</span>'}
+            </div>
+            <button type="button" class="btn-add-tab" onclick="openExtenderModal()">
+                [+] Add
+            </button>
+        </div>
+        <div id="extender-details-content">
+        </div>
+    `;
+
+    renderExtenderDetails();
+}
+
+window.switchExtenderDevice = function(type, index) {
+    activeExtenderTab = `${type}-${index}`;
+    renderExtendersManager();
+};
+
+function renderExtenderDetails() {
+    const contentDiv = document.getElementById('extender-details-content');
+    if (!contentDiv) return;
+    
+    if (!activeExtenderTab) {
+        contentDiv.innerHTML = '';
+        return;
+    }
+
+    let currentExtender = null;
+    let currentType = null;
+    let currentIndex = -1;
+
+    Object.keys(localExtendersState).forEach(type => {
+        localExtendersState[type].forEach((ext, index) => {
+            if (`${type}-${index}` === activeExtenderTab) {
+                currentExtender = ext;
+                currentType = type;
+                currentIndex = index;
+            }
+        });
+    });
+
+    if (!currentExtender) {
+        contentDiv.innerHTML = '';
+        return;
+    }
+
+    const safeType = currentType.replace(/'/g, "\\'");
+    
+    const pingStatus = currentExtender.available ? 'ping-success' : 'ping-fail';
+    const pingTitle = currentExtender.available ? 'En ligne' : 'Hors ligne';
+
+    let apiKeyField = '';
+    if (currentType === 'WhisperEye') {
+        apiKeyField = `
+            <div class="extender-form-row">
+                <label>API Key:</label>
+                <input type="text" value="${currentExtender.apiKey || ''}" readonly style="background:#222; color:#888; cursor:not-allowed;" title="Généré automatiquement">
+            </div>
+        `;
+    }
+
+    contentDiv.innerHTML = `
+        <div class="extender-details">
+            <div class="extender-header">
+                <div>
+                    <span class="ping-indicator ${pingStatus}" title="${pingTitle}"></span> 
+                    <span style="font-size:0.9em; color:#888;">${pingTitle}</span>
+                </div>
+                <img src="svg/delete.svg" class="nav-icon btn-delete-extender" 
+                     onclick="removeExtender('${safeType}', ${currentIndex})"
+                     alt="Supprimer" title="Supprimer ce périphérique">
+            </div>
+
+            <div class="extender-form-row">
+                <label>Nom:</label>
+                <input type="text" value="${currentExtender.name || ''}" 
+                    onchange="updateExtenderField('${safeType}', ${currentIndex}, 'name', this.value)">
+            </div>
+            
+            <div class="extender-form-row">
+                <label>Host / IP:</label>
+                <input type="text" value="${currentExtender.host || ''}" 
+                    onchange="updateExtenderField('${safeType}', ${currentIndex}, 'host', this.value)">
+            </div>
+
+            <div class="extender-form-row">
+                <label>Description:</label>
+                <input type="text" value="${currentExtender.description || ''}" 
+                    onchange="updateExtenderField('${safeType}', ${currentIndex}, 'description', this.value)">
+            </div>
+
+            ${apiKeyField}
+        </div>
+    `;
+}
+
+// ------------------------------------------------------------------
+// Logique MODAL (Ajout)
+// ------------------------------------------------------------------
+
+window.openExtenderModal = function() {
+    const modal = document.getElementById('add-extender-modal');
+    if (!modal) return;
+    
+    // Reset champs
+    document.getElementById('new-ext-name').value = '';
+    document.getElementById('new-ext-host').value = '';
+    document.getElementById('new-ext-type').selectedIndex = 0;
+    
+    // Reset erreurs
+    document.querySelectorAll('#add-extender-modal .error-msg').forEach(el => el.style.display = 'none');
+    
+    modal.classList.add('show');
+    document.getElementById('new-ext-name').focus();
+};
+
+window.closeExtenderModal = function() {
+    const modal = document.getElementById('add-extender-modal');
+    if (modal) modal.classList.remove('show');
+};
+
+window.submitNewExtender = async function() {
+    const typeSelect = document.getElementById('new-ext-type');
+    const nameInput = document.getElementById('new-ext-name');
+    const hostInput = document.getElementById('new-ext-host');
+    
+    const type = typeSelect.value;
+    const name = nameInput.value.trim();
+    const host = hostInput.value.trim();
+    
+    let isValid = true;
+    
+    // Validation Name
+    const nameError = document.getElementById('new-ext-name-error');
+    const existingNames = (localExtendersState[type] || []).map(e => e.name);
+    
+    if (!name) {
+        nameError.textContent = "Le nom est obligatoire.";
+        nameError.style.display = 'block';
+        isValid = false;
+    } else if (existingNames.includes(name)) {
+        nameError.textContent = `Le nom "${name}" existe déjà pour le type ${type}.`;
+        nameError.style.display = 'block';
+        isValid = false;
+    } else {
+        nameError.style.display = 'none';
+    }
+
+    // Validation Host
+    const hostError = document.getElementById('new-ext-host-error');
+    if (!host) {
+        hostError.style.display = 'block';
+        isValid = false;
+    } else {
+        hostError.style.display = 'none';
+    }
+
+    if (!isValid) return;
+
+    // Création de l'objet
+    const newExtender = {
+        name: name,
+        host: host,
+        description: '',
+        available: false
+    };
+
+    if (type === 'WhisperEye') {
+        newExtender.apiKey = generateApiKey();
+    }
+
+    if (!localExtendersState[type]) localExtendersState[type] = [];
+    localExtendersState[type].push(newExtender);
+
+    // Sauvegarde Immédiate
+    showGlobalStatus('Sauvegarde du nouveau périphérique...', 'loading');
+    closeExtenderModal();
+
+    const settingsToSave = {
+        extenders: localExtendersState
+    };
+
+    try {
+        const response = await fetch(`/api/station/${selectedStation.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settingsToSave)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showGlobalStatus('Périphérique ajouté et configuration rechargée', 'success');
+            const newIndex = localExtendersState[type].length - 1;
+            activeExtenderTab = `${type}-${newIndex}`;
+            
+            // Recharger tout le formulaire
+            setTimeout(() => {
+                fetchStationSettings(result);
+            }, 500);
+        } else {
+            throw new Error(result.error || "Erreur sauvegarde");
+        }
+    } catch (e) {
+        console.error(e);
+        showGlobalStatus("Erreur lors de l'ajout: " + e.message, 'error');
+        localExtendersState[type].pop();
+        renderExtendersManager();
+    }
+};
+
+// ------------------------------------------------------------------
+
+window.removeExtender = async function(type, index) {
+    const item = localExtendersState[type][index];
+    if (confirm(`Voulez-vous vraiment supprimer "${item.name}" ?`)) {
+        // 1. Suppression locale
+        localExtendersState[type].splice(index, 1);
+        activeExtenderTab = null; 
+        
+        // 2. Sauvegarde immédiate (comme pour l'ajout)
+        showGlobalStatus('Suppression du périphérique...', 'loading');
+        
+        try {
+            // On réutilise la logique d'update partiel
+            const settingsToSave = {
+                extenders: localExtendersState
+            };
+
+            const response = await fetch(`/api/station/${selectedStation.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settingsToSave)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showGlobalStatus('Périphérique supprimé', 'success');
+                // Rechargement pour être sûr de la synchro
+                fetchStationSettings(result);
+            } else {
+                throw new Error(result.error || "Erreur lors de la suppression");
+            }
+        } catch (e) {
+            console.error(e);
+            showGlobalStatus("Erreur: " + e.message, 'error');
+            // En cas d'erreur, on rechargerait idéalement les settings pour annuler la suppression locale
+            fetchStationSettings();
+        }
+    }
+};
+
+window.updateExtenderField = function(type, index, field, value) {
+    if (localExtendersState[type] && localExtendersState[type][index]) {
+        localExtendersState[type][index][field] = value;
+        if (field === 'name') {
+            renderExtendersManager();
+        }
+    }
+};
+
+// ------------------------------------------------------------------
+// HELPERS 
+// ------------------------------------------------------------------
+
 function createSettingFieldHTML(key, field) {
     if (key === 'cron') {
         return createCronFieldHTML(key, field);
@@ -353,7 +788,6 @@ function createCronFieldHTML(key, field) {
         `<option value="${opt}" ${opt == currentValue ? 'selected' : ''}>${opt} minutes</option>`
     ).join('');
 
-    // If current value is not in options, add it.
     if (currentValue && !options.includes(currentValue)) {
         optionsHTML = `<option value="${currentValue}" selected>${currentValue} minutes (custom)</option>` + optionsHTML;
     }
@@ -481,52 +915,45 @@ async function handleSettingsSubmit(e) {
     const settings = {};
 
     for (let [key, value] of formData.entries()) {
-        if (key === 'cron-value') continue; // Géré par le switch
-        if (key.startsWith('cron-')) continue; // Skip cron fields for now
+        if (key === 'cron-value') continue; 
+        if (key.startsWith('cron-')) continue; 
 
-        const currentField = currentStationSettings[key];
-        
-        if (typeof currentField === 'object' && currentField !== null) {
-            settings[key] = {
-                ...currentField,
-                desired: isNaN(value) ? value : Number(value)
-            };
-        } else {
-            settings[key] = isNaN(value) ? value : Number(value);
+        if (currentStationSettings.hasOwnProperty(key)) {
+            const currentField = currentStationSettings[key];
+            
+            if (typeof currentField === 'object' && currentField !== null) {
+                settings[key] = {
+                    ...currentField,
+                    desired: isNaN(value) ? value : Number(value)
+                };
+            } else {
+                settings[key] = isNaN(value) ? value : Number(value);
+            }
         }
     }
 
-    // Handle special cron field
+    // Ajout des Extendeurs
+    settings.extenders = localExtendersState;
+
     if (currentStationSettings.cron) {
-        // Collecte Station
         const cronToggleSwitch = document.getElementById('setting-cron-enabled');
         const cronValueSelect = document.getElementById('setting-cron-value');
-        
-        // Collecte Historique OpenMeteo
         const openMeteoToggle = document.getElementById('setting-cron-openMeteo');
-
-        // Prévisions OpenMeteo
         const forecastToggle = document.getElementById('setting-cron-forecast');
         const forecastModel = document.getElementById('setting-cron-model');
         
-        // Reconstruire l'objet cron complet
-        settings.cron = {
-            ...currentStationSettings.cron,
-        };
+        settings.cron = { ...currentStationSettings.cron };
 
         if (cronToggleSwitch && cronValueSelect) {
             settings.cron.enabled = cronToggleSwitch.checked;
             settings.cron.value = Number(cronValueSelect.value);
         }
-
         if (openMeteoToggle) {
             settings.cron.openMeteo = openMeteoToggle.checked;
         }
-
         if (forecastToggle) {
             settings.cron.forecast = forecastToggle.checked;
         }
-        
         if (forecastModel) {
             settings.cron.model = forecastModel.value;
         }
@@ -545,7 +972,6 @@ async function handleSettingsSubmit(e) {
         const result = await response.json();
         if (!result.success) throw new Error('Erreur lors de la sauvegarde');
         
-        // Vérifier si un champ nécessitant la synchronisation a été modifié
         let needsSync = false;
         for (const field of stationSyncFields) {
             if (settings[field] && settings[field].desired !== currentStationSettings[field].desired) {
@@ -566,7 +992,7 @@ async function handleSettingsSubmit(e) {
         showGlobalStatus('Paramètres sauvegardés et synchronisés avec succès', 'success');
         
         setTimeout(() => {
-            fetchStationSettings();
+            fetchStationSettings(result);
         }, 2000);
 
     } catch (error) {
@@ -591,7 +1017,6 @@ async function updatePartialSettings(settings) {
         const result = await response.json();
         if (!result.success) throw new Error(result.error || 'Erreur lors de la sauvegarde');
 
-        // Mettre à jour la configuration locale pour que les actions suivantes soient correctes
         Object.assign(currentStationSettings, result.settings);
 
         showGlobalStatus('Paramètre mis à jour', 'success');

@@ -1,3 +1,4 @@
+/* // public/css/main.css */
 :root {
     --primary-dark: rgb(26, 26, 26); /* Anciennement #333333 */
     --accent-blue: #4DC0E0;
@@ -520,8 +521,8 @@ label {
 .switch {
     position: relative;
     display: inline-block;
-    width: 60px;
-    height: 34px;
+    width: 40px;
+    height: 22px;
     flex-shrink: 0
 }
 
@@ -545,10 +546,10 @@ label {
 .slider:before {
     position: absolute;
     content: "";
-    height: 26px;
-    width: 26px;
-    left: 4px;
-    bottom: 4px;
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
     background-color: #fff;
     transition: .4s
 }
@@ -562,7 +563,7 @@ input:focus+.slider {
 }
 
 input:checked+.slider:before {
-    transform: translateX(26px)
+    transform: translateX(18px)
 }
 
 .slider.round {
@@ -873,7 +874,7 @@ input:checked+.slider:before {
     background: #f8f9fa;
     border: 1px solid #e9ecef;
     border-radius: 8px;
-    padding: 15px;
+    padding: 8px;
     transition: all .2s ease;
     box-shadow: 0 2px 4px rgba(0,0,0,.6);
     display: flex;
@@ -1443,7 +1444,7 @@ input:checked+.slider:before {
 
 .settings-field input,.settings-field select {
     width: 100%;
-    padding: 10px;
+    padding: 4px;
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 14px
@@ -1692,7 +1693,7 @@ input:checked+.slider:before {
 
 .settings-field input[type=number],.settings-field input[type=text] {
     width: 100%;
-    padding: 10px;
+    padding: 4px;
     border: 1px solid #ccc;
     border-radius: 4px;
     font-family: 'Courier New',Courier,monospace,sans-serif;
@@ -1924,7 +1925,7 @@ input:checked+.slider:before {
 
 .settings-field input, .settings-field select {
     width: 100%;
-    padding: 10px;
+    padding: 4px;
     border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 14px;

@@ -71,9 +71,13 @@
         "value": 5,
         "enabled": false,
         "openMeteo": false,
-        "forecast": true,
+        "forecast": false,
         "model": "meteofrance_arome_france_hd"
     },
     "deltaTimeSeconds": 1.48,
-    "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\VP2_Serramoune.json"
+    "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\VP2_Serramoune.json",
+    "extenders": {
+        "WhisperEye": [],
+        "Venti'Connect": []
+    }
 }

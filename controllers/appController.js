@@ -380,6 +380,83 @@ exports.getAllStations = async (req, res) => {
     }
 };
 
+exports.getStation = (req, res) => {
+    try {
+        const stationId = req.params.stationId;
+        console.log(`${V.gear} Récupération de la configuration de la station ${stationId}`);
+        
+        const config = configManager.getConfig(stationId);
+        
+        if (!config) {
+            return res.status(404).json({
+                success: false,
+                error: `Station ${stationId} non trouvée`
+            });
+        }
+
+        res.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            version: probeVersion,
+            settings: config
+        });
+    } catch (error) {
+        console.error(`${V.error} Erreur lors de la récupération de la station ${req.params.stationId}:`, error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la récupération de la configuration de la station'
+        });
+    }
+};
+
+exports.updateStation = (req, res) => {
+    try {
+        const stationId = req.params.stationId;
+        const newSettings = req.body;
+
+        console.log(`${V.write} Mise à jour de la configuration de la station ${stationId}`);
+
+        if (!newSettings || typeof newSettings !== 'object') {
+            return res.status(400).json({
+                success: false,
+                error: 'Données de configuration invalides.'
+            });
+        }
+
+        // Charger la config actuelle pour ne pas écraser l'ID par erreur et fusionner proprement
+        const currentConfig = configManager.getConfig(stationId);
+        if (!currentConfig) {
+             return res.status(404).json({
+                success: false,
+                error: `Station ${stationId} non trouvée`
+            });
+        }
+
+        // Merge des settings. On s'assure que l'ID ne change pas.
+        const updatedConfig = { ...currentConfig, ...newSettings, id: stationId };
+
+        // Sauvegarde via le ConfigManager
+        const success = configManager.saveConfig(stationId, updatedConfig);
+
+        if (success) {
+            res.json({
+                success: true,
+                message: `Configuration de la station ${stationId} mise à jour avec succès.`,
+                settings: updatedConfig
+            });
+        } else {
+             throw new Error("Erreur lors de l'écriture de la configuration.");
+        }
+
+    } catch (error) {
+         console.error(`${V.error} Erreur lors de la mise à jour de la station ${req.params.stationId}:`, error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la mise à jour de la configuration de la station'
+        });
+    }
+};
+
 exports.getHealth = (req, res) => {
     try {
         console.log(`${V.eye} Check de santé de l'application`);
@@ -516,8 +593,20 @@ exports.createStation = (req, res) => {
                 "lastReadValue": null
             },
             "lastArchiveDate": new Date().toISOString(),
+            "cron": {
+                "comment": "cron intervale value, collect enabled status, expand data with openMeteo history and every day.",
+                "value": 5,
+                "enabled": false,
+                "openMeteo": false,
+                "forecast": false,
+                "model": "best_match"
+            },
             "deltaTimeSeconds": null,
-            "path": null
+            "path": null,
+            "extenders": {
+                "WhisperEye": [],
+                "Venti'Connect": []
+            }
         }
         
         // Sauvegarder la nouvelle configuration
