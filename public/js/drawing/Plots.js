@@ -2,6 +2,7 @@
 // Author: LOPEZ Alban
 // License: AGPL
 // Project: https://probe.lpz.ovh/
+// Modified: Ajout gradient fade sur les lignes avec blur et ligne du présent
 
 let APIURL = '';
 
@@ -125,18 +126,114 @@ class TimeSeriesPlot {
             .append("svg")
             .attr("width", this.width)
             .attr("height", this.height)
-            .style("position", "relative"); // Ajouté pour positionner le bouton "Agrandir" en absolute
+            .style("position", "relative");
         
         this.g = this.svg.append("g")
             .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
         
-        // Clip path pour les lignes (utilise l'ID généré/récupéré)
-        // Clip path pour les lignes (utilise l'ID généré/récupéré)
-        this.svg.append("defs").append("clipPath")
+        const defs = this.svg.append("defs");
+        
+        // Clip path pour les lignes
+        defs.append("clipPath")
             .attr("id", `clip-${this.id}`)
             .append("rect")
             .attr("width", this.innerWidth)
             .attr("height", this.innerHeight);
+        
+        // Créer le filtre blur pour l'effet de flou
+        const blurFilter = defs.append("filter")
+            .attr("id", `blur-${this.id}`)
+            .attr("x", "-50%")
+            .attr("y", "-50%")
+            .attr("width", "200%")
+            .attr("height", "200%");
+        
+        blurFilter.append("feGaussianBlur")
+            .attr("in", "SourceGraphic")
+            .attr("stdDeviation", "1.5");
+        
+        // Créer les gradients pour chaque couleur de capteur
+        this.createGradients(defs);
+    }
+    
+    // Créer les gradients linéaires pour l'effet de fade
+    createGradients(defs) {
+        // Calculer la position du datetime actuel dans le domaine
+        const now = new Date();
+        const domain = this.xScale.domain();
+        const dataEnd = domain[1];
+        
+        // Si le présent est dans les données visibles
+        if (now >= domain[0] && now <= dataEnd) {
+            // Calculer la position en pourcentage
+            const totalDuration = dataEnd - domain[0];
+            const nowOffset = now - domain[0];
+            const nowPercent = (nowOffset / totalDuration) * 100;
+            
+            // Créer un gradient pour chaque capteur
+            Object.entries(this.yScales).forEach(([groupName, scaleInfo]) => {
+                scaleInfo.sensors.forEach(sensor => {
+                    const sensorId = sensor.replace(":", "_");
+                    const color = this.colorScale(sensorId);
+                    
+                    const gradient = defs.append("linearGradient")
+                        .attr("id", `gradient-${this.id}-${sensorId}`)
+                        .attr("x1", "0%")
+                        .attr("y1", "0%")
+                        .attr("x2", "100%")
+                        .attr("y2", "0%");
+                    
+                    // Couleur pleine jusqu'à 83%
+                    gradient.append("stop")
+                        .attr("offset", "83%")
+                        .attr("stop-color", color)
+                        .attr("stop-opacity", 1);
+                    
+                    // Fade jusqu'à 17% d'opacité à 100%
+                    gradient.append("stop")
+                        .attr("offset", "100%")
+                        .attr("stop-color", color)
+                        .attr("stop-opacity", 0.17);
+                });
+            });
+        }
+    }
+    
+    // Mettre à jour les gradients (appelé après zoom/pan)
+    updateGradients() {
+        const defs = this.svg.select("defs");
+        
+        // Supprimer les anciens gradients
+        defs.selectAll("linearGradient").remove();
+        
+        // Recréer les gradients avec les nouvelles échelles
+        this.createGradients(defs);
+    }
+    
+    // Créer ou mettre à jour la ligne du présent
+    createNowLine() {
+        const now = new Date();
+        const domain = this.xScale.domain();
+        
+        // Supprimer l'ancienne ligne si elle existe
+        this.g.select(".now-line").remove();
+        
+        // Vérifier si le présent est dans le domaine visible
+        if (now >= domain[0] && now <= domain[1]) {
+            const nowX = this.xScale(now);
+            
+            this.g.append("line")
+                .attr("class", "now-line")
+                .attr("x1", nowX)
+                .attr("x2", nowX)
+                .attr("y1", 0)
+                .attr("y2", this.innerHeight)
+                .style("stroke", "#aaa")
+                .style("stroke-width", "1")
+                .style("stroke-dasharray", "5,5")
+                .style("opacity", 0.6)
+                .style("pointer-events", "none");
+        }
     }
     
     // Créer tous les éléments du graphique
@@ -144,6 +241,7 @@ class TimeSeriesPlot {
         this.createSVG();
         this.createLines();
         this.createAxes();
+        this.createNowLine();
         this.createBrush();
         this.createTooltip();
         this.createLegend();
@@ -181,7 +279,7 @@ class TimeSeriesPlot {
             .style("border-radius", "4px")
             .style("font-size", "12px")
             .style("transition", "background 0.2s, color 0.2s")
-            .html(iconOriginal) // On n'affiche que l'icône
+            .html(iconOriginal)
             .on("mouseover", function() { d3.select(this).style("background", "#333").style("color", "#fff"); })
             .on("mouseout", function() { d3.select(this).style("background", "rgba(0, 0, 0, 0.6)").style("color", "#ccc"); });
             
@@ -192,15 +290,12 @@ class TimeSeriesPlot {
         linkBtn.on("click", (e) => {
             e.stopPropagation();
             if (isFullscreenPage) {
-                 // Si on est déjà sur la page plein écran, on ne fait rien (ou on pourrait ouvrir la spirale si vous voulez une autre option)
                  console.log("Déjà en mode plein écran, ignorer l'ouverture de nouvel onglet.");
             } else {
-                 // Si on est dans le petit encart, on ouvre la version plein écran dans un nouvel onglet
                  window.open(url, '_blank');
             }
         });
         
-        // Si on est sur la page plotsChart.html (mode plein écran), ce bouton n'est pas nécessaire car on utilise le bouton FS natif.
         if (isFullscreenPage) {
             controlDiv.style("display", "none");
         }
@@ -254,6 +349,10 @@ class TimeSeriesPlot {
             .attr("class", "lines-group")
             .attr(`clip-path`, `url(#clip-${this.id})`);
         
+        const now = new Date();
+        const domain = this.xScale.domain();
+        const showNowEffects = now >= domain[0] && now <= domain[1];
+        
         Object.entries(this.yScales).forEach(([groupName, scaleInfo]) => {
             scaleInfo.sensors.forEach(sensor => {
                 // 1. Filtrer les données pour ce capteur spécifique
@@ -266,21 +365,70 @@ class TimeSeriesPlot {
                 // 2. Ne créer la ligne que si on a au moins 2 points
                 if (filteredData.length < 2) return;
 
-                const line = d3.line()
-                    .x(d => this.xScale(d.datetime))
-                    .y(d => scaleInfo.scale(d[sensor]))
-                    .defined(d => d[sensor] !== null && d[sensor] !== undefined && !isNaN(d[sensor]))
-                    .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveBasis);
+                const sensorId = sensor.replace(":", "_");
+                const solidColor = this.colorScale(sensorId);
                 
-                linesGroup.append("path")
-                    .datum(filteredData)
-                    .attr("class", `line line-${sensor.replace(":", "_")}`)
-                    .attr("d", line)
-                    .style("stroke", this.colorScale(sensor.replace(":", "_")))
-                    .style("opacity", 0)
-                    .transition()
-                    .duration(500)
-                    .style("opacity", 1);
+                if (showNowEffects) {
+                    // Séparer les données avant et après "now"
+                    const beforeNow = filteredData.filter(d => d.datetime <= now);
+                    const afterNow = filteredData.filter(d => d.datetime >= now);
+                    
+                    // Ligne avant "now" (nette, couleur pleine)
+                    if (beforeNow.length >= 2) {
+                        const lineBefore = d3.line()
+                            .x(d => this.xScale(d.datetime))
+                            .y(d => scaleInfo.scale(d[sensor]))
+                            .defined(d => d[sensor] !== null && d[sensor] !== undefined && !isNaN(d[sensor]))
+                            .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveBasis);
+                        
+                        linesGroup.append("path")
+                            .datum(beforeNow)
+                            .attr("class", `line line-${sensorId}-before`)
+                            .attr("d", lineBefore)
+                            .style("stroke", solidColor)
+                            .style("opacity", 0)
+                            .transition()
+                            .duration(500)
+                            .style("opacity", 1);
+                    }
+                    
+                    // Ligne après "now" (avec gradient et blur)
+                    if (afterNow.length >= 2) {
+                        const lineAfter = d3.line()
+                            .x(d => this.xScale(d.datetime))
+                            .y(d => scaleInfo.scale(d[sensor]))
+                            .defined(d => d[sensor] !== null && d[sensor] !== undefined && !isNaN(d[sensor]))
+                            .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveBasis);
+                        
+                        linesGroup.append("path")
+                            .datum(afterNow)
+                            .attr("class", `line line-${sensorId}-after`)
+                            .attr("d", lineAfter)
+                            .style("stroke", `url(#gradient-${this.id}-${sensorId})`)
+                            .style("filter", `url(#blur-${this.id})`)
+                            .style("opacity", 0)
+                            .transition()
+                            .duration(500)
+                            .style("opacity", 1);
+                    }
+                } else {
+                    // Ligne normale sans effets
+                    const line = d3.line()
+                        .x(d => this.xScale(d.datetime))
+                        .y(d => scaleInfo.scale(d[sensor]))
+                        .defined(d => d[sensor] !== null && d[sensor] !== undefined && !isNaN(d[sensor]))
+                        .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveBasis);
+                    
+                    linesGroup.append("path")
+                        .datum(filteredData)
+                        .attr("class", `line line-${sensorId}`)
+                        .attr("d", line)
+                        .style("stroke", solidColor)
+                        .style("opacity", 0)
+                        .transition()
+                        .duration(500)
+                        .style("opacity", 1);
+                }
             });
         });
     }
@@ -397,8 +545,14 @@ class TimeSeriesPlot {
         // Recalculer les domaines Y basés sur les données filtrées
         this.updateYDomains(filteredData);
         
+        // Mettre à jour les gradients avec le nouveau domaine
+        this.updateGradients();
+        
         // Mettre à jour les axes avec transition
         this.updateAxes();
+        
+        // Mettre à jour la ligne du présent
+        this.createNowLine();
         
         // Mettre à jour les lignes avec transition
         this.updateLines();
@@ -440,7 +594,9 @@ class TimeSeriesPlot {
 
                 // RECALCULER LES DOMAINES Y AVEC LES NOUVELLES DONNÉES
                 this.updateYDomains(this.data);
+                this.updateGradients();
                 this.updateAxes();
+                this.createNowLine();
 
                 setTimeout(() => this.updateLines(false), 1000);
             })
@@ -464,8 +620,12 @@ class TimeSeriesPlot {
         // Recalculer les domaines Y sur les données filtrées
         this.updateYDomains(filteredData);
         
+        // Mettre à jour les gradients
+        this.updateGradients();
+        
         // Mettre à jour les éléments
         this.updateAxes();
+        this.createNowLine();
         this.updateLines();
     }
     
@@ -519,6 +679,13 @@ class TimeSeriesPlot {
     updateLines(withTransition = true) {
         const linesGroup = this.g.select(".lines-group");
         
+        // Supprimer toutes les anciennes lignes
+        linesGroup.selectAll("path").remove();
+        
+        const now = new Date();
+        const domain = this.xScale.domain();
+        const showNowEffects = now >= domain[0] && now <= domain[1];
+        
         Object.entries(this.yScales).forEach(([groupName, scaleInfo]) => {
             scaleInfo.sensors.forEach(sensor => {
                 // Filtrer les données pour ce capteur spécifique
@@ -527,22 +694,78 @@ class TimeSeriesPlot {
                 );
                 if (filteredData.length < 2) return;
 
-                const line = d3.line()
-                    .x(d => this.xScale(d.datetime))
-                    .y(d => scaleInfo.scale(d[sensor]))
-                    .defined(d => d[sensor] !== null && d[sensor] !== undefined && !isNaN(d[sensor]))
-                    .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveBasis);
-                if (withTransition) {
-                    linesGroup.select(`.line-${sensor.replace(":", "_")}`)
-                        .datum(filteredData)
-                        .transition()
-                        .duration(750)
-                        .attr("d", line);
-                    return;
+                const sensorId = sensor.replace(":", "_");
+                const solidColor = this.colorScale(sensorId);
+                
+                if (showNowEffects) {
+                    // Séparer les données avant et après "now"
+                    const beforeNow = filteredData.filter(d => d.datetime <= now);
+                    const afterNow = filteredData.filter(d => d.datetime >= now);
+                    
+                    // Ligne avant "now" (nette, couleur pleine)
+                    if (beforeNow.length >= 2) {
+                        const lineBefore = d3.line()
+                            .x(d => this.xScale(d.datetime))
+                            .y(d => scaleInfo.scale(d[sensor]))
+                            .defined(d => d[sensor] !== null && d[sensor] !== undefined && !isNaN(d[sensor]))
+                            .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveBasis);
+                        
+                        const pathBefore = linesGroup.append("path")
+                            .datum(beforeNow)
+                            .attr("class", `line line-${sensorId}-before`)
+                            .attr("d", lineBefore)
+                            .style("stroke", solidColor);
+                        
+                        if (withTransition) {
+                            pathBefore.style("opacity", 0)
+                                .transition()
+                                .duration(750)
+                                .style("opacity", 1);
+                        }
+                    }
+                    
+                    // Ligne après "now" (avec gradient et blur)
+                    if (afterNow.length >= 2) {
+                        const lineAfter = d3.line()
+                            .x(d => this.xScale(d.datetime))
+                            .y(d => scaleInfo.scale(d[sensor]))
+                            .defined(d => d[sensor] !== null && d[sensor] !== undefined && !isNaN(d[sensor]))
+                            .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveBasis);
+                        
+                        const pathAfter = linesGroup.append("path")
+                            .datum(afterNow)
+                            .attr("class", `line line-${sensorId}-after`)
+                            .attr("d", lineAfter)
+                            .style("stroke", `url(#gradient-${this.id}-${sensorId})`)
+                            .style("filter", `url(#blur-${this.id})`);
+                        
+                        if (withTransition) {
+                            pathAfter.style("opacity", 0)
+                                .transition()
+                                .duration(750)
+                                .style("opacity", 1);
+                        }
+                    }
                 } else {
-                    linesGroup.select(`.line-${sensor.replace(":", "_")}`)
+                    // Ligne normale sans effets
+                    const line = d3.line()
+                        .x(d => this.xScale(d.datetime))
+                        .y(d => scaleInfo.scale(d[sensor]))
+                        .defined(d => d[sensor] !== null && d[sensor] !== undefined && !isNaN(d[sensor]))
+                        .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveBasis);
+                    
+                    const path = linesGroup.append("path")
                         .datum(filteredData)
-                        .attr("d", line);
+                        .attr("class", `line line-${sensorId}`)
+                        .attr("d", line)
+                        .style("stroke", solidColor);
+                    
+                    if (withTransition) {
+                        path.style("opacity", 0)
+                            .transition()
+                            .duration(750)
+                            .style("opacity", 1);
+                    }
                 }
             });
         });
@@ -737,9 +960,9 @@ class TimeSeriesPlot {
     resetZoom() {
         this.data = [...this.originalData];
         this.initializeScales();
+        this.updateGradients();
         this.updateAxes();
-        // sleep pour laisser le temps aux axes de se mettre à jour
-        // setTimeout(() => this.updateLines(), 100);
+        this.createNowLine();
         this.updateLines();
     }
 }
