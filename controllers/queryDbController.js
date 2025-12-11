@@ -618,11 +618,11 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
         if (lastTimestamp && (new Date(lastTimestamp)) > (new Date('1970-01-01T00:00:00Z'))) {
             console.log(`${V.info} Données Open-Meteo existantes trouvées. Dernière date: `, lastTimestamp);
             startDate = new Date(lastTimestamp);
-            startDate.setDate(startDate.getDate() - 1); // Commence le jour suivant pour éviter les doublons
+            startDate.setDate(startDate.getDate() - 1); // depuis la veille
         } else {
-            console.log(`${V.info} Aucune donnée Open-Meteo existante. Récupération des 50 dernières années.`);
+            console.log(`${V.info} Aucune donnée Open-Meteo existante. Récupération des 55 dernières années.`);
             startDate = new Date();
-            startDate.setFullYear(endDate.getFullYear() - 50); // Récupère les 50 dernières années
+            startDate.setFullYear(endDate.getFullYear() - 55); // Récupère les 55 dernières années
         }
         
         const openMeteoUrl = `https://archive-api.open-meteo.com/v1/archive`;

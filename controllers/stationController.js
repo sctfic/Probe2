@@ -102,7 +102,7 @@ async function getCompositeProbes(weatherData, stationConfig) {
                     calcInput[key] = weatherData[weatherData[key].currentMap].Value;
                 } else { // pas de mapping vers les condition Current, on utilise la valeur d'archive
                     console.log(V.Warn, `Missing data ${key} in currentConditions, use last archives`, weatherData[key].Value);
-                    console.log(V.Warn, `verrifier ${probeKey}.currentMap['${key}'] la valeur est inconnue dans les current-conditions`);
+                    console.log(`+-> verrifier ${probeKey}.currentMap['${key}'] la valeur est inconnue dans les current-conditions`);
                     calcInput[key] = weatherData[key].Value;
                 }
                 console.log(key, calcInput);
