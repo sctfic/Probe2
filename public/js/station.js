@@ -183,6 +183,36 @@ async function displaySettingsForm() {
             .btn-delete-extender:hover {
                 opacity: 1;
             }
+
+        /* Styles pour les tuiles avec bouton d'action */
+        .condition-tile {
+            position: relative;
+        }
+        .tile-action-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .tile-action-btn:hover {
+        }
+        .tile-action-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: #aaa;
+        }
+        .tile-action-btn:hover svg {
+            fill: var(--accent-blue);
+            transform: scale(1.2);
+        }
         `;
         document.head.appendChild(style);
     }
@@ -228,24 +258,25 @@ async function displaySettingsForm() {
 
     let formHTML = '<form id="station-settings-form" class="settings-form">';
     
-    Object.entries(groups).forEach(([groupKey, group]) => {
+    Object.entries(groups).forEach(([groupKey, group]) => { // parcoure les groupes de proprietees
         formHTML += `
             <div class="settings-group">
                 <h3>${group.title}</h3>
                 <div class="settings-row">
         `;
         
-        group.fields.forEach(fieldKey => {
+        group.fields.forEach(fieldKey => { // parcour les properties 
             if (fieldKey === 'dbexpand') { 
                 const field = { comment: "Complète la base de données avec les archives d'Open-Meteo sur 50 ans pour cette localisation. (chaque jour a 23h30)" };
                 formHTML += createDbExpandFieldHTML(field, openMeteoRange, currentStationSettings.cron?.openMeteo);
             } else if (fieldKey === 'forecast') { 
                 formHTML += createForecastFieldHTML(currentStationSettings.cron);
+            } else if (fieldKey === 'cron') {
+                formHTML += createCronFieldHTML(fieldKey, currentStationSettings.cron);
             } else if (fieldKey === 'extendersManager') {
                 formHTML += `<div id="extenders-manager-container" style="width: 100%;"></div>`;
             } else if (currentStationSettings.hasOwnProperty(fieldKey) && !excludeKeys.includes(fieldKey)) {
-                const field = currentStationSettings[fieldKey]; 
-                formHTML += createSettingFieldHTML(fieldKey, field);
+                formHTML += createSettingFieldHTML(fieldKey, currentStationSettings[fieldKey]);
             }
         });
         
@@ -683,10 +714,6 @@ window.updateExtenderField = function(type, index, field, value) {
 // ------------------------------------------------------------------
 
 function createSettingFieldHTML(key, field) {
-    if (key === 'cron') {
-        return createCronFieldHTML(key, field);
-    }
-
     const label = formatSettingLabel(key);
     let value = '';
     let tooltip = '';
@@ -720,9 +747,13 @@ function createDbExpandFieldHTML(field, range, isEnabled) {
     const rangeText = (range.first && range.last)
         ? `Archived since ${new Date(range.first).toLocaleDateString()} to ${new Date(range.last).toLocaleDateString()}`
         : "No Open-Meteo data !";
+    const downloadUrl = `/query/${selectedStation.id}/dbexpand`;
 
     return `
         <div class="settings-field condition-tile">
+        <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="Collect Now!">
+            <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        </a>
             <label>
                 ${formatSettingLabel('dbexpand')}
                 <span class="tooltip" data-tooltip="${field.comment}">?</span>
@@ -743,7 +774,7 @@ function createDbExpandFieldHTML(field, range, isEnabled) {
 function createForecastFieldHTML(cronSettings) {
     const isEnabled = cronSettings && cronSettings.forecast === true;
     const currentModel = (cronSettings && cronSettings.model) ? cronSettings.model : 'best_match';
-
+    const downloadUrl = `/query/${selectedStation.id}/forecast`;
     const models = [
         { value: 'best_match', label: 'Best Match (14d)' },
         { value: 'meteofrance_arome_france', label: 'Météo-France AROME France (4d)' },
@@ -759,6 +790,9 @@ function createForecastFieldHTML(cronSettings) {
 
     return `
         <div class="settings-field condition-tile">
+        <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="Télécharger">
+            <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        </a>
             <label>
                 Collect local forecast
                 <span class="tooltip" data-tooltip="Récupération automatique des prévisions toutes les heures, pour cette localisation">?</span>
@@ -783,6 +817,7 @@ function createCronFieldHTML(key, field) {
     const isEnabled = field.enabled;
     const currentValue = field.value;
     const options = [5, 10, 15, 30, 60, 120, 240, 480];
+    const downloadUrl = `/api/station/${selectedStation.id}/collect`;
 
     let optionsHTML = options.map(opt => 
         `<option value="${opt}" ${opt == currentValue ? 'selected' : ''}>${opt} minutes</option>`
@@ -794,6 +829,9 @@ function createCronFieldHTML(key, field) {
 
     return `
         <div class="settings-field condition-tile">
+        <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="Exécuter">
+            <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        </a>
             <label for="setting-${key}-value">
                 ${label}
                 ${tooltipHTML}

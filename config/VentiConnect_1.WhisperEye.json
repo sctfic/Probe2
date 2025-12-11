@@ -1,0 +1,40 @@
+{
+    "name": "",
+    "host": "",
+    "apiKey":"jhg-kj43h5-79x6da-5o9wrg-jhw4tv-2e3", // generateUrlSafeApiKey()
+    "designation":"Sondes exterieure de VMC Venti'Connect",
+    "Actuators":[
+        {
+            "type":"switch", // switch(true/false), scale(0-100)
+            "Name":"",
+            "designation":""
+        }
+    ],
+    "Sensors":[
+        {
+            "type":"temperature", // in Units.json
+            "sensorRef":"vmcExt",
+            "designation":""
+        },
+        {
+            "type":"humidity", // in Units.json
+            "sensorRef":"vmcExt",
+            "designation":""
+        },
+        {
+            "type":"temperature", // in Units.json
+            "sensorRef":"vmcIn",
+            "designation":""
+        },
+        {
+            "type":"humidity", // in Units.json
+            "sensorRef":"vmcIn",
+            "designation":""
+        },
+        {
+            "type":"ticksByMin", // in Units.json
+            "sensorRef":"vmc",
+            "designation":""
+        }
+    ]
+}
