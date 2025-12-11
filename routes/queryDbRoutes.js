@@ -14,11 +14,6 @@ module.exports = router;
 // Middleware pour toutes les routes de query
 router.use('/:stationId', loadStationConfig); // https://probe.lpz.ovh/query/VP2_Serramoune/
 
-// Route to clear all data from the bucket
-// router.get('/:stationId/clear', influxdbService.clearDeprecated); // https://probe.lpz.ovh/query/clear
-// .\influx-client.exe delete --bucket Probe --start '2025-09-02T20:30:00Z'  --stop '2025-09-02T23:00:00Z'
-
-
 // Route to get metadata for a station
 router.get('/:stationId', queryDbController.getQueryMetadata); // https://probe.lpz.ovh/query/VP2_Serramoune
 

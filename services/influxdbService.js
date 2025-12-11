@@ -46,53 +46,6 @@ function loadAndInitialize() {
     initialize(influxConfig);
 }
 loadAndInitialize(); // Initialisation au démarrage
-// router.get('/:stationId/clear', queryDbController.clearDeprecated);
-
-/**
- * Supprime les données spécifiques (humidity/soilMoisture) pour une station donnée.
- * @param {Object} req - La requête Express
- * @param {Object} res - La réponse Express
- */
-async function clearDeprecated(req, res)  {
-    // 1. Définition de la plage de temps (Large pour tout nettoyer)
-    const start = '2016-01-01T00:00:00Z';
-    const stop = '2017-01-01T00:00:00Z'; // Maintenant
-    
-    // Récupération de l'ID depuis l'URL (ex: VP2_Serramoune)
-    const stationId = req.params.stationId; 
-
-    console.log(`${V.Warn} Tentative de suppression des données 'humidity/soilMoisture' pour 'VP2_Serramoune' dans '${org}/${bucket}'`);
-
-    // 2. Le prédicat DOIT utiliser la syntaxe InfluxDB Delete (PAS de syntaxe Flux ici)
-    // Format: tag="valeur" AND _measurement="valeur"
-    // Attention aux guillemets doubles (") autour des valeurs.
-    const predicate = `_measurement="humidity" AND sensor="open-meteo_soilMoisture" AND station_id="VP2_Serramoune"`;
-
-    try {
-        await deleteApi.postDelete({
-            org,
-            bucket,
-            body: {
-                start: start,
-                stop: stop,
-                predicate: predicate
-            }
-        });
-
-        console.log(`${V.Check} Suppression réussie pour 'VP2_Serramoune'.`);
-        
-        // Important: Renvoyer une réponse au client HTTP
-        if (res) res.status(200).json({ success: true, message: `Données supprimées pour VP2_Serramoune` });
-        return true;
-
-    } catch (error) {
-        console.error(`${V.error} Erreur lors de la suppression dans '${bucket}':`, error);
-        
-        // Renvoyer l'erreur au client
-        if (res) res.status(500).json({ success: false, error: error.message });
-        return false;
-    }
-}
 
 /**
  * Teste la connexion à une instance InfluxDB avec une configuration donnée.
@@ -134,39 +87,69 @@ function reinitializeInfluxDB(newConfig) {
  * Supprime les données de prévisions (tag forecast=true) d'une station antérieures à une date donnée.
  * @param {string} stationId - L'ID de la station.
  * @param {string} untilDateISO - Date limite (exclusive) pour la suppression (ISO string).
- * @returns {Promise<number>} Retourne le nombre estimé de suppressions ou lance une erreur.
+ * @returns {Promise<object|null>} Retourne un objet avec le nombre de points supprimés et la plage de dates, ou null si rien n'a été supprimé.
  */
 async function deleteForecasts(stationId) {
-    const start = new Date(0).toISOString(); // Du début du temps
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const start = sixMonthsAgo.toISOString();
     const stop = new Date().toISOString(); // Jusqu'à maintenant (exclusive)
     
     // Le prédicat pour cibler les données: tag 'station_id' et tag 'forecast'
-    const predicate = `station_id="${stationId}" AND forecast="true"`;
+    let predicate = `r["station_id"]=="${stationId}" and r["forecast"]=="true"`;
 
-    console.log(`${V.trash} Tentative de suppression des prévisions obsolètes pour ${stationId} de ${start} à ${stop}`);
-    console.log(`${V.trash} Prédicat de suppression: ${predicate}`);
-    
     try {
+        // 1. Compter les points à supprimer
+        const countQuery = `
+            from(bucket: "${bucket}")
+                |> range(start: ${start}, stop: ${stop})
+                |> filter(fn: (r) => ${predicate})
+                |> count()
+        `;
+        const countResult = await executeQuery(countQuery);
+        const count = countResult.length > 0 ? countResult[0]._value : 0;
+
+        if (count === 0) {
+            console.log(`${V.info} Aucune prévision à supprimer pour ${stationId}.`);
+            return null;
+        }
+
+        predicate = predicate.replaceAll(`r["`,'').replaceAll(`"]==`,'=').replaceAll('and','AND');
+        console.log(`${V.trash}  ${count} points de prévisions à supprimer pour ${stationId} entre ${start} et ${stop}.`, predicate);
+
+        // 2. Supprimer les données
         await deleteApi.postDelete({
-            org,
-            bucket,
+            org, // LPZ
+            bucket, // Probe
             body: {
-                start: start,
-                stop: stop,
-                predicate: predicate
-            }
+                start, // 2025-06-11T10:37:16.612Z
+                stop,  // 2025-12-11T11:37:16.612Z
+                predicate // station_id="VP2_Serramoune" AND forecast="true"
+            },
         });
-        // La fonction postDelete ne retourne pas le nombre de lignes supprimées.
-        // On retourne une valeur arbitraire pour indiquer le succès, ou l'on pourrait implémenter
-        // un query avant delete pour estimer le nombre, mais c'est lourd.
-        // Ici, on retourne 1 pour indiquer qu'au moins l'opération a été tentée avec succès.
-        console.log(`${V.Check} Suppression des prévisions obsolètes pour ${stationId} réussie (jusqu'à ${stop}).`);
-        // On renvoie un nombre arbitraire car l'API de suppression ne donne pas le compte
-        // Dans une application réelle, on pourrait logger l'heure et le prédicat.
-        return 1; 
+
+        console.log(`${V.Check} Suppression des prévisions pour ${stationId} réussie.`);
+
+        // 3. Retourner le résultat
+        return {
+            count: count,
+            range: { start, stop },
+        };
     } catch (error) {
-        // si il n'y a rien a supprimer, on ignore l'erreur
-        console.error(`${V.error} Erreur lors de la suppression des prévisions pour ${stationId}:`, error);
+        // Si l'erreur indique "no series found", on l'ignore et on retourne null.
+        if (error.message && error.message.includes('no series found')) {
+            console.log(`${V.info} Aucune série de prévisions trouvée à supprimer pour ${stationId}.`);
+            return {
+                count: 0,
+                range: { start, stop },
+            };
+        }
+        // Pour les autres erreurs, on les logue mais on ne bloque pas l'exécution.
+        console.error(`${V.error} Erreur inattendue lors de la suppression des prévisions pour ${stationId}:`, error.message);
+        return {
+            count: false,
+            range: { start, stop },
+        };
     }
 }
 
@@ -742,6 +725,5 @@ module.exports = {
     queryWindVectors,
     queryCandle,
     queryLast,
-    clearDeprecated,
     deleteForecasts // Export de la nouvelle fonction de suppression
 };

@@ -620,9 +620,9 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             startDate = new Date(lastTimestamp);
             startDate.setDate(startDate.getDate() - 1); // depuis la veille
         } else {
-            console.log(`${V.info} Aucune donnée Open-Meteo existante. Récupération des 55 dernières années.`);
+            console.log(`${V.info} Aucune donnée Open-Meteo existante. Récupération des 54 dernières années.`);
             startDate = new Date();
-            startDate.setFullYear(endDate.getFullYear() - 55); // Récupère les 55 dernières années
+            startDate.setFullYear(endDate.getFullYear() - 54); // Récupère les 54 dernières années
         }
         
         const openMeteoUrl = `https://archive-api.open-meteo.com/v1/archive`;
@@ -636,7 +636,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
                 'temperature_2m',
                 'relative_humidity_2m',
                 'precipitation',
-                'evapotranspiration',
+                'et0_fao_evapotranspiration',
                 'wind_speed_10m',
                 'wind_direction_10m',
                 'wind_gusts_10m',
@@ -661,7 +661,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             'temperature_2m': { type: 'temperature', sensor: ['open-meteo_outTemp'], convert: (v) => v + 273.15 }, // °C -> K
             'relative_humidity_2m': { type: 'humidity', sensor: ['open-meteo_outHumidity'] },
             'precipitation': { type: 'rain', sensor: ['open-meteo_rainFall'] },
-            'evapotranspiration': { type: 'rain', sensor: ['open-meteo_ET'] },
+            'et0_fao_evapotranspiration': { type: 'rain', sensor: ['open-meteo_ET'] },
             'wind_speed_10m': { type: 'speed', sensor: ['open-meteo_Wind'], convert: (v) => v / 3.6 }, // km/h -> m/s
             'wind_gusts_10m': { type: 'speed', sensor: ['open-meteo_Gust'], convert: (v) => v / 3.6 }, // km/h -> m/s
             'wind_direction_10m': { type: 'direction', sensor: ['open-meteo_Wind', 'open-meteo_Gust'] },
@@ -807,7 +807,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
                 'relative_humidity_2m',
                 'precipitation',
                 'pressure_msl',
-                'evapotranspiration',
+                'et0_fao_evapotranspiration',
                 'wind_speed_10m',
                 'wind_direction_10m',
                 'wind_gusts_10m',
@@ -839,7 +839,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
             'temperature_2m': { type: 'temperature', sensor: ['outTemp'], convert: (v) => v + 273.15 }, // °C -> K
             'relative_humidity_2m': { type: 'humidity', sensor: ['outHumidity'] },
             'precipitation': { type: 'rain', sensor: ['rainFall'] },
-            'evapotranspiration': { type: 'rain', sensor: ['ET'] },
+            'et0_fao_evapotranspiration': { type: 'rain', sensor: ['ET'] },
             'wind_speed_10m': { type: 'speed', sensor: ['Wind'], convert: (v) => v / 3.6 }, // km/h -> m/s
             'wind_gusts_10m': { type: 'speed', sensor: ['Gust'], convert: (v) => v / 3.6 }, // km/h -> m/s
             'wind_direction_10m': { type: 'direction', sensor: ['Wind', 'Gust'] },
@@ -905,16 +905,15 @@ exports.getOpenMeteoForecast = async (req, res) => {
 
         // Suppression des points de prévisions obsolètes (ceux qui sont déjà passés)
         const now = new Date();
-        const deletedCount = await influxdbService.deleteForecasts(stationId);
-        // console.log(V.trash, ` Suppression de ${deletedCount} points de prévisions obsolètes pour ${stationId}.`, V.Check);
-
+        const deleted = await influxdbService.deleteForecasts(stationId);
+        console.log(V.trash, ` Suppression de ${deleted.count} points de prévisions obsolètes pour ${stationId}.`, deleted, V.Check);
 
         res.json({
             success: true,
             stationId: stationId,
             message: `${writtenCount} points de données de prévisions ont été importés avec succès pour la station ${stationId}.`,
             pointsWritten: writtenCount,
-            pointsDeleted: deletedCount ? 'success' : 'error',
+            pointsDeleted: deleted,
         });
 
     } catch (error) {
