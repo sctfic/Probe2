@@ -9,7 +9,7 @@ const { isAuthenticated } = require('../middleware/authMiddleware');
 
 // Route pour les informations générales de l'application
 // Route pour le health check
-router.get('/health', appController.getHealth); // http://probe2.lpz.ovh/api/health
+router.get('/health', appController.getHealth); // http://probe.local/api/health
 
 // Routes d'authentification
 router.post('/login', authController.login);
@@ -18,11 +18,12 @@ router.get('/auth/status', authController.getAuthStatus);
 router.put('/password', isAuthenticated, authController.changePassword);
 
 // Nouvelle route pour le compteur de visites
-router.post('/visit', analyticsController.recordVisit);
+router.post('/visit', analyticsController.recordVisit); // http://probe.local/api/visit
+router.get('/stats', analyticsController.getStats); // http://probe.local/api/
 
 // Routes pour la configuration des unités
-router.get('/settings', appController.getUnitsSettings); // http://probe2.lpz.ovh/api/settings
-router.put('/settings', isAuthenticated, appController.updateUnitsSettings); // http://probe2.lpz.ovh/api/settings
+router.get('/settings', appController.getUnitsSettings); // http://probe.local/api/settings
+router.put('/settings', isAuthenticated, appController.updateUnitsSettings); // http://probe.local/api/settings
 
 // Routes pour la configuration des sondes additionnelles
 router.get('/composite-probes', appController.getcompositeProbesSettings);

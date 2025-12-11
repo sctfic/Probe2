@@ -6,6 +6,9 @@ module.exports = {
       script: 'app.js',
       watch: true,
       ignore_watch: [
+        // pm2 delete 0;pm2 startOrReload ecosystem.config.js --update-env; pm2 logs --raw
+        //     ou
+        // pm2 restart 0
         'node_modules',
         './node_modules',
         './config/stations',
@@ -18,7 +21,7 @@ module.exports = {
         './logs/*', // Ajout explicite pour ignorer tout le contenu du répertoire logs
         '*.log',    // Ignorer tous les fichiers .log à la racine
         '**/*.log',  // Ignorer tous les fichiers .log dans tous les sous-répertoires
-        './config/visites.json'  // Ignorer
+        './visits'  // Ignorer
       ],
       max_memory_restart: '300M',
       instances: 1,
