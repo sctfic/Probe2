@@ -20,7 +20,7 @@ router.get('/:stationId/collect', talkStationWithLamp(stationController.getArchi
 // Routes pour les stations météorologiques
 router.get('/:stationId/info', stationController.getStationInfo); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/info
 
-router.get('/:stationId/update-datetime',isAuthenticated, talkStationWithLamp(stationController.updateTime)); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/update-datetime
+router.get('/:stationId/update-datetime', isAuthenticated, talkStationWithLamp(stationController.updateTime)); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/update-datetime
 
 router.get('/:stationId/sync-settings', talkStationWithLamp(stationController.syncSettings)); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/sync-settings
 
@@ -34,7 +34,7 @@ router.get('/:stationId', (req, res) => { //http://probe2.lpz.ovh/api/station/VP
     try {
         const stationConfig = req.stationConfig;
         console.log(`ℹ️ Récupération de la configuration pour la station ${stationConfig.id}`);
-        
+
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
@@ -57,23 +57,28 @@ router.put('/:stationId', isAuthenticated, (req, res) => {
         const stationConfig = req.stationConfig;
         const updates = req.body;
         const configManager = require('../services/configManager');
-        
-        // --- CORRECTION DEBUT ---
-        // Sécurisation : on vérifie si updates.cron existe avant de lire ses propriétés
-        const updatesCron = updates.cron;
 
-        const cronChanged = updatesCron && (
-            stationConfig.cron.enabled !== updatesCron.enabled || 
-            stationConfig.cron.value !== updatesCron.value
+        // --- CORRECTION DEBUT ---
+        // Sécurisation : on vérifie si updates existe avant de lire ses propriétés
+        const updatesCollect = updates.collect;
+        const updatesForecast = updates.forecast;
+        const updatesHistorical = updates.historical;
+
+        const collectChanged = updatesCollect && (
+            !stationConfig.collect ||
+            stationConfig.collect.enabled !== updatesCollect.enabled ||
+            stationConfig.collect.value !== updatesCollect.value
         );
-        
-        const openMeteoChanged = updatesCron && (
-            stationConfig.cron.openMeteo !== updatesCron.openMeteo
+
+        const historicalChanged = updatesHistorical && (
+            !stationConfig.historical ||
+            stationConfig.historical.enabled !== updatesHistorical.enabled
         );
-        
-        const forecastChanged = updatesCron && (
-            stationConfig.cron.forecast !== updatesCron.forecast || 
-            stationConfig.cron.model !== updatesCron.model
+
+        const forecastChanged = updatesForecast && (
+            !stationConfig.forecast ||
+            stationConfig.forecast.enabled !== updatesForecast.enabled ||
+            stationConfig.forecast.model !== updatesForecast.model
         );
         // --- CORRECTION FIN ---
 
@@ -92,23 +97,23 @@ router.put('/:stationId', isAuthenticated, (req, res) => {
         const updatedConfig = mergeDeep({ ...stationConfig }, updates);
 
         updatedConfig.id = stationConfig.id; // S'assurer que l'ID reste correct
-        
-        if (cronChanged) {
+
+        if (collectChanged) {
             console.log(`[CRON] Les paramètres de collecte ont changé pour ${stationConfig.id}. Replanification...`);
             cronService.scheduleJobForStation(stationConfig.id, updatedConfig);
         }
-        if (openMeteoChanged) {
-            console.log(`[CRON] Le paramètre de collecte Open-Meteo a changé pour ${stationConfig.id}. Replanification...`);
+        if (historicalChanged) {
+            console.log(`[CRON] Le paramètre de collecte historique a changé pour ${stationConfig.id}. Replanification...`);
             cronService.scheduleOpenMeteoJob(stationConfig.id, updatedConfig);
         }
         if (forecastChanged) {
-            console.log(`[CRON] Le paramètre de prévision Open-Meteo a changé pour ${stationConfig.id}. Replanification...`);
+            console.log(`[CRON] Le paramètre de prévision a changé pour ${stationConfig.id}. Replanification...`);
             cronService.scheduleOpenMeteoForecastJob(stationConfig.id, updatedConfig);
         }
 
         // Sauvegarder la configuration mise à jour
         const success = configManager.saveConfig(stationConfig.id, updatedConfig);
-        
+
         if (success) {
             res.json({
                 success: true,

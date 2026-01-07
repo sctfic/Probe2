@@ -1,8 +1,8 @@
 module.exports = {
   apps: [
     {
-      name: 'Probe2',
-      version: '0.3.42',
+      name: 'Probe',
+      version: '0.3.44',
       script: 'app.js',
       watch: true,
       ignore_watch: [

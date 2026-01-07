@@ -8,7 +8,7 @@ let currentStationSettings = null;
 // Structure: { "WhisperEye": [ {name, host...} ], "Venti'Connect": [] }
 let localExtendersState = {
     "WhisperEye": [],
-    "Venti'Connect": [] 
+    "Venti'Connect": []
 };
 
 // Variable pour suivre l'onglet actif (identifié par type + index, ex: "WhisperEye-0")
@@ -38,7 +38,7 @@ function generateApiKey() {
         .replace(/=+$/, '');
 }
 
-async function fetchStationSettings(data=null) {
+async function fetchStationSettings(data = null) {
     if (!selectedStation) {
         showGlobalStatus('Aucune station sélectionnée', 'error');
         return;
@@ -47,16 +47,16 @@ async function fetchStationSettings(data=null) {
     showGlobalStatus('Chargement des paramètres...', 'loading');
 
     try {
-        
-        if(!data){
+
+        if (!data) {
             const response = await fetch(`/api/station/${selectedStation.id}`);
             if (!response.ok) throw new Error('Erreur de récupération des paramètres');
             data = await response.json();
         }
-        
+
         if (data.success && data.settings) {
             currentStationSettings = data.settings;
-            
+
             // Initialisation de l'état local des extendeurs
             if (currentStationSettings.extenders) {
                 localExtendersState = JSON.parse(JSON.stringify(currentStationSettings.extenders));
@@ -218,7 +218,7 @@ async function displaySettingsForm() {
     }
 
     const excludeKeys = ['id', 'lastArchiveDate', 'deltaTimeSeconds', 'path', 'extenders'];
-    
+
     const groups = {
         identity: {
             title: 'Identité',
@@ -234,11 +234,11 @@ async function displaySettingsForm() {
         },
         meteo: {
             title: 'Paramètres météo (synchronisés dans la Station Davis)',
-            fields: ['archiveInterval','AMPMMode', 'dateFormat', 'windCupSize', 'rainCollectorSize', 'rainSaisonStart']
+            fields: ['archiveInterval', 'AMPMMode', 'dateFormat', 'windCupSize', 'rainCollectorSize', 'rainSaisonStart']
         },
         database: {
             title: 'Base de données',
-            fields: ['dbexpand', 'forecast', 'cron']
+            fields: ['collect', 'historical', 'forecast']
         },
         extenders: {
             title: 'Extendeurs (Périphériques additionnels)',
@@ -257,29 +257,29 @@ async function displaySettingsForm() {
     } catch (e) { console.warn("Could not fetch Open-Meteo date range.", e); }
 
     let formHTML = '<form id="station-settings-form" class="settings-form">';
-    
+
     Object.entries(groups).forEach(([groupKey, group]) => { // parcoure les groupes de proprietees
         formHTML += `
             <div class="settings-group">
                 <h3>${group.title}</h3>
                 <div class="settings-row">
         `;
-        
+
         group.fields.forEach(fieldKey => { // parcour les properties 
-            if (fieldKey === 'dbexpand') { 
+            if (fieldKey === 'historical') {
                 const field = { comment: "Complète la base de données avec les archives d'Open-Meteo sur 50 ans pour cette localisation. (chaque jour a 23h30)" };
-                formHTML += createDbExpandFieldHTML(field, openMeteoRange, currentStationSettings.cron?.openMeteo);
-            } else if (fieldKey === 'forecast') { 
-                formHTML += createForecastFieldHTML(currentStationSettings.cron);
-            } else if (fieldKey === 'cron') {
-                formHTML += createCronFieldHTML(fieldKey, currentStationSettings.cron);
+                formHTML += createHistoricalFieldHTML(field, openMeteoRange, currentStationSettings.historical);
+            } else if (fieldKey === 'forecast') {
+                formHTML += createForecastFieldHTML(currentStationSettings.forecast);
+            } else if (fieldKey === 'collect') {
+                formHTML += createCollectFieldHTML(currentStationSettings.collect);
             } else if (fieldKey === 'extendersManager') {
                 formHTML += `<div id="extenders-manager-container" style="width: 100%;"></div>`;
             } else if (currentStationSettings.hasOwnProperty(fieldKey) && !excludeKeys.includes(fieldKey)) {
                 formHTML += createSettingFieldHTML(fieldKey, currentStationSettings[fieldKey]);
             }
         });
-        
+
         formHTML += `
                 </div>
             </div>
@@ -351,12 +351,12 @@ async function displaySettingsForm() {
     }
 
     // --- Switchs Listeners ---
-    const openMeteoCronSwitch = document.getElementById('setting-cron-openMeteo');
-    if (openMeteoCronSwitch) {
-        openMeteoCronSwitch.addEventListener('change', async (e) => {
+    const historicalSwitch = document.getElementById('setting-historical-enabled');
+    if (historicalSwitch) {
+        historicalSwitch.addEventListener('change', async (e) => {
             const switchElement = e.target;
             const isEnabled = switchElement.checked;
-            const settings = { cron: { ...currentStationSettings.cron, openMeteo: isEnabled } };
+            const settings = { historical: { ...currentStationSettings.historical, enabled: isEnabled } };
             const success = await updatePartialSettings(settings);
             if (!success) {
                 switchElement.checked = !isEnabled;
@@ -364,31 +364,40 @@ async function displaySettingsForm() {
         });
     }
 
-    const cronToggleSwitch = document.getElementById('setting-cron-enabled');
-    if (cronToggleSwitch) {
-        cronToggleSwitch.addEventListener('change', async (e) => {
+    const collectToggleSwitch = document.getElementById('setting-collect-enabled');
+    const collectValueSelect = document.getElementById('setting-collect-value');
+    if (collectToggleSwitch) {
+        collectToggleSwitch.addEventListener('change', async (e) => {
             const switchElement = e.target;
-            const cronValueSelect = document.getElementById('setting-cron-value');
             const isEnabled = switchElement.checked;
-            if (cronValueSelect) cronValueSelect.disabled = !isEnabled;
-            const settings = { cron: { ...currentStationSettings.cron, enabled: isEnabled, value: Number(cronValueSelect.value) } };
+            if (collectValueSelect) collectValueSelect.disabled = !isEnabled;
+            const settings = { collect: { ...currentStationSettings.collect, enabled: isEnabled, value: Number(collectValueSelect.value) } };
             const success = await updatePartialSettings(settings);
             if (!success) {
                 switchElement.checked = !isEnabled;
-                if (cronValueSelect) cronValueSelect.disabled = isEnabled;
+                if (collectValueSelect) collectValueSelect.disabled = isEnabled;
             }
         });
     }
 
-    const forecastSwitch = document.getElementById('setting-cron-forecast');
-    const forecastModelSelect = document.getElementById('setting-cron-model');
+    if (collectValueSelect) {
+        collectValueSelect.addEventListener('change', async (e) => {
+            const selectElement = e.target;
+            const value = Number(selectElement.value);
+            const settings = { collect: { ...currentStationSettings.collect, value: value } };
+            await updatePartialSettings(settings);
+        });
+    }
+
+    const forecastSwitch = document.getElementById('setting-forecast-enabled');
+    const forecastModelSelect = document.getElementById('setting-forecast-model');
 
     if (forecastSwitch) {
         forecastSwitch.addEventListener('change', async (e) => {
             const switchElement = e.target;
             const isEnabled = switchElement.checked;
             if (forecastModelSelect) forecastModelSelect.disabled = !isEnabled;
-            const settings = { cron: { ...currentStationSettings.cron, forecast: isEnabled } };
+            const settings = { forecast: { ...currentStationSettings.forecast, enabled: isEnabled } };
             const success = await updatePartialSettings(settings);
             if (!success) {
                 switchElement.checked = !isEnabled;
@@ -401,8 +410,8 @@ async function displaySettingsForm() {
         forecastModelSelect.addEventListener('change', async (e) => {
             const selectElement = e.target;
             const modelValue = selectElement.value;
-            const settings = { cron: { ...currentStationSettings.cron, model: modelValue } };
-            const success = await updatePartialSettings(settings);
+            const settings = { forecast: { ...currentStationSettings.forecast, model: modelValue } };
+            await updatePartialSettings(settings);
         });
     }
 }
@@ -421,7 +430,7 @@ function renderExtendersManager() {
             allExtenders.push({
                 type: type,
                 index: index,
-                name: ext.name || `${type} #${index+1}`
+                name: ext.name || `${type} #${index + 1}`
             });
         });
     });
@@ -435,7 +444,7 @@ function renderExtendersManager() {
         const tabId = `${item.type}-${item.index}`;
         const isActive = tabId === activeExtenderTab ? 'active' : '';
         const safeType = item.type.replace(/'/g, "\\'");
-        
+
         tabsHTML += `
             <button type="button" class="extender-tab ${isActive}" onclick="switchExtenderDevice('${safeType}', ${item.index})">
                 ${item.name}
@@ -460,7 +469,7 @@ function renderExtendersManager() {
     renderExtenderDetails();
 }
 
-window.switchExtenderDevice = function(type, index) {
+window.switchExtenderDevice = function (type, index) {
     activeExtenderTab = `${type}-${index}`;
     renderExtendersManager();
 };
@@ -468,7 +477,7 @@ window.switchExtenderDevice = function(type, index) {
 function renderExtenderDetails() {
     const contentDiv = document.getElementById('extender-details-content');
     if (!contentDiv) return;
-    
+
     if (!activeExtenderTab) {
         contentDiv.innerHTML = '';
         return;
@@ -494,7 +503,7 @@ function renderExtenderDetails() {
     }
 
     const safeType = currentType.replace(/'/g, "\\'");
-    
+
     const pingStatus = currentExtender.available ? 'ping-success' : 'ping-fail';
     const pingTitle = currentExtender.available ? 'En ligne' : 'Hors ligne';
 
@@ -547,42 +556,42 @@ function renderExtenderDetails() {
 // Logique MODAL (Ajout)
 // ------------------------------------------------------------------
 
-window.openExtenderModal = function() {
+window.openExtenderModal = function () {
     const modal = document.getElementById('add-extender-modal');
     if (!modal) return;
-    
+
     // Reset champs
     document.getElementById('new-ext-name').value = '';
     document.getElementById('new-ext-host').value = '';
     document.getElementById('new-ext-type').selectedIndex = 0;
-    
+
     // Reset erreurs
     document.querySelectorAll('#add-extender-modal .error-msg').forEach(el => el.style.display = 'none');
-    
+
     modal.classList.add('show');
     document.getElementById('new-ext-name').focus();
 };
 
-window.closeExtenderModal = function() {
+window.closeExtenderModal = function () {
     const modal = document.getElementById('add-extender-modal');
     if (modal) modal.classList.remove('show');
 };
 
-window.submitNewExtender = async function() {
+window.submitNewExtender = async function () {
     const typeSelect = document.getElementById('new-ext-type');
     const nameInput = document.getElementById('new-ext-name');
     const hostInput = document.getElementById('new-ext-host');
-    
+
     const type = typeSelect.value;
     const name = nameInput.value.trim();
     const host = hostInput.value.trim();
-    
+
     let isValid = true;
-    
+
     // Validation Name
     const nameError = document.getElementById('new-ext-name-error');
     const existingNames = (localExtendersState[type] || []).map(e => e.name);
-    
+
     if (!name) {
         nameError.textContent = "Le nom est obligatoire.";
         nameError.style.display = 'block';
@@ -635,14 +644,14 @@ window.submitNewExtender = async function() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(settingsToSave)
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             showGlobalStatus('Périphérique ajouté et configuration rechargée', 'success');
             const newIndex = localExtendersState[type].length - 1;
             activeExtenderTab = `${type}-${newIndex}`;
-            
+
             // Recharger tout le formulaire
             setTimeout(() => {
                 fetchStationSettings(result);
@@ -660,16 +669,16 @@ window.submitNewExtender = async function() {
 
 // ------------------------------------------------------------------
 
-window.removeExtender = async function(type, index) {
+window.removeExtender = async function (type, index) {
     const item = localExtendersState[type][index];
     if (confirm(`Voulez-vous vraiment supprimer "${item.name}" ?`)) {
         // 1. Suppression locale
         localExtendersState[type].splice(index, 1);
-        activeExtenderTab = null; 
-        
+        activeExtenderTab = null;
+
         // 2. Sauvegarde immédiate (comme pour l'ajout)
         showGlobalStatus('Suppression du périphérique...', 'loading');
-        
+
         try {
             // On réutilise la logique d'update partiel
             const settingsToSave = {
@@ -681,9 +690,9 @@ window.removeExtender = async function(type, index) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(settingsToSave)
             });
-            
+
             const result = await response.json();
-            
+
             if (result.success) {
                 showGlobalStatus('Périphérique supprimé', 'success');
                 // Rechargement pour être sûr de la synchro
@@ -700,7 +709,7 @@ window.removeExtender = async function(type, index) {
     }
 };
 
-window.updateExtenderField = function(type, index, field, value) {
+window.updateExtenderField = function (type, index, field, value) {
     if (localExtendersState[type] && localExtendersState[type][index]) {
         localExtendersState[type][index][field] = value;
         if (field === 'name') {
@@ -720,7 +729,7 @@ function createSettingFieldHTML(key, field) {
 
     if (typeof field === 'object' && field !== null) {
         value = field.desired !== undefined ? field.desired : field.value || '';
-        
+
         const tooltipParts = [];
         if (field.comment) tooltipParts.push(field.comment);
         if (field.lastReadValue !== undefined) tooltipParts.push(`Valeur actuelle: ${field.lastReadValue}`);
@@ -743,25 +752,30 @@ function createSettingFieldHTML(key, field) {
     `;
 }
 
-function createDbExpandFieldHTML(field, range, isEnabled) {
+function createHistoricalFieldHTML(field, range, historicalSettings) {
+    const isEnabled = historicalSettings && historicalSettings.enabled === true;
     const rangeText = (range.first && range.last)
         ? `Archived since ${new Date(range.first).toLocaleDateString()} to ${new Date(range.last).toLocaleDateString()}`
         : "No Open-Meteo data !";
     const downloadUrl = `/query/${selectedStation.id}/dbexpand`;
 
+    const lastRun = historicalSettings?.lastRun ? new Date(historicalSettings.lastRun).toLocaleString() : 'Jamais';
+    const msg = historicalSettings?.msg || '';
+    const titleAttr = `Collect Now!\nLast run: ${lastRun}${msg ? '\nMsg: ' + msg : ''}`;
+
     return `
         <div class="settings-field condition-tile">
-        <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="Collect Now!">
+        <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="${titleAttr}">
             <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
         </a>
             <label>
-                ${formatSettingLabel('dbexpand')}
+                Collect historical data
                 <span class="tooltip" data-tooltip="${field.comment}">?</span>
             </label>
             <div class="db-expand-controls" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
                 <div class="cron-container">
                     <label class="switch" title="Activer la mise à jour quotidienne à 23h30">
-                        <input type="checkbox" id="setting-cron-openMeteo" ${isEnabled ? 'checked' : ''}>
+                        <input type="checkbox" id="setting-historical-enabled" ${isEnabled ? 'checked' : ''}>
                         <span class="slider round"></span>
                     </label>
                     <text>${rangeText}</text>
@@ -771,10 +785,15 @@ function createDbExpandFieldHTML(field, range, isEnabled) {
     `;
 }
 
-function createForecastFieldHTML(cronSettings) {
-    const isEnabled = cronSettings && cronSettings.forecast === true;
-    const currentModel = (cronSettings && cronSettings.model) ? cronSettings.model : 'best_match';
+function createForecastFieldHTML(forecastSettings) {
+    const isEnabled = forecastSettings && forecastSettings.enabled === true;
+    const currentModel = (forecastSettings && forecastSettings.model) ? forecastSettings.model : 'best_match';
     const downloadUrl = `/query/${selectedStation.id}/forecast`;
+
+    const lastRun = forecastSettings?.lastRun ? new Date(forecastSettings.lastRun).toLocaleString() : 'Jamais';
+    const msg = forecastSettings?.msg || '';
+    const titleAttr = `Télécharger maintenant !\nLast run: ${lastRun}${msg ? '\nMsg: ' + msg : ''}`;
+
     const models = [
         { value: 'best_match', label: 'Best Match (14d)' },
         { value: 'meteofrance_arome_france', label: 'Météo-France AROME France (4d)' },
@@ -784,13 +803,13 @@ function createForecastFieldHTML(cronSettings) {
         { value: 'meteofrance_seamless', label: 'Météo-France Seamless (4d)' }
     ];
 
-    let optionsHTML = models.map(m => 
+    let optionsHTML = models.map(m =>
         `<option value="${m.value}" ${m.value === currentModel ? 'selected' : ''}>${m.label}</option>`
     ).join('');
 
     return `
         <div class="settings-field condition-tile">
-        <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="Télécharger">
+        <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="${titleAttr}">
             <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
         </a>
             <label>
@@ -799,10 +818,10 @@ function createForecastFieldHTML(cronSettings) {
             </label>
             <div class="cron-container">
                 <label class="switch" title="Activer la récupération horaire">
-                    <input type="checkbox" id="setting-cron-forecast" ${isEnabled ? 'checked' : ''}>
+                    <input type="checkbox" id="setting-forecast-enabled" ${isEnabled ? 'checked' : ''}>
                     <span class="slider round"></span>
                 </label>
-                <select id="setting-cron-model" ${!isEnabled ? 'disabled' : ''}>
+                <select id="setting-forecast-model" ${!isEnabled ? 'disabled' : ''}>
                     ${optionsHTML}
                 </select>
             </div>
@@ -810,8 +829,8 @@ function createForecastFieldHTML(cronSettings) {
     `;
 }
 
-function createCronFieldHTML(key, field) {
-    const label = formatSettingLabel(key);
+function createCollectFieldHTML(field) {
+    const label = "Collect local station";
     const tooltip = field.comment || '';
     const tooltipHTML = tooltip ? `<span class="tooltip" data-tooltip="${tooltip}">?</span>` : '';
     const isEnabled = field.enabled;
@@ -819,7 +838,11 @@ function createCronFieldHTML(key, field) {
     const options = [5, 10, 15, 30, 60, 120, 240, 480];
     const downloadUrl = `/api/station/${selectedStation.id}/collect`;
 
-    let optionsHTML = options.map(opt => 
+    const lastRun = field?.lastRun ? new Date(field.lastRun).toLocaleString() : 'Jamais';
+    const msg = field?.msg || '';
+    const titleAttr = `Exécuter maintenant !\nLast run: ${lastRun}${msg ? '\nMsg: ' + msg : ''}`;
+
+    let optionsHTML = options.map(opt =>
         `<option value="${opt}" ${opt == currentValue ? 'selected' : ''}>${opt} minutes</option>`
     ).join('');
 
@@ -829,19 +852,19 @@ function createCronFieldHTML(key, field) {
 
     return `
         <div class="settings-field condition-tile">
-        <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="Exécuter">
+        <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="${titleAttr}">
             <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
         </a>
-            <label for="setting-${key}-value">
+            <label for="setting-collect-value">
                 ${label}
                 ${tooltipHTML}
             </label>
             <div class="cron-container">
                 <label class="switch">
-                    <input type="checkbox" id="setting-${key}-enabled" ${isEnabled ? 'checked' : ''}>
+                    <input type="checkbox" id="setting-collect-enabled" ${isEnabled ? 'checked' : ''}>
                     <span class="slider round"></span>
                 </label>
-                <select id="setting-${key}-value" name="cron-value" ${!isEnabled ? 'disabled' : ''}>
+                <select id="setting-collect-value" name="collect-value" ${!isEnabled ? 'disabled' : ''}>
                     ${optionsHTML}
                 </select>
             </div>
@@ -854,7 +877,7 @@ function createInputHTML(key, value, inputType) {
         return createSelectHTML(key, value);
     }
 
-    return `<input type="${inputType}" id="setting-${key}" name="${key}" value="${value}" ${key=='timezone'?'readonly':''}>`;
+    return `<input type="${inputType}" id="setting-${key}" name="${key}" value="${value}" ${key == 'timezone' ? 'readonly' : ''}>`;
 }
 
 function createSelectHTML(key, value) {
@@ -937,15 +960,16 @@ function formatSettingLabel(key) {
         'rainSaisonStart': 'Mois début saison pluie',
         'latitudeNorthSouth': 'Latitude Nord/Sud',
         'longitudeEastWest': 'Longitude Est/Ouest',
-        'cron': 'Collecte auto. (station)',
-        'dbexpand': 'Collect historical data',
+        'collect': 'Collecte auto. (station)',
+        'historical': 'Collect historical data',
+        'forecast': 'Collect local forecast',
     };
-    
+
     return labelMap[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
 }
 
 async function handleSettingsSubmit(e) {
-    const stationSyncFields = ['longitude', 'latitude', 'longitudeEastWest', 'latitudeNorthSouth', 'altitude', 'archiveInterval','AMPMMode', 'dateFormat', 'windCupSize', 'rainCollectorSize', 'rainSaisonStart'];
+    const stationSyncFields = ['longitude', 'latitude', 'longitudeEastWest', 'latitudeNorthSouth', 'altitude', 'archiveInterval', 'AMPMMode', 'dateFormat', 'windCupSize', 'rainCollectorSize', 'rainSaisonStart'];
     e.preventDefault();
     if (!selectedStation) return;
 
@@ -953,12 +977,12 @@ async function handleSettingsSubmit(e) {
     const settings = {};
 
     for (let [key, value] of formData.entries()) {
-        if (key === 'cron-value') continue; 
-        if (key.startsWith('cron-')) continue; 
+        if (key === 'cron-value') continue;
+        if (key.startsWith('cron-')) continue;
 
         if (currentStationSettings.hasOwnProperty(key)) {
             const currentField = currentStationSettings[key];
-            
+
             if (typeof currentField === 'object' && currentField !== null) {
                 settings[key] = {
                     ...currentField,
@@ -973,27 +997,35 @@ async function handleSettingsSubmit(e) {
     // Ajout des Extendeurs
     settings.extenders = localExtendersState;
 
-    if (currentStationSettings.cron) {
-        const cronToggleSwitch = document.getElementById('setting-cron-enabled');
-        const cronValueSelect = document.getElementById('setting-cron-value');
-        const openMeteoToggle = document.getElementById('setting-cron-openMeteo');
-        const forecastToggle = document.getElementById('setting-cron-forecast');
-        const forecastModel = document.getElementById('setting-cron-model');
-        
-        settings.cron = { ...currentStationSettings.cron };
+    if (currentStationSettings.collect) {
+        const collectToggleSwitch = document.getElementById('setting-collect-enabled');
+        const collectValueSelect = document.getElementById('setting-collect-value');
 
-        if (cronToggleSwitch && cronValueSelect) {
-            settings.cron.enabled = cronToggleSwitch.checked;
-            settings.cron.value = Number(cronValueSelect.value);
+        settings.collect = { ...currentStationSettings.collect };
+        if (collectToggleSwitch && collectValueSelect) {
+            settings.collect.enabled = collectToggleSwitch.checked;
+            settings.collect.value = Number(collectValueSelect.value);
         }
-        if (openMeteoToggle) {
-            settings.cron.openMeteo = openMeteoToggle.checked;
+    }
+
+    if (currentStationSettings.historical) {
+        const historicalToggle = document.getElementById('setting-historical-enabled');
+        settings.historical = { ...currentStationSettings.historical };
+        if (historicalToggle) {
+            settings.historical.enabled = historicalToggle.checked;
         }
+    }
+
+    if (currentStationSettings.forecast) {
+        const forecastToggle = document.getElementById('setting-forecast-enabled');
+        const forecastModel = document.getElementById('setting-forecast-model');
+
+        settings.forecast = { ...currentStationSettings.forecast };
         if (forecastToggle) {
-            settings.cron.forecast = forecastToggle.checked;
+            settings.forecast.enabled = forecastToggle.checked;
         }
         if (forecastModel) {
-            settings.cron.model = forecastModel.value;
+            settings.forecast.model = forecastModel.value;
         }
     }
     showGlobalStatus('Enregistrement des paramètres...', 'loading');
@@ -1009,7 +1041,7 @@ async function handleSettingsSubmit(e) {
 
         const result = await response.json();
         if (!result.success) throw new Error('Erreur lors de la sauvegarde');
-        
+
         let needsSync = false;
         for (const field of stationSyncFields) {
             if (settings[field] && settings[field].desired !== currentStationSettings[field].desired) {
@@ -1028,7 +1060,7 @@ async function handleSettingsSubmit(e) {
         }
 
         showGlobalStatus('Paramètres sauvegardés et synchronisés avec succès', 'success');
-        
+
         setTimeout(() => {
             fetchStationSettings(result);
         }, 2000);

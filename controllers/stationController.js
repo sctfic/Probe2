@@ -18,7 +18,7 @@ exports.testTcpIp = async (req, res) => {
     try {
         const stationConfig = req.stationConfig;
         console.log(`${V.info} Demande d'informations pour la station ${stationConfig.id}`);
-        
+
         const telnet = await network.testTCPIP(req.stationConfig);
         res.json({
             success: true,
@@ -39,9 +39,9 @@ exports.getStationInfo = async (req, res) => {
     try {
         const stationConfig = req.stationConfig;
         console.log(`${V.info} Demande d'informations pour la station ${stationConfig.id}`);
-        
+
         const info = await stationService.getStationInfo(req, stationConfig);
-        
+
         res.json({
             success: true,
             stationId: stationConfig.id,
@@ -94,7 +94,7 @@ async function getCompositeProbes(weatherData, stationConfig) {
         // 2. Calculate values for each composite probe
         for (const probeKey in compositeProbes) {
             const probeConfig = compositeProbes[probeKey];
-            const calcInput = {d: new Date().toISOString()};
+            const calcInput = { d: new Date().toISOString() };
             probeConfig.dataNeeded.forEach(key => {
                 console.log(key, weatherData[key].currentMap);
                 if (weatherData[key].currentMap && weatherData[weatherData[key].currentMap]) {
@@ -118,7 +118,7 @@ async function getCompositeProbes(weatherData, stationConfig) {
             const measurement = units[type];
             console.log('Type', type);
             console.log('Measurement', measurement);
-            console.log('Value', calculatedValue, 'Unit', measurement.metric , 'userUnit', measurement.user , 'toUserUnit', measurement.available_units[measurement.user].fnFromMetric );
+            console.log('Value', calculatedValue, 'Unit', measurement.metric, 'userUnit', measurement.user, 'toUserUnit', measurement.available_units[measurement.user].fnFromMetric);
             weatherData[probeKey] = {
                 label: probeConfig.label,
                 comment: probeConfig.comment,
@@ -152,7 +152,7 @@ async function getDbProbes(stationConfig) {
         // on surchage dbData avec les données de dbProbes
         for (const sensorKey of Object.keys(dbData)) {
             // console.log(sensorKey);
-            dbData[sensorKey] = {...dbData[sensorKey], ...dbProbes[sensorKey]};
+            dbData[sensorKey] = { ...dbData[sensorKey], ...dbProbes[sensorKey] };
             if (dbData[sensorKey].value !== undefined) {
                 dbData[sensorKey]['Value'] = dbData[sensorKey].value;
                 delete dbData[sensorKey].value;
@@ -186,7 +186,7 @@ exports.getCurrentWeather = async (req, res) => {
         Object.assign(weatherData, dbWeatherData);
         // Calculate and append composite probes
         const enrichedWeatherData = await getCompositeProbes(weatherData, stationConfig);
-        
+
         const responsePayload = {
             success: true,
             stationId: stationConfig.id,
@@ -207,7 +207,7 @@ exports.getArchiveData = async (req, res) => {
     try {
         const stationConfig = req.stationConfig;
         console.log(`${V.Parabol} Demande de données d'archive pour la station ${stationConfig.id}`);
-            
+
         const endDate = (await queryDateRange(stationConfig.id, 'barometer', '-120d', '1d', true)).lastUtc;
         // <!> downloadArchiveData laisse un relica de socket
         const archiveData = await stationService.downloadArchiveData(req, stationConfig, endDate);
@@ -215,7 +215,12 @@ exports.getArchiveData = async (req, res) => {
         if (new Date().getDay() === 0 && new Date().getHours() === 0 && new Date().getMinutes() === 0) {
             await stationService.getVp2DateTime(req, stationConfig);
         }
-        
+
+        if (stationConfig.collect) {
+            stationConfig.collect.lastRun = new Date().toISOString();
+            stationConfig.collect.msg = `${archiveData.length} records collected.`;
+        }
+
         res.json({
             success: true,
             stationId: stationConfig.id,
@@ -224,6 +229,11 @@ exports.getArchiveData = async (req, res) => {
         });
         configManager.autoSaveConfig(stationConfig);
     } catch (error) {
+        if (req.stationConfig && req.stationConfig.collect) {
+            req.stationConfig.collect.lastRun = new Date().toISOString();
+            req.stationConfig.collect.msg = `Error: ${error.message}`;
+            configManager.autoSaveConfig(req.stationConfig);
+        }
         console.error(`${V.error} Erreur dans getArchiveData pour ${req.stationConfig?.id}:`, error);
         res.status(500).json({
             success: false,
@@ -263,9 +273,9 @@ exports.updateTime = async (req, res) => {
     try {
         const stationConfig = req.stationConfig;
         console.log(`${V.clock} Demande de mise à jour de l'heure pour la station ${stationConfig.id}`);
-        
+
         const result = await stationService.updateStationTime(req, stationConfig);
-        
+
         res.json({
             success: true,
             stationId: stationConfig.id,
@@ -286,9 +296,9 @@ exports.getDateTime = async (req, res) => {
     try {
         const stationConfig = req.stationConfig;
         console.log(`${V.clock} Demande de l'heure de la station ${stationConfig.id}`);
-        
+
         const stationDateTime = await stationService.getVp2DateTime(req, stationConfig);
-        
+
         res.json({
             success: true,
             stationId: stationConfig.id,
@@ -312,9 +322,9 @@ exports.getDateTime = async (req, res) => {
 exports.deleteStation = (req, res) => {
     try {
         const stationId = req.params.stationId;
-        
+
         console.log(`${V.trash} Suppression de la configuration pour la station ${stationId}`);
-        
+
         // Vérifier si la station existe
         const existingConfig = configManager.loadConfig(stationId);
         if (!existingConfig) {
@@ -323,10 +333,10 @@ exports.deleteStation = (req, res) => {
                 error: `Configuration non trouvée pour la station ${stationId}`
             });
         }
-        
+
         // Supprimer la configuration
         const success = configManager.deleteConfig(stationId);
-        
+
         if (success) {
             res.json({
                 success: true,

@@ -66,13 +66,26 @@
         "lastReadValue": 5
     },
     "lastArchiveDate": "2025-10-01 19:15",
-    "cron": {
-        "comment": "cron intervale value, collect enabled status, expand data with openMeteo history and every day.",
+    "collect": {
+        "comment": "collecte des donnees des capteurs locaux (VP2 et autres capteurs)",
         "value": 5,
         "enabled": false,
-        "openMeteo": false,
-        "forecast": false,
-        "model": "meteofrance_arome_france_hd"
+        "lastRun": "",
+        "msg": ""
+    },
+    "forecast": {
+        "comment": "recupere les previsions pour les capteurs standard (toute les heures)",
+        "model": "meteofrance_arome_france_hd",
+        "enabled": false,
+        "lastRun": "",
+        "msg": ""
+    },
+    "historical": {
+        "comment": "recupere les previsions pour les capteurs standard (toute les jours a 23h30)",
+        "since": "1900",
+        "enabled": false,
+        "lastRun": "",
+        "msg": ""
     },
     "deltaTimeSeconds": 1.48,
     "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\VP2_Serramoune.json",

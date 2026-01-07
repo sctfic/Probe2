@@ -11,7 +11,7 @@ const ping = require('ping');
 exports.getAppInfo = (req, res) => { // http://probe2.lpz.ovh/api/info
     try {
         console.log(`${V.info} Récupération des informations de l'application`);
-        
+
         const allConfigs = configManager.loadAllConfigs();
         const stationsList = Object.keys(allConfigs);
 
@@ -87,7 +87,7 @@ exports.updateUnitsSettings = (req, res) => {
 
         console.log(`${V.write} Mise à jour de la configuration des unités (Units.json)`);
         const unitsPath = path.join(__dirname, '..', 'config', 'Units.json');
-        
+
         // Écrire le nouveau contenu dans le fichier, joliment formaté
         fs.writeFileSync(unitsPath, JSON.stringify(newSettings, null, 4), 'utf8');
 
@@ -145,7 +145,7 @@ exports.updateInfluxDbSettings = async (req, res) => {
 
         console.log(`${V.write} Mise à jour de la configuration InfluxDB (influx.json)`);
         const influxPath = path.join(__dirname, '..', 'config', 'influx.json');
-        
+
         let currentConfig = {};
         if (fs.existsSync(influxPath)) {
             currentConfig = JSON.parse(fs.readFileSync(influxPath, 'utf8'));
@@ -214,7 +214,7 @@ exports.updatecompositeProbesSettings = (req, res) => {
         }
 
         const probesPath = path.join(__dirname, '..', 'config', 'compositeProbes.json');
-        
+
         // Écrire le nouveau contenu dans le fichier, joliment formaté
         fs.writeFileSync(probesPath, JSON.stringify(newSettings, null, 4), 'utf8');
         console.log(`${V.write} Fichier compositeProbes.json mis à jour.`);
@@ -302,7 +302,7 @@ exports.updateIntegratorProbesSettings = (req, res) => {
         }
 
         const probesPath = path.join(__dirname, '..', 'config', 'integratorProbes.json');
-        
+
         fs.writeFileSync(probesPath, JSON.stringify(newSettings, null, 4), 'utf8');
         console.log(`${V.write} Fichier integratorProbes.json mis à jour.`);
 
@@ -341,7 +341,7 @@ exports.getAllStations = async (req, res) => {
     try {
         console.log(`${V.book} Récupération de la liste des stations`);
         const allConfigs = configManager.loadAllConfigs();
-        
+
         const stationPingPromises = Object.keys(allConfigs).map(async (stationId) => {
             const config = allConfigs[stationId];
             let pingTime = 'unreachable!';
@@ -384,9 +384,9 @@ exports.getStation = (req, res) => {
     try {
         const stationId = req.params.stationId;
         console.log(`${V.gear} Récupération de la configuration de la station ${stationId}`);
-        
+
         const config = configManager.getConfig(stationId);
-        
+
         if (!config) {
             return res.status(404).json({
                 success: false,
@@ -426,7 +426,7 @@ exports.updateStation = (req, res) => {
         // Charger la config actuelle pour ne pas écraser l'ID par erreur et fusionner proprement
         const currentConfig = configManager.getConfig(stationId);
         if (!currentConfig) {
-             return res.status(404).json({
+            return res.status(404).json({
                 success: false,
                 error: `Station ${stationId} non trouvée`
             });
@@ -445,11 +445,11 @@ exports.updateStation = (req, res) => {
                 settings: updatedConfig
             });
         } else {
-             throw new Error("Erreur lors de l'écriture de la configuration.");
+            throw new Error("Erreur lors de l'écriture de la configuration.");
         }
 
     } catch (error) {
-         console.error(`${V.error} Erreur lors de la mise à jour de la station ${req.params.stationId}:`, error);
+        console.error(`${V.error} Erreur lors de la mise à jour de la station ${req.params.stationId}:`, error);
         res.status(500).json({
             success: false,
             error: 'Erreur lors de la mise à jour de la configuration de la station'
@@ -460,10 +460,10 @@ exports.updateStation = (req, res) => {
 exports.getHealth = (req, res) => {
     try {
         console.log(`${V.eye} Check de santé de l'application`);
-        
+
         const allConfigs = configManager.loadAllConfigs();
         const stationsList = Object.keys(allConfigs);
-        
+
         const health = {
             status: 'healthy',
             timestamp: new Date().toISOString(),
@@ -507,15 +507,15 @@ exports.createStation = (req, res) => {
         const allConfigs = configManager.loadAllConfigs();
         console.log(newConfig, allConfigs);
         // il faut netoyer le name pour enlever tous les caractere qui ne passent pas dans les url api
-        const stationId =  newConfig.name.replace(/[^a-zA-Z0-9_.-]/g, '');
+        const stationId = newConfig.name.replace(/[^a-zA-Z0-9_.-]/g, '');
 
         // creation de la nouvelle configuration avec stationId base sur le name mais doit etre different de tous les stationId existant sinoon on retourne une ereur
         if (allConfigs[stationId]) {
             return res.status(409).json({ success: false, error: `La configuration pour la station ${stationId} existe déjà, choisiser un autre nom !` });
         }
-        
+
         console.log(`${V.write} Création d'une nouvelle configuration pour la station ${stationId}`);
-        
+
         // Validation des champs requis
         if (!newConfig.host || !newConfig.port) {
             return res.status(400).json({
@@ -523,7 +523,7 @@ exports.createStation = (req, res) => {
                 error: 'Les champs IP et port sont requis'
             });
         }
-        
+
         // on defini l'object complet
         const newConfigObject = {
             "id": stationId,
@@ -593,13 +593,26 @@ exports.createStation = (req, res) => {
                 "lastReadValue": null
             },
             "lastArchiveDate": new Date().toISOString(),
-            "cron": {
-                "comment": "cron intervale value, collect enabled status, expand data with openMeteo history and every day.",
+            "collect": {
+                "comment": "collecte des donnees des capteurs locaux (VP2 et autres capteurs)",
                 "value": 5,
                 "enabled": false,
-                "openMeteo": false,
-                "forecast": false,
-                "model": "best_match"
+                "lastRun": "",
+                "msg": ""
+            },
+            "forecast": {
+                "comment": "recupere les previsions pour les capteurs standard (toute les heures)",
+                "model": "meteofrance_arome_france_hd",
+                "enabled": false,
+                "lastRun": "",
+                "msg": ""
+            },
+            "historical": {
+                "comment": "recupere les previsions pour les capteurs standard (toute les jours a 23h30)",
+                "since": "1900",
+                "enabled": false,
+                "lastRun": "",
+                "msg": ""
             },
             "deltaTimeSeconds": null,
             "path": null,
@@ -608,10 +621,10 @@ exports.createStation = (req, res) => {
                 "Venti'Connect": []
             }
         }
-        
+
         // Sauvegarder la nouvelle configuration
         const success = configManager.saveConfig(stationId, newConfigObject);
-        
+
         if (success) {
             res.status(201).json({
                 success: true,

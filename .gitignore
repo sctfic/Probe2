@@ -15,3 +15,8 @@ public/img/batterie-50.png
 public/js/_old/
 docs/Probe_Weather0(VP2_GTD).sql.lzma
 config/visites.json
+public/js/yahooStocksParser.js
+public/periodicProfile.html
+utils/yahooStocksParser.js
+visits/analytics.json
+visits/analytics.json

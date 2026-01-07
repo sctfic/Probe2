@@ -20,12 +20,12 @@ function scheduleJobForStation(stationId, stationConfig) {
         removeJobForStation(stationId);
     }
 
-    if (!stationConfig.cron || !stationConfig.cron.enabled) {
+    if (!stationConfig.collect || !stationConfig.collect.enabled) {
         console.log(`${V.info} [CRON] La collecte n'est pas activée pour ${stationId}.`);
         return;
     }
 
-    const cronInterval = stationConfig.cron.value;
+    const cronInterval = stationConfig.collect.value;
     if (!cronInterval || typeof cronInterval !== 'number' || cronInterval <= 0) {
         console.log(`${V.Warn} [CRON] Intervalle invalide pour ${stationId}. Tâche non planifiée.`);
         return;
@@ -64,8 +64,8 @@ function scheduleOpenMeteoJob(stationId, stationConfig) {
         removeOpenMeteoJob(stationId);
     }
 
-    if (!stationConfig.cron || !stationConfig.cron.openMeteo) {
-        console.log(`${V.info} [CRON] La collecte Open-Meteo n'est pas activée pour ${stationId}.`);
+    if (!stationConfig.historical || !stationConfig.historical.enabled) {
+        console.log(`${V.info} [CRON] La collecte historique n'est pas activée pour ${stationId}.`);
         return;
     }
 
@@ -104,9 +104,9 @@ function scheduleOpenMeteoForecastJob(stationId, stationConfig) {
     }
 
     // Vérifie si la fonctionnalité forecast est activée spécifiquement
-    if (!stationConfig.cron || !stationConfig.cron.forecast) {
-         console.log(`${V.info} [CRON] La tâche de prévision n'est pas activée pour ${stationId}.`);
-         return;
+    if (!stationConfig.forecast || !stationConfig.forecast.enabled) {
+        console.log(`${V.info} [CRON] La tâche de prévision n'est pas activée pour ${stationId}.`);
+        return;
     }
 
     // Toutes les heures à la minute 3

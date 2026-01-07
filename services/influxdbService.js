@@ -25,7 +25,7 @@ function initialize(config) {
     org = config.org;
     bucket = config.bucket;
 
-    influxDB = new InfluxDB({ url, token });
+    influxDB = new InfluxDB({ url, token, timeout: 12000 });
     writeApi = influxDB.getWriteApi(org, bucket);
     queryApi = influxDB.getQueryApi(org);
     deleteApi = new DeleteAPI(influxDB);
@@ -91,19 +91,23 @@ function reinitializeInfluxDB(newConfig) {
  */
 async function deleteForecasts(stationId) {
     const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    // sixMonthsAgo - 180 days;
+    sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180);
     const start = sixMonthsAgo.toISOString();
     const stop = new Date().toISOString(); // Jusqu'à maintenant (exclusive)
-    
-    // Le prédicat pour cibler les données: tag 'station_id' et tag 'forecast'
-    let predicate = `r["station_id"]=="${stationId}" and r["forecast"]=="true"`;
+
+    // Le prédicat Flux pour le comptage
+    const fluxPredicate = `r["station_id"]=="${stationId}" and r["forecast"]=="true"`;
+    // Le prédicat pour l'API de suppression (syntaxe simplifiée)
+    const deletePredicate = `station_id="${stationId}" AND forecast="true"`;
 
     try {
         // 1. Compter les points à supprimer
         const countQuery = `
             from(bucket: "${bucket}")
                 |> range(start: ${start}, stop: ${stop})
-                |> filter(fn: (r) => ${predicate})
+                |> filter(fn: (r) => ${fluxPredicate})
+                |> group()
                 |> count()
         `;
         const countResult = await executeQuery(countQuery);
@@ -111,22 +115,23 @@ async function deleteForecasts(stationId) {
 
         if (count === 0) {
             console.log(`${V.info} Aucune prévision à supprimer pour ${stationId}.`);
-            return null;
+            return { count: 0, range: { start, stop } };
         }
 
-        predicate = predicate.replaceAll(`r["`,'').replaceAll(`"]==`,'=').replaceAll('and','AND');
-        console.log(`${V.trash}  ${count} points de prévisions à supprimer pour ${stationId} entre ${start} et ${stop}.`, predicate);
-
-        // 2. Supprimer les données
-        await deleteApi.postDelete({
-            org, // LPZ
-            bucket, // Probe
+        console.log(`${V.trash}  ${count} points de prévisions à supprimer pour ${stationId} entre ${start} et ${stop}.`);
+        console.log(`Prédicat de suppression: ${deletePredicate}`);
+        const deleteObject = {
+            org,
+            bucket,
             body: {
-                start, // 2025-06-11T10:37:16.612Z
-                stop,  // 2025-12-11T11:37:16.612Z
-                predicate // station_id="VP2_Serramoune" AND forecast="true"
+                start: new Date(start),
+                stop: new Date(stop),
+                predicate: deletePredicate
             },
-        });
+        };
+        console.log(deleteObject);
+        // 2. Supprimer les données avec un format RFC3339 strict
+        await deleteApi.postDelete(deleteObject);
 
         console.log(`${V.Check} Suppression des prévisions pour ${stationId} réussie.`);
 
@@ -141,6 +146,7 @@ async function deleteForecasts(stationId) {
             console.log(`${V.info} Aucune série de prévisions trouvée à supprimer pour ${stationId}.`);
             return {
                 count: 0,
+                message: 'restart infludb : sudo /etc/init.d/influxdb restart',
                 range: { start, stop },
             };
         }
@@ -148,6 +154,7 @@ async function deleteForecasts(stationId) {
         console.error(`${V.error} Erreur inattendue lors de la suppression des prévisions pour ${stationId}:`, error.message);
         return {
             count: false,
+            error: error.message,
             range: { start, stop },
         };
     }
@@ -186,9 +193,9 @@ async function executeQuery(fluxQuery) {
             next(row, tableMeta) {
                 results.push(tableMeta.toObject(row));
             },
-            error(error){
+            error(error) {
                 console.error(`${V.error} Erreur lors de l'exécution de la requête Flux:`, error);
-                error.body.message = 'Influxdb '+error.body.message
+                error.body.message = 'Influxdb ' + error.body.message
                 console.log(`${V.error} Requête Flux:\n`, error);
                 reject(error);
             },
@@ -204,7 +211,7 @@ async function getInfluxMetadata(stationId = null, knownTags = ['sensor', 'stati
     try {
         // REQUÊTE UNIQUE avec les tags connus - LIMITÉ aux derniers jours
         const keepColumns = ['_measurement', '_field', ...knownTags].map(c => `"${c}"`).join(', ');
-        
+
         const query = `
             from(bucket: "${bucket}")
                 |> range(start: -${daysBack}d)
@@ -219,11 +226,11 @@ async function getInfluxMetadata(stationId = null, knownTags = ['sensor', 'stati
 
         // Construction de la structure
         const bucketStructure = {};
-        
+
         allRows.forEach(row => {
             const measurement = row._measurement;
             const field = row._field;
-            
+
             if (!bucketStructure[measurement]) {
                 bucketStructure[measurement] = {
                     tags: {},
@@ -233,9 +240,9 @@ async function getInfluxMetadata(stationId = null, knownTags = ['sensor', 'stati
                     bucketStructure[measurement].tags[tag] = new Set();
                 });
             }
-            
+
             bucketStructure[measurement].fields.add(field);
-            
+
             knownTags.forEach(tag => {
                 if (row[tag] !== null && row[tag] !== undefined) {
                     bucketStructure[measurement].tags[tag].add(row[tag]);
@@ -294,7 +301,7 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, archives
         filter = getFilter(sensorRef);
     }
     let scope = ' |> filter(fn: (r) => r.forecast != "true")';
-    if (!archivesOnly) {scope = '            |> group()'}
+    if (!archivesOnly) { scope = '            |> group()' }
 
     const now = new Date();
     const endStop = now.setUTCDate(now.getUTCDate() + 30);
@@ -332,7 +339,7 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, archives
         return { firstUtc: null, lastUtc: null, count: 0, unit: '' };
     }
     const data = result[0];
-    
+
 
     return {
         firstUtc: data.first || (new Date().toISOString()),
@@ -377,7 +384,7 @@ async function queryLast(stationId, startDate = '-7d', endDate = 'now()') {
         const value = data._value;
         const time = data._time;
         if (!datas[sensor]) {
-            datas[sensor] = {d: time};
+            datas[sensor] = { d: time };
         }
         datas[sensor][data._field] = Math.round(value * 1000) / 1000;
     });
@@ -395,7 +402,7 @@ async function queryLast(stationId, startDate = '-7d', endDate = 'now()') {
 async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeconds = 3600) {
     // Définir les champs qui doivent être sommés (mesures de pluie/évapotranspiration)
     const rainFields = ['rainFall', 'ET'];
-    
+
     // Séparer les capteurs en fonction de leur type (cumulatif ou moyenne)
     const cumulativeSensors = sensorRefs.filter(ref => {
         const [, sensor] = ref.includes(':') ? ref.split(':') : [null, ref];
@@ -405,18 +412,18 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
         const [, sensor] = ref.includes(':') ? ref.split(':') : [null, ref];
         return !rainFields.includes(sensor);
     });
-    
+
     // Construire les filtres
-    const sumFilter = cumulativeSensors.length > 0 
+    const sumFilter = cumulativeSensors.length > 0
         ? cumulativeSensors.map(ref => getFilter(ref)).join(' or ')
         : null;
     const meanFilter = meanSensors.length > 0
         ? meanSensors.map(ref => getFilter(ref)).join(' or ')
         : null;
-    
+
     // Construire la requête Flux
     let fluxQuery = '';
-    
+
     // Requête pour les champs à sommer (rain)
     if (sumFilter) {
         fluxQuery += `
@@ -429,7 +436,7 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
             |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement", "sensor"])
         `;
     }
-    
+
     // Requête pour les champs à moyenner
     if (meanFilter) {
         if (sumFilter) {
@@ -445,7 +452,7 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
             |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement", "sensor"])
         `;
     }
-    
+
     // Combiner les résultats si nécessaire
     if (sumFilter && meanFilter) {
         fluxQuery += `
@@ -472,7 +479,7 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
             |> yield()
         `;
     }
-    
+
     return await executeQuery(fluxQuery);
 }
 
@@ -558,7 +565,7 @@ async function queryWindRose(stationId, startDate, endDate, intervalSeconds = 36
  * @returns {Object} Les données converties par intervalle.
  */
 function parserWindRose(data) {
-    const petal = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW","Calm"];
+    const petal = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW", "Calm"];
     return data.reduce((accumulator, currentItem) => {
         const { _time, direction, count_gust, speed_gust, count_avg, speed_avg } = currentItem;
         const petalIndex = Math.floor(direction / 22.5);
@@ -567,16 +574,16 @@ function parserWindRose(data) {
         }
 
         accumulator[_time][petal[petalIndex]] = {
-                gust:{
-                    v:Math.round(speed_gust*100)/100,
-                    c:count_gust
-                },
-                wind:{
-                    v:Math.round(speed_avg*100)/100,
-                    c:count_avg
-                }
-            };
-        
+            gust: {
+                v: Math.round(speed_gust * 100) / 100,
+                c: count_gust
+            },
+            wind: {
+                v: Math.round(speed_avg * 100) / 100,
+                c: count_avg
+            }
+        };
+
         return accumulator;
     }, {});
 }
@@ -608,7 +615,7 @@ async function queryWindVectors(stationId, sensorRef, startDate, endDate, interv
                 }
             })
     `;
-    
+
     try {
         const results = await executeQuery(fluxQuery);
         return results.map(item => {
@@ -678,7 +685,7 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
             |> sort(columns: ["datetime"])
             |> keep(columns: ["datetime", "first", "min", "avg", "max", "last", "count"])
     `;
-    
+
     return await executeQuery(fluxQuery);
 }
 
@@ -717,7 +724,7 @@ module.exports = {
     reinitializeInfluxDB,
     writePoints,
     Point,
-    getInfluxMetadata  ,
+    getInfluxMetadata,
     queryDateRange,
     queryRaw,
     queryRaws,

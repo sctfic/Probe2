@@ -19,11 +19,11 @@ const vm = require('vm');
 // Generic function to handle errors
 const handleError = (res, stationId, error, controllerName) => {
     console.error(`${V.error} Erreur dans ${controllerName} pour ${stationId}:`, error);
-    
+
     // Détection spécifique des erreurs InfluxDB
     let errorMessage = error.message;
     let statusCode = error.statusCode || 500;
-    
+
     // Vérifier si c'est une erreur d'authentification InfluxDB
     if (error.message && (
         error.message.toLowerCase().includes('unauthorized') ||
@@ -32,12 +32,12 @@ const handleError = (res, stationId, error, controllerName) => {
         errorMessage = `Erreur d'authentification InfluxDB: Accès non autorisé à la base de données. Vérifiez le token et les permissions dans la configuration InfluxDB.`;
         statusCode = 502; // Bad Gateway - pour indiquer que c'est un problème avec le service backend
     }
-    
+
     // Autres erreurs InfluxDB spécifiques
     if (error.message && error.message.toLowerCase().includes('influx')) {
         errorMessage = `Erreur InfluxDB: ${error.message}`;
     }
-    
+
     res.status(statusCode).json({
         success: false,
         stationId: stationId || 'unknown',
@@ -61,8 +61,8 @@ async function getIntervalSeconds(stationId, sensorRef, startDate, endDate, step
     const startTime = new Date(dateRange.firstUtc);
     const endTime = new Date(dateRange.lastUtc);
     // 3. Calcule l'intervalle optimal
-    const totalSeconds  = (endTime.getTime() - startTime.getTime()) / 1000;
-    const interval = Math.max(1, Math.round(totalSeconds / parseInt(stepCount) / 300)*300);
+    const totalSeconds = (endTime.getTime() - startTime.getTime()) / 1000;
+    const interval = Math.max(1, Math.round(totalSeconds / parseInt(stepCount) / 300) * 300);
     return {
         start: startTime.toISOString().replace('.000Z', 'Z'),
         end: endTime.toISOString().replace('.000Z', 'Z'),
@@ -130,10 +130,10 @@ exports.getQueryMetadata = async (req, res) => {
         console.log(`${V.info} getQueryMetadata: ${Date.now() - start}ms`);
 
         const allFields = Object.entries(_measurements) // liste des sensors en nom long
-            .flatMap(([measurementType, measurement]) => 
+            .flatMap(([measurementType, measurement]) =>
                 (measurement.tags?.sensor || []).map(sensor => `${measurementType}:${sensor}`)
             );
-            console.log(`${V.info} getQueryMetadata: ${Date.now() - start}ms`);
+        console.log(`${V.info} getQueryMetadata: ${Date.now() - start}ms`);
 
         res.json({
             success: true,
@@ -141,7 +141,7 @@ exports.getQueryMetadata = async (req, res) => {
             version: probeVersion,
             metadata: {
                 stationId: stationId,
-                gps:{
+                gps: {
                     latitude: req.stationConfig.latitude.lastReadValue,
                     longitude: req.stationConfig.longitude.lastReadValue,
                     altitude: req.stationConfig.altitude.lastReadValue,
@@ -159,7 +159,7 @@ exports.getQueryMetadata = async (req, res) => {
     }
 };
 
-function getTypeAndSensor(sensorRef='') {
+function getTypeAndSensor(sensorRef = '') {
     let type, sensor;
     if (sensorRef.includes(':')) {
         [type, sensor] = sensorRef.split(':');
@@ -177,22 +177,22 @@ function getTypeAndSensor(sensorRef='') {
 exports.getQueryRange = async (req, res) => {
     const { stationId, sensorRef } = req.params;
     const { startDate, endDate } = req.query;
-    
+
     if (!stationId) {
         return res.status(400).json({ success: false, error: 'Les paramètres stationId et sensorRef sont requis.' });
     }
-    
+
     const { type, sensor } = getTypeAndSensor(sensorRef);
-    
+
     try {
         console.log(`${V.info} Demande de plage de dates pour ${stationId} - ${sensorRef}`);
-        const data = await influxdbService.queryDateRange(stationId, sensorRef, startDate ? new Date(startDate).getTime()/1000 : null, endDate ? (new Date(endDate).getTime()+1000)/1000 : null);
+        const data = await influxdbService.queryDateRange(stationId, sensorRef, startDate ? new Date(startDate).getTime() / 1000 : null, endDate ? (new Date(endDate).getTime() + 1000) / 1000 : null);
         res.json({
             success: true,
             message: 'Success',
             metadata: {
                 stationId: stationId,
-                gps:{
+                gps: {
                     latitude: req.stationConfig.latitude.lastReadValue,
                     longitude: req.stationConfig.longitude.lastReadValue,
                     altitude: req.stationConfig.altitude.lastReadValue,
@@ -202,7 +202,7 @@ exports.getQueryRange = async (req, res) => {
                 queryTime: new Date().toISOString(),
                 first: data.firstUtc ? new Date(data.firstUtc).toISOString() : null,
                 last: data.lastUtc ? new Date(data.lastUtc).toISOString() : null,
-                intervalSeconds: data.count > 1 ? Math.round((new Date(data.lastUtc).getTime() - new Date(data.firstUtc).getTime()) / (data.count - 1))/1000 : null,
+                intervalSeconds: data.count > 1 ? Math.round((new Date(data.lastUtc).getTime() - new Date(data.firstUtc).getTime()) / (data.count - 1)) / 1000 : null,
                 count: null,
                 unit: null,
                 userUnit: units?.[type]?.user || '',
@@ -216,7 +216,7 @@ exports.getQueryRange = async (req, res) => {
 };
 
 async function getCalculatedData(stationConfig, probeConfig, start, end, intervalSeconds) {
-// console.log(V.info, stationConfig, probeConfig, start, end, intervalSeconds);
+    // console.log(V.info, stationConfig, probeConfig, start, end, intervalSeconds);
     // Prepare script context for calculations
     const scriptContext = {};
     const loadedScripts = new Set();
@@ -270,7 +270,7 @@ exports.getQueryRaw = async (req, res) => {
     try {
         // --- Common setup ---
         const { type, sensor } = getTypeAndSensor(sensorRef);
-        const timeInfo = await getIntervalSeconds(stationId, type+':'+sensor, startDate, endDate, stepCount);
+        const timeInfo = await getIntervalSeconds(stationId, type + ':' + sensor, startDate, endDate, stepCount);
         console.log(`${V.info} Demande de données brutes pour ${stationId} - ${sensorRef}`, timeInfo);
         const { start, end, intervalSeconds } = timeInfo;
 
@@ -289,7 +289,7 @@ exports.getQueryRaw = async (req, res) => {
             msg = 'Calculated data loaded!';
         } else {
             // Handle regular sensor
-            const rawData = await influxdbService.queryRaw(stationId, type+':'+sensor, start, end, intervalSeconds);
+            const rawData = await influxdbService.queryRaw(stationId, type + ':' + sensor, start, end, intervalSeconds);
             Data = rawData.map(row => ({
                 d: row._time,
                 v: Math.round(row._value * 100) / 100
@@ -341,72 +341,72 @@ exports.getQueryRaws = async (req, res) => {
     let sensorRefs = sensorRefsStr.split(',');
     // Retirer les doublons et les valeurs vides
     sensorRefs = sensorRefs.filter((ref, index) => ref && sensorRefs.indexOf(ref) === index);
-    
+
     if (sensorRefs.length === 0) {
         return res.status(400).json({ success: false, error: 'Aucun capteur valide dans sensorRefs.' });
     }
-    
+
     try {
         // 1. Séparer les capteurs réguliers des capteurs composites
         const regularSensors = [];
         const calcSensors = [];
-        
+
         sensorRefs.forEach(ref => {
             const { type, sensor } = getTypeAndSensor(ref);
             if (sensor && sensor.endsWith('_calc')) {
-                calcSensors.push(type+':'+sensor);
+                calcSensors.push(type + ':' + sensor);
             } else {
-                regularSensors.push(type+':'+sensor);
+                regularSensors.push(type + ':' + sensor);
             }
         });
-        
+
         // 2. Utiliser le premier capteur pour déterminer la plage de temps
         const firstSensor = regularSensors.length > 0 ? regularSensors[0] : 'pressure:barometer';
         const timeInfo = await getIntervalSeconds(stationId, firstSensor, startDate, endDate, stepCount);
-        
+
         // 3. Récupérer les données régulières
         let regularData = [];
         if (regularSensors.length > 0) {
             regularData = await influxdbService.queryRaws(stationId, regularSensors, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
         }
-        
+
         // 4. Récupérer les données composites
         const calcDataResults = [];
         for (const sensorRef of calcSensors) {
             const { sensor } = getTypeAndSensor(sensorRef);
             const probeConfig = compositeProbes[sensor];
-            
+
             if (!probeConfig) {
                 console.error(`${V.error} Configuration non trouvée pour le capteur composite: ${sensorRef}`);
                 continue;
             }
-            
+
             const data = await getCalculatedData(req.stationConfig, probeConfig, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
             calcDataResults.push({ sensorRef, data });
         }
-        
+
         // 5. Combiner les données
         // Convertir les données régulières en Map pour un accès rapide
         const regularDataMap = new Map();
         regularData.forEach(row => {
             regularDataMap.set(row._time, row);
         });
-        
+
         // Construire le tableau final
         let combinedData = [];
-        
+
         if (regularDataMap.size > 0) {
             // Utiliser les timestamps des données régulières comme base
             combinedData = Array.from(regularDataMap.entries()).map(([timestamp, row]) => {
                 const combinedRow = { _time: timestamp };
-                
+
                 // Copier les valeurs régulières
                 Object.keys(row).forEach(key => {
                     if (key !== '_time' && key !== 'result' && key !== 'table') {
                         combinedRow[key] = row[key];
                     }
                 });
-                
+
                 // Ajouter les valeurs composites pour ce timestamp
                 // console.log(`Adding composite values for timestamp: ${timestamp}`, calcDataResults);
                 calcDataResults.forEach(({ sensorRef, data }) => {
@@ -415,7 +415,7 @@ exports.getQueryRaws = async (req, res) => {
                         combinedRow[sensorRef] = matchingPoint.v;
                     }
                 });
-                
+
                 return combinedRow;
             });
         } else if (calcDataResults.length > 0) {
@@ -423,7 +423,7 @@ exports.getQueryRaws = async (req, res) => {
             const firstCalcData = calcDataResults[0].data;
             combinedData = firstCalcData.map(point => {
                 const combinedRow = { _time: point.d, [calcDataResults[0].sensorRef]: point.v };
-                
+
                 // Ajouter les autres capteurs composites
                 calcDataResults.slice(1).forEach(({ sensorRef, data }) => {
                     const matchingPoint = data.find(p => p.d === point.d);
@@ -431,11 +431,11 @@ exports.getQueryRaws = async (req, res) => {
                         combinedRow[sensorRef] = matchingPoint.v;
                     }
                 });
-                
+
                 return combinedRow;
             });
         }
-        
+
         // 6. Formater les données comme dans l'original
         const Data = combinedData.map(row => {
             let result = { d: row._time };
@@ -448,7 +448,7 @@ exports.getQueryRaws = async (req, res) => {
             });
             return result;
         }).sort((a, b) => new Date(a.d) - new Date(b.d));
-        
+
         // 7. Générer le message
         let msg = 'Full data loaded !';
         if (Data.length === stepCount + 1 && new Date(Data[Data.length - 1].d).getTime() === new Date(timeInfo.end).getTime()) {
@@ -456,10 +456,10 @@ exports.getQueryRaws = async (req, res) => {
         } else if (Data.length < stepCount) {
             msg = '<!> Data missing suspected !';
         }
-        
+
         // 8. Préparer les métadonnées et répondre
         const metadata = getMetadata(req, sensorRefs, timeInfo, Data);
-        
+
         res.json({
             success: true,
             message: msg,
@@ -474,12 +474,12 @@ exports.getQueryRaws = async (req, res) => {
 exports.getQueryCandle = async (req, res) => {
     const { stationId, sensorRef } = req.params;
     const { startDate, endDate, stepCount = 100 } = req.query;
-    
+
     const { type, sensor } = getTypeAndSensor(sensorRef);
-    
+
     try {
         // console.log(`${V.info} Demande de données candle pour ${stationId} - ${sensorRef} avec ${stepCount} intervalles`);
-        const {start, end, intervalSeconds } = await getIntervalSeconds(stationId, sensor, startDate, endDate, stepCount);
+        const { start, end, intervalSeconds } = await getIntervalSeconds(stationId, sensor, startDate, endDate, stepCount);
         // console.log(`${V.info} Intervalle choisi: ${intervalSeconds} secondes`, { start, end });
         const data = await influxdbService.queryCandle(stationId, sensor, start, end, intervalSeconds);
         // formatage des données
@@ -496,7 +496,7 @@ exports.getQueryCandle = async (req, res) => {
         });
 
         let msg = 'Full data loadded !';
-        if (Data.length==stepCount+1 && new Date(Data[Data.length-1].d).getTime()==end) {
+        if (Data.length == stepCount + 1 && new Date(Data[Data.length - 1].d).getTime() == end) {
             // Data.pop(); // supprimer la derniere valeur, qui est la derniere valeur de la plage avant agregation
             msg = '(!) Last value is current !';
         } else if (Data.length < stepCount) {
@@ -533,7 +533,7 @@ exports.getQueryCandle = async (req, res) => {
 exports.getQueryWindRose = async (req, res) => {
     const { stationId } = req.params;
     const { startDate, endDate, stepCount = 10, prefix = '' } = req.query; // prefix peut être vide ou 'open-meteo_'
-    
+
     if (!stationId) {
         return res.status(400).json({ success: false, error: 'Le paramètre stationId est requis.' });
     }
@@ -542,7 +542,7 @@ exports.getQueryWindRose = async (req, res) => {
         const timeInfo = await getIntervalSeconds(stationId, `speed:${prefix}Wind`, startDate, endDate, stepCount);
         const data = await influxdbService.queryWindRose(stationId, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds, prefix);
         let msg = 'Full data loadded !';
-        if (data.length==stepCount+1 && new Date(data[data.length-1].d).getTime()==timeInfo.end) {
+        if (data.length == stepCount + 1 && new Date(data[data.length - 1].d).getTime() == timeInfo.end) {
             // data.pop(); // supprimer la derniere valeur, qui est la derniere valeur de la plage avant agregation
             msg = '(!) Last value is current !';
         } else if (data.length < stepCount) {
@@ -564,23 +564,23 @@ exports.getQueryWindRose = async (req, res) => {
 exports.getQueryWindVectors = async (req, res) => {
     const { stationId, sensorRef } = req.params;
     const { startDate, endDate, stepCount = 100 } = req.query;
-    
+
     if (!stationId) {
         return res.status(400).json({ success: false, error: 'Le paramètre stationId est requis.' });
     }
-    
+
     try {
         console.log(`${V.info} Demande de données de vent pour ${stationId}`);
         const timeInfo = await getIntervalSeconds(stationId, 'speed:Wind', startDate, endDate, stepCount);
         const data = await influxdbService.queryWindVectors(stationId, sensorRef, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
         let msg = 'Full data loadded !';
-        if (data.length==stepCount+1 && new Date(data[data.length-1].d).getTime()==timeInfo.end) {
+        if (data.length == stepCount + 1 && new Date(data[data.length - 1].d).getTime() == timeInfo.end) {
             // data.pop(); // supprimer la derniere valeur, qui est la derniere valeur de la plage avant agregation
             msg = '(!) Last value is current !';
         } else if (data.length < stepCount) {
             msg = '<!> Data missing suspected !';
         }
-        const metadata = getMetadata(req, ['speed:'+sensorRef, 'direction:'+sensorRef], timeInfo, data);
+        const metadata = getMetadata(req, ['speed:' + sensorRef, 'direction:' + sensorRef], timeInfo, data);
         metadata.sensor = sensorRef;
         res.json({
             success: true,
@@ -624,7 +624,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             startDate = new Date();
             startDate.setFullYear(endDate.getFullYear() - 54); // Récupère les 54 dernières années
         }
-        
+
         const openMeteoUrl = `https://archive-api.open-meteo.com/v1/archive`;
         const params = {
             latitude: latitude.toFixed(2),
@@ -767,14 +767,27 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             });
         }
 
+        if (stationConfig.historical) {
+            stationConfig.historical.lastRun = new Date().toISOString();
+            stationConfig.historical.msg = `${totalPointsWritten} points imported successfully.`;
+            configManager.autoSaveConfig(stationConfig);
+        }
+
         res.json({
             success: true,
             stationId: stationId,
-            message: `${totalPointsWritten} points de données historiques ont été importés avec succès pour la station ${stationId}.`,
-            pointsCount: totalPointsWritten
+            message: `${totalPointsWritten} points de données historiques ont été importés avec succès pour la station ${stationId}, pour la période [${startDate.toISOString().slice(0, 16).replace('T', ' ')}, ${endDate.toISOString().slice(0, 16).replace('T', ' ')}]`,
+            pointsCount: totalPointsWritten,
+            startDate,
+            endDate
         });
 
     } catch (error) {
+        if (stationConfig && stationConfig.historical) {
+            stationConfig.historical.lastRun = new Date().toISOString();
+            stationConfig.historical.msg = `Error: ${error.message}`;
+            configManager.autoSaveConfig(stationConfig);
+        }
         handleError(res, stationId, error, 'expandDbWithOpenMeteo');
     }
 };
@@ -791,7 +804,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
             longitude: stationConfig.longitude.lastReadValue,
             elevation: stationConfig.altitude.lastReadValue,
         };
-        const model = stationConfig.cron.model || 'best_match';
+        const model = (stationConfig.forecast && stationConfig.forecast.model) || 'best_match';
 
         if (!latitude || !longitude) {
             throw new Error("Les coordonnées GPS de la station ne sont pas définies.");
@@ -828,7 +841,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
         if (!openMeteoData || !openMeteoData.hourly || !openMeteoData.hourly.time) {
             throw new Error("Format de données JSON invalide de l'API Open-Meteo Forecast.");
         }
-        
+
         const { time, ...metrics } = openMeteoData.hourly;
         console.log(`${V.gear} Traitement de ${time.length} points de données de prévisions...`);
         let pointsChunk = [];
@@ -849,54 +862,58 @@ exports.getOpenMeteoForecast = async (req, res) => {
             'shortwave_radiation': { type: 'irradiance', sensor: ['solar'] }
         };
 
-
+        let timestamp;
         for (let i = 0; i < time.length; i++) {
-            const timestamp = new Date(time[i]); // Le temps est déjà un ISO string dans le forecast
-            timestamp.setMinutes(0, 0, 0);
+            // Le temps est déjà un ISO string local à la station.
+            // On le traite comme une chaîne pour éviter les conversions de fuseau horaire du serveur.
+            const localTimestampStr = time[i];
+            timestamp = new Date(localTimestampStr);
 
-            for (const [openMeteoKey, values] of Object.entries(metrics)) {
-                const value = values[i];
-                if (value !== null && mapping[openMeteoKey]) {
-                    const { type, sensor, convert } = mapping[openMeteoKey];
-                    const metricValue = convert ? convert(value) : value;
-                    sensor.forEach(s => {
-                        pointsChunk.push(new influxdbService.Point(type)
-                            .tag('station_id', stationId)
-                            .tag('sensor', s)
-                            .tag('forecast', 'true') // Tag pour les prévisions
-                            .floatField('value', metricValue.toFixed(2))
-                            .timestamp(timestamp));
-                    });
+            if (timestamp > (new Date())) {
+                for (const [openMeteoKey, values] of Object.entries(metrics)) {
+                    const value = values[i];
+                    if (value !== null && mapping[openMeteoKey]) {
+                        const { type, sensor, convert } = mapping[openMeteoKey];
+                        const metricValue = convert ? convert(value) : value;
+                        sensor.forEach(s => {
+                            pointsChunk.push(new influxdbService.Point(type)
+                                .tag('station_id', stationId)
+                                .tag('sensor', s)
+                                .tag('forecast', 'true') // Tag pour les prévisions
+                                .floatField('value', metricValue.toFixed(2))
+                                .timestamp(timestamp));
+                        });
+                    }
                 }
+
+                const Wind = metrics.wind_speed_10m[i] / 3.6;
+                const WindDir = metrics.wind_direction_10m[i];
+                const UxWind = Math.round(Wind * Math.sin(Math.PI * WindDir / 180.0) * 1000) / 1000;
+                const VyWind = Math.round(Wind * Math.cos(Math.PI * WindDir / 180.0) * 1000) / 1000;
+                pointsChunk.push(new influxdbService.Point('vector')
+                    .tag('station_id', stationId)
+                    .floatField('Ux', UxWind)
+                    .floatField('Vy', VyWind)
+                    .tag('sensor', 'Wind')
+                    .tag('forecast', 'true') // Tag pour les prévisions
+                    .timestamp(timestamp));
+
+                const Gust = metrics.wind_gusts_10m[i] / 3.6;
+                const GustDir = metrics.wind_direction_10m[i];
+                const UxGust = Math.round(Gust * Math.sin(Math.PI * GustDir / 180.0) * 1000) / 1000;
+                const VyGust = Math.round(Gust * Math.cos(Math.PI * GustDir / 180.0) * 1000) / 1000;
+                pointsChunk.push(new influxdbService.Point('vector')
+                    .tag('station_id', stationId)
+                    .floatField('Ux', UxGust)
+                    .floatField('Vy', VyGust)
+                    .tag('sensor', 'Gust')
+                    .tag('forecast', 'true') // Tag pour les prévisions
+                    .timestamp(timestamp));
+
+                totalPointsGenerated += (Object.keys(mapping).length * 2) + 2; // Estimation grossière du nombre de points
             }
-
-            const Wind = metrics.wind_speed_10m[i] / 3.6;
-            const WindDir = metrics.wind_direction_10m[i];
-            const UxWind = Math.round(Wind * Math.sin(Math.PI * WindDir / 180.0) * 1000) / 1000;
-            const VyWind = Math.round(Wind * Math.cos(Math.PI * WindDir / 180.0) * 1000) / 1000;
-            pointsChunk.push(new influxdbService.Point('vector')
-                .tag('station_id', stationId)
-                .floatField('Ux', UxWind)
-                .floatField('Vy', VyWind)
-                .tag('sensor', 'Wind')
-                .tag('forecast', 'true') // Tag pour les prévisions
-                .timestamp(timestamp));
-
-            const Gust = metrics.wind_gusts_10m[i] / 3.6;
-            const GustDir = metrics.wind_direction_10m[i];
-            const UxGust = Math.round(Gust * Math.sin(Math.PI * GustDir / 180.0) * 1000) / 1000;
-            const VyGust = Math.round(Gust * Math.cos(Math.PI * GustDir / 180.0) * 1000) / 1000;
-            pointsChunk.push(new influxdbService.Point('vector')
-                .tag('station_id', stationId)
-                .floatField('Ux', UxGust)
-                .floatField('Vy', VyGust)
-                .tag('sensor', 'Gust')
-                .tag('forecast', 'true') // Tag pour les prévisions
-                .timestamp(timestamp));
-
-            totalPointsGenerated += (Object.keys(mapping).length * 2) + 2; // Estimation grossière du nombre de points
         }
-        
+
         let writtenCount = 0;
         if (pointsChunk.length > 0) {
             writtenCount = await influxdbService.writePoints(pointsChunk);
@@ -908,15 +925,26 @@ exports.getOpenMeteoForecast = async (req, res) => {
         const deleted = await influxdbService.deleteForecasts(stationId);
         console.log(V.trash, ` Suppression de ${deleted.count} points de prévisions obsolètes pour ${stationId}.`, deleted, V.Check);
 
+        if (stationConfig.forecast) {
+            stationConfig.forecast.lastRun = new Date().toISOString();
+            stationConfig.forecast.msg = `${writtenCount} points imported, ${deleted.count} deleted.`;
+            configManager.autoSaveConfig(stationConfig);
+        }
+
         res.json({
             success: true,
             stationId: stationId,
-            message: `${writtenCount} points de données de prévisions ont été importés avec succès pour la station ${stationId}.`,
+            message: `${writtenCount} points de données de prévisions ont été importés avec succès pour la station ${stationId}, jusqu'au [${timestamp.toISOString().slice(0, 16).replace('T', ' ')}]`,
             pointsWritten: writtenCount,
             pointsDeleted: deleted,
         });
 
     } catch (error) {
+        if (stationConfig && stationConfig.forecast) {
+            stationConfig.forecast.lastRun = new Date().toISOString();
+            stationConfig.forecast.msg = `Error: ${error.message}`;
+            configManager.autoSaveConfig(stationConfig);
+        }
         handleError(res, stationId, error, 'getOpenMeteoForecast');
     }
 };
