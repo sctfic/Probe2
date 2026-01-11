@@ -19,4 +19,5 @@ public/js/yahooStocksParser.js
 public/periodicProfile.html
 utils/yahooStocksParser.js
 visits/analytics.json
-visits/analytics.json
+docs/archives/
+docs/API VentiConnect.md
