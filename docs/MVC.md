@@ -1,3 +1,4 @@
+```mermaid
 graph TB
     Client([Client]) --> Route
     subgraph "Couche API"
@@ -25,6 +26,7 @@ graph TB
     style Controller fill:#f3e5f5
     style Service fill:#e8f5e8
     style Model fill:#ffebee
+```
 
 # les middleware 
 protege le controller (valide les demandes)
@@ -34,6 +36,7 @@ retranscrit et transmet la demande et les erreurs (valide les parametres)
 execute le metier
 pourrai etre appeler par une autre appli (cron, intranet, app-desktop)
 
+```mermaid
 graph LR
     subgraph "Sources d'appel multiples"
         API[API REST] --> Service
@@ -45,3 +48,4 @@ graph LR
     Service --> endpoints[(Base de données, peripheriques)]
     
     style Service fill:#e8f5e8
+```
