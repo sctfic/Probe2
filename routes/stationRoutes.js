@@ -4,6 +4,7 @@ const router = express.Router();
 const { loadStationConfig, talkStationWithLamp, talkStationQuickly } = require('../middleware/stationMiddleware');
 const { isAuthenticated } = require('../middleware/authMiddleware');
 const stationController = require('../controllers/stationController');
+const { collectExtenders } = require('../controllers/extendersController');
 // const compositeController = require('../controllers/compositeController');
 const cronService = require('../services/cronService');
 const V = require('../utils/icons');
@@ -15,7 +16,7 @@ router.use('/:stationId', loadStationConfig);
 router.delete('/:stationId', isAuthenticated, stationController.deleteStation);
 
 // Route pour récupérer les données d'archive depuis la station (GET)
-router.get('/:stationId/collect', talkStationWithLamp(stationController.getArchiveData)); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/collect
+router.get('/:stationId/collect', collectExtenders, talkStationWithLamp(stationController.getArchiveData)); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/collect
 
 // Routes pour les stations météorologiques
 router.get('/:stationId/info', stationController.getStationInfo); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/info
