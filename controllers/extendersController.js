@@ -1,5 +1,5 @@
 const { V } = require('../utils/icons');
-const { runExtenderCollection } = require('../middleware/extendersMiddleware');
+const { runExtenderCollection } = require('../services/extenderService');
 
 /**
  * Middleware de collecte utilisé par le contrôleur principal.
@@ -16,7 +16,7 @@ exports.collectExtenders = async (req, res, next) => {
     console.log(`${V.info} [EXTENDERS] Controller: Déclenchement de la collecte pour la station ${stationId}`);
 
     try {
-        // Appelle la logique de collecte définie dans le middleware (low-level/orchestration)
+        // Appelle la logique de collecte définie dans le service
         await runExtenderCollection(stationConfig);
     } catch (error) {
         console.error(`${V.error} [EXTENDERS] Controller Erreur:`, error.message);

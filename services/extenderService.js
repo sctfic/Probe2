@@ -1,7 +1,7 @@
 const axios = require('axios');
-const influxdbService = require('../services/influxdbService');
+const influxdbService = require('./influxdbService');
 const { V } = require('../utils/icons');
-const configManager = require('../services/configManager');
+const configManager = require('./configManager');
 
 /**
  * Logique de collecte pour les périphériques Venti'Connect (API JSON /actuelles)
@@ -61,30 +61,30 @@ async function collectVentiConnect(extender, stationId, points) {
                 }
             }
 
-            // Ventilateur
-            if (data.fan) {
-                if (data.fan.rpm !== undefined) {
-                    points.push(new influxdbService.Point('ticksByMin')
-                        .tag('station_id', stationId)
-                        .tag('sensor', `${prefix}rpm`)
-                        .floatField('value', data.fan.rpm)
-                        .timestamp(timestamp));
-                }
-                if (data.fan.instructions !== undefined) {
-                    points.push(new influxdbService.Point('humidity')
-                        .tag('station_id', stationId)
-                        .tag('sensor', `${prefix}fan_instruction`)
-                        .floatField('value', data.fan.instructions)
-                        .timestamp(timestamp));
-                }
-                if (data.fan.real !== undefined) {
-                    points.push(new influxdbService.Point('humidity')
-                        .tag('station_id', stationId)
-                        .tag('sensor', `${prefix}fan_real`)
-                        .floatField('value', data.fan.real)
-                        .timestamp(timestamp));
-                }
-            }
+            // // Ventilateur
+            // if (data.fan) {
+            //     if (data.fan.rpm !== undefined) {
+            //         points.push(new influxdbService.Point('ticksByMin')
+            //             .tag('station_id', stationId)
+            //             .tag('sensor', `${prefix}rpm`)
+            //             .floatField('value', data.fan.rpm)
+            //             .timestamp(timestamp));
+            //     }
+            //     if (data.fan.instructions !== undefined) {
+            //         points.push(new influxdbService.Point('humidity')
+            //             .tag('station_id', stationId)
+            //             .tag('sensor', `${prefix}fan_instruction`)
+            //             .floatField('value', data.fan.instructions)
+            //             .timestamp(timestamp));
+            //     }
+            //     if (data.fan.real !== undefined) {
+            //         points.push(new influxdbService.Point('humidity')
+            //             .tag('station_id', stationId)
+            //             .tag('sensor', `${prefix}fan_real`)
+            //             .floatField('value', data.fan.real)
+            //             .timestamp(timestamp));
+            //     }
+            // }
 
             // Tensions
             if (data.voltage) {
@@ -123,72 +123,23 @@ async function collectVentiConnect(extender, stationId, points) {
 }
 
 /**
- * Logique de collecte pour les périphériques WhisperEye (API CSV /RecupInfo)
+ * Logique de collecte pour les périphériques WhisperEye (API json /Currents)
  */
 async function collectWhisperEye(extender, stationId, points) {
     try {
-        const url = `http://${extender.host}/RecupInfo?key=${extender.apiKey}`;
+        const url = `http://${extender.host}/Currents?key=${extender.apiKey}`;
         console.log(`${V.info} [EXTENDERS] Interrogation de WhisperEye: ${extender.name} (${url})`);
 
         const response = await axios.get(url, { timeout: 5000 });
         const csvData = response.data;
 
-        if (csvData && typeof csvData === 'string') {
-            const values = csvData.split(',');
-            const timestamp = new Date();
-            const prefix = `${extender.name}_`;
 
-            const parseVal = (str) => {
-                if (!str) return undefined;
-                const num = parseFloat(str.replace(/[^\d.-]/g, ''));
-                return isNaN(num) ? undefined : num;
-            };
 
-            // Températures
-            const tOut = parseVal(values[0]);
-            const tGaine = parseVal(values[1]);
-            const tInt = parseVal(values[2]);
-            const tColl = parseVal(values[19] || values[20]);
 
-            if (tOut !== undefined) {
-                points.push(new influxdbService.Point('temperature').tag('station_id', stationId).tag('sensor', `${prefix}outdoor`).floatField('value', tOut).timestamp(timestamp));
-            }
-            if (tGaine !== undefined) {
-                points.push(new influxdbService.Point('temperature').tag('station_id', stationId).tag('sensor', `${prefix}fan`).floatField('value', tGaine).timestamp(timestamp));
-            }
-            if (tInt !== undefined) {
-                points.push(new influxdbService.Point('temperature').tag('station_id', stationId).tag('sensor', `${prefix}indoor`).floatField('value', tInt).timestamp(timestamp));
-            }
-            if (tColl !== undefined) {
-                points.push(new influxdbService.Point('temperature').tag('station_id', stationId).tag('sensor', `${prefix}collector`).floatField('value', tColl).timestamp(timestamp));
-            }
 
-            // RPM
-            const rpm = parseVal(values[18]);
-            if (rpm !== undefined) {
-                points.push(new influxdbService.Point('ticksByMin').tag('station_id', stationId).tag('sensor', `${prefix}rpm`).floatField('value', rpm).timestamp(timestamp));
-            }
 
-            // Tensions
-            const vAlimRaw = parseVal(values[11]);
-            const vMoteurRaw = parseVal(values[12]);
-            const v12Raw = parseVal(values[13]);
-            const vRemoteRaw = parseVal(values[15]);
 
-            if (vAlimRaw !== undefined) {
-                points.push(new influxdbService.Point('voltage').tag('station_id', stationId).tag('sensor', `${prefix}supply`).floatField('value', vAlimRaw / 100).timestamp(timestamp));
-            }
-            if (vMoteurRaw !== undefined) {
-                points.push(new influxdbService.Point('voltage').tag('station_id', stationId).tag('sensor', `${prefix}fan`).floatField('value', vMoteurRaw / 100).timestamp(timestamp));
-            }
-            if (vRemoteRaw !== undefined) {
-                points.push(new influxdbService.Point('voltage').tag('station_id', stationId).tag('sensor', `${prefix}remote`).floatField('value', vRemoteRaw / 1000).timestamp(timestamp));
-            }
 
-            extender.available = true;
-            console.log(`${V.Check} [EXTENDERS] Données CSV récupérées pour ${extender.name}`);
-            return true;
-        }
     } catch (error) {
         extender.available = false;
         console.error(`${V.error} [EXTENDERS] Erreur WhisperEye ${extender.name}:`, error.message);
