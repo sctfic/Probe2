@@ -8,8 +8,8 @@ const { isAuthenticated } = require('../middleware/authMiddleware');
 
 module.exports = router;
 
-// ["_measurement"] == [temperature, speed, direction, pressure, rain, rainRate, uv, irradiance, humidity, battery]
-// ["sensor_ref"] == [barometer, inTemp, inHumidity, outTemp, windSpeed, avgWindSpeed10Min, windDir, outHumidity, rainRate, rainFall, UV, solar, stormRain, dateStormRain, dayRain, monthRain, yearRain, dayET, monthET, yearET, batteryVoltage, avgWindSpeed2Min, windGust10Min, windGustDir10Min, dewPoint, heatIndex, windChill, THSW, last15MinRain, lastHourRain, last24HourRain, ForecastIcon, sunrise, sunset, date, time]
+// ["_measurement"] == [temperature, speed, direction, pressure, rain, rainRate, uv, irradiance, humidity, voltage]
+// ["sensor_ref"] == [barometer, inTemp, inHumidity, outTemp, windSpeed, avgWindSpeed10Min, windDir, outHumidity, rainRate, rainFall, UV, solar, stormRain, dateStormRain, dayRain, monthRain, yearRain, dayET, monthET, yearET, battery, avgWindSpeed2Min, windGust10Min, windGustDir10Min, dewPoint, heatIndex, windChill, THSW, last15MinRain, lastHourRain, last24HourRain, ForecastIcon, sunrise, sunset, date, time]
 
 // Middleware pour toutes les routes de query
 router.use('/:stationId', loadStationConfig); // https://probe.lpz.ovh/query/VP2_Serramoune/

@@ -82,15 +82,22 @@
     },
     "historical": {
         "comment": "recupere les previsions pour les capteurs standard (toute les jours a 23h30)",
-        "since": 1940,
+        "since": 1937,
         "enabled": false,
-        "lastRun": "2026-01-12T00:04:17.325Z",
-        "msg": "672 points imported successfully."
+        "lastRun": "2026-01-12T00:45:23.657Z",
+        "msg": "1231440 points imported successfully."
     },
     "deltaTimeSeconds": 1.48,
     "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\VP2_Serramoune.json",
     "extenders": {
         "WhisperEye": [],
-        "Venti'Connect": []
+        "Venti'Connect": [
+            {
+                "name": "ventiConnect",
+                "host": "vmc",
+                "description": "capteur thermique sous tuile",
+                "available": false
+            }
+        ]
     }
 }

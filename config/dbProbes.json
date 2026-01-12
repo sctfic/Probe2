@@ -670,10 +670,10 @@
         "groupCustom": "Instantanee",
         "sensorDb": "ET"
     },
-    "batteryVoltage": {
+    "battery": {
         "label": "Niveau batterie",
         "comment": "Niveau de la batterie",
-        "measurement": "battery",
+        "measurement": "voltage",
         "period": 2592000,
         "groupUsage": "6/ other",
         "groupCustom": "Instantanee",

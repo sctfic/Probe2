@@ -62,7 +62,7 @@ function mergeData(data) {
         }
     }
     if (data.data['stormRain']) {
-        if (data.data.dateStormRain){
+        if (data.data.dateStormRain) {
             data.data.stormRain.more = data.data.dateStormRain?.Value.split('T')[0];
             delete data.data.dateStormRain;
         } else {
@@ -126,7 +126,7 @@ function processAndDisplayConditions() {
     allConditions = Object.entries(currentConditionsData)
         .filter(([key]) => !excludeKeys.includes(key))
         .map(([key, data]) => {
-            const sensorInfo = {...data, ...tileState[key] };
+            const sensorInfo = { ...data, ...tileState[key] };
             if (sensorInfo.order !== undefined && sensorInfo.order > maxOrder) maxOrder = sensorInfo.order;
             return {
                 name: sensorInfo.label || key,
@@ -152,7 +152,7 @@ function processAndDisplayConditions() {
     let usedOrders = new Set(allConditions.map(item => item.order).filter(o => o !== undefined));
     allConditions.forEach(item => {
         if (item.order === undefined) {
-            while (usedOrders.has(++maxOrder)) {}
+            while (usedOrders.has(++maxOrder)) { }
             item.order = maxOrder;
             usedOrders.add(item.order);
         }
@@ -161,7 +161,7 @@ function processAndDisplayConditions() {
     // console.log('[DND] Conditions with custom order before sort:', allConditions.map(i => ({key: i.key, order: i.order})));
     // Afficher les conditions selon le groupement
     displayConditions();
-    
+
     // Appliquer le filtre en cours
     applyCurrentFilter();
 }
@@ -312,7 +312,7 @@ function updateExistingTile(tileElement, item) {
         let unitDisplay = item.userUnit ? `<span class="condition-unit">${item.userUnit}</span>` : '';
 
         // Cas spéciaux pour certains types de données
-        if (['dateStormRain','ForecastClass','iso8601','cardinal'].includes(item.userUnit)) {
+        if (['dateStormRain', 'ForecastClass', 'iso8601', 'cardinal'].includes(item.userUnit)) {
             unitDisplay = '';
         }
 
@@ -320,7 +320,7 @@ function updateExistingTile(tileElement, item) {
         valueElement.innerHTML = `
             <span id="tuile_${item.key}_value">${fn(currentValue)}</span>
             ${unitDisplay}
-            <span id="tuile_${item.key}_more" class="smallText">${item.more?item.more:''}</span>`;
+            <span id="tuile_${item.key}_more" class="smallText">${item.more ? item.more : ''}</span>`;
         // Appliquer l'animation si la valeur a changé
         if (hasChanged) {
             // Retirer les classes d'animation précédentes
@@ -432,7 +432,7 @@ function reorganizeConditionsGrouped(groupBy) {
                 groupKey = item.sensorDb || 'Sans historique!';
                 break;
         }
-        
+
         if (!groups[groupKey]) {
             groups[groupKey] = [];
         }
@@ -524,10 +524,10 @@ function getBatteryImageAndClass(batteryValue) {
     let level, className = '';
     if (value > 102) {
         level = 'missing';
-        className= 'missing-battery';
+        className = 'missing-battery';
     } else if (value >= 90) {
         level = 100;
-    } else if (value >=70) {
+    } else if (value >= 70) {
         level = 80;
     } else if (value >= 50) {
         level = 60;
@@ -588,10 +588,10 @@ function createConditionTileHTML(item) {
             </div>
         `;
         console.log(item);
-        if (item.userUnit === "cardinal" ) unitDisplay = '';
-    } else if (item.unit === 'dateStormRain' || item.unit === 'iso8601'){
+        if (item.userUnit === "cardinal") unitDisplay = '';
+    } else if (item.unit === 'dateStormRain' || item.unit === 'iso8601') {
         unitDisplay = '';
-    } else if (item.key === 'batteryVoltage') {
+    } else if (item.key === 'battery') {
         // Cas spécial pour la batterie avec niveau
         const batteryInfo = getBatteryImageAndClass(fn(displayValue));
         chartContent = `
@@ -617,7 +617,7 @@ function createConditionTileHTML(item) {
                 <div class="condition-value">
                     <span id="tuile_${item.key}_value">${fn(displayValue)}</span>
                     ${unitDisplay}
-                    <span id="tuile_${item.key}_more" class="smallText">${item.more?item.more:''}</span>
+                    <span id="tuile_${item.key}_more" class="smallText">${item.more ? item.more : ''}</span>
                 </div>
                 ${metaInfo}
             </div>
@@ -629,21 +629,21 @@ function createConditionTileHTML(item) {
     `;
 }
 
-function getStartDate (period){
+function getStartDate(period) {
     let date;
     if (period === 'dateStormRain') {
         const str = currentConditionsData.stormRain?.more;
         date = new Date((new Date(`${str}T00:00:00.000Z`)).getTime());
         console.log(str, date);
     } else {
-        if (typeof period === 'string'){
+        if (typeof period === 'string') {
             const P = eval(period.replace('y', '*365*24*60*60').replace('M', '*30*24*60*60').replace('w', '*24*60*60*7').replace('d', '*24*60*60').replace('h', '*60*60').replace('m', '*60'));
-            date = new Date((Math.round((new Date()).getTime()/1000) - P)*1000);
+            date = new Date((Math.round((new Date()).getTime() / 1000) - P) * 1000);
         } else {
-            date = new Date((Math.round((new Date()).getTime()/1000) - period)*1000);
+            date = new Date((Math.round((new Date()).getTime() / 1000) - period) * 1000);
         }
     }
-    date.setHours(0,0,0,0);
+    date.setHours(0, 0, 0, 0);
     return date.toISOString().split('.')[0] + 'Z';
 }
 
@@ -702,13 +702,13 @@ function handleDragEnd(e) {
 
 function handleDragOver(e) {
     e.preventDefault();
-    
+
     // Cacher temporairement l'élément déplacé pour trouver ce qui est en dessous
     if (draggedDOMElement) draggedDOMElement.style.visibility = 'hidden';
-    
+
     // Trouver l'élément sous le curseur
     const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
-    
+
     // Rendre l'élément déplacé visible à nouveau
     if (draggedDOMElement) draggedDOMElement.style.visibility = '';
 
@@ -758,13 +758,13 @@ function handleTouchStart(e) {
         isDraggingTouch = true;
         dragKey = tile.dataset.key;
         tile.classList.add('dragging');
-        
+
         // Empêcher le défilement pendant le drag
         document.body.style.overflow = 'hidden';
 
         // Pour un positionnement correct lors du déplacement
         draggedElementRect = tile.getBoundingClientRect();
-        
+
         // Haptique pour indiquer le début du drag
         if (navigator.vibrate) {
             navigator.vibrate(50);
@@ -864,7 +864,7 @@ function initDragAndDrop() {
     container.addEventListener('touchend', handleTouchEnd);
     container.addEventListener('touchcancel', handleTouchEnd);
     // Empêche le menu contextuel du navigateur d'apparaître lors d'un appui long sur mobile
-    container.addEventListener('contextmenu', (e) => {consolee.preventDefault()});
+    container.addEventListener('contextmenu', (e) => { consolee.preventDefault() });
 }
 
 function deinitDragAndDrop() {
@@ -887,7 +887,7 @@ function deinitDragAndDrop() {
 function showDetailsFooter(keys) {
     // Vérification smartphone et plein écran (déplacé ici car déclenché par user interaction)
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
-    
+
     if (isMobile && !document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch((err) => {
             // console.warn("Erreur plein écran :", err);
@@ -913,7 +913,7 @@ function showDetailsFooter(keys) {
     detailsFooter.classList.add('details-open');
     contentContainer.innerHTML = ''; // Réinitialiser le contenu
     if (items.length === 1) {
-       // Special case for wind (rose & vector)
+        // Special case for wind (rose & vector)
         if (items[0].measurement === 'direction' || items[0].sensorDb.startsWith('vector:')) {
             loadWindPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}`, items[0].sensorDb);
         } else {
@@ -926,7 +926,7 @@ function showDetailsFooter(keys) {
             return;
         }
         const sensorsQuery = sensorDbs.join(',');
-        mainPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}`,getStartDate('1y'));
+        mainPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}`, getStartDate('1y'));
     }
 }
 
@@ -936,7 +936,7 @@ function hideDetailsFooter() {
     const contentContainer = document.getElementById('d3-chart-container');
     if (!detailsFooter || !contentContainer || !mainContent) return;
 
-    const footerClosedHeight = '40px'; 
+    const footerClosedHeight = '40px';
     mainContent.style.marginBottom = footerClosedHeight;
 
     // Fonction pour nettoyer le contenu
@@ -1033,7 +1033,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         event.preventDefault();
         contextMenu.style.display = 'block';
-        
+
         const { clientX: mouseX, clientY: mouseY } = event;
         const { innerWidth, innerHeight } = window;
         const { offsetWidth: menuWidth, offsetHeight: menuHeight } = contextMenu;
@@ -1062,18 +1062,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function hideToTrash(element, trashIcon) {
         const elRect = element.getBoundingClientRect();
         const trashRect = trashIcon.getBoundingClientRect();
-      
+
         // Centre la tuile sur l'icône pour un effet plus naturel
         const deltaX = (trashRect.left + trashRect.width / 2) - (elRect.left + elRect.width / 2);
         const deltaY = (trashRect.top + trashRect.height / 2) - (elRect.top + elRect.height / 2);
-      
+
         return element.animate([
-          { transform: 'translate(0, 0) scale(1)', opacity: 1 },
-          { transform: `translate(${deltaX}px, ${deltaY}px) scale(0)`, opacity: 0 }
+            { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+            { transform: `translate(${deltaX}px, ${deltaY}px) scale(0)`, opacity: 0 }
         ], {
-          duration: 500, // Durée de l'animation
-          easing: 'ease-in', // Accélération au début
-          fill: 'forwards'
+            duration: 500, // Durée de l'animation
+            easing: 'ease-in', // Accélération au début
+            fill: 'forwards'
         });
     }
 
@@ -1087,7 +1087,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await animation.finished; // Attend la fin de l'animation
         onHideAnimationEnd(key);
     }
-    
+
     function onHideAnimationEnd(key) {
         const condition = allConditions.find(c => c.key === key);
         if (condition) {
@@ -1095,7 +1095,7 @@ document.addEventListener('DOMContentLoaded', () => {
             saveTileState();
             updateViewAllButtonVisibility();
             applyCurrentFilter();
-            
+
             // Annuler l'animation et nettoyer les styles pour que la tuile puisse se réafficher
             const tile = document.querySelector(`.condition-tile[data-key="${key}"]`);
             if (tile) {

@@ -256,7 +256,7 @@
                     }
                 },
                 "sensors": [
-                    "batteryVoltage"
+                    "battery"
                 ]
             },
             "date": {

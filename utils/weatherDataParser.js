@@ -26,7 +26,7 @@ function getSensorType(sensorName) {
 }
 
 function mapDegreesToCardinal(degrees) {
-    if ( degrees > 337.5) return "N/A";
+    if (degrees > 337.5) return "N/A";
     const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
     const index = Math.round(degrees / 22.5);
     return directions[index % 16];
@@ -69,7 +69,7 @@ function readInt8(buffer, offset, badValue = -128) {
 
 function readUInt16LE(buffer, offset, badValue = 65535) {
     const val = buffer.readUInt16LE(offset);
-    if (val === badValue) {console.error( "Bad value", val, "at offset", offset);}
+    if (val === badValue) { console.error("Bad value", val, "at offset", offset); }
     return val === badValue ? NaN : val;
 }
 
@@ -98,7 +98,7 @@ function parseLOOP1Data(data) {
     // weatherData.dayET = { value: readUInt16LE(data, 56), native_unit: "in_1000th" };
     weatherData.monthET = { value: readUInt16LE(data, 58), native_unit: "in_100th" };
     weatherData.yearET = { value: readUInt16LE(data, 60), native_unit: "in_100th" };
-    weatherData.batteryVoltage = { value: readUInt16LE(data, 87), native_unit: "((DataRaw * 3)/512) V" };
+    weatherData.battery = { value: readUInt16LE(data, 87), native_unit: "((DataRaw * 3)/512) V" };
     weatherData.ForecastNum = { value: readUInt8(data, 89), native_unit: "ForecastNum" };
     weatherData.sunrise = { value: readUInt16LE(data, 91), native_unit: "time" };
     weatherData.sunset = { value: readUInt16LE(data, 93), native_unit: "time" };
@@ -137,7 +137,7 @@ function parseLOOP2Data(data) {
 
 function parseDMPRecord(recordBuffer) {
     const record = {};
-    record.date = { value: readUInt16LE(recordBuffer, 0), native_unit: "date_YYMMdd"}
+    record.date = { value: readUInt16LE(recordBuffer, 0), native_unit: "date_YYMMdd" }
     record.time = { value: readUInt16LE(recordBuffer, 2), native_unit: "time" };
     record.inTemp = { value: readSignedInt16LE(recordBuffer, 20, 32767), native_unit: "F_tenths" };
     record.outTemp = { value: readSignedInt16LE(recordBuffer, 4, 32767), native_unit: "F_tenths" };
@@ -188,9 +188,9 @@ function convertRawValue2NativeValue(rawValue, nativeUnit, stationConfig) {
             // stationConfig.rainCollectorSize.value peut avoir 3 valeurs : "1-0.2mm", "2-0.1mm", "0-0.01mm"
             const cup = stationConfig.rainCollectorSize.lastReadValue;
             switch (cup) {
-                case 0: return Math.round(rawValue * 0.254 * 1000)/1000;
-                case 1: return Math.round(rawValue * 0.2 * 10)/10;
-                case 2: return Math.round(rawValue * 0.1 * 10)/10;
+                case 0: return Math.round(rawValue * 0.254 * 1000) / 1000;
+                case 1: return Math.round(rawValue * 0.2 * 10) / 10;
+                case 2: return Math.round(rawValue * 0.1 * 10) / 10;
                 default: return rawValue;
             }
         case 'mph_tenths': return rawValue / 10;
@@ -211,7 +211,7 @@ function convertRawValue2NativeValue(rawValue, nativeUnit, stationConfig) {
             const yy = (rawValue & 0x7F).toString().padStart(2, '0');         // Bit 6 to bit 0 (7 bits)
             return `20${yy}/${mm}/${dd}`;
         case 'cardinalInt':
-            return 22.5*rawValue;
+            return 22.5 * rawValue;
         default:
             return rawValue;
     }
@@ -244,7 +244,7 @@ const conversionTable = {
         'Bar': (inHg) => inHg * 0.0338639
     },
     rain: {
-        'in': (mm) => mm/25.4,
+        'in': (mm) => mm / 25.4,
         'mm': (mm) => mm,
         'l/m²': (mm) => mm
     },
@@ -254,8 +254,8 @@ const conversionTable = {
         'l/m²/h': (in_h) => in_h * 25.4
     },
     uv: {
-        'index': (uv) => uv ,
-        'min': (uv, dem=24) => Number(Math.min(300, (6.5*dem)/((uv*Math.exp(uv/dem)))).toFixed(0))
+        'index': (uv) => uv,
+        'min': (uv, dem = 24) => Number(Math.min(300, (6.5 * dem) / ((uv * Math.exp(uv / dem)))).toFixed(0))
         // temps d'exposition avant un coup de soleil = (DEM*6.5)/(UVIndex*exp(uvindex/DEM))
         // DEM (Dose Erythemale Minimal) = 32 mJ/cm² peau claire de Type 2, (type 6 = noire)
     },
@@ -265,9 +265,9 @@ const conversionTable = {
     humidity: {
         '%': (h) => h
     },
-    battery: {
-        'V': (v) => v ,
-        '%': (v) => v > 4.7 ? 'BATTERY MISSING' : (v/4.56)*100 // 3*1.52v = 4.56v = 100% et 3*1.05 v = 3.15v = 0% et si > 4.7v = -1 for BATTERY MISSING !
+    voltage: {
+        'V': (v) => v,
+        '%': (v) => v > 4.7 ? 'BATTERY MISSING' : (v / 4.56) * 100 // 3*1.52v = 4.56v = 100% et 3*1.05 v = 3.15v = 0% et si > 4.7v = -1 for BATTERY MISSING !
     },
     Forecast: {
         'ForecastNum': (f) => f,
@@ -304,9 +304,9 @@ const conversionTable = {
     }
 };
 
-function convertToUnit(nativeValue, key, UnitsType='user') {
+function convertToUnit(nativeValue, key, UnitsType = 'user') {
     const type = sensorTypeMap[key];
-    if (!type){
+    if (!type) {
         console.error(`No type found for ${key}`);
         return nativeValue;
     }
@@ -337,7 +337,7 @@ function convertToUnit(nativeValue, key, UnitsType='user') {
         return Number(convertedValue.toFixed(0));
 }
 
-function processWeatherData(weatherData, stationConfig, UnitsType='metric') {
+function processWeatherData(weatherData, stationConfig, UnitsType = 'metric') {
     const processed = {};
     // console.warn('weatherData', weatherData.windDir, weatherData.windDirMax);
     for (const [key, data] of Object.entries(weatherData)) {

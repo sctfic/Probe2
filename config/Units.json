@@ -342,9 +342,9 @@
             "AirWater_calc"
         ]
     },
-    "battery": {
-        "title": "Battery",
-        "description": "Unités de mesure du niveau de batterie",
+    "voltage": {
+        "title": "Tension",
+        "description": "Unités de mesure du niveau de tension",
         "user": "%",
         "metric": "V",
         "available_units": {
@@ -358,7 +358,7 @@
             }
         },
         "sensors": [
-            "batteryVoltage"
+            "battery"
         ]
     },
     "date": {

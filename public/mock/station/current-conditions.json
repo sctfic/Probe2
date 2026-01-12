@@ -27,7 +27,7 @@
             "userUnit": "l/m²",
             "toUserUnit": "(mm) => Number((mm*10).toFixed(2))"
         },
-        "batteryVoltage": {
+        "battery": {
             "Value": 4.775,
             "Unit": "V",
             "userUnit": "%",

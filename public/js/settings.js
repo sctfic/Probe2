@@ -203,7 +203,7 @@ function generateInfluxField(key, label, value, type) {
 
 function displayUnitsForm(settings) {
     const container = document.getElementById('preferences-container');
-    
+
     // Récupérer le skin type actuel depuis les settings UV
     if (settings.uv && settings.uv.available_units && settings.uv.available_units.min && settings.uv.available_units.min.skin) {
         currentSkinType = settings.uv.available_units.min.skin;
@@ -214,7 +214,7 @@ function displayUnitsForm(settings) {
         'Unités Vent et Direction': ['speed', 'direction'],
         'Unités Précipitations': ['rain', 'rainRate'],
         'Unités Rayonnement': ['uv', 'irradiance'],
-        'Unités Système': ['battery', 'date', 'time'],
+        'Unités Système': ['voltage', 'date', 'time'],
         'Unités Supplémentaires': [] // Sera peuplé dynamiquement
     };
 
@@ -232,7 +232,7 @@ function displayUnitsForm(settings) {
     <div class="settings-group">
         <form id="units-preferences-form" class="settings-form">
     `;
-    
+
     Object.entries(groupedCategories).forEach(([groupName, categoryKeys]) => {
         formHTML += `
             <div class="settings-group">
@@ -349,7 +349,7 @@ function generateSkinTypeSelector() {
 function handleUVUnitChange() {
     const uvSelect = document.getElementById('unit-select-uv');
     const skinTypeField = document.getElementById('skin-type-field');
-    
+
     if (uvSelect && skinTypeField) {
         skinTypeField.style.display = uvSelect.value === 'min' ? 'block' : 'none';
     }
@@ -370,7 +370,7 @@ function updateSkinTypeDEM() {
     const demValue = SKIN_TYPES[selectedType].dem;
     const demDisplay = document.getElementById('current-dem-value');
     const demInput = document.getElementById('dem-input');
-    
+
     if (demDisplay) {
         demDisplay.textContent = demValue;
     }
@@ -414,7 +414,7 @@ async function handleInfluxFormSubmit(event) {
 
 async function handleUnitsFormSubmit(event) {
     event.preventDefault();
-    
+
     showGlobalStatus('Enregistrement des Unités...', 'loading');
 
     try {
@@ -452,11 +452,11 @@ async function handleUnitsFormSubmit(event) {
         }
 
         const result = await response.json();
-        
+
         if (result.success) {
             currentUnitsSettings = updatedSettings;
             showGlobalStatus('Unités enregistrées avec succès !', 'success');
-            
+
             // Rafraîchir l'affichage si on est sur le dashboard
             if (typeof fetchCurrentConditions === 'function') {
                 setTimeout(() => {
@@ -485,7 +485,7 @@ async function resetUnitsToDefault() {
     try {
         // Créer un objet avec les unités par défaut
         const defaultSettings = { ...currentUnitsSettings };
-        
+
         // Réinitialiser chaque unité à sa valeur métrique
         Object.keys(defaultSettings).forEach(key => {
             if (defaultSettings[key].metric) {
@@ -513,12 +513,12 @@ async function resetUnitsToDefault() {
         }
 
         const result = await response.json();
-        
+
         if (result.success) {
             currentUnitsSettings = defaultSettings;
             currentSkinType = 3;
             showGlobalStatus('Unités réinitialisées avec succès !', 'success');
-            
+
             // Recharger le formulaire avec les nouvelles valeurs
             setTimeout(() => {
                 displayUnitsForm(defaultSettings);
