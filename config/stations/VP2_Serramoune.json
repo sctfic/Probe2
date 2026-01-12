@@ -82,10 +82,10 @@
     },
     "historical": {
         "comment": "recupere les previsions pour les capteurs standard (toute les jours a 23h30)",
-        "since": "1900",
+        "since": 1940,
         "enabled": false,
-        "lastRun": "",
-        "msg": ""
+        "lastRun": "2026-01-12T00:04:17.325Z",
+        "msg": "672 points imported successfully."
     },
     "deltaTimeSeconds": 1.48,
     "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\VP2_Serramoune.json",

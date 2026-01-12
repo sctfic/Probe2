@@ -213,6 +213,41 @@ async function displaySettingsForm() {
             fill: var(--accent-blue);
             transform: scale(1.2);
         }
+        .tile-action-btn-secondary {
+            position: absolute;
+            top: 8px;
+            right: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 24px;
+            padding: 0 6px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            cursor: pointer;
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: #aaa;
+            font-size: 0.75em;
+            font-weight: bold;
+            border: 1px solid transparent;
+        }
+        .tile-action-btn-secondary:hover {
+            color: var(--accent-blue);
+            background: rgba(255, 255, 255, 0.2);
+            border-color: var(--accent-blue);
+        }
+        .spinner {
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: var(--accent-blue);
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
         `;
         document.head.appendChild(style);
     }
@@ -765,6 +800,9 @@ function createHistoricalFieldHTML(field, range, historicalSettings) {
 
     return `
         <div class="settings-field condition-tile">
+        <button type="button" class="tile-action-btn-secondary" title="Import +10 years" onclick="runHistoricalExpand(this, '${selectedStation.id}', 10)">
+            [+10]
+        </button>
         <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="${titleAttr}">
             <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
         </a>
@@ -1097,3 +1135,30 @@ async function updatePartialSettings(settings) {
         return false;
     }
 }
+
+window.runHistoricalExpand = async function (btn, stationId, years) {
+    if (btn.classList.contains('disabled')) return;
+
+    const originalContent = btn.innerHTML;
+    btn.classList.add('disabled');
+    btn.style.opacity = '0.5';
+    btn.style.pointerEvents = 'none';
+    btn.innerHTML = '<div class="spinner"></div>';
+
+    try {
+        const response = await fetch(`/query/${stationId}/dbexpand/${years}`);
+        const result = await response.json();
+        if (result.success) {
+            showGlobalStatus(result.message, 'success');
+        } else {
+            showGlobalStatus(`Erreur: ${result.error || 'Inconnue'}`, 'error');
+        }
+    } catch (error) {
+        showGlobalStatus(`Erreur réseau: ${error.message}`, 'error');
+    } finally {
+        btn.classList.remove('disabled');
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+        btn.innerHTML = originalContent;
+    }
+};

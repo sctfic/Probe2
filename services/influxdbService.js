@@ -307,9 +307,9 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, archives
     const endStop = now.setUTCDate(now.getUTCDate() + 30);
     const query = `
       import "array"
-        // Premier timestamp
+        // Premier timestamp, min '1940-01-01T00:00:00.00Z' = -946771200
         first = from(bucket: "${bucket}")
-            |> range(start: ${startDate ? startDate : 0}${endDate ? `, stop: ${endDate}` : `, stop: ${(new Date(endStop)).toISOString()}`}) 
+            |> range(start: ${startDate ? startDate : -946771200}${endDate ? `, stop: ${endDate}` : `, stop: ${(new Date(endStop)).toISOString()}`}) 
             |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
             ${scope}
             |> first()
@@ -317,7 +317,7 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, archives
 
         // Dernier timestamp - lecture inverse plus rapide
         last = from(bucket: "${bucket}")
-            |> range(start: ${startDate ? startDate : 0}${endDate ? `, stop: ${endDate}` : `, stop: ${(new Date(endStop)).toISOString()}`}) 
+            |> range(start: ${startDate ? startDate : -946771200}${endDate ? `, stop: ${endDate}` : `, stop: ${(new Date(endStop)).toISOString()}`}) 
             |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
             ${scope}
             |> last()
@@ -336,10 +336,9 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, archives
         `;
     const result = await executeQuery(query);
     if (!result || result.length === 0 || result[0].count === 0) {
-        return { firstUtc: null, lastUtc: null, count: 0, unit: '' };
+        return { firstUtc: null, lastUtc: null };
     }
     const data = result[0];
-
 
     return {
         firstUtc: data.first || (new Date().toISOString()),

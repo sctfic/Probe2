@@ -1,7 +1,7 @@
 {
   "840e282a-7463-4710-b791-21cbe5a83604": {
     "firstSeen": "2025-12-11T09:00:32.832Z",
-    "lastSeen": "2025-12-11T13:46:13.565Z",
+    "lastSeen": "2025-12-11T15:03:05.724Z",
     "geo": {
       "ip": "127.0.0.1",
       "city": "Local",
@@ -3775,6 +3775,21 @@
           "keyPresses": 0
         },
         "timestamp": "2025-12-11T13:46:13.565Z"
+      },
+      {
+        "type": "end",
+        "start": "2025-12-11T15:03:05.537Z",
+        "end": "2025-12-11T15:03:05.724Z",
+        "url": "http://probe.local/",
+        "ref": "direct",
+        "duration": 0,
+        "interactions": {
+          "mouseMovements": 0,
+          "clicks": 0,
+          "scrolls": 0,
+          "keyPresses": 0
+        },
+        "timestamp": "2025-12-11T15:03:05.724Z"
       }
     ],
     "flags": {
@@ -4032,17 +4047,19 @@
         "private_ip",
         "private_ip",
         "private_ip",
+        "private_ip",
         "private_ip"
       ]
     },
     "fingerprint": null,
     "stats": {
-      "totalVisits": 14,
-      "uniquePages": 3,
-      "avgDuration": 726,
-      "totalTime": 10165,
-      "lastEventType": "heartbeat",
+      "totalVisits": 15,
+      "uniquePages": 4,
+      "avgDuration": 667,
+      "totalTime": 10000,
+      "lastEventType": "end",
       "bounceRate": 0
     }
   }
+} }
 }

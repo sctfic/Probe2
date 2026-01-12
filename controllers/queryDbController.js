@@ -610,19 +610,42 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             throw new Error("Les coordonnées GPS de la station ne sont pas définies.");
         }
 
-        const endDate = new Date();
+        let moreYearsValue = parseInt(req.params.moreYears || 0, 10);
+        if (isNaN(moreYearsValue) || moreYearsValue < 0) moreYearsValue = 0;
+        if (moreYearsValue > 20) moreYearsValue = 20;
+
+        const currentYear = new Date().getFullYear();
+        let endDate = new Date();
         let startDate;
 
-        // const lastTimestamp = await influxdbService.findLastOpenMeteoTimestamp(stationId);
-        const lastTimestamp = (await influxdbService.queryDateRange(stationId, 'open-meteo_barometer')).lastUtc;
-        if (lastTimestamp && (new Date(lastTimestamp)) > (new Date('1970-01-01T00:00:00Z'))) {
-            console.log(`${V.info} Données Open-Meteo existantes trouvées. Dernière date: `, lastTimestamp);
-            startDate = new Date(lastTimestamp);
-            startDate.setDate(startDate.getDate() - 1); // depuis la veille
+        const { firstUtc, lastUtc } = (await influxdbService.queryDateRange(stationId, 'open-meteo_barometer'));
+
+        // Validation de stationConfig.historical.since
+        let since = parseInt(stationConfig.historical && stationConfig.historical.since, 10);
+        const isSinceInvalid = isNaN(since) || since < 1940 || since > currentYear;
+
+        if (isSinceInvalid) {
+            // si le parametre stationConfig.historical.since est vide ou invalide, il doit etre defini a l'annee actuelle - 10 
+            // (quelque soit moreYears) et on l'utilise comme startDate (01 janvier 00h00 de cette annee la)
+            since = currentYear - 10;
+            if (!stationConfig.historical) stationConfig.historical = {};
+            startDate = new Date(Date.UTC(since, 0, 1, 0, 0, 0));
+        } else if (moreYearsValue === 0 && lastUtc && (new Date(lastUtc)) != (new Date('1970-01-01T00:00:00Z'))) {
+            // s'il n'y a rien dans moreYears et que lastUtc != 1970 alors startDate = lastUtc moins un jour
+            startDate = new Date(lastUtc);
+            startDate.setDate(startDate.getDate() - 1);
+        } else if (moreYearsValue > 0) {
+            // si stationConfig.historical.since est valide et qu'il y a une valeur dans moreYears 
+            // alors stationConfig.historical.since -= moreYears on l'utilise comme startDate (01 janvier 00h00 de cette annee la)
+            endDate = new Date(Date.UTC(since, 0, 1, 0, 0, 0));
+            endDate.setDate(endDate.getDate() + 1);
+
+            since = Math.max(since - moreYearsValue, 1940);
+            startDate = new Date(Date.UTC(since, 0, 1, 0, 0, 0));
+            console.log(V.info, `startDate: ${startDate.toISOString().split('T')[0]}, endDate: ${endDate.toISOString().split('T')[0]}`);
         } else {
-            console.log(`${V.info} Aucune donnée Open-Meteo existante. Récupération des 54 dernières années.`);
-            startDate = new Date();
-            startDate.setFullYear(endDate.getFullYear() - 54); // Récupère les 54 dernières années
+            // si since est valide, moreYears est 0 et pas de lastUtc
+            startDate = new Date(Date.UTC(since, 0, 1, 0, 0, 0));
         }
 
         const openMeteoUrl = `https://archive-api.open-meteo.com/v1/archive`;
@@ -770,6 +793,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
         if (stationConfig.historical) {
             stationConfig.historical.lastRun = new Date().toISOString();
             stationConfig.historical.msg = `${totalPointsWritten} points imported successfully.`;
+            stationConfig.historical.since = firstUtc != lastUtc ? new Date(firstUtc).getFullYear() - moreYearsValue : startDate.getFullYear();
             configManager.autoSaveConfig(stationConfig);
         }
 
