@@ -147,7 +147,7 @@ async function displaySettingsForm() {
 
             /* Contenu de l'extendeur */
             .extender-details { 
-                background: #2a2a2a; 
+                background: var(--accent-blue); 
                 padding: 15px; 
                 border-radius: 6px; 
                 border: 1px solid #444; 
@@ -164,7 +164,7 @@ async function displaySettingsForm() {
             }
 
             .extender-form-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
-            .extender-form-row label { width: 120px; font-size: 0.9em; color: #ccc; }
+            .extender-form-row label { width: 120px; font-size: 0.9em }
             .extender-form-row input { flex: 1; background: #111; border: 1px solid #555; color: white; padding: 6px; border-radius: 4px; }
             .extender-form-row input:focus { border-color: #007bff; outline: none; }
             
@@ -281,15 +281,8 @@ async function displaySettingsForm() {
         }
     };
 
-    // Fetch Open-Meteo data range
-    let openMeteoRange = { first: null, last: null };
-    try {
-        const rangeResponse = await fetch(`/query/${selectedStation.id}/Range/open-meteo_barometer`);
-        const rangeData = await rangeResponse.json();
-        if (rangeData.success) {
-            openMeteoRange = { first: rangeData.metadata.first, last: rangeData.metadata.last };
-        }
-    } catch (e) { console.warn("Could not fetch Open-Meteo date range.", e); }
+    // Fetch Open-Meteo data range asynchronously
+    fetchOpenMeteoRange(selectedStation.id);
 
     let formHTML = '<form id="station-settings-form" class="settings-form">';
 
@@ -303,7 +296,7 @@ async function displaySettingsForm() {
         group.fields.forEach(fieldKey => { // parcour les properties 
             if (fieldKey === 'historical') {
                 const field = { comment: "Complète la base de données avec les archives d'Open-Meteo sur 50 ans pour cette localisation. (chaque jour a 23h30)" };
-                formHTML += createHistoricalFieldHTML(field, openMeteoRange, currentStationSettings.historical);
+                formHTML += createHistoricalFieldHTML(field, null, currentStationSettings.historical);
             } else if (fieldKey === 'forecast') {
                 formHTML += createForecastFieldHTML(currentStationSettings.forecast);
             } else if (fieldKey === 'collect') {
@@ -789,9 +782,9 @@ function createSettingFieldHTML(key, field) {
 
 function createHistoricalFieldHTML(field, range, historicalSettings) {
     const isEnabled = historicalSettings && historicalSettings.enabled === true;
-    const rangeText = (range.first && range.last)
+    const rangeText = (range && range.first && range.last)
         ? `Archived since ${new Date(range.first).toLocaleDateString()} to ${new Date(range.last).toLocaleDateString()}`
-        : "No Open-Meteo data !";
+        : (range === null ? "Loading Open-Meteo range..." : "No Open-Meteo data !");
     const downloadUrl = `/query/${selectedStation.id}/dbexpand`;
 
     const lastRun = historicalSettings?.lastRun ? new Date(historicalSettings.lastRun).toLocaleString() : 'Jamais';
@@ -816,7 +809,7 @@ function createHistoricalFieldHTML(field, range, historicalSettings) {
                         <input type="checkbox" id="setting-historical-enabled" ${isEnabled ? 'checked' : ''}>
                         <span class="slider round"></span>
                     </label>
-                    <text>${rangeText}</text>
+                    <text id="open-meteo-range-info">${rangeText}</text>
                 </div>
             </div>
         </div>
@@ -1106,6 +1099,23 @@ async function handleSettingsSubmit(e) {
     } catch (error) {
         console.error('Erreur:', error);
         showGlobalStatus(`Erreur: ${error.message}`, 'error');
+    }
+}
+async function fetchOpenMeteoRange(stationId) {
+    const infoEl = document.getElementById('open-meteo-range-info');
+    if (!infoEl) return;
+    try {
+        const rangeResponse = await fetch(`/query/${stationId}/Range/open-meteo_barometer`);
+        const rangeData = await rangeResponse.json();
+        if (rangeData.success && rangeData.metadata.first && rangeData.metadata.last) {
+            const rangeText = `Archived since ${new Date(rangeData.metadata.first).toLocaleDateString()} to ${new Date(rangeData.metadata.last).toLocaleDateString()}`;
+            infoEl.textContent = rangeText;
+        } else {
+            infoEl.textContent = "No Open-Meteo data !";
+        }
+    } catch (e) {
+        console.warn("Could not fetch Open-Meteo date range.", e);
+        infoEl.textContent = "Error fetching range";
     }
 }
 
