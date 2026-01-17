@@ -1,0 +1,116 @@
+{
+    "success": true,
+    "timestamp": "2026-01-17T15:58:40.973Z",
+    "version": "0.3.85",
+    "settings": {
+        "THSW_calc": {
+            "label": "Température THSW",
+            "comment": "Température de Sensibilisation, Thermique, Humidité, Soleil et Vent",
+            "fnCalc": "(data) => calcTHSW(data['temperature:outTemp'], data['humidity:outHumidity'], data['irradiance:solar'], data['speed:Wind'])",
+            "dataNeeded": [
+                "temperature:outTemp",
+                "humidity:outHumidity",
+                "irradiance:solar",
+                "speed:Wind"
+            ],
+            "scriptJS": [
+                "/js/composite/THSW.js"
+            ],
+            "period": 604800,
+            "groupUsage": "1/ Outdoor",
+            "groupCustom": "Composites",
+            "sensorDb": "THSW_calc",
+            "measurement": "temperature"
+        },
+        "AirWater_calc": {
+            "label": "masse d'H2O dans l'air",
+            "comment": "masse d'eau par mettre cube d'air (ou g/l)",
+            "fnCalc": "(data) => waterInAir( data['temperature:outTemp'], data['humidity:outHumidity'], data['pressure:barometer']\n).g_per_m3",
+            "dataNeeded": [
+                "temperature:outTemp",
+                "humidity:outHumidity",
+                "pressure:barometer"
+            ],
+            "scriptJS": [
+                "/js/composite/AirWater.js"
+            ],
+            "period": 604800,
+            "groupUsage": "1/ Outdoor",
+            "groupCustom": "Composites",
+            "sensorDb": "AirWater_calc",
+            "measurement": "density"
+        },
+        "SUN_V_calc": {
+            "label": "Angle vertical du soleil",
+            "comment": "calcul de la phase du soleil",
+            "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n    const V = SunCalc.getPosition(new Date(data.d), lat, lon).altitudeDegrees;\n        return V > 0 ? Math.round(V*10)/10 : 0;\n}",
+            "dataNeeded": [
+                "pressure:barometer"
+            ],
+            "scriptJS": [
+                "/js/composite/sunCalc.js"
+            ],
+            "period": 2592000,
+            "groupUsage": "2/ Sun",
+            "groupCustom": "Composites",
+            "sensorDb": "SUN_V_calc",
+            "measurement": "angle"
+        },
+        "MOON_calc": {
+            "label": "Phase de la lune",
+            "comment": "calcul de la phase de la lune",
+            "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n    const P = SunCalc.getMoonPosition(\n    new Date(data.d), lat, lon).altitudeDegrees;\n    return Math.round(P*10)/10;\n}",
+            "dataNeeded": [
+                "pressure:barometer"
+            ],
+            "scriptJS": [
+                "/js/composite/sunCalc.js"
+            ],
+            "period": 2592000,
+            "groupUsage": "2/ Sun",
+            "groupCustom": "Composites",
+            "sensorDb": "MOON_calc",
+            "measurement": "angle"
+        },
+        "test2_calc": {
+            "label": "ltest2",
+            "comment": "ctest2",
+            "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  return data['pressure:barometer'] - data['speed:open-meteo_Gust'];\n}",
+            "dataNeeded": [
+                "pressure:barometer",
+                "speed:open-meteo_Gust"
+            ],
+            "currentMap": {
+                "d": "timestamp",
+                "pressure:barometer": "barometer",
+                "speed:open-meteo_Gust": "open-meteo_Gust"
+            },
+            "scriptJS": [],
+            "period": 604800,
+            "sensorDb": "test2_calc",
+            "measurement": "pressure",
+            "groupCustom": "CompositesNew",
+            "groupUsage": "Composites"
+        },
+        "xx_calc": {
+            "label": "label xx",
+            "comment": "cmt xx",
+            "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  return data['pressure:barometer']  - data['speed:open-meteo_Gust'];\n}",
+            "dataNeeded": [
+                "pressure:barometer",
+                "speed:open-meteo_Gust"
+            ],
+            "currentMap": {
+                "d": "timestamp",
+                "pressure:barometer": "barometer",
+                "speed:open-meteo_Gust": "open-meteo_Gust"
+            },
+            "scriptJS": [],
+            "period": 604800,
+            "sensorDb": "xx_calc",
+            "measurement": "ticksByMin",
+            "groupCustom": "CompositesNew",
+            "groupUsage": "Composites"
+        }
+    }
+}

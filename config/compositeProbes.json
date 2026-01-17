@@ -68,21 +68,43 @@
         "sensorDb": "MOON_calc",
         "measurement": "angle"
     },
-    "test_calc": {
-        "label": "test",
-        "comment": "test",
-        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  return data['speed:Gust'];\n}",
+    "test2_calc": {
+        "label": "ltest2",
+        "comment": "ctest2",
+        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  return data['pressure:barometer'] - data['speed:open-meteo_Gust'];\n}",
         "dataNeeded": [
-            "speed:Gust"
+            "pressure:barometer",
+            "speed:open-meteo_Gust"
         ],
         "currentMap": {
             "d": "timestamp",
-            "speed:Gust": "Gust"
+            "pressure:barometer": "barometer",
+            "speed:open-meteo_Gust": "open-meteo_Gust"
         },
         "scriptJS": [],
         "period": 604800,
-        "sensorDb": "test_calc",
-        "measurement": "speed",
+        "sensorDb": "test2_calc",
+        "measurement": "pressure",
+        "groupCustom": "CompositesNew",
+        "groupUsage": "Composites"
+    },
+    "xx_calc": {
+        "label": "label xx",
+        "comment": "cmt xx",
+        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  return data['pressure:barometer']  - data['speed:open-meteo_Gust'];\n}",
+        "dataNeeded": [
+            "pressure:barometer",
+            "speed:open-meteo_Gust"
+        ],
+        "currentMap": {
+            "d": "timestamp",
+            "pressure:barometer": "barometer",
+            "speed:open-meteo_Gust": "open-meteo_Gust"
+        },
+        "scriptJS": [],
+        "period": 604800,
+        "sensorDb": "xx_calc",
+        "measurement": "ticksByMin",
         "groupCustom": "CompositesNew",
         "groupUsage": "Composites"
     }

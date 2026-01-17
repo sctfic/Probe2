@@ -1,13 +1,15 @@
 {
     "success": true,
-    "timestamp": "2025-08-27T22:37:15.609Z",
+    "timestamp": "2026-01-17T15:58:36.066Z",
+    "version": "0.3.85",
     "stations": [
         {
             "id": "VP2_Serramoune",
-            "name": "vp2 Serramoune",
+            "name": "VP2 chantier Serramoune",
             "location": "Serramoune, 64290 Lasseube, FR",
-            "host": "vp2",
-            "port": 22222
+            "host": "vp2.lan",
+            "port": 22222,
+            "ping": "unreachable!"
         }
     ]
 }

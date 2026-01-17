@@ -71,8 +71,7 @@
             "windSpeedMax",
             "avgWindSpeed10Min",
             "avgWindSpeed2Min",
-            "windGust10Min",
-            "test_calc"
+            "windGust10Min"
         ]
     },
     "ticksByMin": {
@@ -99,7 +98,8 @@
             }
         },
         "sensors": [
-            ""
+            "",
+            "xx_calc"
         ]
     },
     "direction": {
@@ -171,7 +171,8 @@
         },
         "sensors": [
             "barometer",
-            "open-meteo_barometer"
+            "open-meteo_barometer",
+            "test2_calc"
         ]
     },
     "rain": {

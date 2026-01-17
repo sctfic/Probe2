@@ -1,0 +1,449 @@
+{
+    "success": true,
+    "timestamp": "2026-01-17T15:58:36.018Z",
+    "version": "0.3.85",
+    "settings": {
+        "temperature": {
+            "title": "Temperature",
+            "description": "Unités de mesure de la température",
+            "user": "°C",
+            "metric": "K",
+            "available_units": {
+                "°C": {
+                    "title": "Celsius",
+                    "fnFromMetric": "(k) => Number((k-273.15).toFixed(1))"
+                },
+                "°F": {
+                    "title": "Fahrenheit",
+                    "fnFromMetric": "(k) => Number(((k-273.15)*9/5+32).toFixed(1))"
+                },
+                "K": {
+                    "title": "Kelvin",
+                    "fnFromMetric": "(k) => Number(k.toFixed(1))"
+                }
+            },
+            "sensors": [
+                "inTemp",
+                "outTemp",
+                "dewPoint",
+                "heatIndex",
+                "windChill",
+                "THSW",
+                "leafTemp1",
+                "leafTemp2",
+                "soilTemp1",
+                "soilTemp2",
+                "soilTemp3",
+                "soilTemp4",
+                "soilTemp",
+                "open-meteo_soilTemp",
+                "extraTemp1",
+                "extraTemp2",
+                "extraTemp3",
+                "THSW_calc"
+            ]
+        },
+        "speed": {
+            "title": "Speed",
+            "description": "Unités de mesure de la vitesse",
+            "user": "km/h",
+            "metric": "m/s",
+            "available_units": {
+                "mph": {
+                    "title": "miles par heure",
+                    "fnFromMetric": "(ms) => Number((ms*2.23693).toFixed(1))"
+                },
+                "m/s": {
+                    "title": "mètre/secondes",
+                    "fnFromMetric": "(ms) => Number(ms.toFixed(1))"
+                },
+                "km/h": {
+                    "title": "kilometre/heure",
+                    "fnFromMetric": "(ms) => Number((ms*3.6).toFixed(1))"
+                },
+                "knots": {
+                    "title": "nœuds",
+                    "fnFromMetric": "(ms) => Number((ms*2.23693).toFixed(1))"
+                }
+            },
+            "sensors": [
+                "Wind",
+                "Gust",
+                "open-meteo_Wind",
+                "open-meteo_Gusts",
+                "windSpeed",
+                "windSpeedMax",
+                "avgWindSpeed10Min",
+                "avgWindSpeed2Min",
+                "windGust10Min"
+            ]
+        },
+        "ticksByMin": {
+            "title": "countByMin",
+            "description": "conteur par minute",
+            "user": "t/min",
+            "metric": "ticks/min",
+            "available_units": {
+                "rpm": {
+                    "title": "tours par minute",
+                    "fnFromMetric": "(c) => c"
+                },
+                "t/min": {
+                    "title": "ticks par minute",
+                    "fnFromMetric": "(c) => c"
+                },
+                "t/sec": {
+                    "title": "ticks par minute",
+                    "fnFromMetric": "(c) => Number((c/60).toFixed(1))"
+                },
+                "t/h": {
+                    "title": "ticks par minute",
+                    "fnFromMetric": "(c) => Number((c*60).toFixed(1))"
+                }
+            },
+            "sensors": [
+                "",
+                "xx_calc"
+            ]
+        },
+        "direction": {
+            "title": "Direction",
+            "description": "Unités de mesure de la direction cardinales",
+            "user": "°",
+            "metric": "°",
+            "available_units": {
+                "°": {
+                    "title": "degrees",
+                    "fnFromMetric": "(deg) => deg"
+                },
+                "cardinal": {
+                    "title": "cardinal",
+                    "fnFromMetric": "(deg) => ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][Math.round(deg / 22.5) % 16]"
+                }
+            },
+            "sensors": [
+                "Wind",
+                "Gust",
+                "open-meteo_Wind",
+                "windDir",
+                "windDirMax",
+                "windGustDir10Min"
+            ]
+        },
+        "angle": {
+            "title": "Angle",
+            "description": "Unités de mesure de l'angle",
+            "user": "°",
+            "metric": "°",
+            "available_units": {
+                "°": {
+                    "title": "degrees",
+                    "fnFromMetric": "(deg) => deg"
+                },
+                "rad": {
+                    "title": "radian",
+                    "fnFromMetric": "(deg) => (deg * Math.PI / 180).toFixed(2)"
+                }
+            },
+            "sensors": [
+                "SUN_V_calc",
+                "MOON_calc"
+            ]
+        },
+        "pressure": {
+            "title": "Pression",
+            "description": "Unités de mesure de la pression atmosphérique",
+            "user": "hpa",
+            "metric": "hpa",
+            "available_units": {
+                "inHg": {
+                    "title": "imperial",
+                    "fnFromMetric": "(hpa) => Number((hpa*0.750062).toFixed(1))"
+                },
+                "hpa": {
+                    "title": "metric",
+                    "fnFromMetric": "(hpa) => Number(hpa.toFixed(1))"
+                },
+                "mb": {
+                    "title": "millibar",
+                    "fnFromMetric": "(hpa) => Number(hpa.toFixed(1))"
+                },
+                "Bar": {
+                    "title": "Barometric pressure",
+                    "fnFromMetric": "(hpa) => Number((hpa/1000).toFixed(3))"
+                }
+            },
+            "sensors": [
+                "barometer",
+                "open-meteo_barometer",
+                "test2_calc"
+            ]
+        },
+        "rain": {
+            "title": "Précipitations",
+            "description": "Unités de mesure des précipitations",
+            "user": "l/m²",
+            "metric": "mm",
+            "available_units": {
+                "mm": {
+                    "title": "millimetre",
+                    "fnFromMetric": "(mm) => Number(mm.toFixed(1))"
+                },
+                "in": {
+                    "title": "inch",
+                    "fnFromMetric": "(mm) => Number((mm/25.4).toFixed(2))"
+                },
+                "l/m²": {
+                    "title": "litre per square meter",
+                    "fnFromMetric": "(mm) => Number((mm).toFixed(2))"
+                }
+            },
+            "sensors": [
+                "rainFall",
+                "open-meteo_rainFall",
+                "stormRain",
+                "dayRain",
+                "monthRain",
+                "yearRain",
+                "dayET",
+                "monthET",
+                "yearET",
+                "last15MinRain",
+                "lastHourRain",
+                "last24HourRain",
+                "open-meteo_ET",
+                "ET"
+            ]
+        },
+        "rainRate": {
+            "title": "Intensité de pluie",
+            "description": "Unités de mesure de l'intensité des précipitations",
+            "user": "l/m²/h",
+            "metric": "mm/h",
+            "available_units": {
+                "mm/h": {
+                    "title": "milimetre per hour",
+                    "fnFromMetric": "(mmh) => Number(mmh.toFixed(1))"
+                },
+                "in/h": {
+                    "title": "inch per hour",
+                    "fnFromMetric": "(mmh) => Number((mmh/25.4).toFixed(2))"
+                },
+                "l/m²/h": {
+                    "title": "litre per square meter per hour",
+                    "fnFromMetric": "(mmh) => Number((mmh*10).toFixed(2))"
+                }
+            },
+            "sensors": [
+                "rainRate"
+            ]
+        },
+        "uv": {
+            "title": "Rayonnement UV",
+            "description": "Unités de mesure du rayonnement UV",
+            "user": "min",
+            "metric": "index",
+            "available_units": {
+                "index": {
+                    "title": "index",
+                    "fnFromMetric": "(uv) => Number(uv.toFixed(1))"
+                },
+                "min": {
+                    "title": "temps d'exposition avant brulure",
+                    "fnFromMetric": "(uv, dem=32) => Number(Math.min(300, dem*6.5/((uv*Math.exp(uv/dem)))).toFixed(0))",
+                    "skin": 2
+                }
+            },
+            "sensors": [
+                "UV",
+                "UVMax"
+            ]
+        },
+        "irradiance": {
+            "title": "Irradiance",
+            "description": "Unités de mesure du rayonnement solaire",
+            "user": "w/m²",
+            "metric": "w/m²",
+            "available_units": {
+                "w/m²": {
+                    "title": "watt per square meter",
+                    "fnFromMetric": "(w) => Number(w.toFixed(1))"
+                }
+            },
+            "sensors": [
+                "solar",
+                "solarMax",
+                "open-meteo_solar"
+            ]
+        },
+        "humidity": {
+            "title": "Gaz saturation density",
+            "description": "Unités de mesure de la densité d'eau dans l'air en fonction de saturation",
+            "user": "%",
+            "metric": "%",
+            "available_units": {
+                "%": {
+                    "title": "percent",
+                    "fnFromMetric": "(h) => Number(h.toFixed(1))"
+                }
+            },
+            "sensors": [
+                "inHumidity",
+                "outHumidity",
+                "open-meteo_outHumidity",
+                "leafWetness1",
+                "leafWetness2",
+                "extraHumidity1",
+                "extraHumidity2"
+            ]
+        },
+        "soilMoisture": {
+            "title": "Liquid Density",
+            "description": "Unités de mesure de la densité d'eau du sol",
+            "user": "%",
+            "metric": "m³/m³",
+            "available_units": {
+                "l/m³": {
+                    "title": "litre per cubic meter",
+                    "fnFromMetric": "(m) => Number(10*m.toFixed(1))"
+                },
+                "%": {
+                    "title": "percent",
+                    "fnFromMetric": "(m) => Number(m.toFixed(1))"
+                },
+                "m³/m³": {
+                    "title": "volume per cubic meter",
+                    "fnFromMetric": "(m) => Number(0.01*m.toFixed(3))"
+                }
+            },
+            "sensors": [
+                "extraSoilMoisture1",
+                "extraSoilMoisture2",
+                "extraSoilMoisture3",
+                "extraSoilMoisture4",
+                "soilMoisture",
+                "open-meteo_soilMoisture"
+            ]
+        },
+        "density": {
+            "title": "Air Water Density",
+            "description": "Unités de mesure de la densité",
+            "user": "g/m³",
+            "metric": "g/m³",
+            "available_units": {
+                "ml/m³": {
+                    "title": "milli-litre per cube meter",
+                    "fnFromMetric": "(d) => Number((d).toFixed(1))"
+                },
+                "g/m³": {
+                    "title": "gramme per cube meter",
+                    "fnFromMetric": "(d) => Number((d).toFixed(4))"
+                },
+                "g/l": {
+                    "title": "g per litre",
+                    "fnFromMetric": "(d) => Number((d/1000).toFixed(4))"
+                }
+            },
+            "sensors": [
+                "AirWater_calc"
+            ]
+        },
+        "voltage": {
+            "title": "Tension",
+            "description": "Unités de mesure du niveau de tension",
+            "user": "%",
+            "metric": "V",
+            "available_units": {
+                "%": {
+                    "title": "percent",
+                    "fnFromMetric": "(v) => Number((v*100/4.56).toFixed(0))"
+                },
+                "V": {
+                    "title": "volts",
+                    "fnFromMetric": "(v) => Number(v.toFixed(2))"
+                }
+            },
+            "sensors": [
+                "battery"
+            ]
+        },
+        "date": {
+            "title": "Date",
+            "description": "Unités de mesure de la date",
+            "user": "yyyy-mm-dd",
+            "metric": "iso8601",
+            "available_units": {
+                "yyyy-mm-dd": {
+                    "title": "date",
+                    "fnFromMetric": "(d) => (d.includes('T') ? d.split('T')[0] : d).substring(0, 10)"
+                },
+                "iso8601": {
+                    "title": "iso8601",
+                    "fnFromMetric": "(d) => d"
+                }
+            },
+            "sensors": [
+                "dateStormRain",
+                "date"
+            ]
+        },
+        "time": {
+            "title": "Time",
+            "description": "Unités de mesure de l'heure",
+            "user": "hh:mm",
+            "metric": "iso8601",
+            "available_units": {
+                "hh:mm": {
+                    "title": "heure minute",
+                    "fnFromMetric": "(t) => (t.includes('T') ? t.split('T')[1] : t).substring(0, 5)"
+                },
+                "iso8601": {
+                    "title": "iso8601",
+                    "fnFromMetric": "(t) => t"
+                }
+            },
+            "sensors": [
+                "sunrise",
+                "sunset",
+                "time"
+            ]
+        },
+        "Forecast": {
+            "title": null,
+            "description": null,
+            "user": "ForecastClass",
+            "metric": "ForecastClass",
+            "available_units": {
+                "ForecastNum": {
+                    "title": "Weather Forecast Num",
+                    "fnFromMetric": "(f) => f"
+                },
+                "ForecastClass": {
+                    "title": "Weather Forecast Class for CSS",
+                    "fnFromMetric": "(f) => f"
+                }
+            },
+            "sensors": [
+                "ForecastIcon",
+                "ForecastClass",
+                "ForecastNum"
+            ]
+        },
+        "vector": {
+            "title": "Vector",
+            "description": "Unités de mesure du vecteur",
+            "user": "m/s",
+            "metric": "m/s",
+            "available_units": {
+                "m/s": {
+                    "title": "m/s",
+                    "fnFromMetric": "(v) => Number(Math.sqrt(v.Ux*v.Ux+v.Vy*v.Vy).toFixed(2))"
+                }
+            },
+            "sensors": [
+                "vector:Gust",
+                "vector:Wind"
+            ]
+        }
+    }
+}

@@ -1,31 +1,55 @@
 {
     "success": true,
     "message": "Success",
+    "version": "0.3.85",
     "metadata": {
         "stationId": "VP2_Serramoune",
+        "gps": {
+            "latitude": 43.2,
+            "longitude": -0.5,
+            "altitude": 242.01
+        },
         "sensor": [
-            "Gust",
-            "Wind",
-            "inHumidity",
-            "outHumidity",
-            "solar",
-            "solarMax",
-            "barometer",
-            "ET",
-            "rainFall",
-            "inTemp",
-            "outTemp",
-            "UV",
-            "UVMax"
+            "vector:Gust",
+            "vector:Wind",
+            "vector:open-meteo_Gust",
+            "vector:open-meteo_Wind",
+            "direction:Gust",
+            "direction:Wind",
+            "direction:open-meteo_Gust",
+            "direction:open-meteo_Wind",
+            "humidity:inHumidity",
+            "humidity:open-meteo_outHumidity",
+            "humidity:outHumidity",
+            "irradiance:open-meteo_solar",
+            "irradiance:solar",
+            "irradiance:solarMax",
+            "pressure:barometer",
+            "pressure:open-meteo_barometer",
+            "rain:ET",
+            "rain:open-meteo_ET",
+            "rain:open-meteo_rainFall",
+            "rain:rainFall",
+            "soilMoisture:open-meteo_soilMoisture",
+            "speed:Gust",
+            "speed:Wind",
+            "speed:open-meteo_Gust",
+            "speed:open-meteo_Wind",
+            "temperature:inTemp",
+            "temperature:open-meteo_outTemp",
+            "temperature:open-meteo_soilTemp",
+            "temperature:outTemp",
+            "uv:UV",
+            "uv:UVMax"
         ],
-        "queryTime": "2025-09-12T01:26:37.120Z",
-        "first": "2025-08-27T16:10:00Z",
-        "last": "2025-09-10T19:40:00Z",
-        "intervalSeconds": null,
-        "count": null,
+        "queryTime": "2026-01-17T15:58:40.962Z",
+        "first": "1940-01-01T00:00:00Z",
+        "last": "2026-01-30T22:00:00Z",
         "unit": {
             "temperature": {
-                "user": "°F",
+                "title": "Temperature",
+                "description": "Unités de mesure de la température",
+                "user": "°C",
                 "metric": "K",
                 "available_units": {
                     "°C": {
@@ -54,12 +78,17 @@
                     "soilTemp2",
                     "soilTemp3",
                     "soilTemp4",
+                    "soilTemp",
+                    "open-meteo_soilTemp",
                     "extraTemp1",
                     "extraTemp2",
-                    "extraTemp3"
+                    "extraTemp3",
+                    "THSW_calc"
                 ]
             },
             "speed": {
+                "title": "Speed",
+                "description": "Unités de mesure de la vitesse",
                 "user": "km/h",
                 "metric": "m/s",
                 "available_units": {
@@ -83,6 +112,8 @@
                 "sensors": [
                     "Wind",
                     "Gust",
+                    "open-meteo_Wind",
+                    "open-meteo_Gusts",
                     "windSpeed",
                     "windSpeedMax",
                     "avgWindSpeed10Min",
@@ -90,8 +121,38 @@
                     "windGust10Min"
                 ]
             },
+            "ticksByMin": {
+                "title": "countByMin",
+                "description": "conteur par minute",
+                "user": "t/min",
+                "metric": "ticks/min",
+                "available_units": {
+                    "rpm": {
+                        "title": "tours par minute",
+                        "fnFromMetric": "(c) => c"
+                    },
+                    "t/min": {
+                        "title": "ticks par minute",
+                        "fnFromMetric": "(c) => c"
+                    },
+                    "t/sec": {
+                        "title": "ticks par minute",
+                        "fnFromMetric": "(c) => Number((c/60).toFixed(1))"
+                    },
+                    "t/h": {
+                        "title": "ticks par minute",
+                        "fnFromMetric": "(c) => Number((c*60).toFixed(1))"
+                    }
+                },
+                "sensors": [
+                    "",
+                    "xx_calc"
+                ]
+            },
             "direction": {
-                "user": "cardinal",
+                "title": "Direction",
+                "description": "Unités de mesure de la direction cardinales",
+                "user": "°",
                 "metric": "°",
                 "available_units": {
                     "°": {
@@ -104,13 +165,38 @@
                     }
                 },
                 "sensors": [
+                    "Wind",
+                    "Gust",
+                    "open-meteo_Wind",
                     "windDir",
                     "windDirMax",
                     "windGustDir10Min"
                 ]
             },
+            "angle": {
+                "title": "Angle",
+                "description": "Unités de mesure de l'angle",
+                "user": "°",
+                "metric": "°",
+                "available_units": {
+                    "°": {
+                        "title": "degrees",
+                        "fnFromMetric": "(deg) => deg"
+                    },
+                    "rad": {
+                        "title": "radian",
+                        "fnFromMetric": "(deg) => (deg * Math.PI / 180).toFixed(2)"
+                    }
+                },
+                "sensors": [
+                    "SUN_V_calc",
+                    "MOON_calc"
+                ]
+            },
             "pressure": {
-                "user": "inHg",
+                "title": "Pression",
+                "description": "Unités de mesure de la pression atmosphérique",
+                "user": "hpa",
                 "metric": "hpa",
                 "available_units": {
                     "inHg": {
@@ -131,10 +217,14 @@
                     }
                 },
                 "sensors": [
-                    "barometer"
+                    "barometer",
+                    "open-meteo_barometer",
+                    "test2_calc"
                 ]
             },
             "rain": {
+                "title": "Précipitations",
+                "description": "Unités de mesure des précipitations",
                 "user": "l/m²",
                 "metric": "mm",
                 "available_units": {
@@ -148,11 +238,12 @@
                     },
                     "l/m²": {
                         "title": "litre per square meter",
-                        "fnFromMetric": "(mm) => Number((mm*10).toFixed(2))"
+                        "fnFromMetric": "(mm) => Number((mm).toFixed(2))"
                     }
                 },
                 "sensors": [
                     "rainFall",
+                    "open-meteo_rainFall",
                     "stormRain",
                     "dayRain",
                     "monthRain",
@@ -163,10 +254,13 @@
                     "last15MinRain",
                     "lastHourRain",
                     "last24HourRain",
+                    "open-meteo_ET",
                     "ET"
                 ]
             },
             "rainRate": {
+                "title": "Intensité de pluie",
+                "description": "Unités de mesure de l'intensité des précipitations",
                 "user": "l/m²/h",
                 "metric": "mm/h",
                 "available_units": {
@@ -188,6 +282,8 @@
                 ]
             },
             "uv": {
+                "title": "Rayonnement UV",
+                "description": "Unités de mesure du rayonnement UV",
                 "user": "min",
                 "metric": "index",
                 "available_units": {
@@ -197,8 +293,8 @@
                     },
                     "min": {
                         "title": "temps d'exposition avant brulure",
-                        "fnFromMetric": "(uv, dem=24) => Number(Math.min(300, (6.5*dem)/((uv*Math.exp(uv/dem)))).toFixed(0))",
-                        "skin": 1
+                        "fnFromMetric": "(uv, dem=32) => Number(Math.min(300, dem*6.5/((uv*Math.exp(uv/dem)))).toFixed(0))",
+                        "skin": 2
                     }
                 },
                 "sensors": [
@@ -207,6 +303,8 @@
                 ]
             },
             "irradiance": {
+                "title": "Irradiance",
+                "description": "Unités de mesure du rayonnement solaire",
                 "user": "w/m²",
                 "metric": "w/m²",
                 "available_units": {
@@ -217,10 +315,13 @@
                 },
                 "sensors": [
                     "solar",
-                    "solarMax"
+                    "solarMax",
+                    "open-meteo_solar"
                 ]
             },
             "humidity": {
+                "title": "Gaz saturation density",
+                "description": "Unités de mesure de la densité d'eau dans l'air en fonction de saturation",
                 "user": "%",
                 "metric": "%",
                 "available_units": {
@@ -232,17 +333,67 @@
                 "sensors": [
                     "inHumidity",
                     "outHumidity",
+                    "open-meteo_outHumidity",
                     "leafWetness1",
                     "leafWetness2",
                     "extraHumidity1",
-                    "extraHumidity2",
+                    "extraHumidity2"
+                ]
+            },
+            "soilMoisture": {
+                "title": "Liquid Density",
+                "description": "Unités de mesure de la densité d'eau du sol",
+                "user": "%",
+                "metric": "m³/m³",
+                "available_units": {
+                    "l/m³": {
+                        "title": "litre per cubic meter",
+                        "fnFromMetric": "(m) => Number(10*m.toFixed(1))"
+                    },
+                    "%": {
+                        "title": "percent",
+                        "fnFromMetric": "(m) => Number(m.toFixed(1))"
+                    },
+                    "m³/m³": {
+                        "title": "volume per cubic meter",
+                        "fnFromMetric": "(m) => Number(0.01*m.toFixed(3))"
+                    }
+                },
+                "sensors": [
                     "extraSoilMoisture1",
                     "extraSoilMoisture2",
                     "extraSoilMoisture3",
-                    "extraSoilMoisture4"
+                    "extraSoilMoisture4",
+                    "soilMoisture",
+                    "open-meteo_soilMoisture"
                 ]
             },
-            "battery": {
+            "density": {
+                "title": "Air Water Density",
+                "description": "Unités de mesure de la densité",
+                "user": "g/m³",
+                "metric": "g/m³",
+                "available_units": {
+                    "ml/m³": {
+                        "title": "milli-litre per cube meter",
+                        "fnFromMetric": "(d) => Number((d).toFixed(1))"
+                    },
+                    "g/m³": {
+                        "title": "gramme per cube meter",
+                        "fnFromMetric": "(d) => Number((d).toFixed(4))"
+                    },
+                    "g/l": {
+                        "title": "g per litre",
+                        "fnFromMetric": "(d) => Number((d/1000).toFixed(4))"
+                    }
+                },
+                "sensors": [
+                    "AirWater_calc"
+                ]
+            },
+            "voltage": {
+                "title": "Tension",
+                "description": "Unités de mesure du niveau de tension",
                 "user": "%",
                 "metric": "V",
                 "available_units": {
@@ -260,6 +411,8 @@
                 ]
             },
             "date": {
+                "title": "Date",
+                "description": "Unités de mesure de la date",
                 "user": "yyyy-mm-dd",
                 "metric": "iso8601",
                 "available_units": {
@@ -278,6 +431,8 @@
                 ]
             },
             "time": {
+                "title": "Time",
+                "description": "Unités de mesure de l'heure",
                 "user": "hh:mm",
                 "metric": "iso8601",
                 "available_units": {
@@ -297,6 +452,8 @@
                 ]
             },
             "Forecast": {
+                "title": null,
+                "description": null,
                 "user": "ForecastClass",
                 "metric": "ForecastClass",
                 "available_units": {
@@ -310,25 +467,57 @@
                     }
                 },
                 "sensors": [
-                    "ForecastIcon"
+                    "ForecastIcon",
+                    "ForecastClass",
+                    "ForecastNum"
+                ]
+            },
+            "vector": {
+                "title": "Vector",
+                "description": "Unités de mesure du vecteur",
+                "user": "m/s",
+                "metric": "m/s",
+                "available_units": {
+                    "m/s": {
+                        "title": "m/s",
+                        "fnFromMetric": "(v) => Number(Math.sqrt(v.Ux*v.Ux+v.Vy*v.Vy).toFixed(2))"
+                    }
+                },
+                "sensors": [
+                    "vector:Gust",
+                    "vector:Wind"
                 ]
             }
-        },
-        "userUnit": null,
-        "toUserUnit": null
+        }
     },
     "measurements": {
+        "vector": {
+            "tags": {
+                "sensor": [
+                    "Gust",
+                    "Wind",
+                    "open-meteo_Gust",
+                    "open-meteo_Wind"
+                ],
+                "station_id": [
+                    "VP2_Serramoune"
+                ]
+            },
+            "fields": [
+                "Ux",
+                "Vy"
+            ]
+        },
         "direction": {
             "tags": {
                 "sensor": [
                     "Gust",
-                    "Wind"
+                    "Wind",
+                    "open-meteo_Gust",
+                    "open-meteo_Wind"
                 ],
                 "station_id": [
                     "VP2_Serramoune"
-                ],
-                "unit": [
-                    "°"
                 ]
             },
             "fields": [
@@ -339,13 +528,11 @@
             "tags": {
                 "sensor": [
                     "inHumidity",
+                    "open-meteo_outHumidity",
                     "outHumidity"
                 ],
                 "station_id": [
                     "VP2_Serramoune"
-                ],
-                "unit": [
-                    "%"
                 ]
             },
             "fields": [
@@ -355,14 +542,12 @@
         "irradiance": {
             "tags": {
                 "sensor": [
+                    "open-meteo_solar",
                     "solar",
                     "solarMax"
                 ],
                 "station_id": [
                     "VP2_Serramoune"
-                ],
-                "unit": [
-                    "w/m²"
                 ]
             },
             "fields": [
@@ -372,13 +557,11 @@
         "pressure": {
             "tags": {
                 "sensor": [
-                    "barometer"
+                    "barometer",
+                    "open-meteo_barometer"
                 ],
                 "station_id": [
                     "VP2_Serramoune"
-                ],
-                "unit": [
-                    "hpa"
                 ]
             },
             "fields": [
@@ -389,13 +572,25 @@
             "tags": {
                 "sensor": [
                     "ET",
+                    "open-meteo_ET",
+                    "open-meteo_rainFall",
                     "rainFall"
                 ],
                 "station_id": [
                     "VP2_Serramoune"
+                ]
+            },
+            "fields": [
+                "value"
+            ]
+        },
+        "soilMoisture": {
+            "tags": {
+                "sensor": [
+                    "open-meteo_soilMoisture"
                 ],
-                "unit": [
-                    "mm"
+                "station_id": [
+                    "VP2_Serramoune"
                 ]
             },
             "fields": [
@@ -406,13 +601,12 @@
             "tags": {
                 "sensor": [
                     "Gust",
-                    "Wind"
+                    "Wind",
+                    "open-meteo_Gust",
+                    "open-meteo_Wind"
                 ],
                 "station_id": [
                     "VP2_Serramoune"
-                ],
-                "unit": [
-                    "m/s"
                 ]
             },
             "fields": [
@@ -423,13 +617,12 @@
             "tags": {
                 "sensor": [
                     "inTemp",
+                    "open-meteo_outTemp",
+                    "open-meteo_soilTemp",
                     "outTemp"
                 ],
                 "station_id": [
                     "VP2_Serramoune"
-                ],
-                "unit": [
-                    "K"
                 ]
             },
             "fields": [
@@ -444,9 +637,6 @@
                 ],
                 "station_id": [
                     "VP2_Serramoune"
-                ],
-                "unit": [
-                    "index"
                 ]
             },
             "fields": [

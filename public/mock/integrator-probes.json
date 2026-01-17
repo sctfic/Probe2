@@ -1,0 +1,32 @@
+{
+    "success": true,
+    "timestamp": "2026-01-17T15:58:36.053Z",
+    "version": "0.3.85",
+    "settings": {
+        "agro_trend": {
+            "label": "modele Agronomique",
+            "comment": "modele Agronomique multi cultural",
+            "fnModel": "",
+            "dataNeeded": [
+                "temperature:outTemp",
+                "humidity:outHumidity",
+                "irradiance:solar",
+                "speed:Wind"
+            ],
+            "currentMap": {
+                "d": "timestamp",
+                "temperature:outTemp": "outTemp",
+                "humidity:outHumidity": "outHumidity",
+                "irradiance:solar": "solar",
+                "speed:Wind": "Wind"
+            },
+            "scriptJS": [
+                "/js/composite/THSW.js"
+            ],
+            "period": 604800,
+            "groupUsage": "Composites",
+            "sensorDb": "THSW_calc",
+            "measurement": "temperature"
+        }
+    }
+}
