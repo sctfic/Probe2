@@ -1,10 +1,11 @@
 // controllers/compositeController.js
 const unitsProvider = require('../services/unitsProvider');
-const Probes = require('../config/compositeProbes.json');
+const probesProvider = require('../services/probesProvider');
 const { sensorTypeMap } = require('../utils/weatherDataParser');
 // const compositeProbes = require('../config/aditionnalProbe.json');
 
 async function getcompositeProbes(req, res) {
+    const Probes = probesProvider.getProbes();
     const stationConfig = req.stationConfig;
     const sensors = req.params.sensors;
     const timeStamp = new Date().toISOString();

@@ -8,6 +8,7 @@ const { exec } = require('child_process');
 const probeVersion = require('../package.json').version;
 const ping = require('ping');
 const unitsProvider = require('../services/unitsProvider');
+const probesProvider = require('../services/probesProvider');
 
 /**
  * Récupère dynamiquement tous les points de terminaison enregistrés dans l'application.
@@ -256,8 +257,7 @@ exports.updateInfluxDbSettings = async (req, res) => {
 exports.getcompositeProbesSettings = (req, res) => {
     try {
         console.log(`${V.gear} Récupération de la configuration des sondes additionnelles (compositeProbes.json)`);
-        const probesPath = path.join(__dirname, '..', 'config', 'compositeProbes.json');
-        const probesConfig = JSON.parse(fs.readFileSync(probesPath, 'utf8'));
+        const probesConfig = probesProvider.getProbes();
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
@@ -283,10 +283,10 @@ exports.updatecompositeProbesSettings = (req, res) => {
             });
         }
 
-        const probesPath = path.join(__dirname, '..', 'config', 'compositeProbes.json');
-
-        // Écrire le nouveau contenu dans le fichier, joliment formaté
-        fs.writeFileSync(probesPath, JSON.stringify(newSettings, null, 4), 'utf8');
+        const success = probesProvider.setProbes(newSettings);
+        if (!success) {
+            throw new Error('Erreur lors de la sauvegarde de la configuration des sondes additionnelles.');
+        }
         console.log(`${V.write} Fichier compositeProbes.json mis à jour.`);
 
         // Mettre à jour Units.json avec les nouvelles sondes

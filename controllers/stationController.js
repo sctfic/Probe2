@@ -8,7 +8,7 @@ const { queryDateRange } = require('../services/influxdbService');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
-const compositeProbes = require('../config/compositeProbes.json');
+const probesProvider = require('../services/probesProvider');
 const dbProbes = require('../config/dbProbes.json');
 const { sensorTypeMap } = require('../utils/weatherDataParser');
 const unitsProvider = require('../services/unitsProvider');
@@ -68,6 +68,7 @@ exports.getStationInfo = async (req, res) => {
 async function getCompositeProbes(weatherData, stationConfig) {
     console.log(`${V.info} Calculating composite probes for current conditions`);
     try {
+        const compositeProbes = probesProvider.getProbes();
         // 1. Prepare script context (can be cached for performance)
         const scriptContext = {};
         const loadedScripts = new Set();

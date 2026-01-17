@@ -10,7 +10,7 @@ const { sensorTypeMap } = require('../utils/weatherDataParser');
 const configManager = require('../services/configManager');
 const probeVersion = require('../package.json').version;
 
-const compositeProbes = require('../config/compositeProbes.json');
+const probesProvider = require('../services/probesProvider');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
@@ -222,6 +222,7 @@ async function getCalculatedData(stationConfig, probeConfig, start, end, interva
     const scriptContext = {};
     const loadedScripts = new Set();
 
+    const compositeProbes = probesProvider.getProbes();
     for (const probeKey in compositeProbes) {
         const probeConfig = compositeProbes[probeKey];
         if (probeConfig.scriptJS) {
@@ -280,6 +281,7 @@ exports.getQueryRaw = async (req, res) => {
 
         // --- Data Fetching and Processing ---
         if (sensor.endsWith('_calc')) {
+            const compositeProbes = probesProvider.getProbes();
             const probeConfig = compositeProbes[sensor];
             if (!probeConfig) {
                 const err = new Error(`Calculated sensor configuration not found for ${sensorRef}`);
@@ -374,6 +376,7 @@ exports.getQueryRaws = async (req, res) => {
 
         // 4. Récupérer les données composites
         const calcDataResults = [];
+        const compositeProbes = probesProvider.getProbes();
         for (const sensorRef of calcSensors) {
             const { sensor } = getTypeAndSensor(sensorRef);
             const probeConfig = compositeProbes[sensor];
