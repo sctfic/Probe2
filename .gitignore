@@ -18,6 +18,6 @@ config/visites.json
 public/js/yahooStocksParser.js
 public/periodicProfile.html
 utils/yahooStocksParser.js
-visits/analytics.json
+visits/
 docs/archives/
 docs/API VentiConnect.md

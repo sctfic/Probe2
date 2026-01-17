@@ -8,6 +8,8 @@ const analyticsController = require('../controllers/analyticsController'); // No
 const { isAuthenticated } = require('../middleware/authMiddleware');
 
 // Route pour les informations générales de l'application
+router.get('/', appController.getApiEndpoints); // http://probe2.lpz.ovh/api/
+
 // Route pour le health check
 router.get('/health', appController.getHealth); // http://probe.local/api/health
 

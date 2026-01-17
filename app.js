@@ -3,7 +3,7 @@ const express = require('express');
 const path = require('path');
 const configManager = require('./services/configManager'); // Gardé pour la route /api/
 const cronService = require('./services/cronService');
-const { V,O } = require('./utils/icons');
+const { V, O } = require('./utils/icons');
 const session = require('express-session');
 const crypto = require('crypto');
 console.log(`${O.green} Starting !`);
@@ -40,43 +40,7 @@ app.use('/api/station', stationRoutes);
 app.use('/query', queryDbRoutes);
 
 // Route racine
-app.get('/api/', (req, res) => { //http://probe2.lpz.ovh/api/
-    const stationsList = configManager.listStations();
-    
-    res.json({
-        success: true,
-        timestamp: new Date().toISOString(),
-        message: 'API Probe2 - Surveillance de stations météorologiques VP2',
-        version: require('./package.json').version,
-        endpoints: {
-            root: {url:'/api', method:'GET'}, //http://probe2.lpz.ovh/api
-            health: {url:'/api/health', method:'GET'}, //http://probe2.lpz.ovh/api/health
-            stations: {url:'/api/stations', method:'GET'}, //http://probe2.lpz.ovh/api/stations
-            station: {
-                info: {url:'/api/station/:stationId/info', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/info
-                test: {url:'/api/station/:stationId/test', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/test
-                currentConditions: {url:'/api/station/:stationId/current-conditions', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/current-conditions
-                collect: {url:'/api/station/:stationId/collect', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/collect
-                updateDatetime: {url:'/api/station/:stationId/update-datetime', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/update-datetime
-                syncSettings: {url:'/api/station/:stationId/sync-settings', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune/sync-settings
-                read: {url:'/api/station/:stationId', method:'GET'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune
-                modify: {url:'/api/station/:stationId', method:'PUT'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune
-                remove: {url:'/api/station/:stationId', method:'DELETE'}, //http://probe2.lpz.ovh/api/station/VP2_Serramoune
-            },
-            queryDb: {
-                // clear: {url:'/query/clear', method:'GET'}, //http://probe2.lpz.ovh/query/clear
-                metadata: {url:'/query/:stationId', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune
-                range: {url:'/query/:stationId/Range/:sensorRef?', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Range/inTemp
-                raw: {url:'/query/:stationId/Raw/:sensorRef', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Raw/inTemp
-                raws: {url:'/query/:stationId/Raws/:sensorRefs', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Raws/barometer,inTemp
-                windRose: {url:'/query/:stationId/WindRose', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/WindRose
-                windVectors: {url:'/query/:stationId/WindVectors', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/WindVectors
-                candle: {url:'/query/:stationId/Candle/:sensorRef', method:'GET'}, //http://probe2.lpz.ovh/query/VP2_Serramoune/Candle/barometer
-            },
-        },
-        stations:  stationsList,
-    });
-});
+// Géré par apiRoutes.js
 
 // Middleware de gestion des erreurs 404
 app.use((req, res) => {
@@ -108,14 +72,14 @@ app.listen(PORT, () => {
     console.log(`${V.StartFlag} Serveur Probe2 démarré sur le port ${PORT}`);
     console.log(`${V.info} Environnement: ${process.env.NODE_ENV || 'development'}`);
     console.log(`${V.satellite} Stations: http://localhost:${PORT}/api/stations`);
-    
+
     if (process.env.watch) {
         console.log(`${V.Gyro} Watch mode: ${process.env.watch}`);
     }
     if (process.env.ignore_watch) {
         console.log(`${V.Travaux} Ignore watch: ${process.env.ignore_watch}`);
     }
-    
+
     // Initialise toutes les tâches cron planifiées au démarrage
     cronService.initializeAllJobs();
 });

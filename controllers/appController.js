@@ -8,6 +8,75 @@ const { exec } = require('child_process');
 const probeVersion = require('../package.json').version;
 const ping = require('ping');
 
+/**
+ * Récupère dynamiquement tous les points de terminaison enregistrés dans l'application.
+ */
+exports.getApiEndpoints = (req, res) => {
+    try {
+        console.log(`${V.info} Récupération des endpoints`);
+        const stationsList = configManager.listStations();
+        const endpoints = {};
+
+        // Fonction récursive pour extraire les routes
+        const processStack = (stack, prefix = '') => {
+            console.log(stack, prefix);
+            stack.forEach(layer => {
+                console.log(layer);
+                if (layer.route) {
+                    console.log(layer.route.path);
+                    console.log(layer.route.methods);
+                    console.log(layer.route.stack);
+                    // C'est une route directe
+                    const path = prefix + layer.route.path;
+                    const methods = Object.keys(layer.route.methods).join(', ').toUpperCase();
+
+                    // Organiser par catégorie (basé sur le premier segment du path)
+                    const segments = path.split('/').filter(s => s && !s.startsWith(':'));
+                    const category = segments[0] || 'root';
+
+                    if (!endpoints[category]) endpoints[category] = {};
+
+                    // Créer une clé lisible pour l'endpoint
+                    let name = segments.slice(1).join('_') || 'index';
+                    if (path.includes(':')) name += '_params';
+
+                    endpoints[category][name] = { url: path, method: methods };
+                } else if (layer.name === 'router' && layer.handle.stack) {
+                    // C'est un routeur monté
+                    let newPrefix = prefix;
+                    if (layer.regexp) {
+                        // Extraire le préfixe du regexp si possible (cas simple .use('/path', router))
+                        const match = layer.regexp.toString().match(/^\/\^\\(\/\w+)/);
+                        if (match) newPrefix += match[1];
+                    }
+                    processStack(layer.handle.stack, newPrefix);
+                }
+            });
+        };
+
+        console.log('req.app.router', req.app.router);
+        if (req.app.router && req.app.router.stack) {
+            console.log(req.app.router.stack);
+            processStack(req.app.router.stack);
+        }
+
+        res.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            message: 'API Probe2 - Surveillance de stations météorologiques VP2',
+            version: probeVersion,
+            endpoints: endpoints,
+            stations: stationsList,
+        });
+    } catch (error) {
+        console.error(`${V.error} Erreur lors de la génération de la liste des endpoints:`, error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la récupération des endpoints'
+        });
+    }
+};
+
 exports.getAppInfo = (req, res) => { // http://probe2.lpz.ovh/api/info
     try {
         console.log(`${V.info} Récupération des informations de l'application`);
