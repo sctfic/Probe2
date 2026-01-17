@@ -36,7 +36,8 @@
             "extraTemp1",
             "extraTemp2",
             "extraTemp3",
-            "THSW_calc"
+            "THSW_calc",
+            "test_calc"
         ]
     },
     "speed": {
@@ -98,8 +99,7 @@
             }
         },
         "sensors": [
-            "",
-            "xx_calc"
+            ""
         ]
     },
     "direction": {
@@ -171,8 +171,7 @@
         },
         "sensors": [
             "barometer",
-            "open-meteo_barometer",
-            "test2_calc"
+            "open-meteo_barometer"
         ]
     },
     "rain": {

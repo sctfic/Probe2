@@ -10,7 +10,6 @@ const path = require('path');
 const vm = require('vm');
 const probesProvider = require('../services/probesProvider');
 const dbProbes = require('../config/dbProbes.json');
-const { sensorTypeMap } = require('../utils/weatherDataParser');
 const unitsProvider = require('../services/unitsProvider');
 const { V } = require('../utils/icons');
 
@@ -74,7 +73,9 @@ async function getCompositeProbes(weatherData, stationConfig) {
         const loadedScripts = new Set();
 
         for (const probeKey in compositeProbes) {
+            console.log(V.info, '============================================', probeKey);
             const probeConfig = compositeProbes[probeKey];
+            console.log(probeConfig);
             if (probeConfig.scriptJS) {
                 for (const scriptPath of probeConfig.scriptJS) { // charge les scripts specifie dans la config
                     if (!loadedScripts.has(scriptPath)) { // evite de charger plusieurs fois le même script
@@ -97,35 +98,35 @@ async function getCompositeProbes(weatherData, stationConfig) {
             const probeConfig = compositeProbes[probeKey];
             const calcInput = { d: new Date().toISOString() };
             probeConfig.dataNeeded.forEach(key => {
-                console.log(key, weatherData[key].currentMap);
+                // console.log(key, weatherData[key].currentMap);
                 if (weatherData[key].currentMap && weatherData[weatherData[key].currentMap]) {
-                    console.log(key, weatherData[weatherData[key].currentMap]);
+                    // console.log(key, weatherData[weatherData[key].currentMap]);
                     calcInput[key] = weatherData[weatherData[key].currentMap].Value;
                 } else { // pas de mapping vers les condition Current, on utilise la valeur d'archive
                     console.log(V.Warn, `Missing data ${key} in currentConditions, use last archives`, weatherData[key].Value);
                     console.log(`+-> verrifier ${probeKey}.currentMap['${key}'] la valeur est inconnue dans les current-conditions`);
                     calcInput[key] = weatherData[key].Value;
                 }
-                console.log(key, calcInput);
+                // console.log(key, calcInput);
             });
             const fnCalcStr = probeConfig.fnCalc
                 .replace("%longitude%", stationConfig.longitude.lastReadValue)
                 .replace("%latitude%", stationConfig.latitude.lastReadValue)
                 .replace("%altitude%", stationConfig.altitude.lastReadValue);
-            console.log(fnCalcStr);
+            // console.log(fnCalcStr);
             const calculate = vm.runInNewContext(`(${fnCalcStr})`, scriptContext);
             const calculatedValue = calculate(calcInput);
-            const type = sensorTypeMap[probeKey];
+            const type = unitsProvider.getSensorTypeMap()[probeKey];
             const units = unitsProvider.getUnits();
             const measurement = units[type];
             console.log('Type', type);
             console.log('Measurement', measurement);
-            console.log('Value', calculatedValue, 'Unit', measurement.metric, 'userUnit', measurement.user, 'toUserUnit', measurement.available_units[measurement.user].fnFromMetric);
+            // console.log('Value', calculatedValue, 'Unit', measurement.metric, 'userUnit', measurement.user, 'toUserUnit', measurement.available_units[measurement.user].fnFromMetric);
             weatherData[probeKey] = {
                 label: probeConfig.label,
                 comment: probeConfig.comment,
                 Value: calculatedValue,
-                measurement: sensorTypeMap[probeKey] || null,
+                measurement: type || null,
                 Unit: measurement?.metric || null,
                 userUnit: measurement?.user || null,
                 toUserUnit: measurement?.available_units?.[measurement.user]?.fnFromMetric || null,
@@ -134,6 +135,7 @@ async function getCompositeProbes(weatherData, stationConfig) {
                 groupCustom: probeConfig.groupCustom,
                 sensorDb: probeConfig.sensorDb
             };
+            console.log(weatherData[probeKey], '############################################################');
         }
     } catch (calcError) {
         console.error(`${V.error} Error calculating composite probes for current conditions:`, calcError.message);
@@ -179,7 +181,7 @@ async function getDbProbes(stationConfig) {
 
 exports.getCurrentWeather = async (req, res) => {
     const stationConfig = req.stationConfig;
-    const cacheFilePath = path.join(__dirname, '..', 'config', 'stations', `${stationConfig.id}.currents.last`);
+    // const cacheFilePath = path.join(__dirname, '..', 'config', 'stations', `${stationConfig.id}.currents.last`);
 
     try {
 

@@ -1,12 +1,12 @@
 {
     "success": true,
     "stationId": "VP2_Serramoune",
-    "timestamp": "2026-01-17T15:58:36.194Z",
+    "timestamp": "2026-01-17T16:52:26.711Z",
     "data": {
         "vector:Gust": {
-            "d": "2026-01-17T15:55:00Z",
-            "Ux": 0,
-            "Vy": 0,
+            "d": "2026-01-17T16:50:00Z",
+            "Ux": 1.222,
+            "Vy": 1.955,
             "label": "Vecteur Rafale",
             "comment": "Vecteur des rafales de vent",
             "currentMap": "windGust10Min",
@@ -16,17 +16,17 @@
             "sensorDb": "vector:Gust",
             "measurement": "vector",
             "Value": {
-                "Ux": 0,
-                "Vy": 0
+                "Ux": 1.222,
+                "Vy": 1.955
             },
             "Unit": "m/s",
             "userUnit": "m/s",
             "toUserUnit": "(v) => Number(Math.sqrt(v.Ux*v.Ux+v.Vy*v.Vy).toFixed(2))"
         },
         "vector:Wind": {
-            "d": "2026-01-17T15:55:00Z",
-            "Ux": 0,
-            "Vy": 0,
+            "d": "2026-01-17T16:50:00Z",
+            "Ux": 0.692,
+            "Vy": 1.107,
             "label": "Vecteur Vent",
             "comment": "Vecteur du vent moyen",
             "currentMap": "avgWindSpeed10Min",
@@ -36,8 +36,8 @@
             "sensorDb": "vector:Wind",
             "measurement": "vector",
             "Value": {
-                "Ux": 0,
-                "Vy": 0
+                "Ux": 0.692,
+                "Vy": 1.107
             },
             "Unit": "m/s",
             "userUnit": "m/s",
@@ -93,7 +93,7 @@
             "groupCustom": " Station",
             "sensorDb": "direction:Gust",
             "measurement": "direction",
-            "Value": 0,
+            "Value": 32,
             "Unit": "°",
             "userUnit": "°",
             "toUserUnit": "(deg) => deg"
@@ -108,7 +108,7 @@
             "groupCustom": " Station",
             "sensorDb": "direction:Wind",
             "measurement": "direction",
-            "Value": 0,
+            "Value": 32,
             "Unit": "°",
             "userUnit": "°",
             "toUserUnit": "(deg) => deg"
@@ -144,7 +144,7 @@
             "toUserUnit": "(deg) => deg"
         },
         "humidity:inHumidity": {
-            "d": "2026-01-17T15:55:00Z",
+            "d": "2026-01-17T16:50:00Z",
             "label": "Humidité Intérieure",
             "comment": "Humidité relative intérieure",
             "currentMap": "inHumidity",
@@ -174,7 +174,7 @@
             "toUserUnit": "(h) => Number(h.toFixed(1))"
         },
         "humidity:outHumidity": {
-            "d": "2026-01-17T15:55:00Z",
+            "d": "2026-01-17T16:50:00Z",
             "label": "Humidité Extérieure",
             "comment": "Humidité relative extérieure",
             "currentMap": "outHumidity",
@@ -183,7 +183,7 @@
             "groupCustom": " Station",
             "sensorDb": "humidity:outHumidity",
             "measurement": "humidity",
-            "Value": 96,
+            "Value": 97,
             "Unit": "%",
             "userUnit": "%",
             "toUserUnit": "(h) => Number(h.toFixed(1))"
@@ -204,7 +204,7 @@
             "toUserUnit": "(w) => Number(w.toFixed(1))"
         },
         "irradiance:solar": {
-            "d": "2026-01-17T15:55:00Z",
+            "d": "2026-01-17T16:50:00Z",
             "label": "Irradiance",
             "comment": "Irradiance solaire",
             "currentMap": "solar",
@@ -213,13 +213,13 @@
             "groupCustom": " Station",
             "sensorDb": "irradiance:solar",
             "measurement": "irradiance",
-            "Value": 17,
+            "Value": 54.2,
             "Unit": "w/m²",
             "userUnit": "w/m²",
             "toUserUnit": "(w) => Number(w.toFixed(1))"
         },
         "irradiance:solarMax": {
-            "d": "2026-01-17T15:55:00Z",
+            "d": "2026-01-17T16:50:00Z",
             "label": "Irradiance Max",
             "comment": "Irradiance solaire maximale",
             "currentMap": "solar",
@@ -228,13 +228,13 @@
             "groupCustom": " Station",
             "sensorDb": "irradiance:solarMax",
             "measurement": "irradiance",
-            "Value": 19,
+            "Value": 0,
             "Unit": "w/m²",
             "userUnit": "w/m²",
             "toUserUnit": "(w) => Number(w.toFixed(1))"
         },
         "pressure:barometer": {
-            "d": "2026-01-17T15:55:00Z",
+            "d": "2026-01-17T16:50:00Z",
             "label": "Baromètre",
             "comment": "Pression atmosphérique",
             "currentMap": "barometer",
@@ -243,7 +243,7 @@
             "groupCustom": "open-meteo",
             "sensorDb": "pressure:barometer",
             "measurement": "pressure",
-            "Value": 1008.7,
+            "Value": 1008.4,
             "Unit": "hpa",
             "userUnit": "hpa",
             "toUserUnit": "(hpa) => Number(hpa.toFixed(1))"
@@ -273,7 +273,7 @@
             "groupCustom": " Station",
             "sensorDb": "rain:ET",
             "measurement": "rain",
-            "Value": 0.01,
+            "Value": 0.02,
             "Unit": "mm",
             "userUnit": "l/m²",
             "toUserUnit": "(mm) => Number((mm).toFixed(2))"
@@ -309,7 +309,7 @@
             "toUserUnit": "(mm) => Number((mm).toFixed(2))"
         },
         "rain:rainFall": {
-            "d": "2026-01-17T15:55:00Z",
+            "d": "2026-01-17T16:50:00Z",
             "label": "Précipitations",
             "comment": "Précipitations",
             "currentMap": "dayRain",
@@ -318,7 +318,7 @@
             "groupCustom": " Station",
             "sensorDb": "rain:rainFall",
             "measurement": "rain",
-            "Value": 0,
+            "Value": 0.4,
             "Unit": "mm",
             "userUnit": "l/m²",
             "toUserUnit": "(mm) => Number((mm).toFixed(2))"
@@ -338,8 +338,23 @@
             "userUnit": "%",
             "toUserUnit": "(h) => Number(h.toFixed(1))"
         },
+        "soilMoisture:soilMoisture": {
+            "d": "2026-01-17T16:00:00Z",
+            "label": "Humidité Sol (Open-Meteo)",
+            "comment": "Humidité du sol -9cm à -27cm (Open-Meteo)",
+            "currentMap": null,
+            "period": 2592000,
+            "groupUsage": "db",
+            "groupCustom": "open-meteo",
+            "sensorDb": "soilMoisture:soilMoisture",
+            "measurement": "humidity",
+            "Value": 33.3,
+            "Unit": "%",
+            "userUnit": "%",
+            "toUserUnit": "(h) => Number(h.toFixed(1))"
+        },
         "speed:Gust": {
-            "d": "2026-01-17T15:55:00Z",
+            "d": "2026-01-17T16:50:00Z",
             "label": "Vitesse du vent max",
             "comment": "Vitesse de rafale de vent max",
             "currentMap": "windGust10Min",
@@ -348,13 +363,13 @@
             "groupCustom": " Station",
             "sensorDb": "speed:Gust",
             "measurement": "speed",
-            "Value": 0,
+            "Value": 2.31,
             "Unit": "m/s",
             "userUnit": "km/h",
             "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
         },
         "speed:Wind": {
-            "d": "2026-01-17T15:55:00Z",
+            "d": "2026-01-17T16:50:00Z",
             "label": "Vitesse du vent",
             "comment": "Vitesse du vent",
             "currentMap": "windSpeed",
@@ -363,7 +378,7 @@
             "groupCustom": " Station",
             "sensorDb": "speed:Wind",
             "measurement": "speed",
-            "Value": 0,
+            "Value": 1.31,
             "Unit": "m/s",
             "userUnit": "km/h",
             "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
@@ -399,7 +414,7 @@
             "toUserUnit": "(ms) => Number((ms*3.6).toFixed(1))"
         },
         "temperature:inTemp": {
-            "d": "2026-01-17T15:55:00Z",
+            "d": "2026-01-17T16:50:00Z",
             "label": "Température Intérieure",
             "comment": "Température intérieure",
             "currentMap": "inTemp",
@@ -408,7 +423,7 @@
             "groupCustom": " Station",
             "sensorDb": "temperature:inTemp",
             "measurement": "temperature",
-            "Value": 282.1,
+            "Value": 282,
             "Unit": "K",
             "userUnit": "°C",
             "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
@@ -444,7 +459,7 @@
             "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
         },
         "temperature:outTemp": {
-            "d": "2026-01-17T15:55:00Z",
+            "d": "2026-01-17T16:50:00Z",
             "label": "Température Extérieure",
             "comment": "Température extérieure",
             "currentMap": "outTemp",
@@ -453,13 +468,28 @@
             "groupCustom": " Station",
             "sensorDb": "temperature:outTemp",
             "measurement": "temperature",
-            "Value": 281.5,
+            "Value": 281.85,
+            "Unit": "K",
+            "userUnit": "°C",
+            "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
+        },
+        "temperature:soilTemp": {
+            "d": "2026-01-17T16:00:00Z",
+            "label": "Température Sol (Open-Meteo)",
+            "comment": "Température du sol a -18cm (Open-Meteo)",
+            "currentMap": "meteo_soilTemp",
+            "period": 2592000,
+            "groupUsage": "db",
+            "groupCustom": "open-meteo",
+            "sensorDb": "temperature:soilTemp",
+            "measurement": "temperature",
+            "Value": 281.15,
             "Unit": "K",
             "userUnit": "°C",
             "toUserUnit": "(k) => Number((k-273.15).toFixed(1))"
         },
         "uv:UV": {
-            "d": "2026-01-17T15:55:00Z",
+            "d": "2026-01-17T16:50:00Z",
             "label": "Index UV",
             "comment": "Indice d'érythème cutané",
             "currentMap": "UV",
@@ -474,7 +504,7 @@
             "toUserUnit": "(uv, dem=32) => Number(Math.min(300, dem*6.5/((uv*Math.exp(uv/dem)))).toFixed(0))"
         },
         "uv:UVMax": {
-            "d": "2026-01-17T15:55:00Z",
+            "d": "2026-01-17T16:50:00Z",
             "label": "Index UV Max",
             "comment": "Indice UV maximum",
             "currentMap": "UV",
@@ -491,7 +521,7 @@
         "THSW_calc": {
             "label": "Température THSW",
             "comment": "Température de Sensibilisation, Thermique, Humidité, Soleil et Vent",
-            "Value": 281.5,
+            "Value": 282,
             "measurement": "temperature",
             "Unit": "K",
             "userUnit": "°C",
@@ -504,7 +534,7 @@
         "AirWater_calc": {
             "label": "masse d'H2O dans l'air",
             "comment": "masse d'eau par mettre cube d'air (ou g/l)",
-            "Value": 8.11,
+            "Value": 8.38,
             "measurement": "density",
             "Unit": "g/m³",
             "userUnit": "g/m³",
@@ -517,7 +547,7 @@
         "SUN_V_calc": {
             "label": "Angle vertical du soleil",
             "comment": "calcul de la phase du soleil",
-            "Value": 7.7,
+            "Value": 0,
             "measurement": "angle",
             "Unit": "°",
             "userUnit": "°",
@@ -530,7 +560,7 @@
         "MOON_calc": {
             "label": "Phase de la lune",
             "comment": "calcul de la phase de la lune",
-            "Value": -5.1,
+            "Value": -13.4,
             "measurement": "angle",
             "Unit": "°",
             "userUnit": "°",
@@ -539,19 +569,6 @@
             "groupUsage": "2/ Sun",
             "groupCustom": "Composites",
             "sensorDb": "MOON_calc"
-        },
-        "test2_calc": {
-            "label": "ltest2",
-            "comment": "ctest2",
-            "Value": 1005.8900000000001,
-            "measurement": "pressure",
-            "Unit": "hpa",
-            "userUnit": "hpa",
-            "toUserUnit": "(hpa) => Number(hpa.toFixed(1))",
-            "period": 604800,
-            "groupUsage": "Composites",
-            "groupCustom": "CompositesNew",
-            "sensorDb": "test2_calc"
         }
     }
 }

@@ -6,7 +6,6 @@
 const influxdbService = require('../services/influxdbService');
 const { V, O } = require('../utils/icons');
 const unitsProvider = require('../services/unitsProvider');
-const { sensorTypeMap } = require('../utils/weatherDataParser');
 const configManager = require('../services/configManager');
 const probeVersion = require('../package.json').version;
 
@@ -164,8 +163,8 @@ function getTypeAndSensor(sensorRef = '') {
     let type, sensor;
     if (sensorRef.includes(':')) {
         [type, sensor] = sensorRef.split(':');
-    } else if (sensorTypeMap[sensorRef]) {
-        type = sensorTypeMap[sensorRef];
+    } else if (unitsProvider.getSensorTypeMap()[sensorRef]) {
+        type = unitsProvider.getSensorTypeMap()[sensorRef];
         sensor = sensorRef;
     } else {
         console.log(`${V.Warn} Sensor reference ${sensorRef} not found in Units.json`);

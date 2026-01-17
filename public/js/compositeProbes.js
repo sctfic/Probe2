@@ -179,7 +179,7 @@ function displayProbesList(settings) {
     });
 
     // Use event delegation for help buttons for better performance and simplicity
-    container.addEventListener('click', function(event) {
+    container.addEventListener('click', function (event) {
         if (event.target.matches('.btn-show-help')) {
             showHelpModal();
         }
@@ -287,7 +287,14 @@ function generateProbeField(probeKey, fieldKey, value, type = 'text', label = ''
     `;
 }
 
-function showAddProbeModal() {
+async function showAddProbeModal() {
+    if (typeof checkAuthStatus === 'function') {
+        await checkAuthStatus();
+    }
+    if (!isAuthenticated) {
+        showLoginModal();
+        return;
+    }
     const modal = document.getElementById('add-probe-modal');
     modal.classList.add('show');
     document.getElementById('new-probe-key').focus();
@@ -329,7 +336,7 @@ function handleAddProbe(event) {
         errorDiv.style.display = 'block';
         return;
     }
-    
+
     errorDiv.style.display = 'none';
 
     const newProbeData = {
@@ -341,7 +348,7 @@ function handleAddProbe(event) {
 
     const list = document.getElementById('probes-list');
     list.insertAdjacentHTML('beforeend', createProbeItemHTML(probeKey, newProbeData, true));
-    
+
     const newGroup = list.lastElementChild;
     const newHeader = newGroup.querySelector('.settings-group-header');
     newHeader.addEventListener('click', (e) => {
@@ -362,7 +369,14 @@ function handleAddProbe(event) {
     newGroup.scrollIntoView({ behavior: 'smooth' });
 }
 
-function handleDeleteProbe(event) {
+async function handleDeleteProbe(event) {
+    if (typeof checkAuthStatus === 'function') {
+        await checkAuthStatus();
+    }
+    if (!isAuthenticated) {
+        showLoginModal();
+        return;
+    }
     const probeKey = event.target.dataset.probeKey;
     if (confirm(`Êtes-vous sûr de vouloir supprimer la sonde "${probeKey}" ? Cette action est irréversible.`)) {
         delete currentProbesSettings[probeKey];
@@ -418,7 +432,7 @@ async function handleProbesFormSubmit(event) {
         probeData.currentMap = currentMap;
         probeData.groupCustom = "CompositesNew";
         probeData.groupUsage = "Composites";
-        
+
         currentProbesSettings[probeKey] = probeData;
 
         await saveAllProbesSettings(currentProbesSettings);
@@ -450,6 +464,9 @@ async function saveAllProbesSettings(settings) {
         if (result.success === true) {
             currentProbesSettings = settings;
             showGlobalStatus('Sondes enregistrées avec succès !', 'success');
+            // if (typeof fetchCurrentConditions === 'function') {
+            //     fetchCurrentConditions();
+            // }
         } else {
             throw new Error(result.message || 'Erreur lors de la sauvegarde');
         }

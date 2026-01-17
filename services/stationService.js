@@ -583,7 +583,7 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
         } else if (key === 'windDir' || key === 'windSpeed') {
             tag = 'Wind';
         } else { tag = key; }
-        const point = new Point(sensorTypeMap[key])
+        const point = new Point(unitsProvider.getSensorTypeMap()[key])
             .tag('station_id', stationId)
             .floatField('value', data.Value)
             // .tag('unit', data.Unit)

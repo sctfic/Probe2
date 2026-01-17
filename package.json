@@ -1,6 +1,6 @@
 {
   "name": "Probe-api",
-  "version": "0.3.85",
+  "version": "0.3.86",
   "description": "API pour récupérer des informations sur l'application Probe",
   "main": "app.js",
   "scripts": {

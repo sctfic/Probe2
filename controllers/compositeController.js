@@ -1,7 +1,6 @@
 // controllers/compositeController.js
 const unitsProvider = require('../services/unitsProvider');
 const probesProvider = require('../services/probesProvider');
-const { sensorTypeMap } = require('../utils/weatherDataParser');
 // const compositeProbes = require('../config/aditionnalProbe.json');
 
 async function getcompositeProbes(req, res) {

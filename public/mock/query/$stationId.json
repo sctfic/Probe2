@@ -1,7 +1,7 @@
 {
     "success": true,
     "message": "Success",
-    "version": "0.3.85",
+    "version": "0.3.86",
     "metadata": {
         "stationId": "VP2_Serramoune",
         "gps": {
@@ -31,6 +31,7 @@
             "rain:open-meteo_rainFall",
             "rain:rainFall",
             "soilMoisture:open-meteo_soilMoisture",
+            "soilMoisture:soilMoisture",
             "speed:Gust",
             "speed:Wind",
             "speed:open-meteo_Gust",
@@ -39,10 +40,11 @@
             "temperature:open-meteo_outTemp",
             "temperature:open-meteo_soilTemp",
             "temperature:outTemp",
+            "temperature:soilTemp",
             "uv:UV",
             "uv:UVMax"
         ],
-        "queryTime": "2026-01-17T15:58:40.962Z",
+        "queryTime": "2026-01-17T16:10:28.454Z",
         "first": "1940-01-01T00:00:00Z",
         "last": "2026-01-30T22:00:00Z",
         "unit": {
@@ -587,7 +589,8 @@
         "soilMoisture": {
             "tags": {
                 "sensor": [
-                    "open-meteo_soilMoisture"
+                    "open-meteo_soilMoisture",
+                    "soilMoisture"
                 ],
                 "station_id": [
                     "VP2_Serramoune"
@@ -619,7 +622,8 @@
                     "inTemp",
                     "open-meteo_outTemp",
                     "open-meteo_soilTemp",
-                    "outTemp"
+                    "outTemp",
+                    "soilTemp"
                 ],
                 "station_id": [
                     "VP2_Serramoune"

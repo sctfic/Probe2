@@ -179,7 +179,7 @@ function displayIntegratorProbesList(settings) {
     });
 
     // Use event delegation for help buttons for better performance and simplicity
-    container.addEventListener('click', function(event) {
+    container.addEventListener('click', function (event) {
         if (event.target.matches('.btn-show-integrator-help')) {
             showIntegratorHelpModal();
         }
@@ -287,7 +287,14 @@ function generateIntegratorProbeField(probeKey, fieldKey, value, type = 'text', 
     `;
 }
 
-function showAddIntegratorProbeModal() {
+async function showAddIntegratorProbeModal() {
+    if (typeof checkAuthStatus === 'function') {
+        await checkAuthStatus();
+    }
+    if (!isAuthenticated) {
+        showLoginModal();
+        return;
+    }
     const modal = document.getElementById('add-integrator-probe-modal');
     modal.classList.add('show');
     document.getElementById('new-integrator-probe-key').focus();
@@ -329,7 +336,7 @@ function handleAddIntegratorProbe(event) {
         errorDiv.style.display = 'block';
         return;
     }
-    
+
     errorDiv.style.display = 'none';
 
     const newProbeData = {
@@ -341,7 +348,7 @@ function handleAddIntegratorProbe(event) {
 
     const list = document.getElementById('integrator-probes-list');
     list.insertAdjacentHTML('beforeend', createIntegratorProbeItemHTML(probeKey, newProbeData, true));
-    
+
     const newGroup = list.lastElementChild;
     const newHeader = newGroup.querySelector('.settings-group-header');
     newHeader.addEventListener('click', (e) => {
@@ -362,7 +369,14 @@ function handleAddIntegratorProbe(event) {
     newGroup.scrollIntoView({ behavior: 'smooth' });
 }
 
-function handleDeleteIntegratorProbe(event) {
+async function handleDeleteIntegratorProbe(event) {
+    if (typeof checkAuthStatus === 'function') {
+        await checkAuthStatus();
+    }
+    if (!isAuthenticated) {
+        showLoginModal();
+        return;
+    }
     const probeKey = event.target.dataset.probeKey;
     if (confirm(`Êtes-vous sûr de vouloir supprimer la sonde "${probeKey}" ? Cette action est irréversible.`)) {
         delete currentIntegratorProbesSettings[probeKey];
@@ -418,7 +432,7 @@ async function handleIntegratorProbesFormSubmit(event) {
         probeData.currentMap = currentMap;
         probeData.groupCustom = "IntegratorNew";
         probeData.groupUsage = "Integrator";
-        
+
         currentIntegratorProbesSettings[probeKey] = probeData;
 
         await saveAllIntegratorProbesSettings(currentIntegratorProbesSettings);
@@ -450,6 +464,9 @@ async function saveAllIntegratorProbesSettings(settings) {
         if (result.success === true) {
             currentIntegratorProbesSettings = settings;
             showGlobalStatus('Modeles Intégrateur enregistrées avec succès !', 'success');
+            // if (typeof fetchCurrentConditions === 'function') {
+            //     fetchCurrentConditions();
+            // }
         } else {
             throw new Error(result.message || 'Erreur lors de la sauvegarde');
         }
