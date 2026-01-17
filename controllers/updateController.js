@@ -6,7 +6,7 @@ const { exec } = require('child_process');
 const path = require('path');
 const { V } = require('../utils/icons');
 
-const UPDATE_URL = 'https://github.com/sctfic/Probe2/archive/refs/heads/main.zip';
+const UPDATE_URL = 'https://github.com/sctfic/Probe/archive/refs/heads/main.zip';
 const ROOT_DIR = path.join(__dirname, '..');
 const TEMP_DIR = path.join(ROOT_DIR, 'update_temp');
 

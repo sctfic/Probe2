@@ -71,7 +71,8 @@
             "windSpeedMax",
             "avgWindSpeed10Min",
             "avgWindSpeed2Min",
-            "windGust10Min"
+            "windGust10Min",
+            "test_calc"
         ]
     },
     "ticksByMin": {

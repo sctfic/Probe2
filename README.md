@@ -1,8 +1,8 @@
-# Probe2
+# Probe
 
 ## Description
 
-Probe2 est une application conçue pour collecter, stocker et afficher des données météorologiques provenant de multiples sources. Elle agrège les informations d'une station météo locale VP2 ainsi que des données de prévisions et historiques via l'API [Open-Meteo](https://open-meteo.com/).
+Probe est une application conçue pour collecter, stocker et afficher des données météorologiques provenant de multiples sources. Elle agrège les informations d'une station météo locale VP2 ainsi que des données de prévisions et historiques via l'API [Open-Meteo](https://open-meteo.com/).
 
 Le projet permet de suivre une grande variété de mesures telles que la température, l'humidité, la vitesse et la direction du vent, les précipitations, l'indice UV, et bien plus encore.
 

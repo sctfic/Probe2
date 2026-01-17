@@ -65,7 +65,6 @@
         "desired": 5,
         "lastReadValue": 5
     },
-    "lastArchiveDate": "2025-08-20T04:00:00.000Z",
     "collect": {
         "comment": "collecte des donnees des capteurs locaux (VP2 et autres capteurs)",
         "value": 5,
@@ -88,5 +87,5 @@
         "msg": ""
     },
     "deltaTimeSeconds": 0.959,
-    "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\default.json"
+    "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe\\config\\stations\\default.json"
 }

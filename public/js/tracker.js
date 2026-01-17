@@ -1,5 +1,5 @@
 // public/js/tracker.js
-(function() {
+(function () {
     // --- Détection de Bot ---
     const botDetector = {
         // Liste des bots connus via User-Agent
@@ -33,7 +33,7 @@
         // Vérification des capacités du navigateur
         checkBrowserFeatures() {
             const suspiciousFeatures = [];
-            
+
             // Pas de plugins (rare pour un vrai navigateur)
             if (navigator.plugins.length === 0) {
                 suspiciousFeatures.push('no_plugins');
@@ -119,14 +119,14 @@
 
     // --- Gestion de l'identité ---
     function generateUUID() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
             var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
             return v.toString(16);
         });
     }
 
     function getVisitorId() {
-        const STORAGE_KEY = 'probe2_visitor_id';
+        const STORAGE_KEY = 'Probe_visitor_id';
         let visitorId = localStorage.getItem(STORAGE_KEY);
         if (!visitorId) {
             visitorId = generateUUID();
@@ -142,7 +142,7 @@
         ctx.textBaseline = 'top';
         ctx.font = '14px Arial';
         ctx.fillText('Browser fingerprint', 2, 2);
-        
+
         return {
             canvas: canvas.toDataURL(),
             userAgent: navigator.userAgent,
@@ -169,7 +169,7 @@
         }
     }
 
-    document.addEventListener('visibilitychange', function() {
+    document.addEventListener('visibilitychange', function () {
         if (document.hidden) {
             updateActiveTime();
             isTabActive = false;
@@ -193,7 +193,7 @@
             url: window.location.href,
             referrer: document.referrer || 'direct',
             duration: durationSeconds,
-            
+
             // Données de détection de bot
             botDetection: {
                 score: botScore,
@@ -208,7 +208,7 @@
                 },
                 suspiciousFeatures: botDetector.checkBrowserFeatures()
             },
-            
+
             // Empreinte navigateur (optionnel, pour analyse avancée)
             fingerprint: eventType === 'start' ? getBrowserFingerprint() : undefined
         };

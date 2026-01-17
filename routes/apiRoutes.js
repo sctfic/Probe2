@@ -8,7 +8,7 @@ const analyticsController = require('../controllers/analyticsController'); // No
 const { isAuthenticated } = require('../middleware/authMiddleware');
 
 // Route pour les informations générales de l'application
-router.get('/', appController.getApiEndpoints); // http://probe2.lpz.ovh/api/
+router.get('/', appController.getApiEndpoints); // http://Probe.lpz.ovh/api/
 
 // Route pour le health check
 router.get('/health', appController.getHealth); // http://probe.local/api/health
@@ -40,10 +40,10 @@ router.get('/influxdb', appController.getInfluxDbSettings);
 router.put('/influxdb', isAuthenticated, appController.updateInfluxDbSettings);
 
 // Route pour lister toutes les stations configurées
-router.get('/stations', appController.getAllStations); // http://probe2.lpz.ovh/api/stations
+router.get('/stations', appController.getAllStations); // http://Probe.lpz.ovh/api/stations
 
 // Route pour créer une nouvelle configuration de station
-router.post('/new', isAuthenticated, appController.createStation); // http://probe2.lpz.ovh/api/new
+router.post('/new', isAuthenticated, appController.createStation); // http://Probe.lpz.ovh/api/new
 
 // Route pour la mise à jour de l'application
 router.post('/update', isAuthenticated, updateController.applyUpdate);

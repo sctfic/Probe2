@@ -67,5 +67,23 @@
         "groupCustom": "Composites",
         "sensorDb": "MOON_calc",
         "measurement": "angle"
+    },
+    "test_calc": {
+        "label": "test",
+        "comment": "test",
+        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  return data['speed:Gust'];\n}",
+        "dataNeeded": [
+            "speed:Gust"
+        ],
+        "currentMap": {
+            "d": "timestamp",
+            "speed:Gust": "Gust"
+        },
+        "scriptJS": [],
+        "period": 604800,
+        "sensorDb": "test_calc",
+        "measurement": "speed",
+        "groupCustom": "CompositesNew",
+        "groupUsage": "Composites"
     }
 }

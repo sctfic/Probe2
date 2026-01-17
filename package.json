@@ -1,7 +1,7 @@
 {
-  "name": "probe2-api",
+  "name": "Probe-api",
   "version": "0.3.85",
-  "description": "API pour récupérer des informations sur l'application Probe2",
+  "description": "API pour récupérer des informations sur l'application Probe",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",

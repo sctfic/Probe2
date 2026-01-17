@@ -31,18 +31,18 @@ wget -O - https://github.com/OpenMediaVault-Plugin-Developers/installScript/raw/
 ```
 mkdir /home/alban/www/
 cd /home/alban/www/
-git clone --depth 1 https://github.com/sctfic/Probe2.git
-cd Probe2
+git clone --depth 1 https://github.com/sctfic/Probe.git
+cd Probe
 npm install
 sudo npm install -g pm2
 
-sudo chown -R alban:www-data /home/alban/www/Probe2
-sudo chmod 775 /home/alban/www/Probe2
+sudo chown -R alban:www-data /home/alban/www/Probe
+sudo chmod 775 /home/alban/www/Probe
 sudo chmod 755 /home/alban/www
 sudo chmod 755 /home/alban
 
-sudo mkdir -p /var/log/pm2/Probe2
-sudo chown -R alban:www-data /var/log/pm2/Probe2
+sudo mkdir -p /var/log/pm2/Probe
+sudo chown -R alban:www-data /var/log/pm2/Probe
 
 
 pm2 start ecosystem.config.js
@@ -53,8 +53,8 @@ pm2 save
 ## 5/ Conf nginx
 
 ```Bash
-sudo mv /home/alban/www/Probe2/RPi-Nas/Probe2.conf /etc/nginx/sites-available/
-sudo ln -sn /etc/nginx/sites-available/Probe2.conf /etc/nginx/sites-enabled/
+sudo mv /home/alban/www/Probe/RPi-Nas/Probe.conf /etc/nginx/sites-available/
+sudo ln -sn /etc/nginx/sites-available/Probe.conf /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 ```
@@ -69,9 +69,9 @@ curl -s http://probe/api | grep 'application/json' && echo '[  OK  ] nodejs OK' 
 ## 7/ mise a jour de Probe
 
 ```
-cd /home/alban/www/Probe2
-pm2 stop Probe2; git fetch && git reset --hard origin/main; sudo chmod -R 755 /home/alban/www/Probe2; pm2 restart ecosystem.config.js; pm2 log
+cd /home/alban/www/Probe
+pm2 stop Probe; git fetch && git reset --hard origin/main; sudo chmod -R 755 /home/alban/www/Probe; pm2 restart ecosystem.config.js; pm2 log
 pm2 save
-pm2 log Probe2
+pm2 log Probe
 ```
 

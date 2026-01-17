@@ -146,7 +146,7 @@ async function handleVerifyUpdate(event) {
     button.innerHTML = '<div class="spinner" style="display: inline-block; margin-right: 8px;"></div>Vérification...';
 
     try {
-        const response = await fetch('https://raw.githubusercontent.com/sctfic/Probe2/main/package.json', { cache: 'no-cache' });
+        const response = await fetch('https://raw.githubusercontent.com/sctfic/Probe/main/package.json', { cache: 'no-cache' });
         if (!response.ok) throw new Error('Impossible de contacter le serveur de mise à jour.');
 
         const remotePackage = await response.json();

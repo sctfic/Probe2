@@ -1,4 +1,4 @@
-// Probe2\public\js\drawing\Plots.js
+// Probe\public\js\drawing\Plots.js
 // Author: LOPEZ Alban
 // License: AGPL
 // Project: https://probe.lpz.ovh/

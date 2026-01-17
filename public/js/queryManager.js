@@ -1,5 +1,5 @@
 // public/js/queryManager.js
-// Probe2\public\js\queryManager.js
+// Probe\public\js\queryManager.js
 // Author: LOPEZ Alban
 // License: AGPL
 // Project: https://probe.lpz.ovh/
@@ -12,7 +12,7 @@
 class QueryManager {
     constructor(options = {}) {
         this.cache = new Map();
-        this.defaultCacheDuration = options.cacheDuration || 1*60*1000; // 1 minute
+        this.defaultCacheDuration = options.cacheDuration || 1 * 60 * 1000; // 1 minute
         this.defaultRetries = options.retries || 2; // 2 tentatives
         this.defaultRetryDelay = options.retryDelay || 1500; // 1.5 secondes
 

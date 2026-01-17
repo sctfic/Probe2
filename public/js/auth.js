@@ -1,4 +1,4 @@
-// Probe2\public\js\drawing\auth.js
+// Probe\public\js\drawing\auth.js
 // Author: LOPEZ Alban
 // License: AGPL
 // Project: https://probe.lpz.ovh/
@@ -29,7 +29,7 @@ function hideLoginModal() {
 function showPasswordModal(isInitialSetup = false) {
     const title = document.getElementById('password-modal-title');
     const oldPasswordGroup = document.getElementById('old-password-group');
-    
+
     if (isInitialSetup) {
         title.textContent = 'Veuillez définir un mot de passe';
         oldPasswordGroup.style.display = 'none';
@@ -37,7 +37,7 @@ function showPasswordModal(isInitialSetup = false) {
         title.textContent = 'Changer le mot de passe';
         oldPasswordGroup.style.display = 'block';
     }
-    
+
     passwordModal.style.display = 'block';
     document.getElementById('new-password').focus();
 }

@@ -1,4 +1,4 @@
-// Probe2\controllers\queryDbController.js
+// Probe\controllers\queryDbController.js
 // Author: LOPEZ Alban
 // License: AGPL
 // Project: https://probe.lpz.ovh/

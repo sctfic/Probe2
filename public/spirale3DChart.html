@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,15 +12,19 @@
     <script src="js/drawing/miniPlot.js"></script> <!-- mini courbe dans les tuile -->
     <script src="js/drawing/spiralPlot.js"></script> <!-- coparaison annuel -->
     <script src="js/tracker.js"></script>
-    <style >@import url('css/main.css');</style>
     <style>
-        body, html {
+        @import url('css/main.css');
+    </style>
+    <style>
+        body,
+        html {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
             background-color: var(--primary-dark);
-            overflow: hidden; /* Empêche le scroll global */
+            overflow: hidden;
+            /* Empêche le scroll global */
             font-family: sans-serif;
         }
 
@@ -52,9 +57,20 @@
 
         /* Animation pour les records (référencé dans spiralPlot.js via className: "blink-record") */
         @keyframes blink-anim {
-            0% { stroke-opacity: 1; stroke-width: 5px; }
-            50% { stroke-opacity: 0.2; stroke-width: 3px; }
-            100% { stroke-opacity: 1; stroke-width: 5px; }
+            0% {
+                stroke-opacity: 1;
+                stroke-width: 5px;
+            }
+
+            50% {
+                stroke-opacity: 0.2;
+                stroke-width: 3px;
+            }
+
+            100% {
+                stroke-opacity: 1;
+                stroke-width: 5px;
+            }
         }
 
         .blink-record {
@@ -67,14 +83,15 @@
         }
     </style>
 </head>
+
 <body>
     <div id="chart-container" style="width: 100vw; height: 100vh;"></div>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
-            
+
             // 1. Récupération des paramètres URL
             const params = new URLSearchParams(window.location.search);
-            
+
             // Valeurs par défaut demandées
             const station = params.get('station') || 'VP2_Serramoune';
             const sensor = params.get('sensor') || 'temperature:open-meteo_outTemp';
@@ -89,7 +106,7 @@
 
             // 4. Chargement du graphique
             const container = document.getElementById('chart-container');
-            
+
             if (typeof loadSpiralePlot === 'function') {
                 // On passe l'URL générée à la fonction principale
                 await loadSpiralePlot(container, dataUrl);
@@ -103,31 +120,44 @@
     </script>
     <footer>
         <div class="footer-bottom" id="footer-bottom-info">
-        <p>
-            <span style="margin-right: 20px;"> © 2025 Probe Météo </span>
-            <a href="https://github.com/sctfic/Probe2" target="_blank" title="GitHub" style="text-decoration: none; color: inherit; margin-right: 4px;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: text-top;">
-                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path>
-                </svg>
-                <span style="margin-left: 20px;">Dev by Alban LOPEZ</span>
-            </a>            
-            <a href="https://www.paypal.com/donate/?hosted_button_id=EQ9ALH8BUGS5S" target="_blank" title="Faire un don" style="text-decoration: none; color: #003087; background-color: #FFC439; margin-left: 10px; padding: 4px 12px; border-radius: 18px; display: inline-flex; align-items: center; gap: 6px; font-weight: bold; font-family: sans-serif; font-size: 0.9em; vertical-align: middle;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 48 48">
-                    <g clip-path="url(#paypal_clip)">
-                        <path fill="#002991" d="M38.914 13.35c0 5.574-5.144 12.15-12.927 12.15H18.49l-.368 2.322L16.373 39H7.056l5.605-36h15.095c5.083 0 9.082 2.833 10.555 6.77a9.687 9.687 0 0 1 .603 3.58z"></path>
-                        <path fill="#60CDFF" d="M44.284 23.7A12.894 12.894 0 0 1 31.53 34.5h-5.206L24.157 48H14.89l1.483-9 1.75-11.178.367-2.322h7.497c7.773 0 12.927-6.576 12.927-12.15 3.825 1.974 6.055 5.963 5.37 10.35z"></path>
-                        <path fill="#008CFF" d="M38.914 13.35C37.31 12.511 35.365 12 33.248 12h-12.64L18.49 25.5h7.497c7.773 0 12.927-6.576 12.927-12.15z"></path>
-                    </g>
-                    <defs>
-                        <clipPath id="paypal_clip">
-                            <path fill="#fff" d="M7.056 3h37.35v45H7.056z"></path>
-                        </clipPath>
-                    </defs>
-                </svg>
-                <span>Donate/Request</span>
-            </a>
-        </p>
-    </div>
+            <p>
+                <span style="margin-right: 20px;"> © 2025 Probe Météo </span>
+                <a href="https://github.com/sctfic/Probe" target="_blank" title="GitHub"
+                    style="text-decoration: none; color: inherit; margin-right: 4px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
+                        viewBox="0 0 16 16" style="vertical-align: text-top;">
+                        <path
+                            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z">
+                        </path>
+                    </svg>
+                    <span style="margin-left: 20px;">Dev by Alban LOPEZ</span>
+                </a>
+                <a href="https://www.paypal.com/donate/?hosted_button_id=EQ9ALH8BUGS5S" target="_blank"
+                    title="Faire un don"
+                    style="text-decoration: none; color: #003087; background-color: #FFC439; margin-left: 10px; padding: 4px 12px; border-radius: 18px; display: inline-flex; align-items: center; gap: 6px; font-weight: bold; font-family: sans-serif; font-size: 0.9em; vertical-align: middle;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 48 48">
+                        <g clip-path="url(#paypal_clip)">
+                            <path fill="#002991"
+                                d="M38.914 13.35c0 5.574-5.144 12.15-12.927 12.15H18.49l-.368 2.322L16.373 39H7.056l5.605-36h15.095c5.083 0 9.082 2.833 10.555 6.77a9.687 9.687 0 0 1 .603 3.58z">
+                            </path>
+                            <path fill="#60CDFF"
+                                d="M44.284 23.7A12.894 12.894 0 0 1 31.53 34.5h-5.206L24.157 48H14.89l1.483-9 1.75-11.178.367-2.322h7.497c7.773 0 12.927-6.576 12.927-12.15 3.825 1.974 6.055 5.963 5.37 10.35z">
+                            </path>
+                            <path fill="#008CFF"
+                                d="M38.914 13.35C37.31 12.511 35.365 12 33.248 12h-12.64L18.49 25.5h7.497c7.773 0 12.927-6.576 12.927-12.15z">
+                            </path>
+                        </g>
+                        <defs>
+                            <clipPath id="paypal_clip">
+                                <path fill="#fff" d="M7.056 3h37.35v45H7.056z"></path>
+                            </clipPath>
+                        </defs>
+                    </svg>
+                    <span>Donate/Request</span>
+                </a>
+            </p>
+        </div>
     </footer>
 </body>
+
 </html>

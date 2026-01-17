@@ -1,4 +1,4 @@
-// Probe2\public\js\drawing\spiralPlot.js
+// Probe\public\js\drawing\spiralPlot.js
 // Author: LOPEZ Alban
 // License: AGPL
 // Project: https://probe.lpz.ovh/
@@ -18,9 +18,9 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
     if (!container || !(container instanceof HTMLElement)) return;
 
     // 1. Loader centré et hauteur minimale temporaire
-    container.style.position = "relative"; 
-    container.style.minHeight = "200px"; 
-    
+    container.style.position = "relative";
+    container.style.minHeight = "200px";
+
     // Couleur unifiée rgb(26, 26, 26)
     container.innerHTML = `
         <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; justify-content:center; align-items:center; background:rgb(26, 26, 26); z-index:100;">
@@ -37,9 +37,9 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
         // Récupération rapide de la plage (Metadata)
         const rangeUrl = url.replace('/Raw/', '/Range/');
         const rangeResponse = await (window.fetchWithCache ? window.fetchWithCache(rangeUrl, 300000) : fetch(rangeUrl).then(r => r.json()));
-        
+
         if (!rangeResponse || !rangeResponse.metadata) throw new Error("Métadonnées Range introuvables");
-        
+
         const meta = rangeResponse.metadata;
         const dateFirst = new Date(meta.first);
         const dateLast = new Date(meta.last);
@@ -56,12 +56,12 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
             last180.setDate(last180.getDate() - 180);
             fetchStartDate = (last180 > dateFirst) ? last180 : dateFirst;
             daysToLoad = (dateLast - fetchStartDate) / (1000 * 60 * 60 * 24);
-        } 
+        }
         else if (forcedMode === 'year') {
             mode = 'year';
             fetchStartDate = dateFirst;
             daysToLoad = totalRangeDays;
-        } 
+        }
         else {
             if (totalRangeDays > 181) {
                 mode = 'year';
@@ -76,16 +76,16 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
         let stepCount = 1000;
         if (daysToLoad > 3600) {
             stepCount = Math.ceil(daysToLoad);
-            if (forcedMode === null) mode = 'year'; 
-        } 
+            if (forcedMode === null) mode = 'year';
+        }
         else if (daysToLoad > 181) {
             stepCount = Math.ceil(daysToLoad * 4);
             if (forcedMode === null) mode = 'year';
-        } 
+        }
         else if (daysToLoad <= 32) {
             stepCount = Math.ceil(daysToLoad * 288);
             if (forcedMode === null) mode = 'day';
-        } 
+        }
         else {
             stepCount = Math.ceil(daysToLoad * 144);
             if (forcedMode === null) mode = 'day';
@@ -99,7 +99,7 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
         if (!apiResponse || !apiResponse.data) throw new Error("Données API invalides");
 
         const convertFn = getConversionFunction(meta);
-        
+
         const processedData = apiResponse.data.map(item => {
             const date = new Date(item.d);
             return {
@@ -112,11 +112,11 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
 
         // Initialisation du Plot
         container.innerHTML = '';
-        container.style.minHeight = ""; 
-        
-        const plot = new SpiralePlot(container, processedData, { 
-            grouping: mode, 
-            metadata: meta, 
+        container.style.minHeight = "";
+
+        const plot = new SpiralePlot(container, processedData, {
+            grouping: mode,
+            metadata: meta,
             unit: meta.userUnit || '',
             originalUrl: url,
             originalMeta: meta
@@ -146,7 +146,7 @@ function getConversionFunction(metadata) {
                 const body = parts[1].trim();
                 return new Function(parts[0].replace(/[\(\)]/g, '').trim(), body.startsWith('{') ? body : `return ${body};`);
             }
-        } catch (e) {}
+        } catch (e) { }
     }
     return (v) => v;
 }
@@ -163,42 +163,42 @@ class SpiralePlot {
         this.data = data;
         this.options = options;
         this.grouping = options.grouping || 'day';
-        
+
         this.resizeObserver = null;
         this.resizeTimer = null; // Timer pour le debounce
         this.updateDimensionsFromRect();
-        
+
         this.svgWidth = 480; // Valeur de base, sera écrasée par draw()
-        this.centerX = this.svgWidth / 2; 
+        this.centerX = this.svgWidth / 2;
         this.centerY = this.height / 2;
 
         this.beta = 0;
         this.alpha = -20 * (Math.PI / 180);
-        
+
         this.updateRadii();
-        
-        this.wrapper = null; 
+
+        this.wrapper = null;
         this.sidePanel = null;
         this.svg = null;
         this.defs = null;
         this.hoverText = null;
-        
+
         // Tooltip SVG Group
         this.gTooltip = null;
         this.tooltipBg = null;
         this.tooltipText = null;
-        
+
         this.scales = {};
-        
+
         this.periodMeans = new Map();
-        this.sortedKeys = []; 
-        this.globalStats = []; 
-        this.bgDataForPlot = []; 
-        
+        this.sortedKeys = [];
+        this.globalStats = [];
+        this.bgDataForPlot = [];
+
         this.colorMode = (this.grouping === 'year') ? 'mean' : 'standard';
 
         this.isDragging = false;
-        
+
         // Playback state
         this.isPlaying = false;
         this.playInterval = null;
@@ -207,11 +207,11 @@ class SpiralePlot {
         this.gAxes = null;
         this.gLabels = null;
         this.gSpiral = null;
-        
+
         this.initScales();
         this.computeGlobalStats();
         this.precompute3DCoordinates();
-        
+
         this.initResizeObserver();
     }
 
@@ -231,7 +231,7 @@ class SpiralePlot {
         this.rect = this.container.getBoundingClientRect();
         this.width = this.rect.width || 800;
         this.height = (this.rect.height > 50) ? this.rect.height : 350;
-        
+
         // Calcul du positionnement basé sur le ratio
         this.ratio = Math.round((this.rect.width / this.rect.height) * 100) / 100;
         this.positionment = this.ratio > 2 ? 'Horizontal' : 'Vertical';
@@ -241,8 +241,8 @@ class SpiralePlot {
     updateRadii() {
         // Ces valeurs seront recalculées dynamiquement dans draw() en fonction de la taille réelle du SVG
         const minDim = Math.min(this.svgWidth, this.height);
-        this.radiusMin = minDim * 0.05; 
-        this.radiusMax = minDim * 0.45; 
+        this.radiusMin = minDim * 0.05;
+        this.radiusMax = minDim * 0.45;
         this.spiralHeight = this.height * 0.60;
     }
 
@@ -254,12 +254,12 @@ class SpiralePlot {
                 this.resizeTimer = setTimeout(() => {
                     const r = entry.contentRect;
                     const oldPos = this.positionment;
-                    
+
                     // On ne redessine que si dimensions valides et changement
                     if (r.width > 50 && r.height > 50) {
                         this.updateDimensionsFromRect();
-                        this.draw(); 
-                        
+                        this.draw();
+
                         // Restauration de l'état du panneau
                         if (this.currentPlayKey) {
                             const pointsInPeriod = this.data.filter(d => this.getPeriodKeyForDate(d.date) === this.currentPlayKey);
@@ -281,8 +281,8 @@ class SpiralePlot {
             this.scales.z.range([-this.spiralHeight / 2, this.spiralHeight / 2]);
         }
         if (this.scales.radius) {
-             const extentVal = this.scales.radius.domain();
-             this.scales.radius.range([this.radiusMin, this.radiusMax]);
+            const extentVal = this.scales.radius.domain();
+            this.scales.radius.range([this.radiusMin, this.radiusMax]);
         }
         this.precompute3DCoordinates();
     }
@@ -300,7 +300,7 @@ class SpiralePlot {
 
     initScales() {
         const groups = d3.group(this.data, d => this.getPeriodKeyForDate(d.date));
-        
+
         this.sortedKeys = Array.from(groups.keys()).sort();
 
         const counts = Array.from(groups.values()).map(g => g.length);
@@ -333,7 +333,7 @@ class SpiralePlot {
         const extentMean = d3.extent(validMeans);
 
         const padding = (extentVal[1] - extentVal[0]) * 0.1;
-        
+
         this.scales.radius = d3.scaleLinear()
             .domain([extentVal[0] - padding, extentVal[1] + padding])
             .range([this.radiusMin, this.radiusMax]);
@@ -343,12 +343,12 @@ class SpiralePlot {
 
         this.scales.z = d3.scaleTime()
             .domain(d3.extent(this.data, d => d.date))
-            .range([-this.spiralHeight / 2, this.spiralHeight / 2]); 
-            
+            .range([-this.spiralHeight / 2, this.spiralHeight / 2]);
+
         this.getAngle = (date) => {
             // NOTE: Ajout du signe négatif pour la rotation Sens Horaire
             if (this.grouping === 'day') {
-                const start = new Date(date); start.setHours(0,0,0,0);
+                const start = new Date(date); start.setHours(0, 0, 0, 0);
                 return -((date - start) / 86400000) * 2 * Math.PI;
             } else {
                 const start = new Date(date.getFullYear(), 0, 1);
@@ -377,7 +377,7 @@ class SpiralePlot {
                 mean: d3.mean(points, d => d.val)
             });
         }
-        
+
         this.globalStats.sort((a, b) => a.key - b.key);
     }
 
@@ -386,7 +386,7 @@ class SpiralePlot {
             const angle = this.getAngle(d.date);
             const r = this.scales.radius(d.val);
             const y = this.scales.z(d.date);
-            
+
             const periodKey = this.getPeriodKeyForDate(d.date);
             const meanVal = this.periodMeans.get(periodKey);
 
@@ -394,9 +394,9 @@ class SpiralePlot {
                 original: d,
                 periodKey: periodKey,
                 meanVal: meanVal,
-                wx: r * Math.cos(angle - Math.PI/2),
-                wz: r * Math.sin(angle - Math.PI/2),
-                wy: y 
+                wx: r * Math.cos(angle - Math.PI / 2),
+                wz: r * Math.sin(angle - Math.PI / 2),
+                wy: y
             };
         });
     }
@@ -415,15 +415,15 @@ class SpiralePlot {
 
     draw() {
         const container = d3.select(this.container);
-        container.selectAll("*").remove(); 
+        container.selectAll("*").remove();
 
         const isHorizontal = this.positionment === 'Horizontal';
-        
+
         // MODIF: Le conteneur doit être relatif pour que les boutons (absolus) se positionnent dedans
         container
-            .style("position", "relative") 
+            .style("position", "relative")
             .style("display", "flex")
-            .style("flex-direction", isHorizontal ? "row" : "column") 
+            .style("flex-direction", isHorizontal ? "row" : "column")
             .style("width", "100%")
             .style("height", "100%")
             .style("overflow", "hidden")
@@ -442,23 +442,23 @@ class SpiralePlot {
         this.wrapper = container.append("div")
             .attr("class", "spiralChart-main-panel")
             .style("position", "relative")
-            .style("width", `${mainPanelSize}px`) 
+            .style("width", `${mainPanelSize}px`)
             .style("height", `${mainPanelSize}px`) // Toujours carré pour la spirale
             .style("flex", "none")
             .style("overflow", "hidden")
-            .style("background", "rgb(26, 26, 26)"); 
+            .style("background", "rgb(26, 26, 26)");
 
         // Mise à jour des props internes pour le dessin SVG
         this.svgWidth = mainPanelSize;
-        this.height = mainPanelSize; 
+        this.height = mainPanelSize;
         this.centerX = this.svgWidth / 2;
         this.centerY = this.height / 2;
-        
+
         const minDim = mainPanelSize;
-        this.radiusMin = minDim * 0.05; 
-        this.radiusMax = minDim * 0.45; 
+        this.radiusMin = minDim * 0.05;
+        this.radiusMax = minDim * 0.45;
         this.spiralHeight = minDim * 0.60;
-        this.updatePlotGeometry(); 
+        this.updatePlotGeometry();
 
         // Création Side Panel
         this.sidePanel = container.append("div")
@@ -470,16 +470,16 @@ class SpiralePlot {
             .style("flex", isHorizontal ? "none" : "none") // On fixe manuellement les tailles maintenant
             .style("width", isHorizontal ? "auto" : "100%")
             // MODIF: En mode Horizontal, 80% de la hauteur du mainPanel
-            .style("height", isHorizontal ? `${mainPanelSize * 0.8}px` : "auto") 
-            .style("max-height", isHorizontal ? "" : `${mainPanelSize * 0.6}px`) 
+            .style("height", isHorizontal ? `${mainPanelSize * 0.8}px` : "auto")
+            .style("max-height", isHorizontal ? "" : `${mainPanelSize * 0.6}px`)
             .style("display", "flex")
             .style("flex-direction", "column")
-            .style("justify-content", "center") 
+            .style("justify-content", "center")
             .html(`<div class="spiral-panel-content" style="width:100%; padding: 10px;"><div style="text-align:center; color:#555; font-family:sans-serif;">Cliquez sur une période</div></div>`);
-            
+
         // Si mode horizontal, on donne un peu de flexibilité en largeur au sidePanel
         if (isHorizontal) {
-             this.sidePanel.style("flex", "1");
+            this.sidePanel.style("flex", "1");
         }
 
         this.svg = this.wrapper.append("svg")
@@ -495,13 +495,13 @@ class SpiralePlot {
         this.gAxes = this.svg.append("g");
         this.gLabels = this.svg.append("g");
         this.gSpiral = this.svg.append("g");
-        
+
         this.initSvgTooltip();
 
         this.hoverText = this.gLabels.append("text")
             .attr("class", "svg-hover-date")
             .attr("x", this.centerX).attr("y", this.height * 0.15)
-            .attr("font-size", `${Math.max(12, mainPanelSize * 0.08)}px`) 
+            .attr("font-size", `${Math.max(12, mainPanelSize * 0.08)}px`)
             .style("opacity", 0).text("");
 
         this.gLabels.append("text")
@@ -520,8 +520,8 @@ class SpiralePlot {
                 this.hoverText.style("opacity", 0);
             })
             .on("drag", (e) => {
-                this.beta += e.dx * 0.008; 
-                this.alpha = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.alpha - e.dy * 0.008));
+                this.beta += e.dx * 0.008;
+                this.alpha = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.alpha - e.dy * 0.008));
                 this.updateView(true);
             })
             .on("end", () => {
@@ -553,8 +553,8 @@ class SpiralePlot {
     createControls() {
         // MODIF: Sélection du container parent au lieu du wrapper
         const controlsContainer = this.wrapper;
-        
-        
+
+
         controlsContainer.selectAll(".spiral-controls").remove();
         controlsContainer.selectAll(".spiral-controls-left").remove();
 
@@ -572,9 +572,9 @@ class SpiralePlot {
             .style("gap", "6px")
             .style("align-items", "flex-end")
             .style("z-index", "20"); // Augmenté pour être au dessus
-        
+
         const isFullscreen = !!document.fullscreenElement;
-        
+
         let extLink = "#";
         if (this.options.originalUrl && this.options.originalUrl.includes('/Raw/')) {
             try {
@@ -584,17 +584,17 @@ class SpiralePlot {
                     const sn = parts[1].split('/').shift();
                     extLink = `/spirale3DChart.html?station=${st}&sensor=${sn}`;
                 }
-            } catch(err) {}
+            } catch (err) { }
         }
 
         const linkBtn = rightC.append("button")
             .attr("class", "spiral-btn")
             .attr("title", isFullscreen ? "Quitter plein écran" : "Agrandir")
             .html(isFullscreen ? iconMinimize : iconOriginal);
-        
+
         linkBtn.on("click", (e) => {
             e.stopPropagation();
-            if (isOccupying90Percent(this.container)) { 
+            if (isOccupying90Percent(this.container)) {
                 if (!document.fullscreenElement) {
                     document.documentElement.requestFullscreen().then(() => {
                         const onFullScreenChange = () => {
@@ -612,23 +612,23 @@ class SpiralePlot {
             }
         });
 
-        [{ l: "Dessus", a: -Math.PI/2, b: 0 }, { l: "Face", a: 0, b: 0 }, { l: "Iso", a: -Math.PI/6, b: Math.PI/4 }]
-        .forEach(v => {
-            rightC.append("button")
-                .attr("class", "spiral-btn")
-                .style("width", "100%") 
-                .text(v.l)
-                .on("click", (e) => {
-                    e.stopPropagation();
-                    const d = { a: this.alpha, b: this.beta };
-                    d3.select(d).transition().duration(800).ease(d3.easeCubicOut)
-                        .tween("r", () => t => {
-                            this.alpha = d3.interpolate(this.alpha, v.a)(t);
-                            this.beta = d3.interpolate(this.beta, v.b)(t);
-                            this.updateView(false);
-                        });
-                });
-        });
+        [{ l: "Dessus", a: -Math.PI / 2, b: 0 }, { l: "Face", a: 0, b: 0 }, { l: "Iso", a: -Math.PI / 6, b: Math.PI / 4 }]
+            .forEach(v => {
+                rightC.append("button")
+                    .attr("class", "spiral-btn")
+                    .style("width", "100%")
+                    .text(v.l)
+                    .on("click", (e) => {
+                        e.stopPropagation();
+                        const d = { a: this.alpha, b: this.beta };
+                        d3.select(d).transition().duration(800).ease(d3.easeCubicOut)
+                            .tween("r", () => t => {
+                                this.alpha = d3.interpolate(this.alpha, v.a)(t);
+                                this.beta = d3.interpolate(this.beta, v.b)(t);
+                                this.updateView(false);
+                            });
+                    });
+            });
 
         // MODIF: Attaché au container parent
         const leftC = controlsContainer.append("div")
@@ -645,7 +645,7 @@ class SpiralePlot {
         const colorBtn = leftC.append("button")
             .attr("class", "spiral-btn")
             .html(this.colorMode === 'mean' ? "<small>Amplitude</small> / Mean" : "Amplitude / <small>Mean</small>");
-            
+
         colorBtn.on("click", (e) => {
             e.stopPropagation();
             this.colorMode = (this.colorMode === 'standard') ? 'mean' : 'standard';
@@ -668,16 +668,16 @@ class SpiralePlot {
     drawAxes() {
         this.gAxes.selectAll("*").remove();
         this.gLabels.selectAll(".lbl-dyn").remove();
-        
+
         const ringY = -this.spiralHeight / 2;
 
         this.scales.radius.ticks(3).forEach(val => {
             const r = this.scales.radius(val);
             let path = "";
-            for(let i=0; i<=64; i++) {
-                const t = (i/64)*Math.PI*2;
-                const p = this.project(r*Math.cos(t), ringY, r*Math.sin(t));
-                path += (i===0?"M":"L")+p[0]+","+p[1];
+            for (let i = 0; i <= 64; i++) {
+                const t = (i / 64) * Math.PI * 2;
+                const p = this.project(r * Math.cos(t), ringY, r * Math.sin(t));
+                path += (i === 0 ? "M" : "L") + p[0] + "," + p[1];
             }
             this.gAxes.append("path").attr("d", path).attr("class", "grid-ring");
             const pl = this.project(r, ringY, 0);
@@ -686,18 +686,18 @@ class SpiralePlot {
         });
 
         const steps = 12;
-        for(let i=0; i<steps; i++) {
-            const th = -((i/steps)*Math.PI*2) - Math.PI/2;
+        for (let i = 0; i < steps; i++) {
+            const th = -((i / steps) * Math.PI * 2) - Math.PI / 2;
             const r = this.radiusMax;
             const p1 = this.project(0, ringY, 0);
-            const p2 = this.project(r*Math.cos(th), ringY, r*Math.sin(th));
+            const p2 = this.project(r * Math.cos(th), ringY, r * Math.sin(th));
             this.gAxes.append("line").attr("class", "axis-line")
                 .attr("x1", p1[0]).attr("y1", p1[1]).attr("x2", p2[0]).attr("y2", p2[1]);
-            
-            const pTxtProj = this.project((r+10)*Math.cos(th), ringY, (r+10)*Math.sin(th));
+
+            const pTxtProj = this.project((r + 10) * Math.cos(th), ringY, (r + 10) * Math.sin(th));
             let label;
             if (this.grouping === 'day') {
-                label = `${i*2}h`;
+                label = `${i * 2}h`;
             } else {
                 label = d3.timeFormat("%b")(new Date(2024, i, 1));
             }
@@ -708,23 +708,23 @@ class SpiralePlot {
         this.scales.z.ticks(8).forEach(d => {
             const yw = this.scales.z(d);
             const pc = this.project(0, yw, 0);
-            if(pc[1]<0 || pc[1]>this.height) return;
+            if (pc[1] < 0 || pc[1] > this.height) return;
             this.gAxes.append("line").attr("class", "axis-line").attr("x1", 40).attr("y1", pc[1]).attr("x2", pc[0]).attr("y2", pc[1]).style("opacity", 0.1);
-            this.gLabels.append("text").attr("class", "axis-label lbl-dyn").attr("x", 10).attr("y", pc[1]+3).text(d3.timeFormat(this.grouping==='day'?"%d %b":"%Y")(d));
+            this.gLabels.append("text").attr("class", "axis-label lbl-dyn").attr("x", 10).attr("y", pc[1] + 3).text(d3.timeFormat(this.grouping === 'day' ? "%d %b" : "%Y")(d));
         });
-        
-        const pt = this.project(0, -this.spiralHeight/2, 0);
-        const pb = this.project(0, this.spiralHeight/2, 0);
+
+        const pt = this.project(0, -this.spiralHeight / 2, 0);
+        const pb = this.project(0, this.spiralHeight / 2, 0);
         this.gAxes.append("line").attr("x1", pt[0]).attr("y1", pt[1]).attr("x2", pb[0]).attr("y2", pb[1]).style("stroke", "#555");
     }
 
     updateView(isDragging = false) {
         this.drawAxes();
-        
+
         this.defs.selectAll("*").remove();
 
         const scaleY = Math.max(0.01, Math.abs(Math.sin(this.alpha)));
-        
+
         const groupsData = [];
         const groupedPoints = d3.group(this.points3D, d => d.periodKey);
         const that = this;
@@ -733,7 +733,7 @@ class SpiralePlot {
             let pathD = "";
             let lastX = null, lastY = null;
             const values = points.map(p => p.original.val);
-            
+
             const meanVal = points[0].meanVal;
             const meanColor = this.scales.colorMean(meanVal);
 
@@ -750,17 +750,17 @@ class SpiralePlot {
                 const proj = this.project(p.wx, p.wy, p.wz);
 
                 if (proj[1] < -50 || proj[1] > this.height + 50) {
-                    lastX = null; 
+                    lastX = null;
                     continue;
                 }
-                
+
                 if (lastX === null || (i > 0 && (proj[0] !== lastX || proj[1] !== lastY))) {
-                     if (pathD === "") pathD = `M${proj[0]},${proj[1]}`;
-                     else pathD += `L${proj[0]},${proj[1]}`;
+                    if (pathD === "") pathD = `M${proj[0]},${proj[1]}`;
+                    else pathD += `L${proj[0]},${proj[1]}`;
                 }
                 lastX = proj[0]; lastY = proj[1];
             }
-            
+
             if (pathD !== "") {
                 let strokeRef = meanColor;
 
@@ -788,7 +788,7 @@ class SpiralePlot {
                     for (let i = 0; i <= stopCount; i++) {
                         const offset = i / stopCount;
                         const currentRadius = offset * that.radiusMax;
-                        
+
                         let color;
                         if (currentRadius < that.radiusMin) {
                             const minVal = that.scales.radius.domain()[0];
@@ -804,49 +804,49 @@ class SpiralePlot {
                     }
                 }
 
-                groupsData.push({ 
-                    key: key, 
-                    pathD: pathD, 
+                groupsData.push({
+                    key: key,
+                    pathD: pathD,
                     refPoint: points[0].original,
                     stroke: strokeRef,
-                    stats: stats 
+                    stats: stats
                 });
             }
         }
 
         const groups = this.gSpiral.selectAll(".period-group").data(groupsData, d => d.key);
         groups.exit().remove();
-        
+
         const groupsEnter = groups.enter().append("g")
             .attr("class", "period-group");
 
         groupsEnter.merge(groups)
-            .on("mouseover", function(e, d) {
-                if (that.isDragging || that.isPlaying) return; 
+            .on("mouseover", function (e, d) {
+                if (that.isDragging || that.isPlaying) return;
 
                 that.gSpiral.selectAll(".sp-vis-path")
                     .attr("stroke-opacity", 0.2)
                     .attr("stroke-width", 1);
-                
+
                 const current = d3.select(this);
                 current.select(".sp-vis-path")
                     .attr("stroke-opacity", 1)
                     .attr("stroke-width", 2);
-                
-                current.raise(); 
-                that.gTooltip.raise(); 
-                
+
+                current.raise();
+                that.gTooltip.raise();
+
                 that.updateHoverText(d.refPoint);
                 that.showTooltip(e, d.stats);
             })
-            .on("mouseout", function(e, d) {
+            .on("mouseout", function (e, d) {
                 if (that.isDragging || that.isPlaying) return;
 
                 that.gSpiral.selectAll(".sp-vis-path")
                     .attr("stroke-opacity", 0.9)
                     .attr("stroke-width", 1)
-                    .attr("stroke", d => d.stroke); 
-                
+                    .attr("stroke", d => d.stroke);
+
                 that.hideHoverText();
                 that.hideTooltip();
             })
@@ -854,9 +854,9 @@ class SpiralePlot {
                 this.handleClick(e, { d: d.refPoint, periodKey: d.key });
             });
 
-        groupsEnter.merge(groups).each(function(d) {
+        groupsEnter.merge(groups).each(function (d) {
             const g = d3.select(this);
-            
+
             if (!isDragging) {
                 g.selectAll(".sp-ghost-path")
                     .data([d])
@@ -864,7 +864,7 @@ class SpiralePlot {
                     .attr("class", "sp-ghost-path")
                     .attr("d", d.pathD)
                     .attr("stroke", "transparent")
-                    .attr("stroke-width", 4) 
+                    .attr("stroke-width", 4)
                     .attr("fill", "none");
             } else {
                 g.selectAll(".sp-ghost-path").remove();
@@ -899,17 +899,17 @@ class SpiralePlot {
         const line2 = this.tooltipText.append("tspan")
             .attr("x", 10).attr("dy", "1.4em")
             .text(`Max: ${stats.max.toFixed(1)}${this.options.unit}  |  Moy: ${stats.mean.toFixed(1)}${this.options.unit}`);
-        
+
         const line3 = this.tooltipText.append("tspan")
             .attr("x", 10).attr("dy", "1.4em")
             .text(`Min: ${stats.min.toFixed(1)}${this.options.unit}  |  σ: ${stats.std.toFixed(2)}${this.options.unit}`);
         const bbox = this.tooltipText.node().getBBox();
         const padding = 8;
-        
+
         this.tooltipBg
             .attr("width", bbox.width + padding * 2)
             .attr("height", bbox.height + padding * 2);
-        
+
         this.gTooltip
             .attr("transform", `translate(${x}, ${y})`)
             .transition().duration(50)
@@ -933,8 +933,8 @@ class SpiralePlot {
 
     handleClick(e, d) {
         if (this.isDragging) return;
-        if(this.isPlaying) this.togglePlay();
-        
+        if (this.isPlaying) this.togglePlay();
+
         this.lastClickedPoint = d.d;
         this.updateSidePanel(d.d, d.periodKey);
     }
@@ -943,10 +943,10 @@ class SpiralePlot {
     togglePlay() {
         this.isPlaying = !this.isPlaying;
         const btn = this.sidePanel.select("#btn-play-toggle");
-        
+
         if (this.isPlaying) {
             btn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>`).style("background", "#552222");
-            this.playInterval = setInterval(() => this.stepAnimation(), 120); 
+            this.playInterval = setInterval(() => this.stepAnimation(), 120);
         } else {
             btn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`).style("background", "");
             if (this.playInterval) clearInterval(this.playInterval);
@@ -967,19 +967,19 @@ class SpiralePlot {
             this.isPlaying = false;
             if (this.sidePanel) {
                 const btn = this.sidePanel.select("#btn-play-toggle");
-                if(!btn.empty()) btn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`).style("background", "");
+                if (!btn.empty()) btn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`).style("background", "");
             }
             return;
         }
 
         if (!this.sortedKeys || this.sortedKeys.length === 0) return;
-        
+
         let idx = this.sortedKeys.indexOf(this.currentPlayKey);
         idx++;
-        if (idx >= this.sortedKeys.length) idx = 0; 
-        
+        if (idx >= this.sortedKeys.length) idx = 0;
+
         const nextKey = this.sortedKeys[idx];
-        this.changePeriod(0, nextKey); 
+        this.changePeriod(0, nextKey);
     }
 
     // Helper pour navigation manuelle (Prev/Next) ou auto
@@ -987,13 +987,13 @@ class SpiralePlot {
         if (!this.sortedKeys || this.sortedKeys.length === 0) return;
 
         let nextKey = directKey;
-        
+
         if (!nextKey) {
             let idx = this.sortedKeys.indexOf(this.currentPlayKey);
-            if(idx === -1) idx = 0;
+            if (idx === -1) idx = 0;
 
             idx += offset;
-            if (idx >= this.sortedKeys.length) idx = 0; 
+            if (idx >= this.sortedKeys.length) idx = 0;
             if (idx < 0) idx = this.sortedKeys.length - 1;
             nextKey = this.sortedKeys[idx];
         }
@@ -1011,34 +1011,34 @@ class SpiralePlot {
         this.gSpiral.selectAll(".sp-vis-path")
             .attr("stroke-opacity", 0.15)
             .attr("stroke-width", 1);
-        
+
         const targetGroup = this.gSpiral.selectAll(".period-group")
             .filter(d => d.key === key);
-        
+
         targetGroup.select(".sp-vis-path")
             .attr("stroke-opacity", 1)
             .attr("stroke-width", 1.5);
-        
+
         targetGroup.raise();
     }
 
     updateSidePanel(dataPoint, periodKey, isAnimating = false) {
         if (!this.sidePanel) return;
-        
-        this.currentPlayKey = periodKey; 
-        
-        if(!isAnimating && !this.isPlaying) {
-             this.highlightPeriod(periodKey);
+
+        this.currentPlayKey = periodKey;
+
+        if (!isAnimating && !this.isPlaying) {
+            this.highlightPeriod(periodKey);
         }
 
         const dateFmt = d3.timeFormat("%d %B %Y");
         const unit = this.options.unit;
-        
+
         const tDate = new Date(dataPoint.date);
         let pStart, pEnd, pTitle;
         if (this.grouping === 'day') {
-            pStart = new Date(tDate); pStart.setHours(0,0,0,0);
-            pEnd = new Date(tDate); pEnd.setHours(23,59,59,999);
+            pStart = new Date(tDate); pStart.setHours(0, 0, 0, 0);
+            pEnd = new Date(tDate); pEnd.setHours(23, 59, 59, 999);
             pTitle = "Journée complète";
         } else {
             pStart = new Date(tDate.getFullYear(), 0, 1);
@@ -1051,18 +1051,18 @@ class SpiralePlot {
             this.sidePanel.html(`<div class="spiral-panel-content" style="padding:10px;"></div>`);
             content = this.sidePanel.select(".spiral-panel-content");
         }
-        
+
         // MODIF: Détection mode compact (Vertical) vs mode normal (Horizontal)
         const isCompact = (this.positionment !== 'Horizontal');
         const chartHeight = isCompact ? 140 : 200;
 
         if (content.select("#mini-chart-container").empty()) {
-            
+
             // Layout HTML Adaptatif
             let infoHtml = '';
             if (isCompact) {
                 // Version compacte (Vertical)
-                 infoHtml = `
+                infoHtml = `
                     <div class="panel-info" style="margin-bottom: 5px;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <div id="panel-date-dyn" class="panel-date" style="font-size:1.1rem; margin-bottom:0;">${dateFmt(dataPoint.date)}</div>
@@ -1090,20 +1090,20 @@ class SpiralePlot {
 
             content.select("#btn-play-toggle").on("click", () => this.togglePlay());
             content.select("#btn-prev").on("click", () => {
-                if(this.isPlaying) this.togglePlay();
+                if (this.isPlaying) this.togglePlay();
                 this.changePeriod(-1);
             });
             content.select("#btn-next").on("click", () => {
-                if(this.isPlaying) this.togglePlay();
+                if (this.isPlaying) this.togglePlay();
                 this.changePeriod(1);
             });
 
         } else {
             content.select("#panel-date-dyn").text(dateFmt(dataPoint.date));
         }
-        
+
         const playBtn = content.select("#btn-play-toggle");
-        if(this.isPlaying) {
+        if (this.isPlaying) {
             playBtn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>`).style("background", "#552222");
         } else {
             playBtn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`).style("background", "");
@@ -1167,28 +1167,28 @@ class SpiralePlot {
         const yearRef = focusPoint.date.getFullYear();
         const monthRef = focusPoint.date.getMonth();
         const dayRef = focusPoint.date.getDate();
-        
+
         const currentProgressiveStats = this.computeProgressiveStats(focusPoint.date);
 
         const mappedBgData = [];
         currentProgressiveStats.forEach(stat => {
-             let newDate;
-             if (this.grouping === 'day') {
-                 const h = Math.floor(stat.key / 60);
-                 const m = stat.key % 60;
-                 newDate = new Date(yearRef, monthRef, dayRef, h, m);
-             } else {
-                 const m = Math.floor(stat.key / 100);
-                 const d = stat.key % 100;
-                 newDate = new Date(yearRef, m, d);
-             }
-             mappedBgData.push({
-                 date: newDate,
-                 gMin: stat.min,
-                 gMax: stat.max,
-                 gMean: stat.mean,
-                 key: stat.key
-             });
+            let newDate;
+            if (this.grouping === 'day') {
+                const h = Math.floor(stat.key / 60);
+                const m = stat.key % 60;
+                newDate = new Date(yearRef, monthRef, dayRef, h, m);
+            } else {
+                const m = Math.floor(stat.key / 100);
+                const d = stat.key % 100;
+                newDate = new Date(yearRef, m, d);
+            }
+            mappedBgData.push({
+                date: newDate,
+                gMin: stat.min,
+                gMax: stat.max,
+                gMean: stat.mean,
+                key: stat.key
+            });
         });
 
         const statMap = new Map();
@@ -1196,12 +1196,12 @@ class SpiralePlot {
 
         let highRecData = [];
         let lowRecData = [];
-        
+
         highRecData = data.map(d => {
             let key;
             if (this.grouping === 'day') key = d.date.getHours() * 60 + d.date.getMinutes();
             else key = d.date.getMonth() * 100 + d.date.getDate();
-            
+
             const stat = statMap.get(key);
             if (stat && d.val >= stat.max) return { date: d.date, val: d.val };
             return { date: d.date, val: null };
@@ -1211,7 +1211,7 @@ class SpiralePlot {
             let key;
             if (this.grouping === 'day') key = d.date.getHours() * 60 + d.date.getMinutes();
             else key = d.date.getMonth() * 100 + d.date.getDate();
-            
+
             const stat = statMap.get(key);
             if (stat && d.val <= stat.min) return { date: d.date, val: d.val };
             return { date: d.date, val: null };
@@ -1221,7 +1221,7 @@ class SpiralePlot {
         const yMax = Math.max(max, d3.max(mappedBgData, d => d.gMax));
 
         container.innerHTML = '';
-        
+
         try {
             const chart = Plot.plot({
                 width: container.clientWidth,
@@ -1229,56 +1229,56 @@ class SpiralePlot {
                 marginLeft: 0, marginBottom: 20, marginRight: 40, marginTop: 10,
                 style: { background: "transparent", color: "#aaa", fontSize: "10px" },
                 x: { type: "time", tickFormat: this.grouping === 'day' ? "%H:%M" : "%b", grid: false },
-                y: { 
+                y: {
                     axis: "right", grid: true, nice: true, label: null, tickFormat: d => d.toFixed(0),
                     domain: [yMin, yMax]
                 },
                 marks: [
                     Plot.areaY(mappedBgData, { x: "date", y1: "gMin", y2: "gMax", fill: "#333", fillOpacity: 0.2 }),
-                    
+
                     Plot.lineY(mappedBgData, { x: "date", y: "gMin", stroke: "#00ffff", strokeOpacity: 0.3, strokeWidth: 1 }),
                     Plot.lineY(mappedBgData, { x: "date", y: "gMax", stroke: "#ff5555", strokeOpacity: 0.3, strokeWidth: 1 }),
                     Plot.lineY(mappedBgData, { x: "date", y: "gMean", stroke: "#ff55ff", strokeOpacity: 0.4, strokeWidth: 1 }),
 
                     Plot.link(mappedBgData, Plot.pointerX({
-                        x1: "date", y1: "gMin", x2: "date", y2: "gMax", 
+                        x1: "date", y1: "gMin", x2: "date", y2: "gMax",
                         stroke: "#666", strokeDasharray: "2,3", strokeOpacity: 0.8
                     })),
 
                     Plot.dot(mappedBgData, Plot.pointerX({ x: "date", y: "gMax", fill: "#ff5555", r: 2 })),
                     Plot.dot(mappedBgData, Plot.pointerX({ x: "date", y: "gMean", fill: "#ff55ff", r: 2 })),
                     Plot.dot(mappedBgData, Plot.pointerX({ x: "date", y: "gMin", fill: "#00ffff", r: 2 })),
-                    
+
                     Plot.lineY(data, { x: "date", y: "val", stroke: "#ccc", strokeOpacity: 0.8, strokeWidth: 1, id: "data-line" }),
-                    Plot.dot(data, Plot.pointerX({x: "date", y: "val", stroke: "#ccc", r: 3, fill: "red" })),
-                    
-                    Plot.lineY(highRecData, { 
-                        x: "date", y: "val", 
+                    Plot.dot(data, Plot.pointerX({ x: "date", y: "val", stroke: "#ccc", r: 3, fill: "red" })),
+
+                    Plot.lineY(highRecData, {
+                        x: "date", y: "val",
                         stroke: "red", strokeWidth: 5, strokeLinecap: "round",
-                        className: "blink-record" 
+                        className: "blink-record"
                     }),
-                    Plot.lineY(lowRecData, { 
-                        x: "date", y: "val", 
+                    Plot.lineY(lowRecData, {
+                        x: "date", y: "val",
                         stroke: "cyan", strokeWidth: 5, strokeLinecap: "round",
                         className: "blink-record"
                     }),
-                    
+
                     Plot.text(mappedBgData, Plot.pointerX({
-                        x: "date", y: "gMax", text: d => `${d.gMax.toFixed(1)} ${this.options.unit}`, 
+                        x: "date", y: "gMax", text: d => `${d.gMax.toFixed(1)} ${this.options.unit}`,
                         dy: -10, className: "hover-value", fill: "#ff5555", textAnchor: "middle"
                     })),
                     Plot.text(mappedBgData, Plot.pointerX({
-                        x: "date", y: "gMean", text: d => `${d.gMean.toFixed(1)} ${this.options.unit}`, 
+                        x: "date", y: "gMean", text: d => `${d.gMean.toFixed(1)} ${this.options.unit}`,
                         dy: -5, fill: "#ff55ff", textAnchor: "end", dx: -5, className: "hover-value"
                     })),
                     Plot.text(mappedBgData, Plot.pointerX({
-                        x: "date", y: "gMin", text: d => `${d.gMin.toFixed(1)} ${this.options.unit}`, 
+                        x: "date", y: "gMin", text: d => `${d.gMin.toFixed(1)} ${this.options.unit}`,
                         dy: 10, fill: "#00ffff", textAnchor: "middle", className: "hover-value"
                     })),
-                    
+
                     Plot.text(data, Plot.pointerX({
-                        x: "date", y: "val", 
-                        dy: 3, dx: 8, 
+                        x: "date", y: "val",
+                        dy: 3, dx: 8,
                         textAnchor: "start",
                         fontVariant: "tabular-nums",
                         fontSize: "11px",
@@ -1289,14 +1289,14 @@ class SpiralePlot {
                     })),
 
                     Plot.text(data, Plot.pointerX({
-                        x: "date", 
-                        frameAnchor: "bottom", 
-                        dy: 15, 
+                        x: "date",
+                        frameAnchor: "bottom",
+                        dy: 15,
                         fontVariant: "tabular-nums",
                         fontSize: "11px",
                         fill: "#aaa",
                         className: "hover-value",
-                        text: (d) => `${d.date.toLocaleString('fr-FR',{'dateStyle':"medium",'timeStyle':"short"})}`
+                        text: (d) => `${d.date.toLocaleString('fr-FR', { 'dateStyle': "medium", 'timeStyle': "short" })}`
                     }))
                 ]
             });

@@ -400,7 +400,7 @@ exports.deleteStation = (req, res) => {
 //     try {
 //         const { stationId } = req.params;
 //         let { sensorRefs, nbrStep, grouping, startDate, endDate } = req.query;
-//         // exemple d'URL : http://probe2.lpz.ovh/api/station/VP2_Serramoune/query?sensorRefs=inTemp&nbrStep=12&grouping=avg
+//         // exemple d'URL : http://Probe.lpz.ovh/api/station/VP2_Serramoune/query?sensorRefs=inTemp&nbrStep=12&grouping=avg
 //         // &startDate=2025-08-21T00:00:00.000Z&endDate=2025-08-21T23:59:59.999Z
 
 //         // Pour les requêtes GET, sensorRefs peut être une chaîne de caractères séparée par des virgules

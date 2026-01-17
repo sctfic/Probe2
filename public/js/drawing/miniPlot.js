@@ -1,4 +1,4 @@
-// Probe2\public\js\drawing\miniPlot.js
+// Probe\public\js\drawing\miniPlot.js
 // Author: LOPEZ Alban
 // License: AGPL
 // Project: https://probe.lpz.ovh/
@@ -22,18 +22,18 @@ function createPlot(data, metadata, id, period) {
     // console.log(period);
     if (typeof period !== 'number') { // gere le decalage
         period = '0 day';
-    } else if(period <= 24*3600) {
+    } else if (period <= 24 * 3600) {
         period = '1 hour';
-    } else if (period <= 24*3600*7) {
+    } else if (period <= 24 * 3600 * 7) {
         period = '1 day';
-    } else if (period <= 24*3600*31) {
+    } else if (period <= 24 * 3600 * 31) {
         period = '1 day';
-    } else if (period <= 24*3600*365) {
+    } else if (period <= 24 * 3600 * 365) {
         period = '1 day';
     } else {
         period = '1 day';
     }
-// console.log(data, metadata, id, period);
+    // console.log(data, metadata, id, period);
 
     const chartDiv = document.getElementById(id);
     if (!chartDiv) {
@@ -52,10 +52,10 @@ function createPlot(data, metadata, id, period) {
 
     // 1. Séparation des données : Passé vs Futur
     const pastData = data.filter(d => d.Date <= now);
-    
+
     // Pour le futur, on récupère les données > now
     let futureData = data.filter(d => d.Date > now);
-    
+
     // Pour assurer la continuité graphique sans coupure, on ajoute le dernier point du passé au début du futur
     if (pastData.length > 0 && futureData.length > 0) {
         futureData = [pastData[pastData.length - 1], ...futureData];
@@ -106,13 +106,13 @@ function createPlot(data, metadata, id, period) {
                 domain: d3.extent(data, d => d.Date)
             },
             y: {
-                label: null, 
+                label: null,
                 type: "linear",
-                axis: "right", 
-                grid: true, 
+                axis: "right",
+                grid: true,
                 nice: true,
-                domain: metadata.measurement === 'rain' 
-                    ? [0, d3.max(data, d => d.Value)] 
+                domain: metadata.measurement === 'rain'
+                    ? [0, d3.max(data, d => d.Value)]
                     : d3.extent(data, d => d.Value)
             },
             marks: [
@@ -120,34 +120,34 @@ function createPlot(data, metadata, id, period) {
                 // Utilise les couleurs standard (Bleu / Rouge / Vert)
                 // Note: lineY retiré car differenceY gère le stroke
                 Plot.differenceY(pastData, Plot.shiftX(`+${period}`, {
-                        x: "Date",
-                        y: "Value",
-                        stroke: "#3397d1", // Ou "series" si disponible, ici gardé fixe ou paramétrable
-                        positiveFill : "#FF6B6B",
-                        negativeFill : "#0dec0d",
-                        fillOpacity: 0.4,
-                        curve: metadata.measurement === 'rain' ? "step" : "monotone-x",
-                    }
+                    x: "Date",
+                    y: "Value",
+                    stroke: "#3397d1", // Ou "series" si disponible, ici gardé fixe ou paramétrable
+                    positiveFill: "#FF6B6B",
+                    negativeFill: "#0dec0d",
+                    fillOpacity: 0.4,
+                    curve: metadata.measurement === 'rain' ? "step" : "monotone-x",
+                }
                 )),
-                
+
                 // --- DIFFERENCE (Futur) ---
                 // Utilise le Gradient violet pour le trait (Stroke) ET le remplissage (Fill)
                 Plot.differenceY(futureData, Plot.shiftX(`+${period}`, {
-                        x: "Date",
-                        y: "Value",
-                        // Application du gradient sur le trait
-                        stroke: futureData.length > 1 ? `url(#${gradientId})` : forecastColor,
-                        positiveFill : "#FF6B6B",
-                        negativeFill : "#0dec0d",
-                        fillOpacity: 0.2,
-                        // Application du gradient sur le remplissage (remplace pos/neg)
-                        fill: futureData.length > 1 ? `url(#${gradientId})` : forecastColor, 
-                        curve: metadata.measurement === 'rain' ? "step" : "monotone-x",
-                    }
+                    x: "Date",
+                    y: "Value",
+                    // Application du gradient sur le trait
+                    stroke: futureData.length > 1 ? `url(#${gradientId})` : forecastColor,
+                    positiveFill: "#FF6B6B",
+                    negativeFill: "#0dec0d",
+                    fillOpacity: 0.2,
+                    // Application du gradient sur le remplissage (remplace pos/neg)
+                    fill: futureData.length > 1 ? `url(#${gradientId})` : forecastColor,
+                    curve: metadata.measurement === 'rain' ? "step" : "monotone-x",
+                }
                 )),
 
                 // --- INTERACTION & TEXTE ---
-                Plot.dot(data, Plot.pointerX({x: "Date", y: "Value", stroke: "red"})),
+                Plot.dot(data, Plot.pointerX({ x: "Date", y: "Value", stroke: "red" })),
                 Plot.text(data, Plot.pointerX({
                     px: "Date", py: "Value", dy: -16, dx: 30,
                     frameAnchor: "top-right",
@@ -158,7 +158,7 @@ function createPlot(data, metadata, id, period) {
                     px: "Date", py: "Value", dy: -16,
                     frameAnchor: "top-left",
                     fontVariant: "tabular-nums",
-                    text: (d) => `${d.Date.toLocaleString('fr-FR',{'dateStyle':"medium",'timeStyle':"short"})} ` //.toString('yyyy-MM-dd')
+                    text: (d) => `${d.Date.toLocaleString('fr-FR', { 'dateStyle': "medium", 'timeStyle': "short" })} ` //.toString('yyyy-MM-dd')
                 }))
             ]
         });
@@ -166,28 +166,28 @@ function createPlot(data, metadata, id, period) {
         // 3. Injection manuelle du gradient dans le SVG généré
         if (futureData.length > 1) {
             const svg = plot.tagName.toLowerCase() === "svg" ? plot : plot.querySelector("svg");
-            
+
             if (svg) {
                 const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
                 const linearGradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
-                
+
                 linearGradient.setAttribute("id", gradientId);
-                linearGradient.setAttribute("gradientUnits", "objectBoundingBox"); 
+                linearGradient.setAttribute("gradientUnits", "objectBoundingBox");
                 linearGradient.setAttribute("x1", "0%");
                 linearGradient.setAttribute("y1", "0%");
                 linearGradient.setAttribute("x2", "100%");
                 linearGradient.setAttribute("y2", "0%");
-                
+
                 linearGradient.innerHTML = gradientStops;
-                
+
                 defs.appendChild(linearGradient);
                 svg.prepend(defs);
             }
         }
-        
+
         chartDiv.innerHTML = '';
         chartDiv.appendChild(plot);
-        
+
     } catch (error) {
         console.error('Erreur lors de la création du graphique:', error);
         chartDiv.innerHTML = `<div class="error-message">Erreur lors de la création du graphique: ${error.message}</div>`;

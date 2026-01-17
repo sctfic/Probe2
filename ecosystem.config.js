@@ -36,9 +36,9 @@ module.exports = {
         PORT: 2222,
         watch: false // Désactiver watch en production
       },
-      log_file: '/var/log/pm2/Probe2/combined.log',
-      out_file: '/var/log/pm2/Probe2/out.log',
-      error_file: '/var/log/pm2/Probe2/error.log',
+      log_file: '/var/log/pm2/Probe/combined.log',
+      out_file: '/var/log/pm2/Probe/out.log',
+      error_file: '/var/log/pm2/Probe/error.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
   ],

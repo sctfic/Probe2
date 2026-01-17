@@ -63,7 +63,7 @@ exports.getApiEndpoints = (req, res) => {
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
-            message: 'API Probe2 - Surveillance de stations météorologiques VP2',
+            message: 'API Probe - Surveillance de stations météorologiques VP2',
             version: probeVersion,
             endpoints: endpoints,
             stations: stationsList,
@@ -77,7 +77,7 @@ exports.getApiEndpoints = (req, res) => {
     }
 };
 
-exports.getAppInfo = (req, res) => { // http://probe2.lpz.ovh/api/info
+exports.getAppInfo = (req, res) => { // http://Probe.lpz.ovh/api/info
     try {
         console.log(`${V.info} Récupération des informations de l'application`);
 
@@ -85,7 +85,7 @@ exports.getAppInfo = (req, res) => { // http://probe2.lpz.ovh/api/info
         const stationsList = Object.keys(allConfigs);
 
         const info = {
-            name: 'Probe2 API',
+            name: 'Probe API',
             version: probeVersion,
             description: 'API pour la surveillance de stations météorologiques Davis Vantage Pro 2',
             status: 'running',

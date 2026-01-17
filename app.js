@@ -69,7 +69,7 @@ console.log(`${V.loading} Répertoire de configuration: ${configDir}`);
 
 // Lance le serveur
 app.listen(PORT, () => {
-    console.log(`${V.StartFlag} Serveur Probe2 démarré sur le port ${PORT}`);
+    console.log(`${V.StartFlag} Serveur Probe démarré sur le port ${PORT}`);
     console.log(`${V.info} Environnement: ${process.env.NODE_ENV || 'development'}`);
     console.log(`${V.satellite} Stations: http://localhost:${PORT}/api/stations`);
 
