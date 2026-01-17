@@ -18,6 +18,9 @@ router.delete('/:stationId', isAuthenticated, stationController.deleteStation);
 // Route pour récupérer les données d'archive depuis la station (GET)
 router.get('/:stationId/collect', collectExtenders, talkStationWithLamp(stationController.getArchiveData)); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/collect
 
+// Route pour récupérer l'intégralité du tampon d'archive de la station
+router.get('/:stationId/collectAll', collectExtenders, talkStationWithLamp(stationController.getArchiveDataAll)); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/collectAll
+
 // Routes pour les stations météorologiques
 router.get('/:stationId/info', stationController.getStationInfo); //http://probe2.lpz.ovh/api/station/VP2_Serramoune/info
 

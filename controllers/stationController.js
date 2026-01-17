@@ -243,6 +243,47 @@ exports.getArchiveData = async (req, res) => {
     }
 };
 
+exports.getArchiveDataAll = async (req, res) => {
+    try {
+        const stationConfig = req.stationConfig;
+        console.log(`${V.Parabol} Demande de TOUTES les données d'archive (buffer complet) pour la station ${stationConfig.id}`);
+
+        // Calcul de l'intervalle d'archive (VP2 buffer is 2560 records = 512 pages)
+        const archiveInterval = stationConfig.archiveInterval?.lastReadValue || stationConfig.archiveInterval || 5;
+        const totalRecords = 512 * 5; // 2560
+        const startDate = new Date(Date.now() - (totalRecords * archiveInterval * 60 * 1000));
+
+        console.log(`${V.info} Collecte complète démarrée depuis ${startDate.toISOString()} (Interval: ${archiveInterval}min)`);
+
+        const archiveData = await stationService.downloadArchiveData(req, stationConfig, startDate, true);
+
+        if (stationConfig.collect) {
+            stationConfig.collect.lastRun = new Date().toISOString();
+            stationConfig.collect.msg = `Full collection: ${Object.keys(archiveData.data || {}).length} records collected.`;
+        }
+
+        res.json({
+            success: true,
+            stationId: stationConfig.id,
+            timestamp: new Date().toISOString(),
+            data: archiveData
+        });
+        configManager.autoSaveConfig(stationConfig);
+    } catch (error) {
+        if (req.stationConfig && req.stationConfig.collect) {
+            req.stationConfig.collect.lastRun = new Date().toISOString();
+            req.stationConfig.collect.msg = `Full Error: ${error.message}`;
+            configManager.autoSaveConfig(req.stationConfig);
+        }
+        console.error(`${V.error} Erreur dans getArchiveDataAll pour ${req.stationConfig?.id}:`, error);
+        res.status(500).json({
+            success: false,
+            stationId: req.stationConfig?.id || 'unknown',
+            error: error.message
+        });
+    }
+};
+
 exports.syncSettings = async (req, res) => {
     try {
         const stationConfig = req.stationConfig;

@@ -600,7 +600,7 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
     return true;
 }
 
-async function downloadArchiveData(req, stationConfig, startDate, res) {
+async function downloadArchiveData(req, stationConfig, startDate, ignoreLimit = false) {
     let effectiveStartDate;
 
     if (startDate) { // 02/10/2025 22:05:00
@@ -645,7 +645,7 @@ async function downloadArchiveData(req, stationConfig, startDate, res) {
     const allRecords = {};
 
     // on se limite a 50 archives a la fois pour laisser la station aquerir les nouvelles données
-    for (let i = 0; i < numberOfPages && i < 50; i++) {
+    for (let i = 0; i < numberOfPages && (ignoreLimit || i < 50); i++) {
 
         // on envoit l'ACK, demande de la suivante
         const pageData = await sendCommand(req, stationConfig, ACK, 2000, "265<CRC>");
