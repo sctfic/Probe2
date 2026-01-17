@@ -76,8 +76,8 @@
         "comment": "recupere les previsions pour les capteurs standard (toute les heures)",
         "model": "meteofrance_arome_france_hd",
         "enabled": false,
-        "lastRun": "2026-01-17T14:03:20.456Z",
-        "msg": "4172 points imported, 96 deleted."
+        "lastRun": "2026-01-17T15:28:12.766Z",
+        "msg": "4158 points imported, 16 deleted."
     },
     "historical": {
         "comment": "recupere les previsions pour les capteurs standard (toute les jours a 23h30)",

@@ -1,14 +1,15 @@
 // utils/weatherDataParser.js
-const units = require('../config/Units.json');
+const unitsProvider = require('../services/unitsProvider');
 
 /**
- * Retrieves sensor type information from Units.json.
+ * Retrieves sensor type information from UnitsProvider.
  * If a sensorName is provided, it returns the full type object for that sensor.
  * If no sensorName is provided, it returns a map of all sensors to their type.
  * @param {string} [sensorName] - The name of the sensor to look for.
  * @returns {object | undefined} The type object or the sensor-to-type map.
  */
 function getSensorType(sensorName) {
+    const units = unitsProvider.getUnits();
     if (sensorName) {
         for (const type in units) {
             if (units[type].sensors?.includes(sensorName)) {
@@ -17,11 +18,7 @@ function getSensorType(sensorName) {
         }
         return undefined; // Not found
     } else {
-        const map = {};
-        for (const type in units) {
-            if (units[type].sensors) for (const sensor of units[type].sensors) map[sensor] = type;
-        }
-        return map;
+        return unitsProvider.getSensorTypeMap();
     }
 }
 
@@ -217,7 +214,7 @@ function convertRawValue2NativeValue(rawValue, nativeUnit, stationConfig) {
     }
 }
 
-const sensorTypeMap = getSensorType();
+// sensorTypeMap will be retrieved dynamically from unitsProvider when needed
 
 const conversionTable = {
     // type de données : unités de conversion
@@ -305,11 +302,13 @@ const conversionTable = {
 };
 
 function convertToUnit(nativeValue, key, UnitsType = 'user') {
+    const sensorTypeMap = unitsProvider.getSensorTypeMap();
     const type = sensorTypeMap[key];
     if (!type) {
         console.error(`No type found for ${key}`);
         return nativeValue;
     }
+    const units = unitsProvider.getUnits();
     const unit = units[type]?.[UnitsType];
     if (!unit) {
         console.error(`No user unit found for ${type}`);
@@ -339,6 +338,8 @@ function convertToUnit(nativeValue, key, UnitsType = 'user') {
 
 function processWeatherData(weatherData, stationConfig, UnitsType = 'metric') {
     const processed = {};
+    const units = unitsProvider.getUnits();
+    const sensorTypeMap = unitsProvider.getSensorTypeMap();
     // console.warn('weatherData', weatherData.windDir, weatherData.windDirMax);
     for (const [key, data] of Object.entries(weatherData)) {
         if (!isNaN(data.value)) { // on illimine les capteurs sans valeur !
@@ -360,7 +361,7 @@ function processWeatherData(weatherData, stationConfig, UnitsType = 'metric') {
 
 module.exports = {
     getSensorType,
-    sensorTypeMap,
+    get sensorTypeMap() { return unitsProvider.getSensorTypeMap(); },
     mapCardinalToDegrees,
     mapDegreesToCardinal,
     readSignedInt16LE,

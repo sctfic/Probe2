@@ -11,7 +11,7 @@ const vm = require('vm');
 const compositeProbes = require('../config/compositeProbes.json');
 const dbProbes = require('../config/dbProbes.json');
 const { sensorTypeMap } = require('../utils/weatherDataParser');
-const units = require('../config/Units.json');
+const unitsProvider = require('../services/unitsProvider');
 const { V } = require('../utils/icons');
 
 exports.testTcpIp = async (req, res) => {
@@ -115,6 +115,7 @@ async function getCompositeProbes(weatherData, stationConfig) {
             const calculate = vm.runInNewContext(`(${fnCalcStr})`, scriptContext);
             const calculatedValue = calculate(calcInput);
             const type = sensorTypeMap[probeKey];
+            const units = unitsProvider.getUnits();
             const measurement = units[type];
             console.log('Type', type);
             console.log('Measurement', measurement);
@@ -162,6 +163,7 @@ async function getDbProbes(stationConfig) {
                     Vy: dbData[sensorKey].Vy
                 };
             }
+            const units = unitsProvider.getUnits();
             const type = units[dbData[sensorKey].measurement];
             dbData[sensorKey].Unit = type?.metric || null;
             dbData[sensorKey].userUnit = type?.user || null;

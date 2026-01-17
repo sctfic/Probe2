@@ -5,7 +5,7 @@
 
 const influxdbService = require('../services/influxdbService');
 const { V, O } = require('../utils/icons');
-const units = require('../config/Units.json');
+const unitsProvider = require('../services/unitsProvider');
 const { sensorTypeMap } = require('../utils/weatherDataParser');
 const configManager = require('../services/configManager');
 const probeVersion = require('../package.json').version;
@@ -88,6 +88,7 @@ function getMetadata(req, sensorRefs, { start, end, intervalSeconds }, data) {
             } else {
                 mix[type] = [merge];
             }
+            const units = unitsProvider.getUnits();
             sensorsFnFromMetric[merge] = {
                 unit: units?.[type]?.metric || null,
                 userUnit: units?.[type]?.user || null,
@@ -150,7 +151,7 @@ exports.getQueryMetadata = async (req, res) => {
                 queryTime: new Date().toISOString(),
                 first: dateRange.firstUtc,
                 last: dateRange.lastUtc,
-                unit: units,
+                unit: unitsProvider.getUnits(),
             },
             measurements: _measurements
         });
@@ -205,8 +206,8 @@ exports.getQueryRange = async (req, res) => {
                 intervalSeconds: data.count > 1 ? Math.round((new Date(data.lastUtc).getTime() - new Date(data.firstUtc).getTime()) / (data.count - 1)) / 1000 : null,
                 count: null,
                 unit: null,
-                userUnit: units?.[type]?.user || '',
-                toUserUnit: units?.[type]?.available_units?.[units?.[type]?.user]?.fnFromMetric || null
+                userUnit: unitsProvider.getUnits()?.[type]?.user || '',
+                toUserUnit: unitsProvider.getUnits()?.[type]?.available_units?.[unitsProvider.getUnits()?.[type]?.user]?.fnFromMetric || null
             },
             data: []
         });
@@ -303,6 +304,7 @@ exports.getQueryRaw = async (req, res) => {
             }
         }
         // Prepare metadata for the response
+        const units = unitsProvider.getUnits();
         const measurement = units[type];
         const metadata = {
             stationId: stationId,
@@ -520,8 +522,8 @@ exports.getQueryCandle = async (req, res) => {
                 intervalSeconds: intervalSeconds,
                 count: Data.length,
                 unit: data[0]?.unit || '',
-                userUnit: units?.[type]?.user || '',
-                toUserUnit: units?.[type]?.available_units?.[units?.[type]?.user]?.fnFromMetric || null
+                userUnit: unitsProvider.getUnits()?.[type]?.user || '',
+                toUserUnit: unitsProvider.getUnits()?.[type]?.available_units?.[unitsProvider.getUnits()?.[type]?.user]?.fnFromMetric || null
             },
             data: Data
         });

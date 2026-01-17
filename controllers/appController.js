@@ -7,6 +7,7 @@ const path = require('path');
 const { exec } = require('child_process');
 const probeVersion = require('../package.json').version;
 const ping = require('ping');
+const unitsProvider = require('../services/unitsProvider');
 
 /**
  * Récupère dynamiquement tous les points de terminaison enregistrés dans l'application.
@@ -126,8 +127,7 @@ exports.getAppInfo = (req, res) => { // http://Probe.lpz.ovh/api/info
 exports.getUnitsSettings = (req, res) => {
     try {
         console.log(`${V.gear} Récupération de la configuration des unités (Units.json)`);
-        const unitsPath = path.join(__dirname, '..', 'config', 'Units.json');
-        const unitsConfig = JSON.parse(fs.readFileSync(unitsPath, 'utf8'));
+        const unitsConfig = unitsProvider.getUnits();
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
@@ -155,10 +155,11 @@ exports.updateUnitsSettings = (req, res) => {
         }
 
         console.log(`${V.write} Mise à jour de la configuration des unités (Units.json)`);
-        const unitsPath = path.join(__dirname, '..', 'config', 'Units.json');
+        const success = unitsProvider.setUnits(newSettings);
 
-        // Écrire le nouveau contenu dans le fichier, joliment formaté
-        fs.writeFileSync(unitsPath, JSON.stringify(newSettings, null, 4), 'utf8');
+        if (!success) {
+            throw new Error('Erreur lors de la sauvegarde de la configuration des unités.');
+        }
 
         res.json({
             success: true,
@@ -290,8 +291,7 @@ exports.updatecompositeProbesSettings = (req, res) => {
 
         // Mettre à jour Units.json avec les nouvelles sondes
         try {
-            const unitsPath = path.join(__dirname, '..', 'config', 'Units.json');
-            const unitsConfig = JSON.parse(fs.readFileSync(unitsPath, 'utf8'));
+            const unitsConfig = unitsProvider.getUnits();
 
             const allCompositeProbeKeys = Object.keys(newSettings);
 
@@ -318,7 +318,7 @@ exports.updatecompositeProbesSettings = (req, res) => {
                     }
                 }
             }
-            fs.writeFileSync(unitsPath, JSON.stringify(unitsConfig, null, 4), 'utf8');
+            unitsProvider.setUnits(unitsConfig);
             console.log(`${V.write} Fichier Units.json mis à jour avec les sondes calculées.`);
         } catch (unitsError) {
             console.error(`${V.error} Erreur lors de la mise à jour de Units.json:`, unitsError);
@@ -376,8 +376,7 @@ exports.updateIntegratorProbesSettings = (req, res) => {
         console.log(`${V.write} Fichier integratorProbes.json mis à jour.`);
 
         try {
-            const unitsPath = path.join(__dirname, '..', 'config', 'Units.json');
-            const unitsConfig = JSON.parse(fs.readFileSync(unitsPath, 'utf8'));
+            const unitsConfig = unitsProvider.getUnits();
             const allIntegratorProbeKeys = Object.keys(newSettings);
 
             for (const probeKey of allIntegratorProbeKeys) {
@@ -393,7 +392,7 @@ exports.updateIntegratorProbesSettings = (req, res) => {
                     }
                 }
             }
-            fs.writeFileSync(unitsPath, JSON.stringify(unitsConfig, null, 4), 'utf8');
+            unitsProvider.setUnits(unitsConfig);
             console.log(`${V.write} Fichier Units.json mis à jour avec les Modeles Intégrateur.`);
         } catch (unitsError) {
             console.error(`${V.error} Erreur lors de la mise à jour de Units.json:`, unitsError);

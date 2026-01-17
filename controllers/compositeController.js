@@ -1,10 +1,10 @@
 // controllers/compositeController.js
-const units = require('../config/Units.json');
+const unitsProvider = require('../services/unitsProvider');
 const Probes = require('../config/compositeProbes.json');
 const { sensorTypeMap } = require('../utils/weatherDataParser');
 // const compositeProbes = require('../config/aditionnalProbe.json');
 
-async function getcompositeProbes (req, res){
+async function getcompositeProbes(req, res) {
     const stationConfig = req.stationConfig;
     const sensors = req.params.sensors;
     const timeStamp = new Date().toISOString();
@@ -17,7 +17,8 @@ async function getcompositeProbes (req, res){
         acc[key].fnCalc = acc[key].fnCalc?.replace("%longitude%", req.stationConfig.longitude.lastReadValue)
             .replace("%latitude%", req.stationConfig.latitude.lastReadValue)
             .replace("%altitude%", req.stationConfig.altitude.lastReadValue);
-        const measurement = units[sensorTypeMap[key]]
+        const units = unitsProvider.getUnits();
+        const measurement = units[unitsProvider.getSensorTypeMap()[key]];
         // acc[key].value = calculate(acc[key].fnCalc);
         acc[key].userUnit = measurement?.user || null
         acc[key].Unit = measurement?.metric || null
