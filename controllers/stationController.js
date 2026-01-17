@@ -208,7 +208,7 @@ exports.getArchiveData = async (req, res) => {
         const stationConfig = req.stationConfig;
         console.log(`${V.Parabol} Demande de données d'archive pour la station ${stationConfig.id}`);
 
-        const endDate = (await queryDateRange(stationConfig.id, 'barometer', '-120d', '1d', true)).lastUtc;
+        const endDate = (await queryDateRange(stationConfig.id, 'barometer', '-107d', '1d', true)).lastUtc;
         // <!> downloadArchiveData laisse un relica de socket
         const archiveData = await stationService.downloadArchiveData(req, stationConfig, endDate);
         // si il est 0h 00 le dimanche, on met a jour la date de la station

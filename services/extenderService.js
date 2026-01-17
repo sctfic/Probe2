@@ -61,54 +61,29 @@ async function collectVentiConnect(extender, stationId, points) {
                 }
             }
 
-            // // Ventilateur
-            // if (data.fan) {
-            //     if (data.fan.rpm !== undefined) {
-            //         points.push(new influxdbService.Point('ticksByMin')
-            //             .tag('station_id', stationId)
-            //             .tag('sensor', `${prefix}rpm`)
-            //             .floatField('value', data.fan.rpm)
-            //             .timestamp(timestamp));
-            //     }
-            //     if (data.fan.instructions !== undefined) {
-            //         points.push(new influxdbService.Point('humidity')
-            //             .tag('station_id', stationId)
-            //             .tag('sensor', `${prefix}fan_instruction`)
-            //             .floatField('value', data.fan.instructions)
-            //             .timestamp(timestamp));
-            //     }
-            //     if (data.fan.real !== undefined) {
-            //         points.push(new influxdbService.Point('humidity')
-            //             .tag('station_id', stationId)
-            //             .tag('sensor', `${prefix}fan_real`)
-            //             .floatField('value', data.fan.real)
-            //             .timestamp(timestamp));
-            //     }
-            // }
-
             // Tensions
             if (data.voltage) {
-                if (data.voltage.supply !== undefined) {
-                    points.push(new influxdbService.Point('voltage')
-                        .tag('station_id', stationId)
-                        .tag('sensor', `${prefix}supply`)
-                        .floatField('value', data.voltage.supply)
-                        .timestamp(timestamp));
-                }
-                if (data.voltage.fan !== undefined) {
-                    points.push(new influxdbService.Point('voltage')
-                        .tag('station_id', stationId)
-                        .tag('sensor', `${prefix}fan_voltage`)
-                        .floatField('value', data.voltage.fan)
-                        .timestamp(timestamp));
-                }
-                if (data.voltage.remote !== undefined) {
-                    points.push(new influxdbService.Point('voltage')
-                        .tag('station_id', stationId)
-                        .tag('sensor', `${prefix}remote`)
-                        .floatField('value', data.voltage.remote)
-                        .timestamp(timestamp));
-                }
+                // if (data.voltage.supply !== undefined) {
+                //     points.push(new influxdbService.Point('voltage')
+                //         .tag('station_id', stationId)
+                //         .tag('sensor', `${prefix}supply`)
+                //         .floatField('value', data.voltage.supply)
+                //         .timestamp(timestamp));
+                // }
+                // if (data.voltage.fan !== undefined) {
+                //     points.push(new influxdbService.Point('voltage')
+                //         .tag('station_id', stationId)
+                //         .tag('sensor', `${prefix}fan_voltage`)
+                //         .floatField('value', data.voltage.fan)
+                //         .timestamp(timestamp));
+                // }
+                // if (data.voltage.remote !== undefined) {
+                //     points.push(new influxdbService.Point('voltage')
+                //         .tag('station_id', stationId)
+                //         .tag('sensor', `${prefix}remote`)
+                //         .floatField('value', data.voltage.remote)
+                //         .timestamp(timestamp));
+                // }
             }
 
             extender.available = true;
