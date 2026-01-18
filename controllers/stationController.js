@@ -73,7 +73,6 @@ async function getCompositeProbes(weatherData, stationConfig) {
         const loadedScripts = new Set();
 
         for (const probeKey in compositeProbes) {
-            console.log(V.info, '============================================', probeKey);
             const probeConfig = compositeProbes[probeKey];
             console.log(probeConfig);
             if (probeConfig.scriptJS) {
@@ -119,10 +118,10 @@ async function getCompositeProbes(weatherData, stationConfig) {
             const type = unitsProvider.getSensorTypeMap()[probeKey];
             const units = unitsProvider.getUnits();
             const measurement = units[type];
-            console.log('Type', type);
-            console.log('Measurement', measurement);
+            // console.log('Type', type);
+            // console.log('Measurement', measurement);
             // console.log('Value', calculatedValue, 'Unit', measurement.metric, 'userUnit', measurement.user, 'toUserUnit', measurement.available_units[measurement.user].fnFromMetric);
-            weatherData[probeKey] = {
+            weatherData[type + ':' + probeKey] = {
                 label: probeConfig.label,
                 comment: probeConfig.comment,
                 Value: calculatedValue,
@@ -135,7 +134,6 @@ async function getCompositeProbes(weatherData, stationConfig) {
                 groupCustom: probeConfig.groupCustom,
                 sensorDb: probeConfig.sensorDb
             };
-            console.log(weatherData[probeKey], '############################################################');
         }
     } catch (calcError) {
         console.error(`${V.error} Error calculating composite probes for current conditions:`, calcError.message);

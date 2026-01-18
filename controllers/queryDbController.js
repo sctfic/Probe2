@@ -120,20 +120,13 @@ exports.getQueryMetadata = async (req, res) => {
     const stationId = req.params.stationId;
     const start = Date.now();
     try {
-        console.log(`${V.info} getQueryMetadata: ${Date.now() - start}ms`);
-
-        const dateRange = await influxdbService.queryDateRange(stationId);
-        console.log(`${V.info} getQueryMetadata: ${Date.now() - start}ms`);
-
-        console.log(`${V.info} Demande de métadonnées pour la station ${stationId}`);
+        const dateRange = await influxdbService.queryDateRange(stationId, 'pressure:*');
         const _measurements = await influxdbService.getInfluxMetadata(stationId);
-        console.log(`${V.info} getQueryMetadata: ${Date.now() - start}ms`);
 
         const allFields = Object.entries(_measurements) // liste des sensors en nom long
             .flatMap(([measurementType, measurement]) =>
                 (measurement.tags?.sensor || []).map(sensor => `${measurementType}:${sensor}`)
             );
-        console.log(`${V.info} getQueryMetadata: ${Date.now() - start}ms`);
 
         res.json({
             success: true,

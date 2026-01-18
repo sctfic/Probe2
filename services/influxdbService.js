@@ -274,8 +274,10 @@ async function getInfluxMetadata(stationId = null, knownTags = ['sensor', 'stati
 
 function getFilter(sensorRef) {
     let Filter;
-    if (sensorRef.includes(':')) {
-        const [measurement, sensor] = sensorRef.split(':');
+    const [measurement, sensor] = sensorRef.split(':');
+    if (sensorRef.includes(':*')) {
+        Filter = `r._measurement == "${measurement}"`;
+    } else if (sensorRef.includes(':')) {
         Filter = `r._measurement == "${measurement}" and r.sensor == "${sensor}"`;
     } else {
         Filter = `r.sensor == "${sensorRef}"`;

@@ -71,13 +71,13 @@
     "test_calc": {
         "label": "srdf",
         "comment": "adg",
-        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  return Math.random() + data['pressure:barometer'] ;\n}",
+        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  return Math.random() + data['angle:MOON_calc'] ;\n}",
         "dataNeeded": [
-            "pressure:barometer"
+            "angle:MOON_calc"
         ],
         "currentMap": {
             "d": "timestamp",
-            "pressure:barometer": "barometer"
+            "angle:MOON_calc": "MOON_calc"
         },
         "scriptJS": [],
         "period": 604800,
