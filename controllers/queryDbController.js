@@ -208,7 +208,7 @@ exports.getQueryRange = async (req, res) => {
     }
 };
 
-async function getCalculatedData(stationConfig, probeConfig, start, end, intervalSeconds) {
+async function getCompositeData(stationConfig, probeConfig, start, end, intervalSeconds) {
     // console.log(V.info, stationConfig, probeConfig, start, end, intervalSeconds);
     // Prepare script context for calculations
     const scriptContext = {};
@@ -280,8 +280,18 @@ exports.getQueryRaw = async (req, res) => {
                 err.statusCode = 404;
                 throw err;
             }
-            Data = await getCalculatedData(req.stationConfig, probeConfig, start, end, intervalSeconds);
+            Data = await getCompositeData(req.stationConfig, probeConfig, start, end, intervalSeconds);
             msg = 'Calculated data loaded!';
+        } else if (sensor.endsWith('_trend')) {
+            const integratorProbes = probesProvider.getProbes();
+            const probeConfig = integratorProbes[sensor];
+            if (!probeConfig) {
+                const err = new Error(`Trend sensor configuration not found for ${sensorRef}`);
+                err.statusCode = 404;
+                throw err;
+            }
+            Data = await getTrendData(req.stationConfig, probeConfig, start, end, intervalSeconds);
+            msg = 'Trend data loaded!';
         } else {
             // Handle regular sensor
             const rawData = await influxdbService.queryRaw(stationId, type + ':' + sensor, start, end, intervalSeconds);
@@ -346,11 +356,14 @@ exports.getQueryRaws = async (req, res) => {
         // 1. Séparer les capteurs réguliers des capteurs composites
         const regularSensors = [];
         const calcSensors = [];
+        const trendSensors = [];
 
         sensorRefs.forEach(ref => {
             const { type, sensor } = getTypeAndSensor(ref);
             if (sensor && sensor.endsWith('_calc')) {
                 calcSensors.push(type + ':' + sensor);
+            } else if (sensor && sensor.endsWith('_trend')) {
+                trendSensors.push(type + ':' + sensor);
             } else {
                 regularSensors.push(type + ':' + sensor);
             }
@@ -378,9 +391,10 @@ exports.getQueryRaws = async (req, res) => {
                 continue;
             }
 
-            const data = await getCalculatedData(req.stationConfig, probeConfig, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
+            const data = await getCompositeData(req.stationConfig, probeConfig, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
             calcDataResults.push({ sensorRef, data });
         }
+
 
         // 5. Combiner les données
         // Convertir les données régulières en Map pour un accès rapide

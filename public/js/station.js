@@ -272,7 +272,7 @@ async function displaySettingsForm() {
             fields: ['archiveInterval', 'AMPMMode', 'dateFormat', 'windCupSize', 'rainCollectorSize', 'rainSaisonStart']
         },
         database: {
-            title: 'Base de données',
+            title: 'Roles et fonctionnalitées',
             fields: ['collect', 'historical', 'forecast']
         },
         extenders: {
@@ -558,6 +558,11 @@ function renderExtenderDetails() {
             </div>
 
             <div class="extender-form-row">
+                <label>ID:</label>
+                <input type="text" value="${currentExtender.id || ''}" readonly style="background:#222; color:#888; cursor:not-allowed;">
+            </div>
+
+            <div class="extender-form-row">
                 <label>Nom:</label>
                 <input type="text" value="${currentExtender.name || ''}" 
                     onchange="updateExtenderField('${safeType}', ${currentIndex}, 'name', this.value)">
@@ -643,8 +648,31 @@ window.submitNewExtender = async function () {
 
     if (!isValid) return;
 
+    // Création de l'identifiant (2 lettres type + 3 digits incremental)
+    const prefixMap = {
+        "WhisperEye": "WE",
+        "Venti'Connect": "VC"
+    };
+    const prefix = prefixMap[type] || "EX";
+
+    // Trouver le numéro maximum utilisé pour ce préfixe de type
+    let maxNum = 0;
+    Object.keys(localExtendersState).forEach(t => {
+        localExtendersState[t].forEach(ext => {
+            if (ext.id && ext.id.startsWith(prefix)) {
+                const numPart = ext.id.substring(prefix.length);
+                const num = parseInt(numPart, 10);
+                if (!isNaN(num) && num > maxNum) {
+                    maxNum = num;
+                }
+            }
+        });
+    });
+    const nextId = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
+
     // Création de l'objet
     const newExtender = {
+        id: nextId,
         name: name,
         host: host,
         description: '',

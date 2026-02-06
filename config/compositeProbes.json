@@ -69,20 +69,22 @@
         "measurement": "angle"
     },
     "test_calc": {
-        "label": "srdf",
-        "comment": "adg",
-        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  return Math.random() + data['angle:MOON_calc'] ;\n}",
+        "label": "Delta InOut",
+        "comment": "temp In - Out",
+        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  if ( data['temperature:inTemp']  && data['temperature:outTemp']  ) {\n     return data['temperature:inTemp'] - data['temperature:outTemp'] ;\n  }\n}",
         "dataNeeded": [
-            "angle:MOON_calc"
+            "temperature:inTemp",
+            "temperature:outTemp"
         ],
         "currentMap": {
             "d": "timestamp",
-            "angle:MOON_calc": "MOON_calc"
+            "temperature:inTemp": "inTemp",
+            "temperature:outTemp": "outTemp"
         },
         "scriptJS": [],
         "period": 604800,
         "sensorDb": "test_calc",
-        "measurement": "temperature",
+        "measurement": "None",
         "groupCustom": "CompositesNew",
         "groupUsage": "Composites"
     }

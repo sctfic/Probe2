@@ -323,14 +323,14 @@ function handleAddIntegratorProbe(event) {
         errorDiv.style.display = 'block';
         return;
     }
-    // Valider les caractères et ajouter "_calc" si manquant.
-    const baseKey = probeKey.endsWith('_calc') ? probeKey.slice(0, -5) : probeKey;
+    // Valider les caractères et ajouter "_trend" si manquant.
+    const baseKey = probeKey.endsWith('_trend') ? probeKey.slice(0, -6) : probeKey;
     if (!/^[a-zA-Z0-9_]+$/.test(baseKey) || !baseKey) {
         errorDiv.textContent = 'La clé doit être alphanumérique et peut contenir des underscores.';
         errorDiv.style.display = 'block';
         return;
     }
-    probeKey = baseKey + '_calc';
+    probeKey = baseKey + '_trend';
     if (currentIntegratorProbesSettings[probeKey]) {
         errorDiv.textContent = 'Cette clé de sonde existe déjà.';
         errorDiv.style.display = 'block';

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,34 +15,40 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
         }
+
         .container {
             background: white;
             border-radius: 15px;
             padding: 30px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
         }
+
         h1 {
             color: #333;
             text-align: center;
             margin-bottom: 10px;
         }
+
         .location-info {
             text-align: center;
             color: #666;
             margin-bottom: 20px;
             font-size: 14px;
         }
+
         .chart-container {
             position: relative;
             height: 400px;
             margin: 30px 0;
         }
+
         .loading {
             text-align: center;
             padding: 40px;
             color: #667eea;
             font-size: 18px;
         }
+
         .spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #667eea;
@@ -51,16 +58,24 @@
             animation: spin 1s linear infinite;
             margin: 20px auto;
         }
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
+
         .stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
             margin-top: 20px;
         }
+
         .stat-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 20px;
@@ -68,15 +83,18 @@
             color: white;
             text-align: center;
         }
+
         .stat-value {
             font-size: 28px;
             font-weight: bold;
             margin: 10px 0;
         }
+
         .stat-label {
             font-size: 14px;
             opacity: 0.9;
         }
+
         .error {
             background: #ff4444;
             color: white;
@@ -86,24 +104,26 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1>📊 Analyse de Température Moyenne</h1>
         <div class="location-info">
-            📍 Latitude: <span id="lat">43.2</span>° | Longitude: <span id="lon">-0.5</span>° | Altitude: <span id="alt">242</span>m
+            📍 Latitude: <span id="lat">43.2</span>° | Longitude: <span id="lon">-0.5</span>° | Altitude: <span
+                id="alt">242</span>m
         </div>
-        
+
         <div id="loading" class="loading">
             <div class="spinner"></div>
             Chargement des données météorologiques...
         </div>
-        
+
         <div id="error" style="display: none;"></div>
-        
+
         <div class="chart-container">
             <canvas id="tempChart"></canvas>
         </div>
-        
+
         <div class="stats" id="stats" style="display: none;">
             <div class="stat-card">
                 <div class="stat-label">Température Moyenne</div>
@@ -129,7 +149,7 @@
             for (let i = 0; i < temperatures.length; i++) {
                 let sum = 0;
                 let count = 0;
-                for (let j = Math.max(0, i - Math.floor(jours/2)); j <= Math.min(temperatures.length - 1, i + Math.floor(jours/2)); j++) {
+                for (let j = Math.max(0, i - Math.floor(jours / 2)); j <= Math.min(temperatures.length - 1, i + Math.floor(jours / 2)); j++) {
                     if (temperatures[j] !== null) {
                         sum += temperatures[j];
                         count++;
@@ -147,21 +167,21 @@
         async function obtenirTemperaturesMoyennes(latitude, longitude, altitude) {
             const aujourdhui = new Date();
             const jourDansAnnee = Math.floor((aujourdhui - new Date(aujourdhui.getFullYear(), 0, 0)) / 86400000);
-            
+
             // Récupérer les données des 10 dernières années
             const annees = [];
-            for (let i = 0; i < 10; i++) {
+            for (let i = 0; i < 80; i++) {
                 annees.push(aujourdhui.getFullYear() - i - 1);
             }
-            
+
             const donneesAnnuelles = [];
-            
+
             for (const annee of annees) {
                 const startDate = `${annee}-01-01`;
                 const endDate = `${annee}-12-31`;
-                
+
                 const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${latitude}&longitude=${longitude}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_mean&timezone=auto`;
-                
+
                 try {
                     const response = await fetch(url);
                     const data = await response.json();
@@ -170,11 +190,11 @@
                     console.error(`Erreur pour l'année ${annee}:`, error);
                 }
             }
-            
+
             // Calculer la moyenne pour chaque jour de l'année
             const moyennesJournalieres = [];
             const nombreJours = 365;
-            
+
             for (let jour = 0; jour < nombreJours; jour++) {
                 let sum = 0;
                 let count = 0;
@@ -186,23 +206,23 @@
                 }
                 moyennesJournalieres.push(count > 0 ? sum / count : null);
             }
-            
+
             // Appliquer la moyenne mobile sur 7 jours
-            const moyennesLissees = calculerMoyenneMobile(moyennesJournalieres, 7);
-            
+            const moyennesLissees = moyennesJournalieres; //calculerMoyenneMobile(moyennesJournalieres, 7);
+
             // Extraire 60 jours avant et 300 jours après
             const result = [];
             const dates = [];
-            
+
             for (let i = -60; i <= 300; i++) {
                 let jourIndex = (jourDansAnnee + i + 365 * 2) % 365;
                 result.push(moyennesLissees[jourIndex]);
-                
+
                 const date = new Date(aujourdhui);
                 date.setDate(date.getDate() + i);
                 dates.push(date.toLocaleDateString('fr-FR'));
             }
-            
+
             return { temperatures: result, dates: dates };
         }
 
@@ -223,20 +243,20 @@
 
             try {
                 const donnees = await obtenirTemperaturesMoyennes(gps.latitude, gps.longitude, gps.altitude);
-                
+
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('stats').style.display = 'grid';
-                
+
                 // Calculer les statistiques
                 const tempsValides = donnees.temperatures.filter(t => t !== null);
                 const moyenne = tempsValides.reduce((a, b) => a + b, 0) / tempsValides.length;
                 const min = Math.min(...tempsValides);
                 const max = Math.max(...tempsValides);
-                
+
                 document.getElementById('avgTemp').textContent = moyenne.toFixed(1) + '°C';
                 document.getElementById('minTemp').textContent = min.toFixed(1) + '°C';
                 document.getElementById('maxTemp').textContent = max.toFixed(1) + '°C';
-                
+
                 // Créer le graphique
                 const ctx = document.getElementById('tempChart').getContext('2d');
                 chart = new Chart(ctx, {
@@ -267,7 +287,7 @@
                                 mode: 'index',
                                 intersect: false,
                                 callbacks: {
-                                    label: function(context) {
+                                    label: function (context) {
                                         return 'Température: ' + context.parsed.y.toFixed(1) + '°C';
                                     }
                                 }
@@ -301,7 +321,7 @@
                         }
                     }
                 });
-                
+
             } catch (error) {
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('error').style.display = 'block';
@@ -314,4 +334,5 @@
         initialiser();
     </script>
 </body>
+
 </html>

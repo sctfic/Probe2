@@ -5,7 +5,6 @@ const { loadStationConfig, talkStationWithLamp, talkStationQuickly } = require('
 const { isAuthenticated } = require('../middleware/authMiddleware');
 const stationController = require('../controllers/stationController');
 const { collectExtenders } = require('../controllers/extendersController');
-// const compositeController = require('../controllers/compositeController');
 const cronService = require('../services/cronService');
 const V = require('../utils/icons');
 
@@ -15,11 +14,11 @@ router.use('/:stationId', loadStationConfig);
 // Route pour supprimer une configuration de station
 router.delete('/:stationId', isAuthenticated, stationController.deleteStation);
 
-// Route pour récupérer les données d'archive depuis la station (GET)
+// Route pour récupérer les données d'archive depuis la station (GET) depuis les dernieres deja recuperees
 router.get('/:stationId/collect', collectExtenders, talkStationWithLamp(stationController.getArchiveData)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collect
 
-// Route pour récupérer l'intégralité du tampon d'archive de la station
-router.get('/:stationId/collectAll', collectExtenders, talkStationWithLamp(stationController.getArchiveDataAll)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collectAll
+// Route pour récupérer l'intégralité du tampon d'archive de la station 512 pages
+router.get('/:stationId/collectAll', talkStationWithLamp(stationController.getArchiveDataAll)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collectAll
 
 // Routes pour les stations météorologiques
 router.get('/:stationId/info', stationController.getStationInfo); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/info

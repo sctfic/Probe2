@@ -1,4 +1,19 @@
 {
+    "None": {
+        "title": "NoUnit",
+        "description": "Unités de mesure de la température",
+        "user": "-",
+        "metric": "-",
+        "available_units": {
+            "-": {
+                "title": "-",
+                "fnFromMetric": "(k) => k"
+            }
+        },
+        "sensors": [
+            "test_calc"
+        ]
+    },
     "temperature": {
         "title": "Temperature",
         "description": "Unités de mesure de la température",
@@ -36,8 +51,7 @@
             "extraTemp1",
             "extraTemp2",
             "extraTemp3",
-            "THSW_calc",
-            "test_calc"
+            "THSW_calc"
         ]
     },
     "speed": {
