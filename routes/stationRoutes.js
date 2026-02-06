@@ -16,6 +16,7 @@ router.delete('/:stationId', isAuthenticated, stationController.deleteStation);
 
 // Route pour récupérer les données d'archive depuis la station (GET) depuis les dernieres deja recuperees
 router.get('/:stationId/collect', collectExtenders, talkStationWithLamp(stationController.getArchiveData)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collect
+router.get('/:stationId/extenders', collectExtenders); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders
 
 // Route pour récupérer l'intégralité du tampon d'archive de la station 512 pages
 router.get('/:stationId/collectAll', talkStationWithLamp(stationController.getArchiveDataAll)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collectAll

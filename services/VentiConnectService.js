@@ -1,5 +1,29 @@
 const axios = require('axios');
 
+
+/**
+ * Récupère et parse les données JSON d'un module Venti'Connect.
+ * @param {string} host - L'adresse du module.
+ * @returns {Promise<Object|null>} Les données parsées ou null en cas d'erreur.
+ */
+async function fetchVentiConnectInfoAPI(host) {
+    try {
+        // const data = {
+        //     TI: 18.3234, TP: 18.8234, TV: 20.0234,
+        //     HI: 46.234, HE: 44.234,
+        //     CM: 400, AM: 300, RM: 1290
+        // }
+        // return parseVentiConnectJSON(data);
+        const url = `http://${host}/InfoAPI`;
+        const response = await axios.get(url, { timeout: 5000 });
+        if (response.data) {
+            return parseVentiConnectJSON(response.data);
+        }
+    } catch (error) {
+        console.error(`[VentiConnectService] Erreur lors de la récupération sur ${host}:`, error.message);
+    }
+    return null;
+}
 /**
  * Parse les données JSON brutes reçues du module Venti'Connect (format /InfoAPI)
  * @param {Object} rawData - Les données JSON brutes.
@@ -10,20 +34,19 @@ function parseVentiConnectJSON(rawData) {
     const now = new Date();
     // Arrondir à la minute
     const rounded = new Date(Math.round(now.getTime() / 60000) * 60000);
-    const isoString = rounded.toISOString();
-
+    // const isoString = rounded.toISOString();
     return { // arrondir le datetime a la minute (les secondes et ms seront a 0)
-        dateTime: isoString,
+        dateTime: rounded,
         temperature: {
             // Temperature corrigee en degrés Celsius arrondi a 1 decimal
-            indoor: rawData.TI.toFixed(1),
-            fan: rawData.TP.toFixed(1),
-            collector: rawData.TV.toFixed(1)
+            indoor: rawData.TI.toFixed(1) * 1,
+            fan: rawData.TP.toFixed(1) * 1,
+            collector: rawData.TV.toFixed(1) * 1
         },
         humidity: {
             // Humidite relative corrigee en % arrondi la valeur entiere
-            indoor: rawData.HI.toFixed(),
-            fan: rawData.HE.toFixed()
+            indoor: rawData.HI.toFixed() * 1,
+            fan: rawData.HE.toFixed() * 1
         },
         fan: {
             // Vitesse du ventilateur
@@ -32,24 +55,6 @@ function parseVentiConnectJSON(rawData) {
             rpm: rawData.RM           // vitesse reelle en tours par minute
         }
     };
-}
-
-/**
- * Récupère et parse les données JSON d'un module Venti'Connect.
- * @param {string} host - L'adresse du module.
- * @returns {Promise<Object|null>} Les données parsées ou null en cas d'erreur.
- */
-async function fetchVentiConnectInfoAPI(host) {
-    try {
-        const url = `http://${host}/InfoAPI`;
-        const response = await axios.get(url, { timeout: 5000 });
-        if (response.data) {
-            return parseVentiConnectJSON(response.data);
-        }
-    } catch (error) {
-        console.error(`[VentiConnectService] Erreur lors de la récupération sur ${host}:`, error.message);
-    }
-    return null;
 }
 
 /*

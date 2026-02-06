@@ -15,7 +15,7 @@ async function collectVentiConnect(extender, stationId, points) {
 
         if (data) {
             const prefix = `${extender.id}_`;
-            console.log(data);
+            console.log(data, prefix);
 
             // Températures
             if (data.temperature) {
@@ -43,6 +43,7 @@ async function collectVentiConnect(extender, stationId, points) {
                         .floatField('value', data.temperature.collector)
                         .timestamp(data.dateTime));
                 }
+                console.log(points);
             }
 
             // Humidité
