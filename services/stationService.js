@@ -554,6 +554,7 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
         .floatField('Vy', Vy)
         // .tag('unit', '->')
         .tag('sensor', 'Gust')
+        .tag('source', 'localDataCollection')
         .timestamp(minuteTimestamp);
     points.push(vGust);
     Ux = 0;
@@ -571,6 +572,7 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
         .floatField('Vy', Vy)
         // .tag('unit', '->')
         .tag('sensor', 'Wind')
+        .tag('source', 'localDataCollection')
         .timestamp(minuteTimestamp);
     points.push(vWind);
 
@@ -588,6 +590,7 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
             .floatField('value', data.Value)
             // .tag('unit', data.Unit)
             .tag('sensor', tag)
+            .tag('source', 'localDataCollection')
             .timestamp(minuteTimestamp);
         points.push(point);
     };

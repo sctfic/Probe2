@@ -744,6 +744,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
                                     pointsChunk.push(new influxdbService.Point(type)
                                         .tag('station_id', stationId)
                                         .tag('sensor', s)
+                                        .tag('source', 'rebuildedHistoricalData')
                                         .floatField('value', metricValue.toFixed(2))
                                         .timestamp(timestamp));
                                 });
@@ -759,6 +760,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
                             .floatField('Ux', UxWind)
                             .floatField('Vy', VyWind)
                             .tag('sensor', 'open-meteo_Wind')
+                            .tag('source', 'rebuildedHistoricalData')
                             .timestamp(timestamp));
 
                         const Gust = metrics.wind_gusts_10m[i] / 3.6;
@@ -770,6 +772,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
                             .floatField('Ux', UxGust)
                             .floatField('Vy', VyGust)
                             .tag('sensor', 'open-meteo_Gust')
+                            .tag('source', 'rebuildedHistoricalData')
                             .timestamp(timestamp));
 
                         const daysDiff = (timestamp - lastChunkDate) / (1000 * 60 * 60 * 24);
@@ -914,7 +917,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
                             pointsChunk.push(new influxdbService.Point(type)
                                 .tag('station_id', stationId)
                                 .tag('sensor', s)
-                                .tag('forecast', 'true') // Tag pour les prévisions
+                                .tag('source', 'forecast')
                                 .floatField('value', metricValue.toFixed(2))
                                 .timestamp(timestamp));
                         });
@@ -930,7 +933,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
                     .floatField('Ux', UxWind)
                     .floatField('Vy', VyWind)
                     .tag('sensor', 'Wind')
-                    .tag('forecast', 'true') // Tag pour les prévisions
+                    .tag('source', 'forecast')
                     .timestamp(timestamp));
 
                 const Gust = metrics.wind_gusts_10m[i] / 3.6;
@@ -942,7 +945,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
                     .floatField('Ux', UxGust)
                     .floatField('Vy', VyGust)
                     .tag('sensor', 'Gust')
-                    .tag('forecast', 'true') // Tag pour les prévisions
+                    .tag('source', 'forecast')
                     .timestamp(timestamp));
 
                 totalPointsGenerated += (Object.keys(mapping).length * 2) + 2; // Estimation grossière du nombre de points

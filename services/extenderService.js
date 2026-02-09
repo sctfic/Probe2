@@ -23,25 +23,25 @@ async function collectVentiConnect(extender, stationId, points) {
                     points.push(new influxdbService.Point('temperature')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'indoor')
-                        // .tag('extender', extender.id || extender.name)
+                        .tag('source', 'localExtenderCollection')
                         .floatField('value', data.temperature.indoor)
-                        .timestamp(data.dateTime));
+                        .timestamp(new Date(data.dateTime)));
                 }
                 if (data.temperature.fan !== undefined) {
                     points.push(new influxdbService.Point('temperature')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'fan')
-                        // .tag('extender', extender.id || extender.name)
+                        .tag('source', 'localExtenderCollection')
                         .floatField('value', data.temperature.fan)
-                        .timestamp(data.dateTime));
+                        .timestamp(new Date(data.dateTime)));
                 }
                 if (data.temperature.collector !== undefined) {
                     points.push(new influxdbService.Point('temperature')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'collector')
-                        // .tag('extender', extender.id || extender.name)
+                        .tag('source', 'localExtenderCollection')
                         .floatField('value', data.temperature.collector)
-                        .timestamp(data.dateTime));
+                        .timestamp(new Date(data.dateTime)));
                 }
                 console.log(points);
             }
@@ -52,17 +52,17 @@ async function collectVentiConnect(extender, stationId, points) {
                     points.push(new influxdbService.Point('humidity')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'indoor')
-                        // .tag('extender', extender.id || extender.name)
+                        .tag('source', 'localExtenderCollection')
                         .floatField('value', data.humidity.indoor)
-                        .timestamp(data.dateTime));
+                        .timestamp(new Date(data.dateTime)));
                 }
                 if (data.humidity.fan !== undefined) {
                     points.push(new influxdbService.Point('humidity')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'fan')
-                        // .tag('extender', extender.id || extender.name)
+                        .tag('source', 'localExtenderCollection')
                         .floatField('value', data.humidity.fan)
-                        .timestamp(data.dateTime));
+                        .timestamp(new Date(data.dateTime)));
                 }
             }
 
