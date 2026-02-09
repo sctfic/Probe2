@@ -11,6 +11,7 @@ const vm = require('vm');
 const probesProvider = require('../services/probesProvider');
 const dbProbes = require('../config/dbProbes.json');
 const unitsProvider = require('../services/unitsProvider');
+const UnitsSyncService = require('../services/UnitsSyncService');
 const { V } = require('../utils/icons');
 
 exports.testTcpIp = async (req, res) => {
@@ -382,6 +383,9 @@ exports.deleteStation = (req, res) => {
         const success = configManager.deleteConfig(stationId);
 
         if (success) {
+            // Synchronisation asynchrone des unités
+            UnitsSyncService.syncAllExtenders().catch(err => console.error("[UNITS-SYNC] Error during sync:", err));
+
             res.json({
                 success: true,
                 timestamp: new Date().toISOString(),

@@ -24,6 +24,41 @@ async function fetchWhisperEyeCurrents(host) {
  * @returns {Promise<Object|null>} Les données ou null en cas d'erreur.
  */
 async function fetchWhisperEyeCapacity(host) {
+    // JSON capacity
+    // {
+    //         "sensors" : [
+    //             {
+    //                 "Name": "Temp1",
+    //                 "description": "Temperature sous tuile",
+    //                 "Type": "Temperature",
+    //             },
+    //             {
+    //                 "Name": "Hum1",
+    //                 "description": "Humidity sdb",
+    //                 "Type": "Humidity",
+    //             }
+    //         ],
+    //         "actuators" : [
+    //             {
+    //                 "Name": "verin1",
+    //                 "description": "Verin velux",
+    //                 "Type": "double sens",
+    //                 "range": "int:-100 100"
+    //             },
+    //             {
+    //                 "Name": "pompe1",
+    //                 "description": "circulateur eau chaude",
+    //                 "Type": "un sens",
+    //                 "range": "int:0 100"
+    //             },
+    //             {
+    //                 "Name": "lumiere1",
+    //                 "description": "lumiere salon",
+    //                 "Type": "tout ou rien",
+    //                 "range": "bool:0 1"
+    //             }
+    //         ]
+    // }
     try {
         const url = `http://${host}/Capacity`;
         const response = await axios.get(url, { timeout: 2000 });
