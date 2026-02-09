@@ -129,6 +129,13 @@ async function displaySettingsForm() {
                 display: inline-block;
             }
 
+            /* Indicateur de ping dans l'onglet */
+            .extender-tab .ping-indicator {
+                width: 8px;
+                height: 8px;
+                margin: 0;
+            }
+
             /* Bouton Ajout dans la barre d'onglets */
             .btn-add-tab {
                 background: #28a745;
@@ -156,11 +163,24 @@ async function displaySettingsForm() {
             /* Header de l'extendeur */
             .extender-header {
                 display: flex;
-                justify-content: space-between;
-                align-items: center;
+                flex-wrap: wrap; /* Retour à la ligne dynamique */
+                gap: 20px;
+                position: relative; /* Pour l'ancrage des actions */
+                padding-right: 40px; /* Espace pour le bouton delete */
                 margin-bottom: 15px;
                 border-bottom: 1px solid #444;
-                padding-bottom: 10px;
+                padding-bottom: 15px;
+            }
+
+            .extender-header-actions {
+                position: absolute;
+                top: 0;
+                right: 0;
+            }
+
+            .extender-input-container, .extender-sensors, .extender-actionners {
+                flex: 1 1 300px;
+                min-width: 250px;
             }
 
             .extender-form-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
@@ -331,6 +351,8 @@ async function displaySettingsForm() {
 
     // Initialiser le gestionnaire d'onglets pour les extendeurs
     renderExtendersManager();
+    // Lancer un refresh asynchrone du status
+    refreshExtendersStatus();
 
     const form = document.getElementById('station-settings-form');
     const resetBtn = document.getElementById('reset-settings');
@@ -473,8 +495,13 @@ function renderExtendersManager() {
         const isActive = tabId === activeExtenderTab ? 'active' : '';
         const safeType = item.type.replace(/'/g, "\\'");
 
+        const currentExt = localExtendersState[item.type][item.index];
+        const pingStatus = currentExt.available ? 'ping-success' : 'ping-fail';
+        const pingTitle = currentExt.available ? 'En ligne' : 'Hors ligne';
+
         tabsHTML += `
             <button type="button" class="extender-tab ${isActive}" onclick="switchExtenderDevice('${safeType}', ${item.index})">
+                <span class="ping-indicator ${pingStatus}" title="${pingTitle}"></span>
                 ${item.name}
                 <span class="extender-type-badge">${item.type}</span>
             </button>
@@ -548,37 +575,44 @@ function renderExtenderDetails() {
     contentDiv.innerHTML = `
         <div class="extender-details">
             <div class="extender-header">
-                <div>
-                    <span class="ping-indicator ${pingStatus}" title="${pingTitle}"></span> 
-                    <span style="font-size:0.9em; color:#888;">${pingTitle}</span>
+                <div class="extender-input-container">
+                    <div class="extender-form-row">
+                        <label>Nom:</label>
+                        <input type="text" value="${currentExtender.name || ''}" 
+                            onchange="updateExtenderField('${safeType}', ${currentIndex}, 'name', this.value)">
+                    </div>
+                    
+                    <div class="extender-form-row">
+                        <label>Host / IP:</label>
+                        <input type="text" value="${currentExtender.host || ''}" 
+                            onchange="updateExtenderField('${safeType}', ${currentIndex}, 'host', this.value)">
+                    </div>
+
+                    <div class="extender-form-row">
+                        <label>Description:</label>
+                        <input type="text" value="${currentExtender.description || ''}" 
+                            onchange="updateExtenderField('${safeType}', ${currentIndex}, 'description', this.value)">
+                    </div>
                 </div>
-                <img src="svg/delete.svg" class="nav-icon btn-delete-extender" 
-                     onclick="removeExtender('${safeType}', ${currentIndex})"
-                     alt="Supprimer" title="Supprimer ce périphérique">
+                <div class="extender-sensors">
+                    <div class="extender-form-row">
+                        
+                    </div>
+                </div>
+                <div class="extender-actionners">
+                    <div class="extender-form-row">
+                    </div>
+                </div>
+                <div class="extender-header-actions">
+                    <img src="svg/delete.svg" class="nav-icon btn-delete-extender" 
+                        onclick="removeExtender('${safeType}', ${currentIndex})"
+                        alt="Supprimer" title="Supprimer ce périphérique">
+                </div>
             </div>
 
-            <div class="extender-form-row">
-                <label>ID:</label>
-                <input type="text" value="${currentExtender.id || ''}" readonly style="background:#222; color:#888; cursor:not-allowed;">
-            </div>
+            <!-- ID masqué selon demande utilisateur -->
+            <input type="hidden" value="${currentExtender.id || ''}">
 
-            <div class="extender-form-row">
-                <label>Nom:</label>
-                <input type="text" value="${currentExtender.name || ''}" 
-                    onchange="updateExtenderField('${safeType}', ${currentIndex}, 'name', this.value)">
-            </div>
-            
-            <div class="extender-form-row">
-                <label>Host / IP:</label>
-                <input type="text" value="${currentExtender.host || ''}" 
-                    onchange="updateExtenderField('${safeType}', ${currentIndex}, 'host', this.value)">
-            </div>
-
-            <div class="extender-form-row">
-                <label>Description:</label>
-                <input type="text" value="${currentExtender.description || ''}" 
-                    onchange="updateExtenderField('${safeType}', ${currentIndex}, 'description', this.value)">
-            </div>
 
             ${apiKeyField}
         </div>
@@ -771,6 +805,36 @@ window.updateExtenderField = function (type, index, field, value) {
         if (field === 'name') {
             renderExtendersManager();
         }
+    }
+};
+
+/**
+ * Appelle l'API pour vérifier l'état de tous les extendeurs
+ * et rafraîchit l'affichage des onglets.
+ */
+window.refreshExtendersStatus = async function () {
+    if (!selectedStation) return;
+
+    try {
+        const response = await fetch(`/api/station/${selectedStation.id}/extenders/status`);
+        const result = await response.json();
+
+        if (result.success && result.extenders) {
+            // Mettre à jour l'état local avec les infos de disponibilité
+            Object.keys(result.extenders).forEach(type => {
+                if (localExtendersState[type]) {
+                    result.extenders[type].forEach((extStatus, index) => {
+                        if (localExtendersState[type][index]) {
+                            localExtendersState[type][index].available = extStatus.available;
+                        }
+                    });
+                }
+            });
+            // Rafraîchir l'affichage
+            renderExtendersManager();
+        }
+    } catch (error) {
+        console.error("Erreur lors du rafraîchissement du status des extendeurs:", error);
     }
 };
 

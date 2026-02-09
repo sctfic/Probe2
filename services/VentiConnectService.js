@@ -15,7 +15,8 @@ async function fetchVentiConnectInfoAPI(host) {
         // }
         // return parseVentiConnectJSON(data);
         const url = `http://${host}/InfoAPI`;
-        const response = await axios.get(url, { timeout: 5000 });
+        const response = await axios.get(url, { timeout: 2000 });
+        console.log('============', 'response.data', response.data)
         if (response.data) {
             return parseVentiConnectJSON(response.data);
         }

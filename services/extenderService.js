@@ -3,6 +3,7 @@ const influxdbService = require('./influxdbService');
 const { V } = require('../utils/icons');
 const configManager = require('./configManager');
 const VentiConnectService = require('./VentiConnectService');
+const WhisperEyeService = require('./WhisperEyeService');
 
 /**
  * Logique de collecte pour les périphériques Venti'Connect (API JSON /InfoAPI)
@@ -25,7 +26,7 @@ async function collectVentiConnect(extender, stationId, points) {
                         .tag('sensor', prefix + 'indoor')
                         .tag('source', 'localExtenderCollection')
                         .floatField('value', data.temperature.indoor)
-                        .timestamp(new Date(data.dateTime)));
+                        .timestamp(data.dateTime));
                 }
                 if (data.temperature.fan !== undefined) {
                     points.push(new influxdbService.Point('temperature')
@@ -33,7 +34,7 @@ async function collectVentiConnect(extender, stationId, points) {
                         .tag('sensor', prefix + 'fan')
                         .tag('source', 'localExtenderCollection')
                         .floatField('value', data.temperature.fan)
-                        .timestamp(new Date(data.dateTime)));
+                        .timestamp(data.dateTime));
                 }
                 if (data.temperature.collector !== undefined) {
                     points.push(new influxdbService.Point('temperature')
@@ -41,7 +42,7 @@ async function collectVentiConnect(extender, stationId, points) {
                         .tag('sensor', prefix + 'collector')
                         .tag('source', 'localExtenderCollection')
                         .floatField('value', data.temperature.collector)
-                        .timestamp(new Date(data.dateTime)));
+                        .timestamp(data.dateTime));
                 }
                 console.log(points);
             }
@@ -54,7 +55,7 @@ async function collectVentiConnect(extender, stationId, points) {
                         .tag('sensor', prefix + 'indoor')
                         .tag('source', 'localExtenderCollection')
                         .floatField('value', data.humidity.indoor)
-                        .timestamp(new Date(data.dateTime)));
+                        .timestamp(data.dateTime));
                 }
                 if (data.humidity.fan !== undefined) {
                     points.push(new influxdbService.Point('humidity')
@@ -62,7 +63,7 @@ async function collectVentiConnect(extender, stationId, points) {
                         .tag('sensor', prefix + 'fan')
                         .tag('source', 'localExtenderCollection')
                         .floatField('value', data.humidity.fan)
-                        .timestamp(new Date(data.dateTime)));
+                        .timestamp(data.dateTime));
                 }
             }
 
@@ -110,17 +111,6 @@ async function collectVentiConnect(extender, stationId, points) {
  */
 async function collectWhisperEye(extender, stationId, points) {
     try {
-        const url = `http://${extender.host}/Currents?key=${extender.apiKey}`;
-        console.log(`${V.info} [EXTENDERS] Interrogation de WhisperEye: ${extender.name} (${url})`);
-
-        const response = await axios.get(url, { timeout: 5000 });
-        const csvData = response.data;
-
-
-
-
-
-
 
 
     } catch (error) {
@@ -162,6 +152,31 @@ async function runExtenderCollection(stationConfig) {
     }
 }
 
+/**
+ * Simple ping de tous les extendeurs pour mettre à jour leur état 'available'
+ * Ne génère aucun point InfluxDB.
+ */
+async function pingAllExtenders(stationConfig) {
+    const ventiConnects = stationConfig.extenders["Venti'Connect"] || [];
+    const whisperEyes = stationConfig.extenders["WhisperEye"] || [];
+
+    const promises = [
+        ...ventiConnects.map(async (extender) => {
+            const data = await VentiConnectService.fetchVentiConnectInfoAPI(extender.host);
+            extender.available = !!data;
+        }),
+        ...whisperEyes.map(async (extender) => {
+            const data = await WhisperEyeService.fetchWhisperEyeCurrents(extender.host);
+            extender.available = !!data;
+        })
+    ];
+
+    await Promise.all(promises);
+
+    return stationConfig.extenders;
+}
+
 module.exports = {
-    runExtenderCollection
+    runExtenderCollection,
+    pingAllExtenders
 };

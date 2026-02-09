@@ -4,7 +4,7 @@ const router = express.Router();
 const { loadStationConfig, talkStationWithLamp, talkStationQuickly } = require('../middleware/stationMiddleware');
 const { isAuthenticated } = require('../middleware/authMiddleware');
 const stationController = require('../controllers/stationController');
-const { collectExtenders } = require('../controllers/extendersController');
+const { collectExtenders, checkExtendersStatus } = require('../controllers/extendersController');
 const cronService = require('../services/cronService');
 const V = require('../utils/icons');
 
@@ -17,6 +17,7 @@ router.delete('/:stationId', isAuthenticated, stationController.deleteStation);
 // Route pour récupérer les données d'archive depuis la station (GET) depuis les dernieres deja recuperees
 router.get('/:stationId/collect', collectExtenders, talkStationWithLamp(stationController.getArchiveData)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collect
 router.get('/:stationId/extenders', collectExtenders); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders
+router.get('/:stationId/extenders/status', checkExtendersStatus); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders/status
 
 // Route pour récupérer l'intégralité du tampon d'archive de la station 512 pages
 router.get('/:stationId/collectAll', talkStationWithLamp(stationController.getArchiveDataAll)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collectAll
