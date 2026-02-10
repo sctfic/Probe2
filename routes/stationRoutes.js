@@ -4,8 +4,9 @@ const router = express.Router();
 const { loadStationConfig, talkStationWithLamp, talkStationQuickly } = require('../middleware/stationMiddleware');
 const { isAuthenticated } = require('../middleware/authMiddleware');
 const stationController = require('../controllers/stationController');
-const { collectExtenders } = require('../controllers/extendersController');
+const { collectExtenders, checkExtendersStatus } = require('../controllers/extendersController');
 const cronService = require('../services/cronService');
+const UnitsSyncService = require('../services/UnitsSyncService');
 const V = require('../utils/icons');
 
 // Middleware pour toutes les routes de stations
@@ -17,6 +18,7 @@ router.delete('/:stationId', isAuthenticated, stationController.deleteStation);
 // Route pour récupérer les données d'archive depuis la station (GET) depuis les dernieres deja recuperees
 router.get('/:stationId/collect', collectExtenders, talkStationWithLamp(stationController.getArchiveData)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collect
 router.get('/:stationId/extenders', collectExtenders); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders
+router.get('/:stationId/extenders/status', checkExtendersStatus); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders/status
 
 // Route pour récupérer l'intégralité du tampon d'archive de la station 512 pages
 router.get('/:stationId/collectAll', talkStationWithLamp(stationController.getArchiveDataAll)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collectAll
@@ -62,7 +64,6 @@ router.put('/:stationId', isAuthenticated, (req, res) => {
         const updates = req.body;
         const configManager = require('../services/configManager');
 
-        // --- CORRECTION DEBUT ---
         // Sécurisation : on vérifie si updates existe avant de lire ses propriétés
         const updatesCollect = updates.collect;
         const updatesForecast = updates.forecast;
@@ -84,7 +85,6 @@ router.put('/:stationId', isAuthenticated, (req, res) => {
             stationConfig.forecast.enabled !== updatesForecast.enabled ||
             stationConfig.forecast.model !== updatesForecast.model
         );
-        // --- CORRECTION FIN ---
 
         // Fusionner les modifications avec la configuration existante de manière récursive
         const mergeDeep = (target, source) => {
@@ -119,6 +119,9 @@ router.put('/:stationId', isAuthenticated, (req, res) => {
         const success = configManager.saveConfig(stationConfig.id, updatedConfig);
 
         if (success) {
+            // Synchronisation asynchrone des unités (ne bloque pas la réponse)
+            UnitsSyncService.syncAllExtenders().catch(err => console.error("[UNITS-SYNC] Error during sync:", err));
+
             res.json({
                 success: true,
                 timestamp: new Date().toISOString(),

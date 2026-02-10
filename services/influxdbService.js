@@ -97,9 +97,9 @@ async function deleteForecasts(stationId) {
     const stop = new Date().toISOString(); // Jusqu'à maintenant (exclusive)
 
     // Le prédicat Flux pour le comptage
-    const fluxPredicate = `r["station_id"]=="${stationId}" and r["forecast"]=="true"`;
+    const fluxPredicate = `r["station_id"]=="${stationId}" and r["source"]=="forecast"`;
     // Le prédicat pour l'API de suppression (syntaxe simplifiée)
-    const deletePredicate = `station_id="${stationId}" AND forecast="true"`;
+    const deletePredicate = `station_id="${stationId}" AND source="forecast"`;
 
     try {
         // 1. Compter les points à supprimer
@@ -302,7 +302,7 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, archives
         }
         filter = getFilter(sensorRef);
     }
-    let scope = ' |> filter(fn: (r) => r.forecast != "true")';
+    let scope = ' |> filter(fn: (r) => r.source != "forecast")';
     if (!archivesOnly) { scope = '            |> group()' }
 
     const now = new Date();

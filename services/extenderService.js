@@ -3,6 +3,7 @@ const influxdbService = require('./influxdbService');
 const { V } = require('../utils/icons');
 const configManager = require('./configManager');
 const VentiConnectService = require('./VentiConnectService');
+const WhisperEyeService = require('./WhisperEyeService');
 
 /**
  * Logique de collecte pour les périphériques Venti'Connect (API JSON /InfoAPI)
@@ -20,26 +21,29 @@ async function collectVentiConnect(extender, stationId, points) {
             // Températures
             if (data.temperature) {
                 if (data.temperature.indoor !== undefined) {
+                    // temperature:${prefix}indoor
                     points.push(new influxdbService.Point('temperature')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'indoor')
-                        // .tag('extender', extender.id || extender.name)
+                        .tag('source', 'localExtenderCollection')
                         .floatField('value', data.temperature.indoor)
                         .timestamp(data.dateTime));
                 }
                 if (data.temperature.fan !== undefined) {
+                    // temperature:${prefix}fan
                     points.push(new influxdbService.Point('temperature')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'fan')
-                        // .tag('extender', extender.id || extender.name)
+                        .tag('source', 'localExtenderCollection')
                         .floatField('value', data.temperature.fan)
                         .timestamp(data.dateTime));
                 }
                 if (data.temperature.collector !== undefined) {
+                    // temperature:${prefix}collector
                     points.push(new influxdbService.Point('temperature')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'collector')
-                        // .tag('extender', extender.id || extender.name)
+                        .tag('source', 'localExtenderCollection')
                         .floatField('value', data.temperature.collector)
                         .timestamp(data.dateTime));
                 }
@@ -49,50 +53,55 @@ async function collectVentiConnect(extender, stationId, points) {
             // Humidité
             if (data.humidity) {
                 if (data.humidity.indoor !== undefined) {
+                    // humidity:${prefix}indoor
                     points.push(new influxdbService.Point('humidity')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'indoor')
-                        // .tag('extender', extender.id || extender.name)
+                        .tag('source', 'localExtenderCollection')
                         .floatField('value', data.humidity.indoor)
                         .timestamp(data.dateTime));
                 }
                 if (data.humidity.fan !== undefined) {
+                    // humidity:${prefix}fan
                     points.push(new influxdbService.Point('humidity')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'fan')
-                        // .tag('extender', extender.id || extender.name)
+                        .tag('source', 'localExtenderCollection')
                         .floatField('value', data.humidity.fan)
                         .timestamp(data.dateTime));
                 }
             }
 
-            // // Vitesse Ventilateur
-            // if (data.fan) {
-            //     if (data.fan.instructions !== undefined) {
-            //         points.push(new influxdbService.Point('fan')
-            //             .tag('station_id', stationId)
-            //             .tag('sensor', prefix + 'instructions')
-            //             // .tag('extender', extender.id || extender.name)
-            //             .floatField('value', data.fan.instructions)
-            //             .timestamp(data.dateTime));
-            //     }
-            //     if (data.fan.real !== undefined) {
-            //         points.push(new influxdbService.Point('fan')
-            //             .tag('station_id', stationId)
-            //             .tag('sensor', prefix + 'real')
-            //             // .tag('extender', extender.id || extender.name)
-            //             .floatField('value', data.fan.real)
-            //             .timestamp(data.dateTime));
-            //     }
-            //     if (data.fan.rpm !== undefined) {
-            //         points.push(new influxdbService.Point('fan')
-            //             .tag('station_id', stationId)
-            //             .tag('sensor', prefix + 'rpm')
-            //             // .tag('extender', extender.id || extender.name)
-            //             .floatField('value', data.fan.rpm)
-            //             .timestamp(data.dateTime));
-            //     }
-            // }
+            // Vitesse Ventilateur
+            if (data.fan) {
+                // if (data.fan.instructions !== undefined) {
+                //     // ticksByMin:${prefix}instructions
+                //     points.push(new influxdbService.Point('fan')
+                //         .tag('station_id', stationId)
+                //         .tag('sensor', prefix + 'instructions')
+                //         // .tag('extender', extender.id || extender.name)
+                //         .floatField('value', data.fan.instructions)
+                //         .timestamp(data.dateTime));
+                // }
+                // if (data.fan.real !== undefined) {
+                //     // ticksByMin:${prefix}real
+                //     points.push(new influxdbService.Point('fan')
+                //         .tag('station_id', stationId)
+                //         .tag('sensor', prefix + 'real')
+                //         // .tag('extender', extender.id || extender.name)
+                //         .floatField('value', data.fan.real)
+                //         .timestamp(data.dateTime));
+                // }
+                if (data.fan.rpm !== undefined) {
+                    // ticksByMin:${prefix}rpm
+                    points.push(new influxdbService.Point('fan')
+                        .tag('station_id', stationId)
+                        .tag('sensor', prefix + 'rpm')
+                        // .tag('extender', extender.id || extender.name)
+                        .floatField('value', data.fan.rpm)
+                        .timestamp(data.dateTime));
+                }
+            }
 
             extender.available = true;
             console.log(`${V.Check} [EXTENDERS] Données JSON récupérées pour ${extender.name}`);
@@ -110,17 +119,6 @@ async function collectVentiConnect(extender, stationId, points) {
  */
 async function collectWhisperEye(extender, stationId, points) {
     try {
-        const url = `http://${extender.host}/Currents?key=${extender.apiKey}`;
-        console.log(`${V.info} [EXTENDERS] Interrogation de WhisperEye: ${extender.name} (${url})`);
-
-        const response = await axios.get(url, { timeout: 5000 });
-        const csvData = response.data;
-
-
-
-
-
-
 
 
     } catch (error) {
@@ -162,6 +160,31 @@ async function runExtenderCollection(stationConfig) {
     }
 }
 
+/**
+ * Simple ping de tous les extendeurs pour mettre à jour leur état 'available'
+ * Ne génère aucun point InfluxDB.
+ */
+async function pingAllExtenders(stationConfig) {
+    const ventiConnects = stationConfig.extenders["Venti'Connect"] || [];
+    const whisperEyes = stationConfig.extenders["WhisperEye"] || [];
+
+    const promises = [
+        ...ventiConnects.map(async (extender) => {
+            const data = await VentiConnectService.fetchVentiConnectInfoAPI(extender.host);
+            extender.available = !!data;
+        }),
+        ...whisperEyes.map(async (extender) => {
+            const data = await WhisperEyeService.fetchWhisperEyeCurrents(extender.host);
+            extender.available = !!data;
+        })
+    ];
+
+    await Promise.all(promises);
+
+    return stationConfig.extenders;
+}
+
 module.exports = {
-    runExtenderCollection
+    runExtenderCollection,
+    pingAllExtenders
 };

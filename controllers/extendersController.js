@@ -1,5 +1,5 @@
 const { V } = require('../utils/icons');
-const { runExtenderCollection } = require('../services/extenderService');
+const { runExtenderCollection, pingAllExtenders } = require('../services/extenderService');
 
 /**
  * Middleware de collecte utilisé par le contrôleur principal.
@@ -23,4 +23,26 @@ exports.collectExtenders = async (req, res, next) => {
     }
 
     next();
+};
+
+/**
+ * Route API pour vérifier l'état des extendeurs à la demande.
+ */
+exports.checkExtendersStatus = async (req, res) => {
+    const stationConfig = req.stationConfig;
+
+    if (!stationConfig || !stationConfig.extenders) {
+        return res.json({ success: true, extenders: {} });
+    }
+
+    try {
+        const statuses = await pingAllExtenders(stationConfig);
+        res.json({
+            success: true,
+            extenders: statuses
+        });
+    } catch (error) {
+        console.error(`${V.error} [EXTENDERS] Status check error:`, error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
 };
