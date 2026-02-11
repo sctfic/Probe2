@@ -139,13 +139,13 @@ exports.getQueryMetadata = async (req, res) => {
                     longitude: req.stationConfig.longitude.lastReadValue,
                     altitude: req.stationConfig.altitude.lastReadValue,
                 },
-                sensor: [...new Set(allFields)],
+                sensor: [...new Set(allFields)], // liste dans la DB
                 queryTime: new Date().toISOString(),
                 first: dateRange.firstUtc,
                 last: dateRange.lastUtc,
-                unit: unitsProvider.getUnits(),
+                unit: unitsProvider.getUnits(), // liste dans units.json
             },
-            measurements: _measurements
+            measurements: _measurements // liste dans la DB
         });
     } catch (error) {
         handleError(res, stationId, error, 'getQueryMetadata');
@@ -575,6 +575,14 @@ exports.getQueryWindRose = async (req, res) => {
 exports.getQueryWindVectors = async (req, res) => {
     const { stationId, sensorRef } = req.params;
     const { startDate, endDate, stepCount = 100 } = req.query;
+    let sensor;
+    if (sensorRef && sensorRef.includes(":")) {
+        sensor = sensorRef.split(":")[1];
+    } else if (sensorRef) {
+        sensor = sensorRef;
+    } else {
+        sensor = 'Wind';
+    }
 
     if (!stationId) {
         return res.status(400).json({ success: false, error: 'Le paramètre stationId est requis.' });
@@ -583,7 +591,7 @@ exports.getQueryWindVectors = async (req, res) => {
     try {
         console.log(`${V.info} Demande de données de vent pour ${stationId}`);
         const timeInfo = await getIntervalSeconds(stationId, 'speed:Wind', startDate, endDate, stepCount);
-        const data = await influxdbService.queryWindVectors(stationId, sensorRef, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
+        const data = await influxdbService.queryWindVectors(stationId, sensor, timeInfo.start, timeInfo.end, timeInfo.intervalSeconds);
         let msg = 'Full data loadded !';
         if (data.length == stepCount + 1 && new Date(data[data.length - 1].d).getTime() == timeInfo.end) {
             // data.pop(); // supprimer la derniere valeur, qui est la derniere valeur de la plage avant agregation
@@ -591,8 +599,8 @@ exports.getQueryWindVectors = async (req, res) => {
         } else if (data.length < stepCount) {
             msg = '<!> Data missing suspected !';
         }
-        const metadata = getMetadata(req, ['speed:' + sensorRef, 'direction:' + sensorRef], timeInfo, data);
-        metadata.sensor = sensorRef;
+        const metadata = getMetadata(req, ['speed:' + sensor, 'direction:' + sensor], timeInfo, data);
+        metadata.sensor = sensor;
         res.json({
             success: true,
             message: msg,
@@ -618,7 +626,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
         };
 
         if (!latitude || !longitude) {
-            throw new Error("Les coordonnées GPS de la station ne sont pas définies.");
+            throw new Error("Les coordonnées GPS de la station ne sont pas définies.", stationConfig);
         }
 
         let moreYearsValue = parseInt(req.params.moreYears || 0, 10);
@@ -845,7 +853,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
         const model = (stationConfig.forecast && stationConfig.forecast.model) || 'best_match';
 
         if (!latitude || !longitude) {
-            throw new Error("Les coordonnées GPS de la station ne sont pas définies.");
+            throw new Error("Les coordonnées GPS de la station ne sont pas définies.", stationConfig);
         }
 
         const openMeteoUrl = `https://api.open-meteo.com/v1/forecast`;

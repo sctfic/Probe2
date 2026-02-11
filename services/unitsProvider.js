@@ -4,11 +4,19 @@ const path = require('path');
 const { V } = require('../utils/icons');
 
 const unitsPath = path.join(__dirname, '..', 'config', 'Units.json');
+const compositeProbesPath = path.join(__dirname, '..', 'config', 'compositeProbes.json');
+const integratorProbesPath = path.join(__dirname, '..', 'config', 'integratorProbes.json');
 
 class UnitsProvider {
     constructor() {
         this.units = null;
+        this.sensorTypeMap = null; // cache du map sensor -> measurement type
+        this._sensorMapReady = false;
         this.loadUnits();
+        // Chargement asynchrone du sensorTypeMap depuis InfluxDB au démarrage
+        this.loadSensorMap().catch(err => {
+            console.error(`${V.error} Failed to load sensor map at startup:`, err.message);
+        });
     }
 
     loadUnits() {
@@ -43,20 +51,93 @@ class UnitsProvider {
     }
 
     /**
-     * Recreates the sensorTypeMap based on current units.
-     * Original logic from weatherDataParser.js
+     * Charge le sensorTypeMap dynamiquement depuis InfluxDB + compositeProbes + integratorProbes.
+     * Appelé au démarrage et peut être rappelé pour rafraîchir le cache.
+     */
+    async loadSensorMap() {
+        const map = {};
+
+        try {
+            // 1. Charger depuis InfluxDB (toutes les stations)
+            // Import dynamique pour éviter la dépendance circulaire au démarrage
+            const influxdbService = require('./influxdbService');
+            const metadata = await influxdbService.getInfluxMetadata();
+
+            if (metadata) {
+                for (const measurementType in metadata) {
+                    const sensors = metadata[measurementType]?.tags?.sensor || [];
+                    for (const sensor of sensors) {
+                        map[sensor] = measurementType;
+                    }
+                }
+                console.log(`${V.info} Sensor map loaded from InfluxDB: ${Object.keys(map).length} sensors.`);
+            } else {
+                console.warn(`${V.Warn} InfluxDB metadata returned null. Sensor map may be incomplete.`);
+            }
+        } catch (err) {
+            console.error(`${V.error} Failed to load sensor map from InfluxDB:`, err.message);
+        }
+
+        // 2. Ajouter les sensors composites depuis compositeProbes.json
+        try {
+            const compositeData = fs.readFileSync(compositeProbesPath, 'utf8');
+            const compositeProbes = JSON.parse(compositeData);
+            for (const probeKey in compositeProbes) {
+                if (compositeProbes[probeKey].measurement) {
+                    map[probeKey] = compositeProbes[probeKey].measurement;
+                }
+            }
+        } catch (err) {
+            console.error(`${V.error} Failed to load compositeProbes.json for sensor map:`, err.message);
+        }
+
+        // 3. Ajouter les sensors intégrateurs depuis integratorProbes.json
+        try {
+            const integratorData = fs.readFileSync(integratorProbesPath, 'utf8');
+            const integratorProbes = JSON.parse(integratorData);
+            for (const probeKey in integratorProbes) {
+                if (integratorProbes[probeKey].measurement) {
+                    map[probeKey] = integratorProbes[probeKey].measurement;
+                }
+            }
+        } catch (err) {
+            console.error(`${V.error} Failed to load integratorProbes.json for sensor map:`, err.message);
+        }
+
+        this.sensorTypeMap = map;
+        this._sensorMapReady = true;
+        return map;
+    }
+
+    /**
+     * Retourne le mapping sensor -> type de mesure.
+     * Construit dynamiquement depuis InfluxDB + probes configs.
+     * Fallback sur Units.json sensors si le cache n'est pas encore prêt.
      */
     getSensorTypeMap() {
+        if (this._sensorMapReady && this.sensorTypeMap) {
+            return this.sensorTypeMap;
+        }
+
+        // Fallback : construire depuis Units.json (sensors arrays) si encore présents
         const units = this.getUnits();
-        const map = {};
+        const fallbackMap = {};
         for (const type in units) {
             if (units[type].sensors) {
                 for (const sensor of units[type].sensors) {
-                    map[sensor] = type;
+                    fallbackMap[sensor] = type;
                 }
             }
         }
-        return map;
+        return fallbackMap;
+    }
+
+    /**
+     * Recharge le sensorTypeMap depuis InfluxDB.
+     * À appeler après ajout/suppression de capteurs.
+     */
+    async reloadSensorMap() {
+        return this.loadSensorMap();
     }
 }
 

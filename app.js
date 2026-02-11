@@ -30,17 +30,15 @@ app.use((req, res, next) => {
 });
 
 // Import des routes
-const apiRoutes = require('./routes/apiRoutes');
+const routes = require('./routes/index');
 const stationRoutes = require('./routes/stationRoutes');
 const queryDbRoutes = require('./routes/queryDbRoutes');
 
 // Configuration des routes
-app.use('/api', apiRoutes);
-app.use('/api/station', stationRoutes);
-app.use('/query', queryDbRoutes);
+app.use('/', routes);
 
 // Route racine
-// Géré par apiRoutes.js
+// Géré par routes/index.js
 
 // Middleware de gestion des erreurs 404
 app.use((req, res) => {
@@ -68,20 +66,22 @@ const configDir = path.resolve(__dirname, 'config/stations');
 console.log(`${V.loading} Répertoire de configuration: ${configDir}`);
 
 // Lance le serveur
-app.listen(PORT, () => {
-    console.log(`${V.StartFlag} Serveur Probe démarré sur le port ${PORT}`);
-    console.log(`${V.info} Environnement: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`${V.satellite} Stations: http://localhost:${PORT}/api/stations`);
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`${V.StartFlag} Serveur Probe démarré sur le port ${PORT}`);
+        console.log(`${V.info} Environnement: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`${V.satellite} Stations: http://localhost:${PORT}/api/stations`);
 
-    if (process.env.watch) {
-        console.log(`${V.Gyro} Watch mode: ${process.env.watch}`);
-    }
-    if (process.env.ignore_watch) {
-        console.log(`${V.Travaux} Ignore watch: ${process.env.ignore_watch}`);
-    }
+        if (process.env.watch) {
+            console.log(`${V.Gyro} Watch mode: ${process.env.watch}`);
+        }
+        if (process.env.ignore_watch) {
+            console.log(`${V.Travaux} Ignore watch: ${process.env.ignore_watch}`);
+        }
 
-    // Initialise toutes les tâches cron planifiées au démarrage
-    cronService.initializeAllJobs();
-});
+        // Initialise toutes les tâches cron planifiées au démarrage
+        cronService.initializeAllJobs();
+    });
+}
 
 module.exports = app;

@@ -5,141 +5,44 @@ const { loadStationConfig, talkStationWithLamp, talkStationQuickly } = require('
 const { isAuthenticated } = require('../middleware/authMiddleware');
 const stationController = require('../controllers/stationController');
 const { collectExtenders, checkExtendersStatus } = require('../controllers/extendersController');
-const cronService = require('../services/cronService');
-const UnitsSyncService = require('../services/UnitsSyncService');
-const V = require('../utils/icons');
 
 // Middleware pour toutes les routes de stations
-router.use('/:stationId', loadStationConfig);
+router.use('/:stationId', loadStationConfig); //http://Probe.lpz.ovh/api/station/VP2_Serramoune
 
-// Route pour supprimer une configuration de station
-router.delete('/:stationId', isAuthenticated, stationController.deleteStation);
+// Supprime une configuration de station
+router.delete('/:stationId', isAuthenticated, stationController.deleteStation); //http://Probe.lpz.ovh/api/station/VP2_Serramoune
 
-// Route pour récupérer les données d'archive depuis la station (GET) depuis les dernieres deja recuperees
-router.get('/:stationId/collect', collectExtenders, talkStationWithLamp(stationController.getArchiveData)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collect
+// Collecte les données d'archive depuis la station depuis les dernieres data deja recuperees
+router.get('/:stationId/collect', talkStationWithLamp(stationController.getArchiveData)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collect
+
+// Collecte les données des extenders depuis la station
 router.get('/:stationId/extenders', collectExtenders); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders
+
+// Vérifie le statut (avaiblité) des extenders par un appel api
 router.get('/:stationId/extenders/status', checkExtendersStatus); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders/status
 
-// Route pour récupérer l'intégralité du tampon d'archive de la station 512 pages
+// Collecte l'intégralité du tampon d'archive de la station 512 pages
 router.get('/:stationId/collectAll', talkStationWithLamp(stationController.getArchiveDataAll)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collectAll
 
-// Routes pour les stations météorologiques
+// Recap court des configs stations météorologiques
 router.get('/:stationId/info', stationController.getStationInfo); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/info
 
+// Met à jour le datetime de la station
 router.get('/:stationId/update-datetime', isAuthenticated, talkStationWithLamp(stationController.updateTime)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/update-datetime
 
+// Synchronise les configs de la station
 router.get('/:stationId/sync-settings', talkStationWithLamp(stationController.syncSettings)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/sync-settings
 
-// Route pour tester la connexion à une station
+// Test la connexion à une station
 router.get('/:stationId/test', stationController.testTcpIp); // http://Probe.lpz.ovh/api/station/VP2_Serramoune/test
 
+// Collecte les conditions actuelles de la station
 router.get('/:stationId/current-conditions', talkStationQuickly(stationController.getCurrentWeather)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/current-conditions
 
-// Route pour obtenir la configuration d'une station
-router.get('/:stationId', (req, res) => { //http://Probe.lpz.ovh/api/station/VP2_Serramoune
-    try {
-        const stationConfig = req.stationConfig;
-        console.log(`ℹ️ Récupération de la configuration pour la station ${stationConfig.id}`);
+// retourne la conf d'une station depuis le json
+router.get('/:stationId', stationController.getStationConfig); //http://Probe.lpz.ovh/api/station/VP2_Serramoune
 
-        res.json({
-            success: true,
-            timestamp: new Date().toISOString(),
-            stationId: stationConfig.id,
-            settings: stationConfig
-        });
-    } catch (error) {
-        console.error(`${V.error} Erreur lors de la récupération de la configuration:`, error);
-        res.status(500).json({
-            success: false,
-            stationId: req.params.stationId,
-            error: error.message
-        });
-    }
-});
-
-// Route pour mettre à jour la configuration d'une station
-router.put('/:stationId', isAuthenticated, (req, res) => {
-    try {
-        const stationConfig = req.stationConfig;
-        const updates = req.body;
-        const configManager = require('../services/configManager');
-
-        // Sécurisation : on vérifie si updates existe avant de lire ses propriétés
-        const updatesCollect = updates.collect;
-        const updatesForecast = updates.forecast;
-        const updatesHistorical = updates.historical;
-
-        const collectChanged = updatesCollect && (
-            !stationConfig.collect ||
-            stationConfig.collect.enabled !== updatesCollect.enabled ||
-            stationConfig.collect.value !== updatesCollect.value
-        );
-
-        const historicalChanged = updatesHistorical && (
-            !stationConfig.historical ||
-            stationConfig.historical.enabled !== updatesHistorical.enabled
-        );
-
-        const forecastChanged = updatesForecast && (
-            !stationConfig.forecast ||
-            stationConfig.forecast.enabled !== updatesForecast.enabled ||
-            stationConfig.forecast.model !== updatesForecast.model
-        );
-
-        // Fusionner les modifications avec la configuration existante de manière récursive
-        const mergeDeep = (target, source) => {
-            for (const key in source) {
-                if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-                    if (!target[key]) Object.assign(target, { [key]: {} });
-                    mergeDeep(target[key], source[key]);
-                } else {
-                    Object.assign(target, { [key]: source[key] });
-                }
-            }
-            return target;
-        };
-        const updatedConfig = mergeDeep({ ...stationConfig }, updates);
-
-        updatedConfig.id = stationConfig.id; // S'assurer que l'ID reste correct
-
-        if (collectChanged) {
-            console.log(`[CRON] Les paramètres de collecte ont changé pour ${stationConfig.id}. Replanification...`);
-            cronService.scheduleJobForStation(stationConfig.id, updatedConfig);
-        }
-        if (historicalChanged) {
-            console.log(`[CRON] Le paramètre de collecte historique a changé pour ${stationConfig.id}. Replanification...`);
-            cronService.scheduleOpenMeteoJob(stationConfig.id, updatedConfig);
-        }
-        if (forecastChanged) {
-            console.log(`[CRON] Le paramètre de prévision a changé pour ${stationConfig.id}. Replanification...`);
-            cronService.scheduleOpenMeteoForecastJob(stationConfig.id, updatedConfig);
-        }
-
-        // Sauvegarder la configuration mise à jour
-        const success = configManager.saveConfig(stationConfig.id, updatedConfig);
-
-        if (success) {
-            // Synchronisation asynchrone des unités (ne bloque pas la réponse)
-            UnitsSyncService.syncAllExtenders().catch(err => console.error("[UNITS-SYNC] Error during sync:", err));
-
-            res.json({
-                success: true,
-                timestamp: new Date().toISOString(),
-                stationId: stationConfig.id,
-                message: 'Configuration mise à jour avec succès',
-                settings: updatedConfig
-            });
-        } else {
-            throw new Error('Échec de la sauvegarde de la configuration');
-        }
-    } catch (error) {
-        console.error(`${V.error} Erreur lors de la mise à jour de la configuration:`, error);
-        res.status(500).json({
-            success: false,
-            stationId: req.params.stationId,
-            error: error.message
-        });
-    }
-});
+// Met à jour la conf d'une station dans le json et synchronise avec la station
+router.put('/:stationId', isAuthenticated, stationController.updateStationConfig);
 
 module.exports = router;

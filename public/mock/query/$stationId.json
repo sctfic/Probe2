@@ -1,7 +1,7 @@
 {
     "success": true,
     "message": "Success",
-    "version": "0.3.86",
+    "version": "0.3.89",
     "metadata": {
         "stationId": "VP2_Serramoune",
         "gps": {
@@ -21,6 +21,8 @@
             "humidity:inHumidity",
             "humidity:open-meteo_outHumidity",
             "humidity:outHumidity",
+            "humidity:ventiConnect_fan",
+            "humidity:ventiConnect_indoor",
             "irradiance:open-meteo_solar",
             "irradiance:solar",
             "irradiance:solarMax",
@@ -31,7 +33,6 @@
             "rain:open-meteo_rainFall",
             "rain:rainFall",
             "soilMoisture:open-meteo_soilMoisture",
-            "soilMoisture:soilMoisture",
             "speed:Gust",
             "speed:Wind",
             "speed:open-meteo_Gust",
@@ -40,14 +41,31 @@
             "temperature:open-meteo_outTemp",
             "temperature:open-meteo_soilTemp",
             "temperature:outTemp",
-            "temperature:soilTemp",
+            "temperature:ventiConnect_collector",
+            "temperature:ventiConnect_fan",
+            "temperature:ventiConnect_indoor",
             "uv:UV",
             "uv:UVMax"
         ],
-        "queryTime": "2026-01-17T16:10:28.454Z",
+        "queryTime": "2026-02-11T10:08:15.726Z",
         "first": "1940-01-01T00:00:00Z",
-        "last": "2026-01-30T22:00:00Z",
+        "last": "2026-02-24T22:00:00Z",
         "unit": {
+            "None": {
+                "title": "NoUnit",
+                "description": "Unités de mesure de la température",
+                "user": "-",
+                "metric": "-",
+                "available_units": {
+                    "-": {
+                        "title": "-",
+                        "fnFromMetric": "(k) => k"
+                    }
+                },
+                "sensors": [
+                    "test_calc"
+                ]
+            },
             "temperature": {
                 "title": "Temperature",
                 "description": "Unités de mesure de la température",
@@ -147,8 +165,7 @@
                     }
                 },
                 "sensors": [
-                    "",
-                    "xx_calc"
+                    ""
                 ]
             },
             "direction": {
@@ -220,8 +237,7 @@
                 },
                 "sensors": [
                     "barometer",
-                    "open-meteo_barometer",
-                    "test2_calc"
+                    "open-meteo_barometer"
                 ]
             },
             "rain": {
@@ -531,7 +547,9 @@
                 "sensor": [
                     "inHumidity",
                     "open-meteo_outHumidity",
-                    "outHumidity"
+                    "outHumidity",
+                    "ventiConnect_fan",
+                    "ventiConnect_indoor"
                 ],
                 "station_id": [
                     "VP2_Serramoune"
@@ -589,8 +607,7 @@
         "soilMoisture": {
             "tags": {
                 "sensor": [
-                    "open-meteo_soilMoisture",
-                    "soilMoisture"
+                    "open-meteo_soilMoisture"
                 ],
                 "station_id": [
                     "VP2_Serramoune"
@@ -623,7 +640,9 @@
                     "open-meteo_outTemp",
                     "open-meteo_soilTemp",
                     "outTemp",
-                    "soilTemp"
+                    "ventiConnect_collector",
+                    "ventiConnect_fan",
+                    "ventiConnect_indoor"
                 ],
                 "station_id": [
                     "VP2_Serramoune"

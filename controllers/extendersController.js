@@ -18,11 +18,11 @@ exports.collectExtenders = async (req, res, next) => {
     try {
         // Appelle la logique de collecte définie dans le service
         await runExtenderCollection(stationConfig);
+        res.json({ success: true, message: `Collecte des extendeurs terminée pour ${stationId}` });
     } catch (error) {
         console.error(`${V.error} [EXTENDERS] Controller Erreur:`, error.message);
+        res.status(500).json({ success: false, error: error.message });
     }
-
-    next();
 };
 
 /**

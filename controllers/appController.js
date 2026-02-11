@@ -10,57 +10,180 @@ const ping = require('ping');
 const unitsProvider = require('../services/unitsProvider');
 const probesProvider = require('../services/probesProvider');
 
+
+/**
+ * Extrait toutes les routes Express avec leurs chemins complets par parsing de fichiers.
+ * @returns {Array<{method: string, path: string, description: string}>} Liste des routes.
+ */
+function getAllRoutes() {
+    const routes = [];
+    const rootPath = path.resolve(__dirname, '..');
+    const appPath = path.join(rootPath, 'app.js');
+
+    if (!fs.existsSync(appPath)) {
+        console.error(`${V.error} app.js non trouvé à: ${appPath}`);
+        return [];
+    }
+
+    const appContent = fs.readFileSync(appPath, 'utf8');
+
+    // Helper récursif pour traiter les fichiers de routes
+    const processRouteFile = (filePath, prefix) => {
+        if (!fs.existsSync(filePath)) {
+            if (!filePath.endsWith('.js')) filePath += '.js';
+            if (!fs.existsSync(filePath)) {
+                console.warn(`${V.warning} Fichier de route non trouvé: ${filePath}`);
+                return;
+            }
+        }
+
+        const content = fs.readFileSync(filePath, 'utf8');
+        const lines = content.split('\n');
+        const currentDir = path.dirname(filePath);
+
+        // 1. Trouver les routes directes (router.get, router.post, etc.)
+        const routeRegex = /router\.(get|post|put|delete|patch|all)\s*\(\s*['"]([^'"]+)['"]/gi;
+        let match;
+        while ((match = routeRegex.exec(content)) !== null) {
+            const method = match[1].toUpperCase();
+            const subPath = match[2];
+            let fullPath = (prefix + subPath).replace(/\/+/g, '/');
+            if (fullPath.length > 1 && fullPath.endsWith('/')) fullPath = fullPath.slice(0, -1);
+            if (fullPath === '') fullPath = '/';
+
+            // Extraire la description depuis les commentaires au-dessus
+            let description = '';
+            const matchIndex = match.index;
+            const contentBefore = content.substring(0, matchIndex);
+            const linesBefore = contentBefore.split('\n');
+            const targetLineIndex = linesBefore.length - 1;
+
+            // Chercher en remontant les lignes
+            for (let i = targetLineIndex - 1; i >= 0; i--) {
+                const line = lines[i]?.trim();
+                if (!line) continue;
+                if (line.startsWith('//')) {
+                    description = line.replace('//', '').trim();
+                    break;
+                } else if (line.endsWith('*/')) {
+                    let j = i;
+                    let block = [];
+                    while (j >= 0) {
+                        const l = lines[j].trim();
+                        block.unshift(l.replace(/\/\*|\*\/|\*/g, '').trim());
+                        if (l.startsWith('/*')) break;
+                        j--;
+                    }
+                    description = block.filter(b => b).join(' ');
+                    break;
+                } else if (line.startsWith('router.')) {
+                    // Si on tombe sur une autre route sans commentaire au milieu, on arrête
+                    break;
+                }
+            }
+
+            routes.push({ method, path: fullPath, description });
+        }
+
+        // 2. Trouver les sous-routeurs montés
+        const requireRegex = /(?:const|let|var)\s+(\w+)\s*=\s*require\(['"]\.\/([^'"]+)['"]\)/g;
+        const requires = {};
+        while ((match = requireRegex.exec(content)) !== null) {
+            requires[match[1]] = match[2];
+        }
+
+        const mountRegex = /\.(?:use|all)\s*\(\s*['"]([^'"]+)['"]\s*,\s*([^)]+)\)/g;
+        while ((match = mountRegex.exec(content)) !== null) {
+            const subPrefix = match[1];
+            const variableName = match[2].split(',')[0].trim();
+            const fileName = requires[variableName];
+            if (fileName) {
+                const subFilePath = path.join(currentDir, fileName + (fileName.endsWith('.js') ? '' : '.js'));
+                processRouteFile(subFilePath, prefix + subPrefix);
+            }
+        }
+    };
+
+    // Dans app.js, on cherche les montages (app.use)
+    const appRequireRegex = /(?:const|let|var)\s+(\w+)\s*=\s*require\(['"]\.\/routes\/([^'"]+)['"]\)/g;
+    const appRequires = {};
+    let appMatch;
+    while ((appMatch = appRequireRegex.exec(appContent)) !== null) {
+        appRequires[appMatch[1]] = appMatch[2];
+    }
+
+    const appMountRegex = /app\.use\(['"]([^'"]+)['"]\s*,\s*([^)]+)\)/g;
+    while ((appMatch = appMountRegex.exec(appContent)) !== null) {
+        const prefix = appMatch[1];
+        const variableName = appMatch[2].split(',')[0].trim();
+        const fileName = appRequires[variableName];
+        if (fileName) {
+            const filePath = path.join(rootPath, 'routes', fileName + (fileName.endsWith('.js') ? '' : '.js'));
+            processRouteFile(filePath, prefix);
+        }
+    }
+
+    // Routeur central
+    const centralMatch = appContent.match(/app\.use\(\s*['"]\/['"]\s*,\s*require\(['"]\.\/routes\/index['"]\)\)/);
+    if (centralMatch) {
+        processRouteFile(path.join(rootPath, 'routes', 'index.js'), '');
+    }
+
+    return routes;
+}
+
+
 /**
  * Récupère dynamiquement tous les points de terminaison enregistrés dans l'application.
  */
 exports.getApiEndpoints = (req, res) => {
     try {
-        console.log(`${V.info} Récupération des endpoints`);
+        console.log(`${V.info} Génération récursive de la liste des endpoints...`);
         const stationsList = configManager.listStations();
+        const allRoutes = getAllRoutes();
+
+        // Trier les routes pour une meilleure organisation
+        allRoutes.sort((a, b) => a.path.localeCompare(b.path));
+
         const endpoints = {};
 
-        // Fonction récursive pour extraire les routes
-        const processStack = (stack, prefix = '') => {
-            console.log(stack, prefix);
-            stack.forEach(layer => {
-                console.log(layer);
-                if (layer.route) {
-                    console.log(layer.route.path);
-                    console.log(layer.route.methods);
-                    console.log(layer.route.stack);
-                    // C'est une route directe
-                    const path = prefix + layer.route.path;
-                    const methods = Object.keys(layer.route.methods).join(', ').toUpperCase();
+        allRoutes.forEach(r => {
+            // Segmenter le chemin statique (ignorer les params :xxx pour la hiérarchie des clés)
+            const segments = r.path.split('/').filter(s => s && !s.startsWith(':'));
 
-                    // Organiser par catégorie (basé sur le premier segment du path)
-                    const segments = path.split('/').filter(s => s && !s.startsWith(':'));
-                    const category = segments[0] || 'root';
+            let current = endpoints;
+            segments.forEach((seg, index) => {
+                if (index === segments.length - 1) {
+                    // C'est le dernier segment statique.
+                    if (!current[seg]) {
+                        current[seg] = [];
+                    } else if (!Array.isArray(current[seg])) {
+                        // Le segment existait comme parent, on utilise index
+                        if (!current[seg].index) current[seg].index = [];
 
-                    if (!endpoints[category]) endpoints[category] = {};
-
-                    // Créer une clé lisible pour l'endpoint
-                    let name = segments.slice(1).join('_') || 'index';
-                    if (path.includes(':')) name += '_params';
-
-                    endpoints[category][name] = { url: path, method: methods };
-                } else if (layer.name === 'router' && layer.handle.stack) {
-                    // C'est un routeur monté
-                    let newPrefix = prefix;
-                    if (layer.regexp) {
-                        // Extraire le préfixe du regexp si possible (cas simple .use('/path', router))
-                        const match = layer.regexp.toString().match(/^\/\^\\(\/\w+)/);
-                        if (match) newPrefix += match[1];
+                        if (!current[seg].index.find(e => e.url === r.path && e.method === r.method)) {
+                            current[seg].index.push({ url: r.path, method: r.method, description: r.description });
+                        }
+                        return;
                     }
-                    processStack(layer.handle.stack, newPrefix);
+
+                    // Ajout si non existant (même URL + méthode)
+                    if (!current[seg].find(e => e.url === r.path && e.method === r.method)) {
+                        current[seg].push({ url: r.path, method: r.method, description: r.description });
+                    }
+                } else {
+                    // Segment intermédiaire
+                    if (!current[seg]) {
+                        current[seg] = {};
+                    } else if (Array.isArray(current[seg])) {
+                        // Devient un parent
+                        const existing = current[seg];
+                        current[seg] = { index: existing };
+                    }
+                    current = current[seg];
                 }
             });
-        };
-
-        console.log('req.app.router', req.app.router);
-        if (req.app.router && req.app.router.stack) {
-            console.log(req.app.router.stack);
-            processStack(req.app.router.stack);
-        }
+        });
 
         res.json({
             success: true,
@@ -70,12 +193,10 @@ exports.getApiEndpoints = (req, res) => {
             endpoints: endpoints,
             stations: stationsList,
         });
+
     } catch (error) {
-        console.error(`${V.error} Erreur lors de la génération de la liste des endpoints:`, error);
-        res.status(500).json({
-            success: false,
-            error: 'Erreur lors de la récupération des endpoints'
-        });
+        console.error(`${V.error} Erreur dans getApiEndpoints:`, error);
+        res.status(500).json({ success: false, error: error.message });
     }
 };
 
@@ -147,7 +268,6 @@ exports.getUnitsSettings = (req, res) => {
 exports.updateUnitsSettings = (req, res) => {
     try {
         const newSettings = req.body.settings;
-        console.log(newSettings.uv);
         if (!newSettings || typeof newSettings !== 'object') {
             return res.status(400).json({
                 success: false,

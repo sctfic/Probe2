@@ -596,13 +596,13 @@ function parserWindRose(data) {
  * @returns {Promise<Array>} Un tableau des données pour le graphique du vent.
  */
 
-async function queryWindVectors(stationId, sensorRef, startDate, endDate, intervalSeconds = 3600) {
+async function queryWindVectors(stationId, sensor, startDate, endDate, intervalSeconds = 3600) {
     const fluxQuery = `
         import "math"
         from(bucket: "${bucket}")
             |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
             |> filter(fn: (r) => r.station_id == "${stationId}")
-            |> filter(fn: (r) => r._measurement == "vector" and r.sensor == "${sensorRef}")
+            |> filter(fn: (r) => r._measurement == "vector" and r.sensor == "${sensor}")
             |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
             |> map(fn: (r) => {
