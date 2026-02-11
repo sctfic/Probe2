@@ -252,17 +252,18 @@ exports.getArchiveDataAll = async (req, res) => {
         console.log(`${V.Parabol} Demande de TOUTES les données d'archive (buffer complet) pour la station ${stationConfig.id}`);
 
         // Calcul de l'intervalle d'archive (VP2 buffer is 2560 records = 512 pages)
-        const archiveInterval = stationConfig.archiveInterval?.lastReadValue || stationConfig.archiveInterval || 5;
-        const totalRecords = 512 * 5; // 2560
+        const archiveInterval = stationConfig.archiveInterval?.lastReadValue || stationConfig.archiveInterval?.desired || 5;
+        const totalRecords = 512 * archiveInterval; // 2560
         const startDate = new Date(Date.now() - (totalRecords * archiveInterval * 60 * 1000));
 
         console.log(`${V.info} Collecte complète démarrée depuis ${startDate.toISOString()} (Interval: ${archiveInterval}min)`);
 
         const archiveData = await stationService.downloadArchiveData(req, stationConfig, startDate, true);
 
+        const recordCount = archiveData.data ? Object.keys(archiveData.data).length : 0;
         if (stationConfig.collect) {
             stationConfig.collect.lastRun = new Date().toISOString();
-            stationConfig.collect.msg = `Full collection: ${Object.keys(archiveData.data || {}).length} records collected.`;
+            stationConfig.collect.msg = `Full collection: ${recordCount} records collected.`;
         }
 
         res.json({

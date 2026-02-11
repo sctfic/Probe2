@@ -13,7 +13,7 @@ router.use('/:stationId', loadStationConfig); //http://Probe.lpz.ovh/api/station
 router.delete('/:stationId', isAuthenticated, stationController.deleteStation); //http://Probe.lpz.ovh/api/station/VP2_Serramoune
 
 // Route pour récupérer les données d'archive depuis la station (GET) depuis les dernieres deja recuperees
-router.get('/:stationId/collect', collectExtenders, talkStationWithLamp(stationController.getArchiveData)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collect
+router.get('/:stationId/collect', talkStationWithLamp(stationController.getArchiveData)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collect
 router.get('/:stationId/extenders', collectExtenders); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders
 router.get('/:stationId/extenders/status', checkExtendersStatus); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders/status
 

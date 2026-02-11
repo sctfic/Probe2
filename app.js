@@ -68,20 +68,22 @@ const configDir = path.resolve(__dirname, 'config/stations');
 console.log(`${V.loading} Répertoire de configuration: ${configDir}`);
 
 // Lance le serveur
-app.listen(PORT, () => {
-    console.log(`${V.StartFlag} Serveur Probe démarré sur le port ${PORT}`);
-    console.log(`${V.info} Environnement: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`${V.satellite} Stations: http://localhost:${PORT}/api/stations`);
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`${V.StartFlag} Serveur Probe démarré sur le port ${PORT}`);
+        console.log(`${V.info} Environnement: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`${V.satellite} Stations: http://localhost:${PORT}/api/stations`);
 
-    if (process.env.watch) {
-        console.log(`${V.Gyro} Watch mode: ${process.env.watch}`);
-    }
-    if (process.env.ignore_watch) {
-        console.log(`${V.Travaux} Ignore watch: ${process.env.ignore_watch}`);
-    }
+        if (process.env.watch) {
+            console.log(`${V.Gyro} Watch mode: ${process.env.watch}`);
+        }
+        if (process.env.ignore_watch) {
+            console.log(`${V.Travaux} Ignore watch: ${process.env.ignore_watch}`);
+        }
 
-    // Initialise toutes les tâches cron planifiées au démarrage
-    cronService.initializeAllJobs();
-});
+        // Initialise toutes les tâches cron planifiées au démarrage
+        cronService.initializeAllJobs();
+    });
+}
 
 module.exports = app;

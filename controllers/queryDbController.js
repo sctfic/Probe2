@@ -618,7 +618,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
         };
 
         if (!latitude || !longitude) {
-            throw new Error("Les coordonnées GPS de la station ne sont pas définies.");
+            throw new Error("Les coordonnées GPS de la station ne sont pas définies.", stationConfig);
         }
 
         let moreYearsValue = parseInt(req.params.moreYears || 0, 10);
@@ -845,7 +845,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
         const model = (stationConfig.forecast && stationConfig.forecast.model) || 'best_match';
 
         if (!latitude || !longitude) {
-            throw new Error("Les coordonnées GPS de la station ne sont pas définies.");
+            throw new Error("Les coordonnées GPS de la station ne sont pas définies.", stationConfig);
         }
 
         const openMeteoUrl = `https://api.open-meteo.com/v1/forecast`;
