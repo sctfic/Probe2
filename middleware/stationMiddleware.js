@@ -5,7 +5,6 @@ const { O, V } = require('../utils/icons');
 
 const loadStationConfig = (req, res, next) => {
     const stationId = req.params.stationId;
-    
     if (!stationId) {
         return res.status(400).json({
             success: false,
@@ -15,7 +14,7 @@ const loadStationConfig = (req, res, next) => {
 
     try {
         const stationConfig = configManager.loadConfig(stationId);
-        
+
         if (!stationConfig) {
             return res.status(404).json({
                 success: false,
@@ -25,7 +24,7 @@ const loadStationConfig = (req, res, next) => {
 
         // Mise à jour de la propriété id avec le nom du fichier
         stationConfig.id = stationId;
-        
+
         // Validation de la structure de config
         if (!stationConfig.host || !stationConfig.port) {
             return res.status(500).json({
@@ -35,7 +34,7 @@ const loadStationConfig = (req, res, next) => {
         }
 
         req.stationConfig = stationConfig;
-        next();
+        next(); // Passe au middleware suivant
     } catch (error) {
         console.error(`${V.error} Erreur lors du chargement de la config pour ${stationId}:`, error.message);
         return res.status(500).json({

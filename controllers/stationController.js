@@ -364,6 +364,110 @@ exports.getDateTime = async (req, res) => {
     }
 };
 
+exports.getStationConfig = (req, res) => {
+    try {
+        const stationConfig = req.stationConfig;
+        console.log(`ℹ️ Récupération de la configuration pour la station ${stationConfig.id}`);
+
+        res.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            stationId: stationConfig.id,
+            settings: stationConfig
+        });
+    } catch (error) {
+        console.error(`${V.error} Erreur lors de la récupération de la configuration:`, error);
+        res.status(500).json({
+            success: false,
+            stationId: req.params.stationId,
+            error: error.message
+        });
+    }
+};
+
+exports.updateStationConfig = (req, res) => {
+    try {
+        const stationConfig = req.stationConfig;
+        const updates = req.body;
+
+        // Sécurisation : on vérifie si updates existe avant de lire ses propriétés
+        const updatesCollect = updates.collect;
+        const updatesForecast = updates.forecast;
+        const updatesHistorical = updates.historical;
+
+        const collectChanged = updatesCollect && (
+            !stationConfig.collect ||
+            stationConfig.collect.enabled !== updatesCollect.enabled ||
+            stationConfig.collect.value !== updatesCollect.value
+        );
+
+        const historicalChanged = updatesHistorical && (
+            !stationConfig.historical ||
+            stationConfig.historical.enabled !== updatesHistorical.enabled
+        );
+
+        const forecastChanged = updatesForecast && (
+            !stationConfig.forecast ||
+            stationConfig.forecast.enabled !== updatesForecast.enabled ||
+            stationConfig.forecast.model !== updatesForecast.model
+        );
+
+        // Fusionner les modifications avec la configuration existante de manière récursive
+        const mergeDeep = (target, source) => {
+            for (const key in source) {
+                if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                    if (!target[key]) Object.assign(target, { [key]: {} });
+                    mergeDeep(target[key], source[key]);
+                } else {
+                    Object.assign(target, { [key]: source[key] });
+                }
+            }
+            return target;
+        };
+        const updatedConfig = mergeDeep({ ...stationConfig }, updates);
+
+        updatedConfig.id = stationConfig.id; // S'assurer que l'ID reste correct
+
+        if (collectChanged) {
+            console.log(`[CRON] Les paramètres de collecte ont changé pour ${stationConfig.id}. Replanification...`);
+            cronService.scheduleJobForStation(stationConfig.id, updatedConfig);
+        }
+        if (historicalChanged) {
+            console.log(`[CRON] Le paramètre de collecte historique a changé pour ${stationConfig.id}. Replanification...`);
+            cronService.scheduleOpenMeteoJob(stationConfig.id, updatedConfig);
+        }
+        if (forecastChanged) {
+            console.log(`[CRON] Le paramètre de prévision a changé pour ${stationConfig.id}. Replanification...`);
+            cronService.scheduleOpenMeteoForecastJob(stationConfig.id, updatedConfig);
+        }
+
+        // Sauvegarder la configuration mise à jour
+        const success = configManager.saveConfig(stationConfig.id, updatedConfig);
+
+        if (success) {
+            // Synchronisation asynchrone des unités (ne bloque pas la réponse)
+            UnitsSyncService.syncAllExtenders().catch(err => console.error("[UNITS-SYNC] Error during sync:", err));
+
+            res.json({
+                success: true,
+                timestamp: new Date().toISOString(),
+                stationId: stationConfig.id,
+                message: 'Configuration mise à jour avec succès',
+                settings: updatedConfig
+            });
+        } else {
+            throw new Error('Échec de la sauvegarde de la configuration');
+        }
+    } catch (error) {
+        console.error(`${V.error} Erreur lors de la mise à jour de la configuration:`, error);
+        res.status(500).json({
+            success: false,
+            stationId: req.params.stationId,
+            error: error.message
+        });
+    }
+};
+
 exports.deleteStation = (req, res) => {
     try {
         const stationId = req.params.stationId;

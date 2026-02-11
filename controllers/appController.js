@@ -147,7 +147,6 @@ exports.getUnitsSettings = (req, res) => {
 exports.updateUnitsSettings = (req, res) => {
     try {
         const newSettings = req.body.settings;
-        console.log(newSettings.uv);
         if (!newSettings || typeof newSettings !== 'object') {
             return res.status(400).json({
                 success: false,

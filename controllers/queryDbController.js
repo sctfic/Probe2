@@ -139,13 +139,13 @@ exports.getQueryMetadata = async (req, res) => {
                     longitude: req.stationConfig.longitude.lastReadValue,
                     altitude: req.stationConfig.altitude.lastReadValue,
                 },
-                sensor: [...new Set(allFields)],
+                sensor: [...new Set(allFields)], // liste dans la DB
                 queryTime: new Date().toISOString(),
                 first: dateRange.firstUtc,
                 last: dateRange.lastUtc,
-                unit: unitsProvider.getUnits(),
+                unit: unitsProvider.getUnits(), // liste dans units.json
             },
-            measurements: _measurements
+            measurements: _measurements // liste dans la DB
         });
     } catch (error) {
         handleError(res, stationId, error, 'getQueryMetadata');
