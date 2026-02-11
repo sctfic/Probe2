@@ -94,9 +94,9 @@
             {
                 "name": "ventiConnect",
                 "id": "ventiConnect",
-                "host": "vmc",
+                "host": "localhost",
                 "description": "capteur thermique sous tuile",
-                "available": true
+                "available": false
             }
         ]
     }

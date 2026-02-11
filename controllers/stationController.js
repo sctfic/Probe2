@@ -11,7 +11,6 @@ const vm = require('vm');
 const probesProvider = require('../services/probesProvider');
 const dbProbes = require('../config/dbProbes.json');
 const unitsProvider = require('../services/unitsProvider');
-const UnitsSyncService = require('../services/UnitsSyncService');
 const { V } = require('../utils/icons');
 
 exports.testTcpIp = async (req, res) => {
@@ -446,7 +445,7 @@ exports.updateStationConfig = (req, res) => {
 
         if (success) {
             // Synchronisation asynchrone des unités (ne bloque pas la réponse)
-            UnitsSyncService.syncAllExtenders().catch(err => console.error("[UNITS-SYNC] Error during sync:", err));
+            unitsProvider.reloadSensorMap().catch(err => console.error("[SENSOR-MAP] Error during reload:", err));
 
             res.json({
                 success: true,
@@ -488,7 +487,7 @@ exports.deleteStation = (req, res) => {
 
         if (success) {
             // Synchronisation asynchrone des unités
-            UnitsSyncService.syncAllExtenders().catch(err => console.error("[UNITS-SYNC] Error during sync:", err));
+            unitsProvider.reloadSensorMap().catch(err => console.error("[SENSOR-MAP] Error during reload:", err));
 
             res.json({
                 success: true,

@@ -9,10 +9,7 @@
                 "title": "-",
                 "fnFromMetric": "(k) => k"
             }
-        },
-        "sensors": [
-            "test_calc"
-        ]
+        }
     },
     "temperature": {
         "title": "Temperature",
@@ -32,27 +29,7 @@
                 "title": "Kelvin",
                 "fnFromMetric": "(k) => Number(k.toFixed(1))"
             }
-        },
-        "sensors": [
-            "inTemp",
-            "outTemp",
-            "dewPoint",
-            "heatIndex",
-            "windChill",
-            "THSW",
-            "leafTemp1",
-            "leafTemp2",
-            "soilTemp1",
-            "soilTemp2",
-            "soilTemp3",
-            "soilTemp4",
-            "soilTemp",
-            "open-meteo_soilTemp",
-            "extraTemp1",
-            "extraTemp2",
-            "extraTemp3",
-            "THSW_calc"
-        ]
+        }
     },
     "speed": {
         "title": "Speed",
@@ -76,18 +53,7 @@
                 "title": "nœuds",
                 "fnFromMetric": "(ms) => Number((ms*2.23693).toFixed(1))"
             }
-        },
-        "sensors": [
-            "Wind",
-            "Gust",
-            "open-meteo_Wind",
-            "open-meteo_Gusts",
-            "windSpeed",
-            "windSpeedMax",
-            "avgWindSpeed10Min",
-            "avgWindSpeed2Min",
-            "windGust10Min"
-        ]
+        }
     },
     "ticksByMin": {
         "title": "countByMin",
@@ -111,10 +77,7 @@
                 "title": "ticks par minute",
                 "fnFromMetric": "(c) => Number((c*60).toFixed(1))"
             }
-        },
-        "sensors": [
-            ""
-        ]
+        }
     },
     "direction": {
         "title": "Direction",
@@ -130,15 +93,7 @@
                 "title": "cardinal",
                 "fnFromMetric": "(deg) => ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][Math.round(deg / 22.5) % 16]"
             }
-        },
-        "sensors": [
-            "Wind",
-            "Gust",
-            "open-meteo_Wind",
-            "windDir",
-            "windDirMax",
-            "windGustDir10Min"
-        ]
+        }
     },
     "angle": {
         "title": "Angle",
@@ -154,11 +109,7 @@
                 "title": "radian",
                 "fnFromMetric": "(deg) => (deg * Math.PI / 180).toFixed(2)"
             }
-        },
-        "sensors": [
-            "SUN_V_calc",
-            "MOON_calc"
-        ]
+        }
     },
     "pressure": {
         "title": "Pression",
@@ -182,11 +133,7 @@
                 "title": "Barometric pressure",
                 "fnFromMetric": "(hpa) => Number((hpa/1000).toFixed(3))"
             }
-        },
-        "sensors": [
-            "barometer",
-            "open-meteo_barometer"
-        ]
+        }
     },
     "rain": {
         "title": "Précipitations",
@@ -206,23 +153,7 @@
                 "title": "litre per square meter",
                 "fnFromMetric": "(mm) => Number((mm).toFixed(2))"
             }
-        },
-        "sensors": [
-            "rainFall",
-            "open-meteo_rainFall",
-            "stormRain",
-            "dayRain",
-            "monthRain",
-            "yearRain",
-            "dayET",
-            "monthET",
-            "yearET",
-            "last15MinRain",
-            "lastHourRain",
-            "last24HourRain",
-            "open-meteo_ET",
-            "ET"
-        ]
+        }
     },
     "rainRate": {
         "title": "Intensité de pluie",
@@ -242,10 +173,7 @@
                 "title": "litre per square meter per hour",
                 "fnFromMetric": "(mmh) => Number((mmh*10).toFixed(2))"
             }
-        },
-        "sensors": [
-            "rainRate"
-        ]
+        }
     },
     "uv": {
         "title": "Rayonnement UV",
@@ -262,11 +190,7 @@
                 "fnFromMetric": "(uv, dem=32) => Number(Math.min(300, dem*6.5/((uv*Math.exp(uv/dem)))).toFixed(0))",
                 "skin": 2
             }
-        },
-        "sensors": [
-            "UV",
-            "UVMax"
-        ]
+        }
     },
     "irradiance": {
         "title": "Irradiance",
@@ -278,12 +202,7 @@
                 "title": "watt per square meter",
                 "fnFromMetric": "(w) => Number(w.toFixed(1))"
             }
-        },
-        "sensors": [
-            "solar",
-            "solarMax",
-            "open-meteo_solar"
-        ]
+        }
     },
     "humidity": {
         "title": "Gaz saturation density",
@@ -295,16 +214,7 @@
                 "title": "percent",
                 "fnFromMetric": "(h) => Number(h.toFixed(1))"
             }
-        },
-        "sensors": [
-            "inHumidity",
-            "outHumidity",
-            "open-meteo_outHumidity",
-            "leafWetness1",
-            "leafWetness2",
-            "extraHumidity1",
-            "extraHumidity2"
-        ]
+        }
     },
     "soilMoisture": {
         "title": "Liquid Density",
@@ -324,15 +234,7 @@
                 "title": "volume per cubic meter",
                 "fnFromMetric": "(m) => Number(0.01*m.toFixed(3))"
             }
-        },
-        "sensors": [
-            "extraSoilMoisture1",
-            "extraSoilMoisture2",
-            "extraSoilMoisture3",
-            "extraSoilMoisture4",
-            "soilMoisture",
-            "open-meteo_soilMoisture"
-        ]
+        }
     },
     "density": {
         "title": "Air Water Density",
@@ -352,10 +254,7 @@
                 "title": "g per litre",
                 "fnFromMetric": "(d) => Number((d/1000).toFixed(4))"
             }
-        },
-        "sensors": [
-            "AirWater_calc"
-        ]
+        }
     },
     "voltage": {
         "title": "Tension",
@@ -371,10 +270,7 @@
                 "title": "volts",
                 "fnFromMetric": "(v) => Number(v.toFixed(2))"
             }
-        },
-        "sensors": [
-            "battery"
-        ]
+        }
     },
     "date": {
         "title": "Date",
@@ -390,11 +286,7 @@
                 "title": "iso8601",
                 "fnFromMetric": "(d) => d"
             }
-        },
-        "sensors": [
-            "dateStormRain",
-            "date"
-        ]
+        }
     },
     "time": {
         "title": "Time",
@@ -410,12 +302,7 @@
                 "title": "iso8601",
                 "fnFromMetric": "(t) => t"
             }
-        },
-        "sensors": [
-            "sunrise",
-            "sunset",
-            "time"
-        ]
+        }
     },
     "Forecast": {
         "title": null,
@@ -431,12 +318,7 @@
                 "title": "Weather Forecast Class for CSS",
                 "fnFromMetric": "(f) => f"
             }
-        },
-        "sensors": [
-            "ForecastIcon",
-            "ForecastClass",
-            "ForecastNum"
-        ]
+        }
     },
     "vector": {
         "title": "Vector",
@@ -448,10 +330,6 @@
                 "title": "m/s",
                 "fnFromMetric": "(v) => Number(Math.sqrt(v.Ux*v.Ux+v.Vy*v.Vy).toFixed(2))"
             }
-        },
-        "sensors": [
-            "vector:Gust",
-            "vector:Wind"
-        ]
+        }
     }
 }
