@@ -14,36 +14,36 @@ module.exports = router;
 // Middleware pour toutes les routes de query
 router.use('/:stationId', loadStationConfig); // https://probe.lpz.ovh/query/VP2_Serramoune/
 
-// Route to get metadata for a station
+// Retourne toute les metadata d'une station, liste des sensors, les unites avec leur proprietees et la structure des data dans influxdb
 router.get('/:stationId', queryDbController.getQueryMetadata); // https://probe.lpz.ovh/query/VP2_Serramoune
 
-// Route to get the date range for a sensor (startDate and endDate are optional)
+// Retourne la date de debut et de fin pour pressure:barometer (?startDate= &endDate= &stepCount= sont optionnels)
 router.get('/:stationId/Range', queryDbController.getQueryRange); // https://probe.lpz.ovh/query/VP2_Serramoune/Range?stepCount=500
+// idem pour un sensor specifique
 router.get('/:stationId/Range/:sensorRef', queryDbController.getQueryRange); // https://probe.lpz.ovh/query/VP2_Serramoune/Range/inTemp?stepCount=500
 
-// Route to get raw data for a sensor (startDate and endDate are optional)
+// Retourne les donnees brutes pour un sensor (?startDate= &endDate= &stepCount= sont optionnels)
 router.get('/:stationId/Raw/:sensorRef', queryDbController.getQueryRaw); // https://probe.lpz.ovh/query/VP2_Serramoune/Raw/barometer?stepCount=500
 
-// Route to get raw data for many sensors (startDate and endDate are optional)
+// Retourne les donnees brutes pour plusieurs sensors (?startDate= &endDate= &stepCount= sont optionnels)
 router.get('/:stationId/Raws/:sensorRefs', queryDbController.getQueryRaws); // https://probe.lpz.ovh/query/VP2_Serramoune/Raws/barometer,inTemp,UV?stepCount=12&startDate=2025-08-21T00:00:00.000Z&endDate=2025-08-21T23:00:00.000Z
 
-// Route to get wind data (startDate and endDate are optional)
+// Retourne les donnees de rose des vents (?startDate= &endDate= &stepCount= sont optionnels)
 router.get('/:stationId/WindRose', queryDbController.getQueryWindRose); // https://probe.lpz.ovh/query/VP2_Serramoune/WindRose?stepCount=5
 
-// Route to get wind data (startDate and endDate are optional)
-router.get('/:stationId/WindVectors', queryDbController.getQueryWindVectors); // https://probe.lpz.ovh/query/VP2_Serramoune/WindVectors?stepCount=500
+// Retourne les donnees de vecteurs de vents pour un capteur specifique (?startDate= &endDate= &stepCount= sont optionnels)
 router.get('/:stationId/WindVectors/:sensorRef', queryDbController.getQueryWindVectors); // https://probe.lpz.ovh/query/VP2_Serramoune/WindVectors/Gust?stepCount=500
 
-// Route to get candle data
+// Retourne les donnees au format candlestick pour un capteur specifique (?startDate= &endDate= &stepCount= sont optionnels)
 router.get('/:stationId/Candle/:sensorRef', queryDbController.getQueryCandle); // https://probe.lpz.ovh/query/VP2_Serramoune/Candle/barometer?stepCount=500
 
-// Route pour compléter la base de données avec les archives Open-Meteo
+// Collecte les derniers jours manquant d'historique avec les archives Open-Meteo
 router.get('/:stationId/dbexpand', queryDbController.expandDbWithOpenMeteo); // https://probe.lpz.ovh/query/VP2_Serramoune/dbexpand
+
+// Collecte l'historique sur quelque annees de plus avec les archives Open-Meteo
 router.get('/:stationId/dbexpand/:moreYears', queryDbController.expandDbWithOpenMeteo); // https://probe.lpz.ovh/query/VP2_Serramoune/dbexpand
 
-// Route pour compléter la base de données avec les archives Open-Meteo
+// collecte les données de prévision avec Open-Meteo et supprime celle qui sont périmées
 router.get('/:stationId/forecast', queryDbController.getOpenMeteoForecast); // https://probe.lpz.ovh/query/VP2_Serramoune/forecast
-
-
 
 module.exports = router;

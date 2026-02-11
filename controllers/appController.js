@@ -13,7 +13,7 @@ const probesProvider = require('../services/probesProvider');
 
 /**
  * Extrait toutes les routes Express avec leurs chemins complets par parsing de fichiers.
- * @returns {Array<{method: string, path: string}>} Liste des routes.
+ * @returns {Array<{method: string, path: string, description: string}>} Liste des routes.
  */
 function getAllRoutes() {
     const routes = [];
@@ -38,9 +38,10 @@ function getAllRoutes() {
         }
 
         const content = fs.readFileSync(filePath, 'utf8');
+        const lines = content.split('\n');
         const currentDir = path.dirname(filePath);
 
-        // 1. Trouver les routes directes
+        // 1. Trouver les routes directes (router.get, router.post, etc.)
         const routeRegex = /router\.(get|post|put|delete|patch|all)\s*\(\s*['"]([^'"]+)['"]/gi;
         let match;
         while ((match = routeRegex.exec(content)) !== null) {
@@ -49,7 +50,39 @@ function getAllRoutes() {
             let fullPath = (prefix + subPath).replace(/\/+/g, '/');
             if (fullPath.length > 1 && fullPath.endsWith('/')) fullPath = fullPath.slice(0, -1);
             if (fullPath === '') fullPath = '/';
-            routes.push({ method, path: fullPath });
+
+            // Extraire la description depuis les commentaires au-dessus
+            let description = '';
+            const matchIndex = match.index;
+            const contentBefore = content.substring(0, matchIndex);
+            const linesBefore = contentBefore.split('\n');
+            const targetLineIndex = linesBefore.length - 1;
+
+            // Chercher en remontant les lignes
+            for (let i = targetLineIndex - 1; i >= 0; i--) {
+                const line = lines[i]?.trim();
+                if (!line) continue;
+                if (line.startsWith('//')) {
+                    description = line.replace('//', '').trim();
+                    break;
+                } else if (line.endsWith('*/')) {
+                    let j = i;
+                    let block = [];
+                    while (j >= 0) {
+                        const l = lines[j].trim();
+                        block.unshift(l.replace(/\/\*|\*\/|\*/g, '').trim());
+                        if (l.startsWith('/*')) break;
+                        j--;
+                    }
+                    description = block.filter(b => b).join(' ');
+                    break;
+                } else if (line.startsWith('router.')) {
+                    // Si on tombe sur une autre route sans commentaire au milieu, on arrête
+                    break;
+                }
+            }
+
+            routes.push({ method, path: fullPath, description });
         }
 
         // 2. Trouver les sous-routeurs montés
@@ -109,38 +142,43 @@ exports.getApiEndpoints = (req, res) => {
         const stationsList = configManager.listStations();
         const allRoutes = getAllRoutes();
 
+        // Trier les routes pour une meilleure organisation
+        allRoutes.sort((a, b) => a.path.localeCompare(b.path));
+
         const endpoints = {};
 
         allRoutes.forEach(r => {
+            // Segmenter le chemin statique (ignorer les params :xxx pour la hiérarchie des clés)
             const segments = r.path.split('/').filter(s => s && !s.startsWith(':'));
-            let current = endpoints;
 
+            let current = endpoints;
             segments.forEach((seg, index) => {
                 if (index === segments.length - 1) {
+                    // C'est le dernier segment statique.
                     if (!current[seg]) {
-                        current[seg] = { url: r.path, method: r.method };
-                    } else if (current[seg].url) {
-                        // Conflit ou méthodes multiples
-                        if (current[seg].url === r.path) {
-                            const methods = current[seg].method.split(', ');
-                            if (!methods.includes(r.method)) {
-                                current[seg].method = [...methods, r.method].join(', ');
-                            }
-                        } else {
-                            // Même segment statique mais URL différente (params)
-                            const key = r.path.split('/').pop().replace(':', '_');
-                            current[seg + '_' + key] = { url: r.path, method: r.method };
+                        current[seg] = [];
+                    } else if (!Array.isArray(current[seg])) {
+                        // Le segment existait comme parent, on utilise index
+                        if (!current[seg].index) current[seg].index = [];
+
+                        if (!current[seg].index.find(e => e.url === r.path && e.method === r.method)) {
+                            current[seg].index.push({ url: r.path, method: r.method, description: r.description });
                         }
-                    } else {
-                        // Parent qui est aussi un endpoint
-                        current[seg]['/'] = { url: r.path, method: r.method };
+                        return;
+                    }
+
+                    // Ajout si non existant (même URL + méthode)
+                    if (!current[seg].find(e => e.url === r.path && e.method === r.method)) {
+                        current[seg].push({ url: r.path, method: r.method, description: r.description });
                     }
                 } else {
+                    // Segment intermédiaire
                     if (!current[seg]) {
                         current[seg] = {};
-                    } else if (current[seg].url) {
-                        const existing = { url: current[seg].url, method: current[seg].method };
-                        current[seg] = { '/': existing };
+                    } else if (Array.isArray(current[seg])) {
+                        // Devient un parent
+                        const existing = current[seg];
+                        current[seg] = { index: existing };
                     }
                     current = current[seg];
                 }

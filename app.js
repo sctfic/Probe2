@@ -30,17 +30,15 @@ app.use((req, res, next) => {
 });
 
 // Import des routes
-const apiRoutes = require('./routes/apiRoutes');
+const routes = require('./routes/index');
 const stationRoutes = require('./routes/stationRoutes');
 const queryDbRoutes = require('./routes/queryDbRoutes');
 
 // Configuration des routes
-app.use('/api', apiRoutes);
-app.use('/api/station', stationRoutes);
-app.use('/query', queryDbRoutes);
+app.use('/', routes);
 
 // Route racine
-// Géré par apiRoutes.js
+// Géré par routes/index.js
 
 // Middleware de gestion des erreurs 404
 app.use((req, res) => {
