@@ -93,7 +93,7 @@ async function collectVentiConnect(extender, stationId, points) {
                 // }
                 if (data.fan.rpm !== undefined) {
                     // ticksByMin:${prefix}rpm
-                    points.push(new influxdbService.Point('fan')
+                    points.push(new influxdbService.Point('rotation')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'rpm')
                         // .tag('extender', extender.id || extender.name)

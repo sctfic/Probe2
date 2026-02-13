@@ -140,7 +140,7 @@ function processAndDisplayConditions() {
                 toUserUnit: sensorInfo.toUserUnit || '(_) => _',
                 groupUsage: sensorInfo.groupUsage || null,
                 groupCustom: sensorInfo.groupCustom || null,
-                sensorDb: sensorInfo.sensorDb,
+                sensorDb: sensorInfo.sensorDb || key,
                 period: sensorInfo.period || '7d',
                 order: sensorInfo.order,
                 hidden: !!sensorInfo.hidden,

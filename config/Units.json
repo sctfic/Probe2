@@ -126,18 +126,14 @@
         },
         "sensors": []
     },
-    "fan": {
-        "title": "Fan Speed",
+    "rotation": {
+        "title": "Rotation Speed",
         "description": "Vitesse de rotation du ventilateur",
         "user": "rpm",
         "metric": "rpm",
         "available_units": {
             "rpm": {
                 "title": "tours par minute",
-                "fnFromMetric": "(c) => c"
-            },
-            "%": {
-                "title": "pourcentage",
                 "fnFromMetric": "(c) => c"
             }
         },

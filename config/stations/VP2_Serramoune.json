@@ -66,21 +66,21 @@
         "lastReadValue": 5
     },
     "collect": {
-        "enabled": true,
+        "enabled": false,
         "value": 5,
         "comment": "collecte des donnees des capteurs locaux (VP2 et autres capteurs)",
-        "lastRun": "2026-02-13T22:55:06.408Z",
+        "lastRun": "2026-02-13T23:20:06.864Z",
         "msg": "undefined records collected."
     },
     "forecast": {
-        "enabled": true,
+        "enabled": false,
         "model": "meteofrance_arome_france",
         "comment": "recupere les previsions pour les capteurs standard (toute les heures)",
         "lastRun": "2026-02-13T23:01:03.414Z",
         "msg": "1100 points imported, 11 deleted."
     },
     "historical": {
-        "enabled": true,
+        "enabled": false,
         "since": 2016,
         "comment": "recupere les previsions pour les capteurs standard (toute les jours a 23h30)",
         "lastRun": "2026-02-13T22:50:02.931Z",
@@ -99,5 +99,5 @@
             }
         ]
     },
-    "lastArchiveDate": "2026-02-13 23:55"
+    "lastArchiveDate": "2026-02-14 00:20"
 }

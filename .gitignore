@@ -22,3 +22,5 @@ visits/
 docs/archives/
 docs/API VentiConnect.md
 visits/analytics.json
+config/stations/VP2_Serramoune.lock
+public/mock/
