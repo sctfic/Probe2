@@ -920,7 +920,6 @@ function createForecastFieldHTML(forecastSettings) {
     const models = [
         { value: 'best_match', label: 'Best Match (14d)' },
         { value: 'meteofrance_arome_france', label: 'Météo-France AROME France (4d)' },
-        { value: 'meteofrance_arome_france_hd', label: 'Météo-France AROME France HD (2d)' },
         { value: 'meteofrance_arpege_europe', label: 'Météo-France ARPEGE Europe (4d)' },
         { value: 'meteofrance_arpege_world', label: 'Météo-France ARPEGE World (4d)' },
         { value: 'meteofrance_seamless', label: 'Météo-France Seamless (4d)' }
@@ -998,9 +997,13 @@ function createCollectFieldHTML(field) {
 function createInputHTML(key, value, inputType) {
     if (inputType === 'select') {
         return createSelectHTML(key, value);
+    } else if (inputType === 'decimal') {
+        return `<input type="number" step="0.000001" id="setting-${key}" name="${key}" value="${value}">`;
+    } else if (inputType === 'number') {
+        return `<input type="number" id="setting-${key}" name="${key}" value="${value}">`;
+    } else {
+        return `<input type="${inputType}" id="setting-${key}" name="${key}" value="${value}" ${key == 'timezone' ? 'readonly' : ''}>`;
     }
-
-    return `<input type="${inputType}" id="setting-${key}" name="${key}" value="${value}" ${key == 'timezone' ? 'readonly' : ''}>`;
 }
 
 function createSelectHTML(key, value) {
@@ -1038,6 +1041,20 @@ function createSelectHTML(key, value) {
             { value: 30, label: '30 min' },
             { value: 60, label: '1 heure' },
             { value: 120, label: '2 heures' }
+        ],
+        'rainSaisonStart': [
+            { value: 1, label: 'Janvier' },
+            { value: 2, label: 'Février' },
+            { value: 3, label: 'Mars' },
+            { value: 4, label: 'Avril' },
+            { value: 5, label: 'Mai' },
+            { value: 6, label: 'Juin' },
+            { value: 7, label: 'Juillet' },
+            { value: 8, label: 'Août' },
+            { value: 9, label: 'Septembre' },
+            { value: 10, label: 'Octobre' },
+            { value: 11, label: 'Novembre' },
+            { value: 12, label: 'Décembre' }
         ]
     };
 
@@ -1053,14 +1070,14 @@ function createSelectHTML(key, value) {
 }
 
 function getInputTypeForField(key, value) {
-    if (['AMPMMode', 'archiveInterval', 'dateFormat', 'windCupSize', 'rainCollectorSize', 'latitudeNorthSouth', 'longitudeEastWest'].includes(key)) {
+    if (['AMPMMode', 'archiveInterval', 'dateFormat', 'windCupSize', 'rainCollectorSize', 'latitudeNorthSouth', 'longitudeEastWest', 'rainSaisonStart'].includes(key)) {
         return 'select';
     }
-    if (['port', 'rainSaisonStart'].includes(key)) {
+    if (['port', 'altitude'].includes(key)) {
         return 'number';
     }
-    if (['longitude', 'latitude', 'altitude'].includes(key)) {
-        return 'number';
+    if (['longitude', 'latitude'].includes(key)) {
+        return 'decimal';
     }
     return 'text';
 }

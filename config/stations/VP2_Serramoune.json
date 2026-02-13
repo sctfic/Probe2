@@ -7,53 +7,53 @@
     "location": "Serramoune, 64290 Lasseube, FR",
     "longitude": {
         "desired": -0.479921,
-        "lastReadValue": 0
+        "lastReadValue": -0.5
     },
     "latitude": {
         "desired": 43.20759,
-        "lastReadValue": 0
+        "lastReadValue": 43.2
     },
     "altitude": {
         "comment": "in meters",
         "desired": 242,
-        "lastReadValue": 0
+        "lastReadValue": 242.01
     },
     "timezone": {
         "comment": "Time zone detected by GPS position",
         "value": "Europe/Paris",
         "desired": 21,
-        "lastReadValue": 0,
+        "lastReadValue": 21,
         "method": "GPS"
     },
     "AMPMMode": {
         "comment": "0=AM/PM, 1=24h",
         "desired": 1,
-        "lastReadValue": 0
+        "lastReadValue": 1
     },
     "dateFormat": {
         "comment": "0=Month/Day, 1=Day/Month",
         "desired": 1,
-        "lastReadValue": 0
+        "lastReadValue": 1
     },
     "windCupSize": {
         "comment": "0=Small, 1=Large",
         "desired": 1,
-        "lastReadValue": 0
+        "lastReadValue": 1
     },
     "rainCollectorSize": {
         "comment": "0=0.01in, 1=0.2mm, 2=0.1mm",
         "desired": 1,
-        "lastReadValue": 0
+        "lastReadValue": 1
     },
     "rainSaisonStart": {
         "comment": "Month for yearly rain reset",
         "desired": 1,
-        "lastReadValue": 0
+        "lastReadValue": 1
     },
     "latitudeNorthSouth": {
         "comment": "0=South, 1=North",
         "desired": 1,
-        "lastReadValue": 0
+        "lastReadValue": 1
     },
     "longitudeEastWest": {
         "comment": "0=East, 1=West",
@@ -63,41 +63,41 @@
     "archiveInterval": {
         "comment": "Archive period in minutes",
         "desired": 5,
-        "lastReadValue": 0
+        "lastReadValue": 5
     },
     "collect": {
-        "enabled": false,
+        "enabled": true,
         "value": 5,
         "comment": "collecte des donnees des capteurs locaux (VP2 et autres capteurs)",
-        "lastRun": "2026-02-11T13:31:16.247Z",
-        "msg": "Full collection: 0 records collected."
+        "lastRun": "2026-02-13T22:55:06.408Z",
+        "msg": "undefined records collected."
     },
     "forecast": {
-        "enabled": false,
-        "model": "meteofrance_arome_france_hd",
+        "enabled": true,
+        "model": "meteofrance_arome_france",
         "comment": "recupere les previsions pour les capteurs standard (toute les heures)",
-        "lastRun": "2026-02-11T13:31:15.372Z",
-        "msg": "Error: Les coordonnées GPS de la station ne sont pas définies."
+        "lastRun": "2026-02-13T23:01:03.414Z",
+        "msg": "1100 points imported, 11 deleted."
     },
     "historical": {
-        "enabled": false,
-        "since": 1937,
+        "enabled": true,
+        "since": 2016,
         "comment": "recupere les previsions pour les capteurs standard (toute les jours a 23h30)",
-        "lastRun": "2026-01-12T00:45:23.657Z",
-        "msg": "1231440 points imported successfully."
+        "lastRun": "2026-02-13T22:50:02.931Z",
+        "msg": "672 points imported successfully."
     },
     "deltaTimeSeconds": 1.48,
-    "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe2\\config\\stations\\VP2_Serramoune.json",
     "extenders": {
         "WhisperEye": [],
         "Venti'Connect": [
             {
                 "name": "ventiConnect",
                 "id": "ventiConnect",
-                "host": "localhost",
+                "host": "VPSud.lan",
                 "description": "capteur thermique sous tuile",
                 "available": true
             }
         ]
-    }
+    },
+    "lastArchiveDate": "2026-02-13 23:55"
 }

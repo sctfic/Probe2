@@ -32,16 +32,22 @@ function scheduleJobForStation(stationId, stationConfig) {
     }
 
     const cronPattern = cronInterval < 60
-        ? `16 */${cronInterval} * * * *`
-        : `12 * */${Math.round(cronInterval / 60)} * * *`;
+        ? `03 */${cronInterval} * * * *`
+        : `03 * */${Math.round(cronInterval / 60)} * * *`;
 
     const task = cron.schedule(cronPattern, async () => {
         const port = process.env.PORT || 3000;
+        // collecte des données de la station
         const url = `http://localhost:${port}/api/station/${stationId}/collect`;
         console.log(`${V.info} [CRON] Exécution de la collecte pour la station ${stationId}`);
         try {
             const response = await axios.get(url);
             console.log(`${V.Check} [CRON] Collecte pour ${stationId} réussie. Status: ${response.status}`);
+
+            // Collecte des extenders
+            const extendersUrl = `http://localhost:${port}/api/station/${stationId}/extenders`;
+            const extendersResponse = await axios.get(extendersUrl);
+            console.log(`${V.Check} [CRON] Collecte des extenders pour ${stationId} réussie. Status: ${extendersResponse.status}`);
         } catch (error) {
             const errorMessage = error.response ? `Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data)}` : error.message;
             console.error(`${V.error} [CRON] Erreur lors de la collecte pour ${stationId}:`, errorMessage);
@@ -69,8 +75,8 @@ function scheduleOpenMeteoJob(stationId, stationConfig) {
         return;
     }
 
-    // Tous les jours à 23h30
-    const cronPattern = '0 30 23 * * *';
+    // Tous les jours à 23h 50m 02s
+    const cronPattern = '02 50 23 * * *';
 
     const task = cron.schedule(cronPattern, async () => {
         const port = process.env.PORT || 3000;
@@ -109,8 +115,8 @@ function scheduleOpenMeteoForecastJob(stationId, stationConfig) {
         return;
     }
 
-    // Toutes les heures à la minute 3
-    const cronPattern = '0 3 * * * *';
+    // Toutes les heures à la minute 1 et 02 secondes
+    const cronPattern = '02 1 * * * *';
 
     const task = cron.schedule(cronPattern, async () => {
         const port = process.env.PORT || 3000;

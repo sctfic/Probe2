@@ -7,6 +7,7 @@ const axios = require('axios');
  * @returns {Promise<Object|null>} Les données parsées ou null en cas d'erreur.
  */
 async function fetchVentiConnectInfoAPI(host) {
+    const url = `http://${host}/InfoAPI`;
     try {
         // const data = {
         //     TI: 18.3234, TP: 18.8234, TV: 20.0234,
@@ -14,14 +15,12 @@ async function fetchVentiConnectInfoAPI(host) {
         //     CM: 400, AM: 300, RM: 1290
         // }
         // return parseVentiConnectJSON(data);
-        const url = `http://${host}/InfoAPI`;
         const response = await axios.get(url, { timeout: 2000 });
-        console.log('============', 'response.data', response.data)
         if (response.data) {
             return parseVentiConnectJSON(response.data);
         }
     } catch (error) {
-        console.error(`[VentiConnectService] Erreur lors de la récupération sur ${host}:`, error.message);
+        console.error(`[VentiConnectService] Erreur lors de la récupération sur ${host}:`, error.message, url);
     }
     return null;
 }

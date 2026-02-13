@@ -74,7 +74,7 @@
     },
     "forecast": {
         "comment": "recupere les previsions pour les capteurs standard (toute les heures)",
-        "model": "meteofrance_arome_france_hd",
+        "model": "meteofrance_arome_france",
         "enabled": false,
         "lastRun": "",
         "msg": ""
@@ -86,6 +86,5 @@
         "lastRun": "",
         "msg": ""
     },
-    "deltaTimeSeconds": 0.959,
-    "path": "C:\\Users\\Alban\\Desktop\\Dev\\www\\Probe\\config\\stations\\default.json"
+    "deltaTimeSeconds": 0.959
 }

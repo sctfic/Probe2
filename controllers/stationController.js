@@ -11,7 +11,7 @@ const vm = require('vm');
 const probesProvider = require('../services/probesProvider');
 const dbProbes = require('../config/dbProbes.json');
 const unitsProvider = require('../services/unitsProvider');
-const { V } = require('../utils/icons');
+const { V, O } = require('../utils/icons');
 
 exports.testTcpIp = async (req, res) => {
     try {
@@ -212,16 +212,16 @@ exports.getArchiveData = async (req, res) => {
         console.log(`${V.Parabol} Demande de données d'archive pour la station ${stationConfig.id}`);
 
         const endDate = (await queryDateRange(stationConfig.id, 'barometer', '-107d', '1d', true)).lastUtc;
-        // <!> downloadArchiveData laisse un relica de socket
-        const archiveData = await stationService.downloadArchiveData(req, stationConfig, endDate);
-        // si il est 0h 00 le dimanche, on met a jour la date de la station
-        if (new Date().getDay() === 0 && new Date().getHours() === 0 && new Date().getMinutes() === 0) {
-            await stationService.getVp2DateTime(req, stationConfig);
-        }
-
+        // si endDate est 01/01/1970, on se comporte comme getArchiveDataAll
+        let force = (endDate === '1970-01-01T00:00:00Z');
+        const archiveData = await stationService.downloadArchiveData(req, stationConfig, endDate, force);
         if (stationConfig.collect) {
             stationConfig.collect.lastRun = new Date().toISOString();
             stationConfig.collect.msg = `${archiveData.length} records collected.`;
+        }
+        // si il est 0h 00 le dimanche, on met a jour la date de la station
+        if (new Date().getDay() === 0 && new Date().getHours() === 0 && new Date().getMinutes() === 0) {
+            await stationService.getVp2DateTime(req, stationConfig);
         }
 
         res.json({
@@ -261,6 +261,7 @@ exports.getArchiveDataAll = async (req, res) => {
         const archiveData = await stationService.downloadArchiveData(req, stationConfig, startDate, true);
 
         const recordCount = archiveData.data ? Object.keys(archiveData.data).length : 0;
+
         if (stationConfig.collect) {
             stationConfig.collect.lastRun = new Date().toISOString();
             stationConfig.collect.msg = `Full collection: ${recordCount} records collected.`;

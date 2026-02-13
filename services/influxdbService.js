@@ -84,7 +84,7 @@ function reinitializeInfluxDB(newConfig) {
 
 
 /**
- * Supprime les données de prévisions (tag forecast=true) d'une station antérieures à une date donnée.
+ * Supprime les données de prévisions (tag source="forecast") d'une station antérieures à une date donnée.
  * @param {string} stationId - L'ID de la station.
  * @param {string} untilDateISO - Date limite (exclusive) pour la suppression (ISO string).
  * @returns {Promise<object|null>} Retourne un objet avec le nombre de points supprimés et la plage de dates, ou null si rien n'a été supprimé.

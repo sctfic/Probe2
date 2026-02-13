@@ -93,6 +93,7 @@
         },
         "sensors": [
             "windSpeed",
+            "windSpeedMax",
             "avgWindSpeed10Min",
             "avgWindSpeed2Min",
             "windGust10Min",
@@ -158,7 +159,7 @@
             }
         },
         "sensors": [
-            "windSpeedMax",
+            "windDirMax",
             "windDir",
             "windGustDir10Min",
             "Gust",
@@ -180,11 +181,7 @@
                 "fnFromMetric": "(deg) => (deg * Math.PI / 180).toFixed(2)"
             }
         },
-        "sensors": [
-            "windDirMax",
-            "Gust",
-            "Wind"
-        ]
+        "sensors": []
     },
     "rain": {
         "title": "Précipitations",
@@ -343,7 +340,7 @@
     "voltage": {
         "title": "Tension",
         "description": "Unités de mesure du niveau de tension",
-        "user": "%",
+        "user": "V",
         "metric": "V",
         "available_units": {
             "%": {

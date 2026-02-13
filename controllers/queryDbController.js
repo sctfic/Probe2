@@ -617,15 +617,15 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
     const stationConfig = req.stationConfig;
 
     try {
-        console.log(V.Travaux, `Expansion de la base de données pour ${stationId} avec les données Open-Meteo.`);
+        console.log(V.Travaux, `Expansion de la base de données pour ${stationId} avec les données Open-Meteo.`, stationConfig);
 
         const { latitude, longitude, elevation } = {
-            latitude: stationConfig.latitude.lastReadValue,
-            longitude: stationConfig.longitude.lastReadValue,
-            elevation: stationConfig.altitude.lastReadValue
+            longitude: stationConfig.longitude.desired,
+            latitude: stationConfig.latitude.desired,
+            elevation: stationConfig.altitude.desired
         };
 
-        if (!latitude || !longitude) {
+        if (!latitude && !longitude && !elevation) {
             throw new Error("Les coordonnées GPS de la station ne sont pas définies.", stationConfig);
         }
 
@@ -846,13 +846,13 @@ exports.getOpenMeteoForecast = async (req, res) => {
         console.log(V.Travaux, `Récupération et écriture des prévisions Open-Meteo pour ${stationId}.`);
 
         const { latitude, longitude, elevation } = {
-            latitude: stationConfig.latitude.lastReadValue,
-            longitude: stationConfig.longitude.lastReadValue,
-            elevation: stationConfig.altitude.lastReadValue,
+            latitude: stationConfig.latitude.desired,
+            longitude: stationConfig.longitude.desired,
+            elevation: stationConfig.altitude.desired,
         };
         const model = (stationConfig.forecast && stationConfig.forecast.model) || 'best_match';
 
-        if (!latitude || !longitude) {
+        if (!latitude && !longitude && !elevation) {
             throw new Error("Les coordonnées GPS de la station ne sont pas définies.", stationConfig);
         }
 
@@ -874,7 +874,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
                 'soil_moisture_9_to_27cm',
                 'shortwave_radiation'
             ],
-            models: 'best_match',
+            models: model,
             timezone: 'auto',
             forecast_days: 14 // Récupère 14 jours de prévisions
         };
@@ -919,6 +919,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
                 for (const [openMeteoKey, values] of Object.entries(metrics)) {
                     const value = values[i];
                     if (value !== null && mapping[openMeteoKey]) {
+                        console.log(V.Parabol, openMeteoKey, value);
                         const { type, sensor, convert } = mapping[openMeteoKey];
                         const metricValue = convert ? convert(value) : value;
                         sensor.forEach(s => {

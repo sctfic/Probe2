@@ -790,7 +790,7 @@ exports.createStation = (req, res) => {
             },
             "forecast": {
                 "comment": "recupere les previsions pour les capteurs standard (toute les heures)",
-                "model": "meteofrance_arome_france_hd",
+                "model": "meteofrance_arome_france",
                 "enabled": false,
                 "lastRun": "",
                 "msg": ""
@@ -803,7 +803,6 @@ exports.createStation = (req, res) => {
                 "msg": ""
             },
             "deltaTimeSeconds": null,
-            "path": null,
             "extenders": {
                 "WhisperEye": [],
                 "Venti'Connect": []

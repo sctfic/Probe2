@@ -317,7 +317,7 @@ function convertToUnit(nativeValue, key, UnitsType = 'user') {
     // console.log(type,unit, nativeValue);
     const convertFn = conversionTable[type]?.[unit];
     if (!convertFn) {
-        console.error(`No conversion function found for ${type} to ${unit}`);
+        console.error(`No conversion function found for ${type}:${key} to ${unit}`);
         return nativeValue;
     }
 

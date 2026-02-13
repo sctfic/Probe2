@@ -57,6 +57,20 @@ class UnitsProvider {
     async loadSensorMap() {
         const map = {};
 
+        // 0. Charger le mapping statique depuis Units.json
+        try {
+            const units = this.getUnits();
+            for (const type in units) {
+                if (units[type].sensors && Array.isArray(units[type].sensors)) {
+                    for (const sensor of units[type].sensors) {
+                        if (sensor) map[sensor] = type;
+                    }
+                }
+            }
+        } catch (err) {
+            console.error(`${V.error} Failed to initialize sensor map from Units.json:`, err.message);
+        }
+
         try {
             // 1. Charger depuis InfluxDB (toutes les stations)
             // Import dynamique pour éviter la dépendance circulaire au démarrage
@@ -103,7 +117,7 @@ class UnitsProvider {
         } catch (err) {
             console.error(`${V.error} Failed to load integratorProbes.json for sensor map:`, err.message);
         }
-
+        console.log(`${V.info} Sensor map loaded:`, map);
         this.sensorTypeMap = map;
         this._sensorMapReady = true;
         return map;

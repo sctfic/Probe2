@@ -619,7 +619,7 @@ async function downloadArchiveData(req, stationConfig, startDate, ignoreLimit = 
     const day = effectiveStartDate.getDate();
     const hours = effectiveStartDate.getHours();
     const minutes = effectiveStartDate.getMinutes();
-    // console.log(O.RED, 'year =',year, 'month =', month, 'day =',day, 'hours =', hours, 'minutes =', minutes);
+    // console.log(O.RED, 'year =', year, 'month =', month, 'day =', day, 'hours =', hours, 'minutes =', minutes);
     const dateStamp = (year - 2000) * 512 + month * 32 + day;
     const timeStamp = (hours) * 100 + minutes; // -1 pour test
     // console.log(O.RED, dateStamp, timeStamp);
@@ -629,27 +629,16 @@ async function downloadArchiveData(req, stationConfig, startDate, ignoreLimit = 
     const dateCrcBytes = Buffer.from([dateCrc >> 8, dateCrc & 0xFF]);
     const fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
 
-    // console.log(O.RED, dateStamp, timeStamp, datePayload, dateCrcBytes, fullPayload, fullPayload.toString('hex'), fullPayload.toString('binary')); // 13123 2100 <Buffer 43 33 34 08> 8684
+    // console.log(O.RED, dateStamp, timeStamp, 'payload=', datePayload, 'crc=', dateCrcBytes, 'fullBinary=', fullPayload.toString('binary')); // 13123 2100 <Buffer 43 33 34 08> 8684
     // on envoit la date de la 1er archive souhaitée
     const pageInfo = await sendCommand(req, stationConfig, fullPayload, 3000, "<ACK>4<CRC>");
     const numberOfPages = pageInfo.readUInt16LE(0);
     let firstReccord = pageInfo.readUInt8(2);
 
-    // const sendProgress = (page, total) => {
-    //     if (total > 1) {
-    //         const out = {
-    //             status: 'in progress',
-    //             processedPages: page,
-    //             totalPages: total,
-    //         }
-    //     }
-    // };
-    // sendProgress(0, numberOfPages);
     const allRecords = {};
 
     // on se limite a 50 archives a la fois pour laisser la station aquerir les nouvelles données
     for (let i = 0; i < numberOfPages && (ignoreLimit || i < 50); i++) {
-
         // on envoit l'ACK, demande de la suivante
         const pageData = await sendCommand(req, stationConfig, ACK, 2000, "265<CRC>");
         const pageNumber = pageData.readUInt8(0);
@@ -663,7 +652,7 @@ async function downloadArchiveData(req, stationConfig, startDate, ignoreLimit = 
                 const nativedate = convertRawValue2NativeValue(parsedRecord.date.value, 'date_YYMMdd', null);
                 const nativetime = convertRawValue2NativeValue(parsedRecord.time.value, 'time', null);
                 const datetime = conversionTable.date['yyyy-mm-dd'](nativedate) + ' ' + conversionTable.time['hh:mm'](nativetime);
-                if ((new Date(datetime)) > effectiveStartDate) {
+                if ((new Date(datetime)) > effectiveStartDate || ignoreLimit) {
                     allRecords[datetime] = processedData;
                     const WriteToDB = await writeArchiveToInfluxDB(processedData, new Date(datetime), stationConfig.id);
                     if (WriteToDB) {
@@ -673,12 +662,11 @@ async function downloadArchiveData(req, stationConfig, startDate, ignoreLimit = 
                         console.warn(`${V.package} Pages ${pageNumber + 1}.${j + 1}/${numberOfPages} Archives / Error writing points influxDb for [${datetime}] ${V.error}`);
                     }
                 } else {
-                    console.warn(`${V.Gyro} ${pageNumber + 1}[${j + 1}]/${numberOfPages}`);
+                    console.warn(`${V.Gyro} ${pageNumber + 1}[${j + 1}]/${numberOfPages} Skip ${datetime} < ${effectiveStartDate.toISOString()}`);
                 }
             }
         }
         firstReccord = 0;
-        // sendProgress(i+1, numberOfPages);
     }
     await sendCommand(req, stationConfig, ESC_LF, 1200, "2");
     configManager.autoSaveConfig(stationConfig);

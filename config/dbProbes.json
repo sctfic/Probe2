@@ -499,51 +499,6 @@
         "sensorDb": "humidity:extraSoilMoisture4",
         "measurement": "humidity"
     },
-    "barometer": {
-        "label": "Baromètre",
-        "comment": "Pression atmosphérique",
-        "measurement": "pressure",
-        "period": 2592000,
-        "groupUsage": "1/ Outdoor",
-        "groupCustom": "Instantanee",
-        "sensorDb": "barometer"
-    },
-    "inTemp": {
-        "label": "Température intérieure",
-        "comment": "Température intérieure",
-        "measurement": "temperature",
-        "period": 2592000,
-        "groupUsage": "3/ Intdoor",
-        "groupCustom": "Instantanee",
-        "sensorDb": "inTemp"
-    },
-    "inHumidity": {
-        "label": "Humidité intérieure",
-        "comment": "Humidité intérieure",
-        "measurement": "humidity",
-        "period": 2592000,
-        "groupUsage": "3/ Intdoor",
-        "groupCustom": "Instantanee",
-        "sensorDb": "inHumidity"
-    },
-    "outTemp": {
-        "label": "Température extérieure",
-        "comment": "Température extérieure",
-        "measurement": "temperature",
-        "period": 2592000,
-        "groupUsage": "1/ Outdoor",
-        "groupCustom": "Instantanee",
-        "sensorDb": "outTemp"
-    },
-    "windSpeed": {
-        "label": "Vitesse du vent",
-        "comment": "Vitesse du vent",
-        "measurement": "wind",
-        "period": 2592000,
-        "groupUsage": "1/ Outdoor",
-        "groupCustom": "Instantanee",
-        "sensorDb": "speed:Wind"
-    },
     "windSpeedMax": {
         "label": "Vitesse du vent max",
         "comment": "Vitesse de rafale de vent max",
@@ -552,33 +507,6 @@
         "groupUsage": "1/ Outdoor",
         "groupCustom": "Instantanee",
         "sensorDb": "speed:Gust"
-    },
-    "avgWindSpeed10Min": {
-        "label": "Vitesse vent moyenne (10min)",
-        "comment": "Vitesse moyenne du vent sur 10 minutes",
-        "measurement": "wind",
-        "period": 2592000,
-        "groupUsage": "5/ other_wind",
-        "groupCustom": "Instantanee",
-        "sensorDb": "vector:Wind"
-    },
-    "windDir": {
-        "label": "Direction du vent",
-        "comment": "Direction d'ou provient le vent",
-        "measurement": "direction",
-        "period": 2592000,
-        "groupUsage": "1/ Outdoor",
-        "groupCustom": "Instantanee",
-        "sensorDb": "diection:Wind"
-    },
-    "outHumidity": {
-        "label": "Humidité extérieure",
-        "comment": "Humidité extérieure",
-        "measurement": "humidity",
-        "period": 2592000,
-        "groupUsage": "1/ Outdoor",
-        "groupCustom": "Instantanee",
-        "sensorDb": "outHumidity"
     },
     "rainRate": {
         "label": "Taux de précipitation",
@@ -589,39 +517,12 @@
         "groupCustom": "Instantanee",
         "sensorDb": null
     },
-    "UV": {
-        "label": "Index UV",
-        "comment": "Indice d'érythème cutané",
-        "measurement": "uv",
-        "period": 2592000,
-        "groupUsage": "2/ Sun",
-        "groupCustom": "Instantanee",
-        "sensorDb": "UV"
-    },
-    "solar": {
-        "label": "Irradiance solaire",
-        "comment": "puissance Radiation solaire",
-        "measurement": "irradiance",
-        "period": 2592000,
-        "groupUsage": "2/ Sun",
-        "groupCustom": "Instantanee",
-        "sensorDb": "solarMax"
-    },
     "stormRain": {
         "label": "Preciperiode d'averses actuelle",
         "comment": "Précipitation depuis le début de la période d'averses",
         "measurement": "rain",
         "period": "dateStormRain",
         "groupUsage": "1/ Outdoor",
-        "groupCustom": "Instantanee",
-        "sensorDb": "rainFall"
-    },
-    "dayRain": {
-        "label": "Pluie du jour",
-        "comment": "Pluie depuis le début du jour",
-        "measurement": "rain",
-        "period": 86400,
-        "groupUsage": "4/ other_rain",
         "groupCustom": "Instantanee",
         "sensorDb": "rainFall"
     },
@@ -714,24 +615,6 @@
         "groupUsage": "5/ other_wind",
         "groupCustom": "Instantanee",
         "sensorDb": null
-    },
-    "windGust10Min": {
-        "label": "Rafale de vent (10min)",
-        "comment": "Rafale de vent sur 10 minutes",
-        "measurement": "wind",
-        "period": 2592000,
-        "groupUsage": "5/ other_wind",
-        "groupCustom": "Instantanee",
-        "sensorDb": "vector:Gust"
-    },
-    "windGustDir10Min": {
-        "label": "Direction rafale (10min)",
-        "comment": "Direction de la rafale de vent sur 10 minutes",
-        "measurement": "direction",
-        "period": 648000,
-        "groupUsage": "5/ other_wind",
-        "groupCustom": "Instantanee",
-        "sensorDb": "diection:Gust"
     },
     "dewPoint": {
         "label": "Point de rosée",
