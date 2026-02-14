@@ -4,7 +4,7 @@ const router = express.Router();
 const { loadStationConfig, talkStationWithLamp, talkStationQuickly } = require('../middleware/stationMiddleware');
 const { isAuthenticated } = require('../middleware/authMiddleware');
 const stationController = require('../controllers/stationController');
-const { collectExtenders, checkExtendersStatus } = require('../controllers/extendersController');
+const extendersController = require('../controllers/extendersController');
 
 // Middleware pour toutes les routes de stations
 router.use('/:stationId', loadStationConfig); //http://Probe.lpz.ovh/api/station/VP2_Serramoune
@@ -16,10 +16,16 @@ router.delete('/:stationId', isAuthenticated, stationController.deleteStation); 
 router.get('/:stationId/collect', talkStationWithLamp(stationController.getArchiveData)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collect
 
 // Collecte les données des extenders depuis la station
-router.get('/:stationId/extenders', collectExtenders); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders
+router.get('/:stationId/extenders', extendersController.collectExtenders); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders
+
+// Supprime TOUTES les données InfluxDB des extendeurs
+router.delete('/:stationId/extenders/data', isAuthenticated, extendersController.deleteAllExtenderData);
+
+// Supprime les données InfluxDB d'un extendeur spécifique
+router.delete('/:stationId/extenders/:extenderId/data', isAuthenticated, extendersController.deleteExtenderData);
 
 // Vérifie le statut (avaiblité) des extenders par un appel api
-router.get('/:stationId/extenders/status', checkExtendersStatus); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders/status
+router.get('/:stationId/extenders/status', extendersController.checkExtendersStatus); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders/status
 
 // Collecte l'intégralité du tampon d'archive de la station 512 pages
 router.get('/:stationId/collectAll', talkStationWithLamp(stationController.getArchiveDataAll)); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/collectAll

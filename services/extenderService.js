@@ -25,7 +25,7 @@ async function collectVentiConnect(extender, stationId, points) {
                     points.push(new influxdbService.Point('temperature')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'indoor')
-                        .tag('source', 'localExtenderCollection')
+                        .tag('source', extender.id)
                         .floatField('value', data.temperature.indoor)
                         .timestamp(data.dateTime));
                 }
@@ -34,7 +34,7 @@ async function collectVentiConnect(extender, stationId, points) {
                     points.push(new influxdbService.Point('temperature')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'fan')
-                        .tag('source', 'localExtenderCollection')
+                        .tag('source', extender.id)
                         .floatField('value', data.temperature.fan)
                         .timestamp(data.dateTime));
                 }
@@ -43,7 +43,7 @@ async function collectVentiConnect(extender, stationId, points) {
                     points.push(new influxdbService.Point('temperature')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'collector')
-                        .tag('source', 'localExtenderCollection')
+                        .tag('source', extender.id)
                         .floatField('value', data.temperature.collector)
                         .timestamp(data.dateTime));
                 }
@@ -56,7 +56,7 @@ async function collectVentiConnect(extender, stationId, points) {
                     points.push(new influxdbService.Point('humidity')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'indoor')
-                        .tag('source', 'localExtenderCollection')
+                        .tag('source', extender.id)
                         .floatField('value', data.humidity.indoor)
                         .timestamp(data.dateTime));
                 }
@@ -65,7 +65,7 @@ async function collectVentiConnect(extender, stationId, points) {
                     points.push(new influxdbService.Point('humidity')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'fan')
-                        .tag('source', 'localExtenderCollection')
+                        .tag('source', extender.id)
                         .floatField('value', data.humidity.fan)
                         .timestamp(data.dateTime));
                 }
@@ -78,7 +78,6 @@ async function collectVentiConnect(extender, stationId, points) {
                 //     points.push(new influxdbService.Point('fan')
                 //         .tag('station_id', stationId)
                 //         .tag('sensor', prefix + 'instructions')
-                //         // .tag('extender', extender.id || extender.name)
                 //         .floatField('value', data.fan.instructions)
                 //         .timestamp(data.dateTime));
                 // }
@@ -87,7 +86,6 @@ async function collectVentiConnect(extender, stationId, points) {
                 //     points.push(new influxdbService.Point('fan')
                 //         .tag('station_id', stationId)
                 //         .tag('sensor', prefix + 'real')
-                //         // .tag('extender', extender.id || extender.name)
                 //         .floatField('value', data.fan.real)
                 //         .timestamp(data.dateTime));
                 // }
@@ -96,7 +94,7 @@ async function collectVentiConnect(extender, stationId, points) {
                     points.push(new influxdbService.Point('rotation')
                         .tag('station_id', stationId)
                         .tag('sensor', prefix + 'rpm')
-                        // .tag('extender', extender.id || extender.name)
+                        .tag('source', extender.id)
                         .floatField('value', data.fan.rpm)
                         .timestamp(data.dateTime));
                 }

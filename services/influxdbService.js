@@ -720,6 +720,69 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
 // }
 
 
+/**
+ * Supprime les données des extendeurs (tag source="localExtenderCollection") d'une station.
+ * @param {string} stationId - L'ID de la station.
+ * @param {string} extenderId - (Optionnel) L'ID de l'extender pour supprimer uniquement ses données.
+ * @returns {Promise<object>}
+ */
+async function deleteExtenderData(stationId, extenderId = null) {
+    if (!extenderId) return { success: true, count: 0, details: {} };
+
+    const ids = Array.isArray(extenderId) ? extenderId : [extenderId];
+    if (ids.length === 0) return { success: true, count: 0, details: {} };
+
+    const start = new Date(0).toISOString();
+    const stop = new Date().toISOString();
+
+    let totalCount = 0;
+    const details = {};
+
+    try {
+        for (const id of ids) {
+            // 1. Compter les points pour cet ID spécifique
+            let countForId = 0;
+            try {
+                const fluxPredicate = `r["station_id"]=="${stationId}" and r["source"]=="${id}"`;
+                const countQuery = `
+                    from(bucket: "${bucket}")
+                        |> range(start: ${start}, stop: ${stop})
+                        |> filter(fn: (r) => ${fluxPredicate})
+                        |> group()
+                        |> count()
+                `;
+                const countResult = await executeQuery(countQuery);
+                countForId = countResult.length > 0 ? countResult[0]._value : 0;
+            } catch (e) {
+                console.warn(`${V.error} Erreur comptage pour ${id}:`, e.message);
+            }
+
+            // 2. Supprimer pour cet ID spécifique
+            const deletePredicate = `station_id="${stationId}" AND source="${id}"`;
+            const deleteObject = {
+                org,
+                bucket,
+                body: {
+                    start: new Date(start),
+                    stop: new Date(stop),
+                    predicate: deletePredicate
+                },
+            };
+            await deleteApi.postDelete(deleteObject);
+
+            console.log(`${V.trash} [${id}] Suppression de ${countForId} points.`);
+            totalCount += countForId;
+            details[id] = countForId;
+        }
+
+        console.log(`${V.trash} Suppression globale terminée pour ${stationId}: ${totalCount} points.`);
+        return { success: true, count: totalCount, details };
+    } catch (error) {
+        console.error(`${V.error} Erreur suppression données extendeurs:`, error.message);
+        return { success: false, error: error.message };
+    }
+}
+
 module.exports = {
     testInfluxConnection,
     reinitializeInfluxDB,
@@ -733,5 +796,6 @@ module.exports = {
     queryWindVectors,
     queryCandle,
     queryLast,
-    deleteForecasts // Export de la nouvelle fonction de suppression
+    deleteForecasts,
+    deleteExtenderData
 };

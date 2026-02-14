@@ -128,19 +128,22 @@ function processAndDisplayConditions() {
         .map(([key, data]) => {
             const sensorInfo = { ...data, ...tileState[key] };
             if (sensorInfo.order !== undefined && sensorInfo.order > maxOrder) maxOrder = sensorInfo.order;
+            const sensorDb = sensorInfo.sensorDb || (sensorInfo.groupCustom === 'Instantanee' && !key.includes(':')) ? null : key
+            console.log(sensorInfo.sensorDb, sensorInfo.groupCustom, sensorInfo.groupCustom === 'Instantanee', key, !key.includes(':'));
+            console.log('sensorDb =>>', sensorDb);
             return {
-                name: sensorInfo.label || key,
+                name: sensorInfo.label || key.replace(':', ' ') || key,
                 comment: sensorInfo.comment,
                 key,
-                measurement: sensorInfo.measurement || 'unknown',
+                measurement: sensorInfo.measurement || key.split(':')[0] || 'unknown',
                 value: sensorInfo.Value,
                 unit: sensorInfo.Unit,
                 more: sensorInfo.more || '',
                 userUnit: sensorInfo.userUnit,
                 toUserUnit: sensorInfo.toUserUnit || '(_) => _',
                 groupUsage: sensorInfo.groupUsage || null,
-                groupCustom: sensorInfo.groupCustom || null,
-                sensorDb: sensorInfo.sensorDb || key,
+                groupCustom: sensorInfo.groupCustom || 'Extendeurs',
+                sensorDb: sensorDb,
                 period: sensorInfo.period || '7d',
                 order: sensorInfo.order,
                 hidden: !!sensorInfo.hidden,
@@ -523,7 +526,7 @@ function getBatteryImageAndClass(batteryValue) {
     const value = parseFloat(batteryValue);
     let level, className = '';
     if (value > 102) {
-        level = 'missing';
+        level = 100; // or 'missing' for missing battery
         className = 'missing-battery';
     } else if (value >= 90) {
         level = 100;
@@ -651,10 +654,11 @@ function getStartDate(period) {
 function loadAllCharts() {
     if (!selectedStation || !dbSensorList) return;
     allConditions.forEach(loadChartForItem);
-    console.log(requestCache);
+    console.log('loadAllCharts, requestCache', requestCache);
 }
 
 function loadChartForItem(item) {
+    console.log('loadChartForItem', item);
     if (!item.sensorDb) return;
     const chartId = `chart_${item.key}`;
     const start = `startDate=${getStartDate(item.period)}`;
@@ -1115,6 +1119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     container.addEventListener('click', handleTileClick);
+    // container.addEventListener('click', handleTileClick);
     container.addEventListener('contextmenu', handleContextMenu);
     compareMenuItem.addEventListener('click', compareSelectedItems);
     if (viewAllBtn) {
