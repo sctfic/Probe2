@@ -39,9 +39,9 @@ function parseVentiConnectJSON(rawData) {
         dateTime: rounded,
         temperature: {
             // Temperature corrigee en degrés Celsius arrondi a 1 decimal
-            indoor: rawData.TI.toFixed(1) * 1,
-            fan: rawData.TP.toFixed(1) * 1,
-            collector: rawData.TV.toFixed(1) * 1
+            indoor: rawData.TI.toFixed(1) * 1 + 273.15,
+            fan: rawData.TP.toFixed(1) * 1 + 273.15,
+            collector: rawData.TV.toFixed(1) * 1 + 273.15
         },
         humidity: {
             // Humidite relative corrigee en % arrondi la valeur entiere
@@ -50,9 +50,9 @@ function parseVentiConnectJSON(rawData) {
         },
         fan: {
             // Vitesse du ventilateur
-            instructions: rawData.CM, // objectif en %
-            real: rawData.AM,         // vitesse actuelle en %
-            rpm: rawData.RM           // vitesse reelle en tours par minute
+            instructions: (rawData.CM * 20.47).toFixed(), // objectif en %
+            real: (rawData.AM * 20.47).toFixed(),         // vitesse actuelle en %
+            rpm: rawData.RM                               // vitesse reelle en tours par minute
         }
     };
 }

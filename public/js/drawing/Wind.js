@@ -812,7 +812,7 @@ function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
 async function loadVectorPlot(id, url, fullUse = false) {
     const chartDiv = document.getElementById(id);
     if (!chartDiv) {
-        console.error(`Div with ID ${id} not found`);
+        console.error('loadVectorPlot', `Div with ID ${id} not found`);
         return;
     }
 
@@ -825,7 +825,7 @@ async function loadVectorPlot(id, url, fullUse = false) {
             chartDiv.innerHTML = `<div class="error-message">Aucune donnée de vent disponible.</div>`;
         }
     } catch (error) {
-        console.error('Error loading vector data:', error);
+        console.error('loadVectorPlot', 'Error loading vector data:', error);
         chartDiv.innerHTML = `<div class="error-message">Loading error</div>`;
     }
 }

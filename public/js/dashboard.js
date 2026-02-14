@@ -128,14 +128,13 @@ function processAndDisplayConditions() {
         .map(([key, data]) => {
             const sensorInfo = { ...data, ...tileState[key] };
             if (sensorInfo.order !== undefined && sensorInfo.order > maxOrder) maxOrder = sensorInfo.order;
-            const sensorDb = sensorInfo.sensorDb || (sensorInfo.groupCustom === 'Instantanee' && !key.includes(':')) ? null : key
-            console.log(sensorInfo.sensorDb, sensorInfo.groupCustom, sensorInfo.groupCustom === 'Instantanee', key, !key.includes(':'));
-            console.log('sensorDb =>>', sensorDb);
+            const sensorDb = sensorInfo.sensorDb || (key.includes(':') ? key : null);
+            const measurement = sensorInfo.measurement || (key.includes(':') ? key.split(':')[0] : 'unknown');
             return {
                 name: sensorInfo.label || key.replace(':', ' ') || key,
                 comment: sensorInfo.comment,
                 key,
-                measurement: sensorInfo.measurement || key.split(':')[0] || 'unknown',
+                measurement,
                 value: sensorInfo.Value,
                 unit: sensorInfo.Unit,
                 more: sensorInfo.more || '',
@@ -147,10 +146,10 @@ function processAndDisplayConditions() {
                 period: sensorInfo.period || '7d',
                 order: sensorInfo.order,
                 hidden: !!sensorInfo.hidden,
-                searchText: [sensorInfo.label, key, sensorInfo.comment, String(data.Value), data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
+                searchText: [sensorInfo.label, key, sensorInfo.comment, data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
             };
         });
-
+    console.log(allConditions);
     // Assign order to new items and ensure uniqueness
     let usedOrders = new Set(allConditions.map(item => item.order).filter(o => o !== undefined));
     allConditions.forEach(item => {
@@ -658,7 +657,6 @@ function loadAllCharts() {
 }
 
 function loadChartForItem(item) {
-    console.log('loadChartForItem', item);
     if (!item.sensorDb) return;
     const chartId = `chart_${item.key}`;
     const start = `startDate=${getStartDate(item.period)}`;
@@ -1012,9 +1010,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             console.log('selectedTiles', selectedTiles);
             const key = tile.dataset.key;
-            console.log('key', key);
+            // console.log('key', key);
             const item = allConditions.find(c => c.key === key);
-            console.log('item', item);
+            // console.log('item', item);
             if (item && item.sensorDb) {
                 if (tile.classList.contains('selected') && selectedTiles.size === 1) {
                     clearSelection();
