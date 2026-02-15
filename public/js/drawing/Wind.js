@@ -441,13 +441,8 @@ async function loadRosePlot(id, url) {
 //  Construction du diagramme de vecteurs
 // =======================================
 
-function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
-    const chartDiv = document.getElementById(id);
-    if (!chartDiv) {
-        console.error(`Div with ID ${id} not found`);
-        return;
-    }
-
+async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url = '') {
+    const id = chartDiv.id;
     const speedSensor = metadata.measurement.speed[0];
     const unit = metadata.toUserUnit[speedSensor].userUnit;
     const fn = eval(metadata.toUserUnit[speedSensor].fnFromMetric);
@@ -462,12 +457,6 @@ function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
     // Limite de 14 jours pour le calcul d'opacité
     const futureLimit = 14 * 24 * 60 * 60 * 1000;
 
-    // Dimensions
-    const margin = { top: 16, right: 25, bottom: 17, left: 25 };
-    const width = chartDiv.clientWidth;
-    const height = chartDiv.clientHeight || 100;
-    const innerWidth = width - margin.left - margin.right;
-    const innerHeight = height - margin.top - margin.bottom;
 
     // Préparation des données
     const processedData = data.map(d => ({
@@ -478,6 +467,18 @@ function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
         spdOriginal: d.spd || 0,
         dir: d.dir || 0
     }));
+
+    // Dimensions
+    const margin = { top: 16, right: 25, bottom: 17, left: 25 };
+
+    const width = chartDiv.clientWidth; // d3.min.js Error: <rect> attribute width: A negative value is not valid. ("-50")
+    const height = chartDiv.clientHeight; // d3.min.js Error: <rect> attribute height: A negative value is not valid. ("-33")
+
+    const innerWidth = width - margin.left - margin.right;
+    // console.log(innerWidth, '=', width, '-', margin.left, '-', margin.right);    // -50 '=' 0 '-' 25 '-' 25
+
+    const innerHeight = height - margin.top - margin.bottom;
+    // console.log(innerHeight, '=', height, '-', margin.top, '-', margin.bottom);    // -33 '=' 0 '-' 16 '-' 17
 
     // Scales
     const xScale = d3.scaleTime()
@@ -707,7 +708,7 @@ function createVectorPlot(data, metadata, id, fullUse = false, url = '') {
             const vectorData = await queryManager.query(vectorUrl, { cacheDuration: 30 * 1000 });
 
             if (vectorData.success) {
-                createVectorPlot(vectorData.data, vectorData.metadata, id, fullUse, url);
+                await createVectorPlot(vectorData.data, vectorData.metadata, chartDiv, fullUse, url);
 
                 const roseBaseUrl = url.split('/WindVectors')[0];
                 const roseUrl = `${roseBaseUrl}/WindRose?prefix=${prefix}`;
@@ -820,7 +821,7 @@ async function loadVectorPlot(id, url, fullUse = false) {
         // Cache de 30 secondes pour les données vectorielles
         const apiResponse = await queryManager.query(url, { cacheDuration: 30 * 1000 });
         if (apiResponse.success && Object.keys(apiResponse.data).length > 0) {
-            createVectorPlot(apiResponse.data, apiResponse.metadata, id, fullUse, url);
+            await createVectorPlot(apiResponse.data, apiResponse.metadata, chartDiv, fullUse, url);
         } else {
             chartDiv.innerHTML = `<div class="error-message">Aucune donnée de vent disponible.</div>`;
         }

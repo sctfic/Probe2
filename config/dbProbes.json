@@ -175,7 +175,7 @@
         "currentMap": "barometer",
         "period": null,
         "groupUsage": "db",
-        "groupCustom": "",
+        "groupCustom": " Station",
         "sensorDb": "pressure:barometer",
         "measurement": "pressure"
     },

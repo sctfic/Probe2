@@ -137,11 +137,11 @@ function processAndDisplayConditions() {
                 measurement,
                 value: sensorInfo.Value,
                 unit: sensorInfo.Unit,
-                more: sensorInfo.more || '',
+                more: sensorInfo.more || null,
                 userUnit: sensorInfo.userUnit,
                 toUserUnit: sensorInfo.toUserUnit || '(_) => _',
                 groupUsage: sensorInfo.groupUsage || null,
-                groupCustom: sensorInfo.groupCustom || 'Extendeurs',
+                groupCustom: sensorInfo.groupCustom || null,
                 sensorDb: sensorDb,
                 period: sensorInfo.period || '7d',
                 order: sensorInfo.order,
@@ -911,24 +911,44 @@ function showDetailsFooter(keys) {
     console.log(items)
     // S'assurer que le footer n'est pas caché par l'animation initiale
     detailsFooter.classList.remove('hidden-animated');
-    // Affiche le footer
-    detailsFooter.classList.add('details-open');
-    contentContainer.innerHTML = ''; // Réinitialiser le contenu
-    if (items.length === 1) {
-        // Special case for wind (rose & vector)
-        if (items[0].measurement === 'direction' || items[0].sensorDb.startsWith('vector:')) {
-            loadWindPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}`, items[0].sensorDb);
-        } else {
-            loadSpiralePlot(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raw/${items[0].sensorDb}`);
+
+    // Fonction interne pour charger les graphiques
+    const loadCharts = () => {
+        contentContainer.innerHTML = ''; // Réinitialiser le contenu
+        if (items.length === 1) {
+            // Special case for wind (rose & vector)
+            if (items[0].measurement === 'direction' || items[0].sensorDb.startsWith('vector:')) {
+                loadWindPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}`, items[0].sensorDb);
+            } else {
+                loadSpiralePlot(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raw/${items[0].sensorDb}`);
+            }
+        } else if (items.length > 1) {
+            const sensorDbs = items.map(i => i.sensorDb.replace('vector:', 'speed:')).filter(Boolean);
+            if (sensorDbs.length === 0) {
+                contentContainer.innerHTML = `<div class="error-message">Aucun capteur avec historique dans la sélection.</div>`;
+                return;
+            }
+            const sensorsQuery = sensorDbs.join(',');
+            mainPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}`, getStartDate('1y'));
         }
-    } else if (items.length > 1) {
-        const sensorDbs = items.map(i => i.sensorDb.replace('vector:', 'speed:')).filter(Boolean);
-        if (sensorDbs.length === 0) {
-            contentContainer.innerHTML = `<div class="error-message">Aucun capteur avec historique dans la sélection.</div>`;
-            return;
-        }
-        const sensorsQuery = sensorDbs.join(',');
-        mainPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}`, getStartDate('1y'));
+    };
+
+    // Affiche le footer avec animation
+    if (!detailsFooter.classList.contains('details-open')) {
+        // Si le footer était fermé, on attend la fin de la transition d'ouverture pour dessiner
+        console.log('Footer closed, opening and drawing charts');
+        const handleTransitionEnd = (e) => {
+            if (e.target === detailsFooter && (e.propertyName === 'height' || e.propertyName === 'transform')) {
+                detailsFooter.removeEventListener('transitionend', handleTransitionEnd);
+                loadCharts();
+            }
+        };
+        detailsFooter.addEventListener('transitionend', handleTransitionEnd);
+        detailsFooter.classList.add('details-open');
+    } else {
+        // S'il est déjà ouvert, on dessine tout de suite
+        console.log('Footer already open, drawing charts immediately');
+        loadCharts();
     }
 }
 
@@ -1017,7 +1037,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (tile.classList.contains('selected') && selectedTiles.size === 1) {
                     clearSelection();
                 } else {
-                    clearSelection();
+                    // Au lieu de clearSelection() qui ferme le footer, on gère manuellement
+                    // pour garder le footer ouvert si on change juste de tuile active
+                    document.querySelectorAll('.condition-tile.selected').forEach(t => t.classList.remove('selected'));
+                    selectedTiles.clear();
+
                     selectedTiles.add(key);
                     tile.classList.add('selected');
                     showDetailsFooter(key);

@@ -165,13 +165,14 @@ async function getDbProbes(stationConfig) {
                 };
             }
             const units = unitsProvider.getUnits();
-            let type = units[dbData[sensorKey].measurement];
-            if (!type && sensorKey.includes(':')) {
-                const sensorType = sensorKey.split(':')[0];
-                console.log(O.red, type, O.yellow, sensorKey, O.green, sensorType, O.blue, dbData[sensorType]);
-                type = units[sensorType] || null;
-                console.log(O.blue, type);
+            if (!dbData[sensorKey].measurement && sensorKey.includes(':')) {
+                dbData[sensorKey].measurement = sensorKey.split(':')[0];
+                if ((sensorKey.split(':')[1]).includes('_')) {
+                    dbData[sensorKey].groupCustom = sensorKey.split(':')[1].split('_')[0];
+                    dbData[sensorKey].groupUsage = 'Extenders';
+                }
             }
+            const type = units[dbData[sensorKey].measurement] || null;
             dbData[sensorKey].Unit = type?.metric || null;
             dbData[sensorKey].userUnit = type?.user || null;
             dbData[sensorKey].toUserUnit = type?.available_units?.[type.user]?.fnFromMetric || null;

@@ -523,6 +523,13 @@ label {
     /* 40% de la hauteur de la vue */
 }
 
+.footer.details-open .chart-container {
+    height: 100%;
+    width: 100%;
+    max-height: none;
+    /* Override default max-height */
+}
+
 .footer:not(.details-open) .details-footer-header,
 .footer:not(.details-open) .chart-container {
     display: none;
