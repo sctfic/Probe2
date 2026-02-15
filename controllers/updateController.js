@@ -12,7 +12,6 @@ const TEMP_DIR = path.join(ROOT_DIR, 'update_temp');
 
 const ITEMS_TO_UPDATE = [
     'controllers',
-    'docs',
     'middleware',
     'public',
     'routes',
@@ -54,6 +53,7 @@ exports.applyUpdate = async (req, res) => {
         // 4. Remplacer les fichiers et dossiers
         console.log(`${V.write} Remplacement des fichiers de l'application...`);
         for (const item of ITEMS_TO_UPDATE) {
+            console.log(`${V.info} Remplacement de ${item}...`);
             const sourcePath = path.join(sourceDir, item);
             const destPath = path.join(ROOT_DIR, item);
 
