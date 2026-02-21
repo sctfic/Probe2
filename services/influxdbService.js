@@ -782,8 +782,89 @@ async function deleteExtenderData(stationId, extenderId = null) {
         return { success: false, error: error.message };
     }
 }
+/**
+ * Supprime les données avec source="localDataCollection" pour une station donnée.
+ * @param {string} stationId - L'ID de la station.
+ * @param {string} startDate - Date de début (ISO string, ex: '2026-02-01T07:00:00Z').
+ * @param {string} endDate - Date de fin (ISO string, optionnel, défaut: now()).
+ * @returns {Promise<object>} Résultat de la suppression avec le nombre de points supprimés.
+ */
+// async function deleteLocalDataCollection() {
+//     const stationId = 'VP2_Serramoune';
+//     const start = '2026-02-01T00:00:00Z';
+//     const stop = '2026-02-10T06:20:00Z' || new Date().toISOString();
+//     // Le prédicat Flux pour le comptage (avec syntaxe Flux)
+//     const fluxPredicate = `r["station_id"]=="${stationId}" and r["source"]=="localDataCollection"`;
+//     // Le prédicat pour l'API de suppression (syntaxe InfluxDB line protocol)
+//     const deletePredicate = `station_id="${stationId}" AND source="localDataCollection"`;
 
+//     try {
+//         // 1. Compter les points à supprimer
+//         const countQuery = `
+//             from(bucket: "${bucket}")
+//                 |> range(start: ${start}, stop: ${stop})
+//                 |> filter(fn: (r) => ${fluxPredicate})
+//                 |> group()
+//                 |> count()
+//         `;
+//         console.log(countQuery);
+//         console.log('================================================================================');
+
+//         const countResult = await executeQuery(countQuery);
+//         const count = countResult.length > 0 ? countResult[0]._value : 0;
+
+//         if (count === 0) {
+//             console.log(`${V.info} Aucune donnée localDataCollection à supprimer pour ${stationId}.`);
+//             return { success: true, count: 0, range: { start, stop } };
+//         }
+
+//         console.log(`${V.trash} ${count} points localDataCollection à supprimer pour ${stationId} entre ${start} et ${stop}.`);
+//         console.log(`Prédicat de suppression: ${deletePredicate}`);
+
+//         // 2. Supprimer les données
+//         const deleteObject = {
+//             org,
+//             bucket,
+//             body: {
+//                 start: new Date(start),
+//                 stop: new Date(stop),
+//                 predicate: deletePredicate
+//             },
+//         };
+
+//         await deleteApi.postDelete(deleteObject);
+
+//         console.log(`${V.Check} Suppression des données localDataCollection pour ${stationId} réussie.`);
+
+//         // 3. Retourner le résultat
+//         return {
+//             success: true,
+//             count: count,
+//             range: { start, stop },
+//         };
+
+//     } catch (error) {
+//         // Si l'erreur indique "no series found", on l'ignore
+//         if (error.message && error.message.includes('no series found')) {
+//             console.log(`${V.info} Aucune série localDataCollection trouvée à supprimer pour ${stationId}.`);
+//             return {
+//                 success: true,
+//                 count: 0,
+//                 range: { start, stop },
+//             };
+//         }
+
+//         console.error(`${V.error} Erreur lors de la suppression des données localDataCollection pour ${stationId}:`, error.message);
+//         return {
+//             success: false,
+//             count: 0,
+//             error: error.message,
+//             range: { start, stop },
+//         };
+//     }
+// }
 module.exports = {
+    // deleteLocalDataCollection,
     testInfluxConnection,
     reinitializeInfluxDB,
     writePoints,

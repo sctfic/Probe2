@@ -88,40 +88,8 @@
     },
     "deltaTimeSeconds": 1.48,
     "extenders": {
-        "WhisperEye": [
-            {
-                "id": "WE001",
-                "name": "Collecteur",
-                "host": "collecteur.lan",
-                "description": "",
-                "available": false,
-                "apiKey": "4MOurowykmCrMnQOES2AQw"
-            },
-            {
-                "id": "WE002",
-                "name": "ch1",
-                "host": "10.0.0.178",
-                "description": "",
-                "available": false,
-                "apiKey": "zPJx8RVB-01A2ghXEOK8kg"
-            }
-        ],
-        "Venti'Connect": [
-            {
-                "name": "ventiConnect",
-                "id": "ventiConnect",
-                "host": "VPSud.lan",
-                "description": "capteur thermique sous tuile",
-                "available": true
-            },
-            {
-                "id": "VC001",
-                "name": "10.0.0.178",
-                "host": "10.0.0.178",
-                "description": "",
-                "available": false
-            }
-        ]
+        "WhisperEye": [],
+        "Venti'Connect": []
     },
     "lastArchiveDate": "2026-02-14 00:20"
 }

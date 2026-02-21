@@ -3,8 +3,7 @@ const express = require('express');
 const router = express.Router();
 const queryDbController = require('../controllers/queryDbController');
 const { loadStationConfig } = require('../middleware/stationMiddleware');
-const { isAuthenticated } = require('../middleware/authMiddleware');
-// const influxdbService = require('../services/influxdbService');
+// const { isAuthenticated } = require('../middleware/authMiddleware');
 
 module.exports = router;
 
@@ -45,5 +44,9 @@ router.get('/:stationId/dbexpand/:moreYears', queryDbController.expandDbWithOpen
 
 // collecte les données de prévision avec Open-Meteo et supprime celle qui sont périmées
 router.get('/:stationId/forecast', queryDbController.getOpenMeteoForecast); // https://probe.lpz.ovh/query/VP2_Serramoune/forecast
+
+
+// const influxdbService = require('../services/influxdbService');
+// router.get('/:stationId/delete', influxdbService.deleteLocalDataCollection); // https://probe.lpz.ovh/query/delete
 
 module.exports = router;

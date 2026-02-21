@@ -513,6 +513,7 @@ function renderExtendersManager() {
             <div class="extender-tabs-list">
                 ${tabsHTML.length > 0 ? tabsHTML : '<span style="color:#666; padding:5px;">Aucun périphérique configuré.</span>'}
             </div>
+        ${allExtenders.length > 0 ? `
                 <div title='Supprimer toute les donnees des extendeurs' onclick="deleteAllExtenderData()">
                     <svg class="nav-icon-red" style="width:48px; height:32px;" viewBox="0 0 189 134" fill="currentColor">
                         <g transform="translate(0.000000,134.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none">
@@ -530,7 +531,7 @@ function renderExtendersManager() {
                             <path d="M1397 643 c-11 -17 -29 -465 -19 -475 6 -6 12 -6 16 1 12 19 30 461 19 472 -6 6 -13 7 -16 2z"/>
                         </g>
                     </svg>
-                </div>
+                </div>` : ''}
                 <div title='ajouter un extendeurs' onclick="openExtenderModal()">
                     <svg class="nav-icon-green" style="width:32px; height:32px;" viewBox="0 0 512 512" fill="currentColor">
                         <g transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none">

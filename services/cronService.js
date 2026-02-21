@@ -5,6 +5,7 @@ const configManager = require('./configManager');
 const { V } = require('../utils/icons');
 
 const scheduledTasks = new Map();
+const scheduledExtenderTasks = new Map();
 const scheduledOpenMeteoTasks = new Map();
 const scheduledOpenMeteoForecastTasks = new Map(); // Nouvelle Map pour les prévisions
 
@@ -43,11 +44,6 @@ function scheduleJobForStation(stationId, stationConfig) {
         try {
             const response = await axios.get(url);
             console.log(`${V.Check} [CRON] Collecte pour ${stationId} réussie. Status: ${response.status}`);
-
-            // Collecte des extenders
-            const extendersUrl = `http://localhost:${port}/api/station/${stationId}/extenders`;
-            const extendersResponse = await axios.get(extendersUrl);
-            console.log(`${V.Check} [CRON] Collecte des extenders pour ${stationId} réussie. Status: ${extendersResponse.status}`);
         } catch (error) {
             const errorMessage = error.response ? `Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data)}` : error.message;
             console.error(`${V.error} [CRON] Erreur lors de la collecte pour ${stationId}:`, errorMessage);
@@ -56,6 +52,50 @@ function scheduleJobForStation(stationId, stationConfig) {
 
     scheduledTasks.set(stationId, task);
     console.log(`${V.Check} [CRON] Tâche planifiée pour ${stationId} avec le pattern: "${cronPattern}".`);
+}
+
+/**
+ * Planifie une tâche de collecte des extenders pour une station donnée.
+ * @param {object} stationConfig - La configuration de la station.
+ */
+function scheduleExtenderJob(stationId, stationConfig) {
+    // S'assurer qu'il n'y a pas déjà une tâche pour cette station
+    if (scheduledExtenderTasks.has(stationId)) {
+        console.log(`${V.Warn} [CRON] Une tâche Extender existe déjà pour ${stationId}. Suppression avant de replanifier.`);
+        removeExtenderJob(stationId);
+    }
+
+    if (!stationConfig.collect || !stationConfig.collect.enabled) {
+        // En lien avec la demande : utilise le meme cronPattern (donc si collect pas activé, pas d'extender non plus)
+        console.log(`${V.info} [CRON] La collecte (extenders) n'est pas activée pour ${stationId}.`);
+        return;
+    }
+
+    const cronInterval = stationConfig.collect.value;
+    if (!cronInterval || typeof cronInterval !== 'number' || cronInterval <= 0) {
+        return;
+    }
+
+    const cronPattern = cronInterval < 60
+        ? `03 */${cronInterval} * * * *`
+        : `03 * */${Math.round(cronInterval / 60)} * * *`;
+
+    const task = cron.schedule(cronPattern, async () => {
+        const port = process.env.PORT || 3000;
+        // Collecte des extenders
+        const extendersUrl = `http://localhost:${port}/api/station/${stationId}/extenders`;
+        console.log(`${V.info} [CRON] Exécution de la collecte extenders pour la station ${stationId}`);
+        try {
+            const extendersResponse = await axios.get(extendersUrl);
+            console.log(`${V.Check} [CRON] Collecte des extenders pour ${stationId} réussie. Status: ${extendersResponse.status}`);
+        } catch (error) {
+            const errorMessage = error.response ? `Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data)}` : error.message;
+            console.error(`${V.error} [CRON] Erreur lors de la collecte extenders pour ${stationId}:`, errorMessage);
+        }
+    });
+
+    scheduledExtenderTasks.set(stationId, task);
+    console.log(`${V.Check} [CRON] Tâche Extender planifiée pour ${stationId} avec le pattern: "${cronPattern}".`);
 }
 
 /**
@@ -150,6 +190,18 @@ function removeJobForStation(stationId) {
 }
 
 /**
+ * Supprime la tâche Extender planifiée pour une station.
+ * @param {string} stationId - L'ID de la station.
+ */
+function removeExtenderJob(stationId) {
+    if (scheduledExtenderTasks.has(stationId)) {
+        scheduledExtenderTasks.get(stationId).stop();
+        scheduledExtenderTasks.delete(stationId);
+        console.log(`${V.trash} [CRON] Tâche Extender supprimée pour la station ${stationId}.`);
+    }
+}
+
+/**
  * Supprime la tâche Open-Meteo planifiée pour une station.
  * @param {string} stationId - L'ID de la station.
  */
@@ -182,8 +234,9 @@ function initializeAllJobs() {
     stations.forEach((stationId) => {
         const stationConfig = configManager.loadConfig(stationId);
         scheduleJobForStation(stationId, stationConfig);
+        scheduleExtenderJob(stationId, stationConfig);
         scheduleOpenMeteoJob(stationId, stationConfig);
-        scheduleOpenMeteoForecastJob(stationId, stationConfig); // Ajout de l'initialisation de la tâche de prévision
+        scheduleOpenMeteoForecastJob(stationId, stationConfig);
     });
 }
 
@@ -191,8 +244,10 @@ module.exports = {
     initializeAllJobs,
     scheduleJobForStation,
     removeJobForStation,
+    scheduleExtenderJob,
+    removeExtenderJob,
     scheduleOpenMeteoJob,
     removeOpenMeteoJob,
-    scheduleOpenMeteoForecastJob, // Export de la nouvelle fonction
+    scheduleOpenMeteoForecastJob,
     removeOpenMeteoForecastJob
 };

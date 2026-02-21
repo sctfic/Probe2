@@ -11,6 +11,50 @@ let allConditions = []; // Stores all conditions without filter
 let dbSensorList = null;
 let previousValues = {};
 let selectedTiles = new Set();
+let hasTriggeredLongPress = false;
+
+function toggleTileMultiSelection(tile) {
+    if (!tile) return;
+    const key = tile.dataset.key;
+    if (selectedTiles.has(key)) {
+        selectedTiles.delete(key);
+        tile.classList.remove('selected');
+        if (selectedTiles.size === 0) {
+            hideDetailsFooter();
+        } else {
+            showDetailsFooter([...selectedTiles]);
+        }
+    } else {
+        selectedTiles.add(key);
+        tile.classList.add('selected');
+        showDetailsFooter([...selectedTiles]);
+    }
+}
+
+function plotsChart() {
+    if (!selectedStation) return;
+    const sensorsToCompare = [...selectedTiles]
+        .map(key => allConditions.find(c => c.key === key)?.sensorDb)
+        .filter(sensorDb => sensorDb && !sensorDb.startsWith('vector:'))
+        .filter((value, index, self) => self.indexOf(value) === index);
+
+    if (sensorsToCompare.length > 0) {
+        const url = `plotsChart.html?station=${selectedStation.id}&sensorList=${sensorsToCompare.join(',')}`;
+        window.open(url, '_blank');
+    }
+}
+
+function spirale3DChart() {
+    if (!selectedStation) return;
+    if (selectedTiles.size === 1) {
+        const key = [...selectedTiles][0];
+        const sensorDb = allConditions.find(c => c.key === key)?.sensorDb;
+        if (sensorDb) {
+            const url = `spirale3DChart.html?station=${selectedStation.id}&sensor=${sensorDb}`;
+            window.open(url, '_blank');
+        }
+    }
+}
 
 function saveTileState() {
     if (!selectedStation) return;
@@ -755,21 +799,41 @@ function handleTouchStart(e) {
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
     draggedDOMElement = tile;
+    hasTriggeredLongPress = false;
 
     longPressTimer = setTimeout(() => {
-        isDraggingTouch = true;
-        dragKey = tile.dataset.key;
-        tile.classList.add('dragging');
+        hasTriggeredLongPress = true;
 
-        // Empêcher le défilement pendant le drag
-        document.body.style.overflow = 'hidden';
+        // Long press on mobile: Clear others and select only this one
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        if (isMobile) {
+            document.querySelectorAll('.condition-tile.selected').forEach(t => t.classList.remove('selected'));
+            selectedTiles.clear();
+            toggleTileMultiSelection(tile);
 
-        // Pour un positionnement correct lors du déplacement
-        draggedElementRect = tile.getBoundingClientRect();
+            // Haptique pour indiquer l'action
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+        }
 
-        // Haptique pour indiquer le début du drag
-        if (navigator.vibrate) {
-            navigator.vibrate(50);
+        // Drag only if sortable
+        const container = document.getElementById('conditions-container');
+        if (container && container.classList.contains('sortable')) {
+            isDraggingTouch = true;
+            dragKey = tile.dataset.key;
+            tile.classList.add('dragging');
+
+            // Empêcher le défilement pendant le drag
+            document.body.style.overflow = 'hidden';
+
+            // Pour un positionnement correct lors du déplacement
+            draggedElementRect = tile.getBoundingClientRect();
+
+            // Haptique pour indiquer le début du drag (si pas déjà fait)
+            if (!isMobile && navigator.vibrate) {
+                navigator.vibrate(50);
+            }
         }
 
     }, 500); // 500ms pour un appui long
@@ -860,13 +924,6 @@ function initDragAndDrop() {
     container.addEventListener('dragend', handleDragEnd);
     container.addEventListener('dragover', handleDragOver);
     container.addEventListener('drop', handleDrop);
-    // Ajout des écouteurs pour le tactile
-    container.addEventListener('touchstart', handleTouchStart, { passive: false });
-    container.addEventListener('touchmove', handleTouchMove, { passive: false });
-    container.addEventListener('touchend', handleTouchEnd);
-    container.addEventListener('touchcancel', handleTouchEnd);
-    // Empêche le menu contextuel du navigateur d'apparaître lors d'un appui long sur mobile
-    container.addEventListener('contextmenu', (e) => { consolee.preventDefault() });
 }
 
 function deinitDragAndDrop() {
@@ -878,12 +935,6 @@ function deinitDragAndDrop() {
     container.removeEventListener('dragend', handleDragEnd);
     container.removeEventListener('dragover', handleDragOver);
     container.removeEventListener('drop', handleDrop);
-    // Retrait des écouteurs pour le tactile
-    container.removeEventListener('touchstart', handleTouchStart);
-    container.removeEventListener('touchmove', handleTouchMove);
-    container.removeEventListener('touchend', handleTouchEnd);
-    container.removeEventListener('touchcancel', handleTouchEnd);
-    container.removeEventListener('contextmenu', (e) => e.preventDefault());
 }
 
 function showDetailsFooter(keys) {
@@ -977,12 +1028,10 @@ function hideDetailsFooter() {
 
 document.addEventListener('DOMContentLoaded', () => {
     const contextMenu = document.getElementById('custom-context-menu');
-    const compareMenuItem = document.getElementById('compare-selected');
     const container = document.getElementById('conditions-container');
     const viewAllBtn = document.getElementById('view-all-btn');
 
-
-    if (!container || !contextMenu || !compareMenuItem) {
+    if (!container || !contextMenu) {
         console.warn("Dashboard interaction elements not found.");
         return;
     }
@@ -998,6 +1047,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleTileClick = (event) => {
+        if (hasTriggeredLongPress) {
+            hasTriggeredLongPress = false;
+            return;
+        }
+
         const tile = event.target.closest('.condition-tile');
         const hideBtn = event.target.closest('.hide-tile-btn');
 
@@ -1007,26 +1061,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (!tile) return;
+        if (!tile) {
+            // Click outside tiles clears selection
+            if (selectedTiles.size > 0) clearSelection();
+            return;
+        }
 
-        if (event.ctrlKey) {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
+        if (event.ctrlKey || (isMobile && selectedTiles.size > 0)) {
             event.preventDefault(); // Prevent link navigation on Ctrl+click
-            const key = tile.dataset.key;
-            if (selectedTiles.has(key)) {
-                selectedTiles.delete(key);
-                tile.classList.remove('selected');
-                // Si la sélection est vide, on cache le footer, sinon on met à jour le graphique
-                if (selectedTiles.size === 0) {
-                    hideDetailsFooter();
-                } else {
-                    showDetailsFooter([...selectedTiles]);
-                }
-            } else {
-                selectedTiles.add(key);
-                tile.classList.add('selected');
-                // Met à jour le graphique avec la nouvelle sélection
-                showDetailsFooter([...selectedTiles]);
-            }
+            toggleTileMultiSelection(tile);
         } else {
             console.log('selectedTiles', selectedTiles);
             const key = tile.dataset.key;
@@ -1052,36 +1097,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const handleContextMenu = (event) => {
         const tile = event.target.closest('.condition-tile');
-        if (!tile || !tile.classList.contains('selected') || selectedTiles.size <= 1) {
+        if (!tile) return;
+
+        event.preventDefault(); // Toujours empêcher le menu natif sur les tuiles
+
+        // Show/hide items based on their 'condition' attribute
+        const menuItems = contextMenu.querySelectorAll('li[condition]');
+        let visibleItemsCount = 0;
+        menuItems.forEach(item => {
+            const condition = item.getAttribute('condition');
+            try {
+                // Use a safe evaluation for the condition
+                const isVisible = new Function('selectedTiles', `return ${condition}`)(selectedTiles);
+                item.style.display = isVisible ? 'block' : 'none';
+                if (isVisible) visibleItemsCount++;
+            } catch (e) {
+                console.error("Error evaluating menu condition:", e);
+                item.style.display = 'block'; // Fallback
+                visibleItemsCount++;
+            }
+        });
+
+        if (visibleItemsCount === 0) {
             hideContextMenu();
             return;
         }
-
-        event.preventDefault();
         contextMenu.style.display = 'block';
 
-        const { clientX: mouseX, clientY: mouseY } = event;
+        const { pageX, pageY, clientX, clientY } = event;
         const { innerWidth, innerHeight } = window;
         const { offsetWidth: menuWidth, offsetHeight: menuHeight } = contextMenu;
 
-        contextMenu.style.top = `${mouseY + menuHeight > innerHeight ? mouseY - menuHeight : mouseY}px`;
-        contextMenu.style.left = `${mouseX + menuWidth > innerWidth ? mouseX - menuWidth : mouseX}px`;
+        contextMenu.style.top = `${clientY + menuHeight > innerHeight ? pageY - menuHeight : pageY}px`;
+        contextMenu.style.left = `${clientX + menuWidth > innerWidth ? pageX - menuWidth : pageX}px`;
     };
 
     const compareSelectedItems = () => {
-        if (selectedTiles.size > 1) {
-            const sensorsToCompare = [...selectedTiles]
-                .map(key => allConditions.find(c => c.key === key)?.sensorDb)
-                .filter(sensorDb => sensorDb) // Filter out null/undefined/empty
-                .filter((value, index, self) => self.indexOf(value) === index); // Unique values
-
-            if (sensorsToCompare.length > 0) {
-                const url = `Plots.html?station=${selectedStation.id}&sensors=${sensorsToCompare.join(',')}`;
-                window.open(url, '_blank');
-            } else {
-                alert("Aucun capteur avec historique à comparer parmi la sélection.");
-            }
-        }
+        plotsChart();
         hideContextMenu();
     };
 
@@ -1143,10 +1195,31 @@ document.addEventListener('DOMContentLoaded', () => {
     container.addEventListener('click', handleTileClick);
     // container.addEventListener('click', handleTileClick);
     container.addEventListener('contextmenu', handleContextMenu);
-    compareMenuItem.addEventListener('click', compareSelectedItems);
+
+    contextMenu.addEventListener('click', (e) => {
+        const item = e.target.closest('li');
+        if (!item) return;
+
+        const action = item.getAttribute('action');
+        if (action) {
+            try {
+                // Execute the action (e.g., "plotsChart()")
+                new Function('plotsChart', 'spirale3DChart', action)(plotsChart, spirale3DChart);
+            } catch (err) {
+                console.error("Error executing menu action:", err);
+            }
+        }
+        hideContextMenu();
+    });
+
     if (viewAllBtn) {
         viewAllBtn.addEventListener('click', showAllTilesAndClearFilter);
     }
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd);
+    container.addEventListener('touchcancel', handleTouchEnd);
 
     window.addEventListener('click', (event) => {
         // Cacher le menu contextuel si on clique ailleurs

@@ -71,15 +71,15 @@
     "test_calc": {
         "label": "Delta InOut",
         "comment": "temp In - Out",
-        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  if ( data['temperature:inTemp']  && data['temperature:outTemp']  ) {\n     return data['temperature:inTemp'] - data['temperature:outTemp'] ;\n  }\n}",
+        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\nconst delta = data['temperature:ventiConnect_fan'] - data['temperature:inTemp'];\n      if ( delta > 1 ) {\n          // chauffage disponible\n          return delta * 100 ;\n      }\n}",
         "dataNeeded": [
-            "temperature:inTemp",
-            "temperature:outTemp"
+            "temperature:ventiConnect_fan",
+            "temperature:inTemp"
         ],
         "currentMap": {
             "d": "timestamp",
-            "temperature:inTemp": "inTemp",
-            "temperature:outTemp": "outTemp"
+            "temperature:ventiConnect_fan": "ventiConnect_fan",
+            "temperature:inTemp": "inTemp"
         },
         "scriptJS": [],
         "period": 604800,

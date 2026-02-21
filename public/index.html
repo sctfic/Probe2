@@ -84,6 +84,16 @@
 </head>
 
 <body>
+
+    <!-- Custom Context Menu -->
+    <div id="custom-context-menu" class="context-menu">
+        <ul>
+            <li id="open-2d-selected" condition="selectedTiles.size>=1" action="plotsChart()">Ouvrir dans un nouvel
+                onglet 2D</li>
+            <li id="open-3d-selected" condition="selectedTiles.size==1" action="spirale3DChart()">Ouvrir dans un
+                nouvel onglet 3D</li>
+        </ul>
+    </div>
     <header class="navbar">
         <div class="logo">
             <img src="img/probe-logo.png" alt="Probe Logo">
@@ -522,12 +532,6 @@
             </div>
         </section>
 
-        <!-- Custom Context Menu -->
-        <div id="custom-context-menu" class="context-menu"> // clic droit
-            <ul>
-                <li id="compare-selected">Comparer la sélection</li>
-            </ul>
-        </div>
 
     </main>
     <footer class="footer">

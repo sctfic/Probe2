@@ -37,7 +37,9 @@
                 "fnFromMetric": "(k) => k"
             }
         },
-        "sensors": []
+        "sensors": [
+            "test_calc"
+        ]
     },
     "temperature": {
         "title": "Temperature",
@@ -65,7 +67,8 @@
             "THSW",
             "inTemp",
             "outTemp",
-            "soilTemp"
+            "soilTemp",
+            "THSW_calc"
         ]
     },
     "speed": {
@@ -177,7 +180,10 @@
                 "fnFromMetric": "(deg) => (deg * Math.PI / 180).toFixed(2)"
             }
         },
-        "sensors": []
+        "sensors": [
+            "SUN_V_calc",
+            "MOON_calc"
+        ]
     },
     "rain": {
         "title": "Précipitations",
@@ -331,7 +337,9 @@
                 "fnFromMetric": "(d) => Number((d/1000).toFixed(4))"
             }
         },
-        "sensors": []
+        "sensors": [
+            "AirWater_calc"
+        ]
     },
     "voltage": {
         "title": "Tension",

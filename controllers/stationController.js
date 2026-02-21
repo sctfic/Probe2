@@ -439,6 +439,7 @@ exports.updateStationConfig = (req, res) => {
         if (collectChanged) {
             console.log(`[CRON] Les paramètres de collecte ont changé pour ${stationConfig.id}. Replanification...`);
             cronService.scheduleJobForStation(stationConfig.id, updatedConfig);
+            cronService.scheduleExtenderJob(stationConfig.id, updatedConfig);
         }
         if (historicalChanged) {
             console.log(`[CRON] Le paramètre de collecte historique a changé pour ${stationConfig.id}. Replanification...`);
