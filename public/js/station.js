@@ -271,6 +271,13 @@ async function displaySettingsForm() {
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        .field-msg {
+            font-size: 0.8em;
+            color: #888;
+            margin-top: 4px;
+            font-style: italic;
+            word-break: break-all;
+        }
         `;
         document.head.appendChild(style);
     }
@@ -933,6 +940,7 @@ function createSettingFieldHTML(key, field) {
 
     const inputType = getInputTypeForField(key, value);
     const tooltipHTML = tooltip ? `<span class="tooltip" data-tooltip="${tooltip}">?</span>` : '';
+    const msg = (field && typeof field === 'object' && field.msg) ? `<div class="field-msg">${field.msg}</div>` : '';
 
     return `
         <div class="settings-field condition-tile">
@@ -941,6 +949,7 @@ function createSettingFieldHTML(key, field) {
                 ${tooltipHTML}
             </label>
             ${createInputHTML(key, value, inputType)}
+            ${msg}
         </div>
     `;
 }
@@ -977,6 +986,7 @@ function createHistoricalFieldHTML(field, range, historicalSettings) {
                     <text id="open-meteo-range-info">${rangeText}</text>
                 </div>
             </div>
+            ${msg && isEnabled ? `<div class="field-msg">${msg}</div>` : ''}
         </div>
     `;
 }
@@ -1020,6 +1030,7 @@ function createForecastFieldHTML(forecastSettings) {
                     ${optionsHTML}
                 </select>
             </div>
+            ${msg && isEnabled ? `<div class="field-msg">${msg}</div>` : ''}
         </div>
     `;
 }
@@ -1063,6 +1074,7 @@ function createCollectFieldHTML(field) {
                     ${optionsHTML}
                 </select>
             </div>
+            ${msg && isEnabled ? `<div class="field-msg">${msg}</div>` : ''}
         </div>
     `;
 }
