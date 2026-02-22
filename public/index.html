@@ -636,7 +636,7 @@
                 const baseText = `${selectedStation.location} (${selectedStation.host}:${selectedStation.port})`;
                 const maxAge = currentStationSettings?.maxAge || 60 * 1000;
                 const warning = `<span title="Retard de ${Math.round(age / 60000)} minutes de la collecte ! (${Math.round(maxAge / 60000)} minutes max.)" style="cursor:help;font-size:24px;">⚠️</span>`;
-                // console.error(age, maxAge, warning);
+                console.log('updateStationInfoHeader: age =', age / 60000, 'min / maxAge =', maxAge / 60000, 'min / age > maxAge =', age > maxAge);
                 stationInfo.innerHTML = age > maxAge ? warning + baseText : baseText;
             };
 

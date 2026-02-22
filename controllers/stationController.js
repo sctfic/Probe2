@@ -153,7 +153,7 @@ async function getDbProbes(stationConfig) {
         const dbData = await influxdbService.queryLast(stationConfig.id, '-17d', 'now()');
         // on surchage dbData avec les données de dbProbes
         for (const sensorKey of Object.keys(dbData)) {
-            // console.log(sensorKey);
+            // console.log('1', dbData[sensorKey]);
             dbData[sensorKey] = { ...dbData[sensorKey], ...dbProbes[sensorKey] };
             if (dbData[sensorKey].value !== undefined) {
                 dbData[sensorKey]['Value'] = dbData[sensorKey].value;
@@ -176,6 +176,8 @@ async function getDbProbes(stationConfig) {
             dbData[sensorKey].Unit = type?.metric || null;
             dbData[sensorKey].userUnit = type?.user || null;
             dbData[sensorKey].toUserUnit = type?.available_units?.[type.user]?.fnFromMetric || null;
+            // console.log('2', dbData[sensorKey]);
+
         }
         return dbData;
     } catch (dbError) {

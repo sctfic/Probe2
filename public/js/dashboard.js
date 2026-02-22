@@ -125,7 +125,6 @@ async function fetchCurrentConditions() {
     showGlobalStatus('Chargement des données météo...', 'loading');
 
     try {
-        // console.error(currentStationSettings.maxAge);
         const data = await queryManager.query(`/api/station/${selectedStation.id}/current-conditions`, { cacheDuration: currentStationSettings?.maxAge || 60 * 1000 });
 
         if (data.data) {
@@ -135,8 +134,10 @@ async function fetchCurrentConditions() {
 
             // Check for stale data warning in header
             const barometerData = data.data['pressure:barometer'];
+            console.log(barometerData);
             if (barometerData && barometerData.d) {
                 const delta = Date.now() - new Date(barometerData.d).getTime();
+                console.log('age =', delta, 'ms /', delta / 1000, 'sec /', delta / 60000, 'min');
                 if (window.updateStationInfoHeader) window.updateStationInfoHeader(delta);
             }
 

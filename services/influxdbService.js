@@ -368,12 +368,20 @@ async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSecond
     `;
     return await executeQuery(fluxQuery);
 }
+
+/**
+ * Récupère les dernières données pour une station et tous ses capteurs.
+ * @param {string} stationId - Identifiant de la station.
+ * @param {string} startDate - Date de début.
+ * @param {string} endDate - Date de fin.
+ * @returns {Promise<Object>} Un objet contenant les dernières données.
+ */
 async function queryLast(stationId, startDate = '-7d', endDate = 'now()') {
     const fluxQuery = `
         from(bucket: "${bucket}")
           |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'}) 
-          |> filter(fn: (r) => r.station_id == "${stationId}")
-          |> drop(columns: ["_start", "_stop", "station_id"])
+          |> filter(fn: (r) => r.station_id == "${stationId}" and r.source == "localDataCollection")
+          |> drop(columns: ["_start", "_stop", "station_id", "source"])
           |> last()
     `;
     const result = await executeQuery(fluxQuery)
@@ -382,12 +390,16 @@ async function queryLast(stationId, startDate = '-7d', endDate = 'now()') {
     const datas = {};
     result.forEach(data => {
         const sensor = data._measurement + ':' + data.sensor;
-        const value = data._value;
-        const time = data._time;
+        // const value = data._value;
+        // const time = data._time;
         if (!datas[sensor]) {
-            datas[sensor] = { d: time };
+            datas[sensor] = { d: data._time };
+            //     console.log(sensor, 'new', data._time);
+            // } else {
+            //     console.log('    ', sensor, 'datas[sensor].d', datas[sensor].d, 'new', data._time);
         }
-        datas[sensor][data._field] = Math.round(value * 1000) / 1000;
+
+        datas[sensor][data._field] = Math.round(data._value * 1000) / 1000;
     });
     return datas;
 }

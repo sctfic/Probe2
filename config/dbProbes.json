@@ -110,12 +110,12 @@
         "measurement": "humidity"
     },
     "soilMoisture:soilMoisture": {
-        "label": "Humidité Sol (Open-Meteo)",
-        "comment": "Humidité du sol -9cm à -27cm (Open-Meteo)",
+        "label": "Humidité Sol",
+        "comment": "Humidité du sol -9cm à -27cm (forecast)",
         "currentMap": null,
         "period": null,
         "groupUsage": "db",
-        "groupCustom": "open-meteo",
+        "groupCustom": " Station",
         "sensorDb": "soilMoisture:soilMoisture",
         "measurement": "humidity"
     },
@@ -300,12 +300,12 @@
         "measurement": "temperature"
     },
     "temperature:soilTemp": {
-        "label": "Température Sol (Open-Meteo)",
-        "comment": "Température du sol a -18cm (Open-Meteo)",
+        "label": "Température Sol",
+        "comment": "Température du sol a -18cm (forecast)",
         "currentMap": "meteo_soilTemp",
         "period": null,
         "groupUsage": "db",
-        "groupCustom": "open-meteo",
+        "groupCustom": " Station",
         "sensorDb": "temperature:soilTemp",
         "measurement": "temperature"
     },
@@ -696,6 +696,6 @@
         "period": 86400,
         "groupUsage": "4/ other_rain",
         "groupCustom": "Instantanee",
-        "sensorDb": "rainFall "
+        "sensorDb": "rainFall"
     }
 }

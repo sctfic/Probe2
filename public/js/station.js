@@ -58,6 +58,7 @@ async function fetchStationSettings(data = null) {
             const archive = currentStationSettings.archiveInterval?.lastReadValue || currentStationSettings.archiveInterval?.desired || 0;
             const collect = currentStationSettings.collect?.value || 0;
             currentStationSettings.maxAge = Math.max(archive, collect) * 1000 * 60;
+            // console.error(currentStationSettings.maxAge);
             console.log(currentStationSettings);
             // Initialisation de l'état local des extendeurs
             if (currentStationSettings.extenders) {

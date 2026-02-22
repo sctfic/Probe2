@@ -62,12 +62,16 @@
         },
         "sensors": [
             "dewPoint",
-            "heatIndex",
-            "windChill",
-            "THSW",
             "inTemp",
             "outTemp",
             "soilTemp",
+            "soilTemp1",
+            "soilTemp2",
+            "soilTemp3",
+            "soilTemp4",
+            "windChill",
+            "heatIndex",
+            "THSW",
             "THSW_calc"
         ]
     },
@@ -315,7 +319,11 @@
             }
         },
         "sensors": [
-            "soilMoisture"
+            "soilMoisture",
+            "soilMoisture1",
+            "soilMoisture2",
+            "soilMoisture3",
+            "soilMoisture4"
         ]
     },
     "density": {
