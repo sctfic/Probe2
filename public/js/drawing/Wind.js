@@ -49,6 +49,7 @@ function createRosePlot(data, metadata, id) {
     }
 
     function makeWindContainer(container, w, h, p) {
+        console.log("makeWindContainer", container, w, h, p);
         return d3.select(container)
             .append("svg")
             .style("position", "relative")
@@ -364,9 +365,11 @@ function createRosePlot(data, metadata, id) {
         </div>
     `;
 
-    const height = container.clientHeight / 2 - 12;
-    plotProbabilityRose(aggregatedData, '#prob-rose-container', height);
-    plotSpeedRose(aggregatedData, '#speed-rose-container', height);
+    const height = container.clientHeight;
+    const width = container.clientWidth / 2 - 12;
+    console.log("width", width, "height", height);
+    plotProbabilityRose(aggregatedData, '#prob-rose-container', Math.min(width, height) / 2 - 12);
+    plotSpeedRose(aggregatedData, '#speed-rose-container', Math.min(width, height) / 2 - 12);
 }
 // Build seulement les 2 diagrammes de rose des vents dans le container spécifié
 async function loadRosePlot(id, url) {
