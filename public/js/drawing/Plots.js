@@ -14,7 +14,7 @@ let APIURL = '';
 async function mainPlots(container, url, startDate = '', endDate = '', stepCount = 1000) {
     try {
         APIURL = url.split('?')[0];
-        const apiResponse = await fetchWithCache(APIURL + `?startDate=${startDate}&endDate=${endDate}&stepCount=${stepCount}`, 300000);
+        const apiResponse = await queryManager.query(APIURL + `?startDate=${startDate}&endDate=${endDate}&stepCount=${stepCount}`);
 
         // Stocker métadonnées globalement pour les tooltips
         window.plotMetadata = apiResponse.metadata;
@@ -574,13 +574,7 @@ class TimeSeriesPlot {
         apiUrl += `&endDate=${apiEndDate}`;
 
         // Appel API sans cache
-        fetch(apiUrl, { cache: 'no-store' })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
+        queryManager.query(apiUrl, { cacheDuration: 0 })
             .then(apiResponse => {
                 if (!apiResponse.success) {
                     throw new Error(apiResponse.message || 'Erreur API');

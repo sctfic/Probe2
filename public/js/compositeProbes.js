@@ -86,37 +86,30 @@ async function fetchcompositeProbes() {
     try {
         // --- Fetch units settings first for the measurement dropdown ---
         try {
-            const unitsResponse = await fetch('/api/settings');
-            if (unitsResponse.ok) {
-                const unitsData = await unitsResponse.json();
-                if (unitsData.success) {
-                    unitCategories = unitsData.settings;
-                }
+            const unitsData = await queryManager.query('/api/settings');
+            if (unitsData.success) {
+                unitCategories = unitsData.settings;
             }
         } catch (e) {
             console.warn("Impossible de charger les catégories d'unités pour les sondes composites.", e);
         }
 
         // --- Fetch sensors for autocompletion ---
-        try {
-            const metadataResponse = await fetch(`/query/${selectedStation.id}`);
-            if (metadataResponse.ok) {
-                const metadataPayload = await metadataResponse.json();
+        if (selectedStation) {
+            try {
+                const metadataPayload = await queryManager.query(`/query/${selectedStation.id}`);
                 if (metadataPayload.success && metadataPayload.metadata.sensor) {
                     const sensorCompletions = metadataPayload.metadata.sensor.map(s => `data['${s}']`);
                     const newCompletions = [...sensorCompletions, 'data.d'];
                     jsCompletions.push(...newCompletions.filter(c => !jsCompletions.includes(c)));
                 }
+            } catch (e) {
+                console.warn("Impossible de récupérer la liste des capteurs pour l'autocomplétion.", e);
             }
-        } catch (e) {
-            console.warn("Impossible de récupérer la liste des capteurs pour l'autocomplétion.", e);
         }
         // --- End fetch sensors ---
 
-        const response = await fetch('/api/composite-probes');
-        if (!response.ok) throw new Error('Erreur de chargement des sondes');
-
-        const data = await response.json();
+        const data = await queryManager.query('/api/composite-probes');
         if (data.success && data.settings) {
             currentProbesSettings = data.settings;
             displayProbesList(data.settings);

@@ -198,7 +198,7 @@ async function loadData(id, url, period, item = null) {
     const loadingText = document.getElementById('loadingText');
     try {
         // Utiliser la fonction de fetch avec cache
-        const apiResponse = await fetchWithCache(url);
+        const apiResponse = await queryManager.query(url);
         // Transformation et affichage
         const plotData = transformDataForPlot(apiResponse.data, apiResponse.metadata);
         // console.log(apiResponse.metadata.sensor);

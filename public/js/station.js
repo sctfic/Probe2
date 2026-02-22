@@ -49,14 +49,16 @@ async function fetchStationSettings(data = null) {
     try {
 
         if (!data) {
-            const response = await fetch(`/api/station/${selectedStation.id}`);
-            if (!response.ok) throw new Error('Erreur de récupération des paramètres');
-            data = await response.json();
+            const result = await queryManager.query(`/api/station/${selectedStation.id}`, { cacheDuration: 0 }); // No cache for individual station settings
+            data = result;
         }
 
         if (data.success && data.settings) {
             currentStationSettings = data.settings;
-
+            const archive = currentStationSettings.archiveInterval?.lastReadValue || currentStationSettings.archiveInterval?.desired || 0;
+            const collect = currentStationSettings.collect?.value || 0;
+            currentStationSettings.maxAge = Math.max(archive, collect) * 1000 * 60;
+            console.log(currentStationSettings);
             // Initialisation de l'état local des extendeurs
             if (currentStationSettings.extenders) {
                 localExtendersState = JSON.parse(JSON.stringify(currentStationSettings.extenders));
@@ -384,8 +386,7 @@ async function displaySettingsForm() {
             showGlobalStatus('Synchronisation de l\'horloge...', 'loading');
             syncTimeBtn.disabled = true;
             try {
-                const datetimeResponse = await fetch(`/api/station/${selectedStation.id}/update-datetime`);
-                const datetimeResult = await datetimeResponse.json();
+                const datetimeResult = await queryManager.mutate(`/api/station/${selectedStation.id}/update-datetime`, { method: 'GET' });
                 if (datetimeResult.success) {
                     showGlobalStatus(`Horloge synchronisée: ${datetimeResult.message}`, 'success');
                 } else {
@@ -1242,7 +1243,7 @@ async function handleSettingsSubmit(e) {
     showGlobalStatus('Enregistrement des paramètres...', 'loading');
 
     try {
-        const response = await fetch(`/api/station/${selectedStation.id}`, {
+        const result = await queryManager.mutate(`/api/station/${selectedStation.id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -1250,7 +1251,6 @@ async function handleSettingsSubmit(e) {
             body: JSON.stringify(settings)
         });
 
-        const result = await response.json();
         if (!result.success) throw new Error('Erreur lors de la sauvegarde');
 
         let needsSync = false;
@@ -1285,8 +1285,7 @@ async function fetchOpenMeteoRange(stationId) {
     const infoEl = document.getElementById('open-meteo-range-info');
     if (!infoEl) return;
     try {
-        const rangeResponse = await fetch(`/query/${stationId}/Range/open-meteo_barometer`);
-        const rangeData = await rangeResponse.json();
+        const rangeData = await queryManager.query(`/query/${stationId}/Range/open-meteo_barometer`);
         if (rangeData.success && rangeData.metadata.first && rangeData.metadata.last) {
             const rangeText = `Archived since ${new Date(rangeData.metadata.first).toLocaleDateString()} to ${new Date(rangeData.metadata.last).toLocaleDateString()}`;
             infoEl.textContent = rangeText;
@@ -1304,7 +1303,7 @@ async function updatePartialSettings(settings) {
     showGlobalStatus('Enregistrement...', 'loading');
 
     try {
-        const response = await fetch(`/api/station/${selectedStation.id}`, {
+        const result = await queryManager.mutate(`/api/station/${selectedStation.id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -1312,7 +1311,6 @@ async function updatePartialSettings(settings) {
             body: JSON.stringify(settings)
         });
 
-        const result = await response.json();
         if (!result.success) throw new Error(result.error || 'Erreur lors de la sauvegarde');
 
         Object.assign(currentStationSettings, result.settings);
@@ -1336,8 +1334,7 @@ window.runHistoricalExpand = async function (btn, stationId, years) {
     btn.innerHTML = '<div class="spinner"></div>';
 
     try {
-        const response = await fetch(`/query/${stationId}/dbexpand/${years}`);
-        const result = await response.json();
+        const result = await queryManager.query(`/query/${stationId}/dbexpand/${years}`, { cacheDuration: 0 });
         if (result.success) {
             showGlobalStatus(result.message, 'success');
         } else {

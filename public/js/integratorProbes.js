@@ -86,43 +86,36 @@ async function fetchIntegratorProbes() {
     try {
         // --- Fetch units settings first for the measurement dropdown ---
         try {
-            const unitsResponse = await fetch('/api/settings');
-            if (unitsResponse.ok) {
-                const unitsData = await unitsResponse.json();
-                if (unitsData.success) {
-                    integratorUnitCategories = unitsData.settings;
-                }
+            const unitsData = await queryManager.query('/api/settings');
+            if (unitsData.success) {
+                integratorUnitCategories = unitsData.settings;
             }
         } catch (e) {
             console.warn("Impossible de charger les catégories d'unités pour les Modeles Intégrateur.", e);
         }
 
         // --- Fetch sensors for autocompletion ---
-        try {
-            const metadataResponse = await fetch(`/query/${selectedStation.id}`);
-            if (metadataResponse.ok) {
-                const metadataPayload = await metadataResponse.json();
+        if (selectedStation) {
+            try {
+                const metadataPayload = await queryManager.query(`/query/${selectedStation.id}`);
                 if (metadataPayload.success && metadataPayload.metadata.sensor) {
                     const sensorCompletions = metadataPayload.metadata.sensor.map(s => `data['${s}']`);
                     const newCompletions = [...sensorCompletions, 'data.d'];
                     integratorJsCompletions.push(...newCompletions.filter(c => !integratorJsCompletions.includes(c)));
                 }
+            } catch (e) {
+                console.warn("Impossible de récupérer la liste des capteurs pour l'autocomplétion.", e);
             }
-        } catch (e) {
-            console.warn("Impossible de récupérer la liste des capteurs pour l'autocomplétion.", e);
         }
         // --- End fetch sensors ---
 
-        const response = await fetch('/api/integrator-probes');
-        if (!response.ok) throw new Error('Erreur de chargement des sondes');
-
-        const data = await response.json();
+        const data = await queryManager.query('/api/integrator-probes');
         if (data.success && data.settings) {
             currentIntegratorProbesSettings = data.settings;
             displayIntegratorProbesList(data.settings);
-            showGlobalStatus('Modeles Intégrateur chargées avec succès', 'success');
+            showGlobalStatus('Modeles Intégrateur chargés avec succès', 'success');
         } else {
-            throw new Error('Format de données invalide pour les sondes');
+            throw new Error('Format de données invalide pour les Modeles Intégrateur');
         }
     } catch (error) {
         console.error('Erreur:', error);

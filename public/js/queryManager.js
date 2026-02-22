@@ -83,7 +83,7 @@ class QueryManager {
             // console.log(`[QueryManager] Cache entry expired for: ${url}`);
             this.cache.delete(url);
         } else {
-            // console.log(`[QueryManager] Cache MISS for: ${url}`);
+            // console.log(`[QueryManager] Cache Missing for: ${url}`);
         }
 
         // 2. Lancer la requête avec tentatives multiples
@@ -187,6 +187,3 @@ class QueryManager {
 
 // Exporter une instance unique pour être utilisée comme un singleton dans toute l'application.
 const queryManager = new QueryManager();
-
-// Pour la compatibilité avec l'ancien code, on expose la fonction `query` sous l'ancien nom.
-const fetchWithCache = (url) => queryManager.query(url);

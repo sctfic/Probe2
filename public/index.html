@@ -59,7 +59,6 @@
             // Ajoute la nouvelle balise <style> à la fin du <head> du document.
             document.head.appendChild(styleElement);
 
-            console.log(`La règle pour '${selector}' a été surchargée.`);
         }
 
 
@@ -631,6 +630,16 @@
             const footerNavLinks = document.querySelectorAll('.footer-nav-link');
             let currentIndex = 0;
 
+            // Exposer pour dashboard.js
+            window.updateStationInfoHeader = function (age) {
+                if (!selectedStation) return;
+                const baseText = `${selectedStation.location} (${selectedStation.host}:${selectedStation.port})`;
+                const maxAge = currentStationSettings?.maxAge || 60 * 1000;
+                const warning = `<span title="Retard de ${Math.round(age / 60000)} minutes de la collecte ! (${Math.round(maxAge / 60000)} minutes max.)" style="cursor:help;font-size:24px;">⚠️</span>`;
+                // console.error(age, maxAge, warning);
+                stationInfo.innerHTML = age > maxAge ? warning + baseText : baseText;
+            };
+
             // Mapping des sections pour l'URL
             const sectionMap = {
                 'dashboard-section': 'dashboard',
@@ -740,9 +749,9 @@
                     globalStationSelect.value = stationToSelect;
                     // Mettre à jour manuellement l'état de la station sélectionnée
                     selectedStation = globalStations.find(s => s.id === stationToSelect) || null;
-                    console.log('loadFromURL', selectedStation);
+                    // console.log('loadFromURL', selectedStation);
                     if (selectedStation) {
-                        stationInfo.textContent = `${selectedStation.location} (${selectedStation.host}:${selectedStation.port})`;
+                        window.updateStationInfoHeader(0); // Reset par défaut
                     }
                 }
 
@@ -750,6 +759,7 @@
 
                 fetchStationSettings();
                 fetchcompositeProbes();
+                fetchIntegratorProbes();
             }
 
             // Écouter les changements d'URL (bouton retour du navigateur)
@@ -772,22 +782,20 @@
 
             async function loadGlobalStations() {
                 try {
-                    showStationStatus('Chargement des stations...', 'loading');
-                    const response = await fetch('/api/stations');
-                    if (!response.ok) throw new Error('Erreur de chargement des stations');
+                    showGlobalStatus('Chargement des stations...', 'loading');
+                    const data = await queryManager.query('/api/stations');
 
-                    const data = await response.json();
                     if (data.success && data.stations) {
                         globalStations = data.stations;
                         document.getElementById('version').textContent = data.version;
                         populateStationSelector();
-                        showStationStatus('', '');
+                        showGlobalStatus('', '');
                     } else {
                         throw new Error('Format de réponse invalide');
                     }
                 } catch (error) {
                     console.error('Erreur de chargement des stations:', error);
-                    showStationStatus('Erreur de chargement des stations', 'error');
+                    showGlobalStatus('Erreur de chargement des stations', 'error');
                     globalStationSelect.innerHTML = '<option value="">Erreur de chargement</option>';
                 }
             }
@@ -813,17 +821,11 @@
                 selectedStation = globalStations.find(s => s.id === selectedId) || null;
 
                 if (selectedStation) {
-                    stationInfo.textContent = `${selectedStation.location} (${selectedStation.host}:${selectedStation.port})`;
+                    window.updateStationInfoHeader(0); // Reset par défaut
                     refreshActiveSection();
                     updateDashboardURL(); // Mettre à jour l'URL avec la nouvelle station
                 } else {
                     stationInfo.textContent = '';
-                }
-            }
-
-            function showStationStatus(message, type) {
-                if (message) {
-                    console.log(`Station status [${type}]: ${message}`);
                 }
             }
 
@@ -994,11 +996,6 @@
                 globalStationSelect.addEventListener('change', onStationChange);
             }
 
-            const refreshConditionsBtn = document.getElementById('refresh-conditions');
-            if (refreshConditionsBtn) {
-                refreshConditionsBtn.addEventListener('click', fetchCurrentConditions);
-            }
-
             const conditionsFilter = document.getElementById('conditions-filter');
             const conditionsGroup = document.getElementById('conditions-group');
 
@@ -1024,7 +1021,6 @@
             loadGlobalStations().then(() => {
                 loadFromURL(); // Charger l'état complet depuis l'URL
             });
-            fetchIntegratorProbes();
 
             // Vérifier le statut d'authentification au chargement
             if (typeof checkAuthStatus === 'function') checkAuthStatus();

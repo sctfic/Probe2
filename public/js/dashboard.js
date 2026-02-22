@@ -125,22 +125,21 @@ async function fetchCurrentConditions() {
     showGlobalStatus('Chargement des données météo...', 'loading');
 
     try {
-        // Fetch current conditions, which now includes composite probes from the server.
-        const response = await fetch(`/api/station/${selectedStation.id}/current-conditions`, { cache: 'no-cache' });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Erreur de chargement des données actuelles (status: ${response.status}). ${errorText}`);
-        }
-
-        const data = await response.json();
+        // console.error(currentStationSettings.maxAge);
+        const data = await queryManager.query(`/api/station/${selectedStation.id}/current-conditions`, { cacheDuration: currentStationSettings?.maxAge || 60 * 1000 });
 
         if (data.data) {
-            // The server now provides all data, including calculated ones.
-            // The mergeData function is still used for UI-specific formatting.
             mergeData(data);
             currentConditionsData = data.data;
             processAndDisplayConditions();
+
+            // Check for stale data warning in header
+            const barometerData = data.data['pressure:barometer'];
+            if (barometerData && barometerData.d) {
+                const delta = Date.now() - new Date(barometerData.d).getTime();
+                if (window.updateStationInfoHeader) window.updateStationInfoHeader(delta);
+            }
+
             showGlobalStatus(data.message || 'Données actualisées avec succès', data.success ? 'success' : 'warning');
         } else {
             throw new Error(data.error || 'Format de données invalide');
@@ -190,6 +189,7 @@ function processAndDisplayConditions() {
                 period: sensorInfo.period || '7d',
                 order: sensorInfo.order,
                 hidden: !!sensorInfo.hidden,
+                d: data.d,
                 searchText: [sensorInfo.label, key, sensorInfo.comment, data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
             };
         });
@@ -343,6 +343,9 @@ function isMajorChange(oldValue, newValue, unit) {
 
 // Fonction modifiée pour mettre à jour une tuile existante avec animation
 function updateExistingTile(tileElement, item) {
+
+    setTimeout(() => loadChartForItem(item), 50);
+
     const fn = eval(item.toUserUnit || 'x => x');
     const valueElement = tileElement.querySelector('.condition-value');
 
@@ -602,6 +605,9 @@ function createConditionTileHTML(item) {
     }
 
     let chartContent = '';
+    // Mettre à jour les cas spéciaux avec animation si nécessaire (truncated for brevity in replacement, but I must keep the logic)
+    // Actually I should be careful not to delete too much.
+    // I'll use multi_replace for safety.
     // Mettre à jour les cas spéciaux avec animation si nécessaire
     if (item.key === 'ForecastNum') {
         // Cas spécial pour ForecastIcon - afficher des images météo (pas de lien)
@@ -633,7 +639,7 @@ function createConditionTileHTML(item) {
                     style="transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${windDirection}deg)">
             </div>
         `;
-        console.log(item);
+        // console.log(item);
         if (item.userUnit === "cardinal") unitDisplay = '';
     } else if (item.unit === 'dateStormRain' || item.unit === 'iso8601') {
         unitDisplay = '';
@@ -693,13 +699,6 @@ function getStartDate(period) {
     return date.toISOString().split('.')[0] + 'Z';
 }
 
-
-function loadAllCharts() {
-    if (!selectedStation || !dbSensorList) return;
-    allConditions.forEach(loadChartForItem);
-    console.log('loadAllCharts, requestCache', requestCache);
-}
-
 function loadChartForItem(item) {
     if (!item.sensorDb) return;
     const chartId = `chart_${item.key}`;
@@ -708,7 +707,6 @@ function loadChartForItem(item) {
 
     if (item.sensorDb.startsWith('vector:')) {
         const sensorRef = item.sensorDb.substring('vector:'.length);
-        // console.log(item.sensorDb, sensorRef, prefix);
         loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindVectors/${sensorRef}?${count}&${start}`);
     } else if (item.sensorDb.startsWith('rose:')) {
         const sensorRef = item.sensorDb.substring('rose:'.length);

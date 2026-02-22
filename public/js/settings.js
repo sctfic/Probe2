@@ -33,7 +33,9 @@ async function fetchSettings() {
         if (!influxResponse.ok) throw new Error('Erreur de chargement de la configuration InfluxDB');
 
         const unitsData = await unitsResponse.json();
+        console.log(unitsData);
         const influxData = await influxResponse.json();
+        console.log(influxData);
 
         if (unitsData.success && unitsData.settings) {
             currentUnitsSettings = unitsData.settings;

@@ -36,7 +36,7 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
 
         // Récupération rapide de la plage (Metadata)
         const rangeUrl = url.replace('/Raw/', '/Range/');
-        const rangeResponse = await (window.fetchWithCache ? window.fetchWithCache(rangeUrl, 300000) : fetch(rangeUrl).then(r => r.json()));
+        const rangeResponse = await queryManager.query(rangeUrl, { cacheDuration: 10000 });
 
         if (!rangeResponse || !rangeResponse.metadata) throw new Error("Métadonnées Range introuvables");
 
@@ -95,7 +95,7 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
         const separator = url.includes('?') ? '&' : '?';
         const dataUrl = `${url}${separator}startDate=${fetchStartDate.toISOString()}&stepCount=${stepCount}`;
 
-        const apiResponse = await (window.fetchWithCache ? window.fetchWithCache(dataUrl, 300000) : fetch(dataUrl).then(r => r.json()));
+        const apiResponse = await queryManager.query(dataUrl);
         if (!apiResponse || !apiResponse.data) throw new Error("Données API invalides");
 
         const convertFn = getConversionFunction(meta);

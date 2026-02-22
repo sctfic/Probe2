@@ -10,13 +10,13 @@ function createRosePlot(data, metadata, id) {
 
     // Get speed conversion function and unit from metadata
     const speedSensorKey = metadata.measurement.speed?.[0]; // e.g., "speed:Wind"
-    const speedUnit = speedSensorKey && metadata.toUserUnit[speedSensorKey]?.userUnit 
-        ? metadata.toUserUnit[speedSensorKey].userUnit 
+    const speedUnit = speedSensorKey && metadata.toUserUnit[speedSensorKey]?.userUnit
+        ? metadata.toUserUnit[speedSensorKey].userUnit
         : 'm/s';
-    const speedConversionFn = speedSensorKey && metadata.toUserUnit[speedSensorKey]?.fnFromMetric 
-        ? eval(metadata.toUserUnit[speedSensorKey].fnFromMetric) 
+    const speedConversionFn = speedSensorKey && metadata.toUserUnit[speedSensorKey]?.fnFromMetric
+        ? eval(metadata.toUserUnit[speedSensorKey].fnFromMetric)
         : (v) => v;
-    
+
     // Color scales
     const speedToColorScale = d3.scaleLinear()
         .domain([2, 10, 25, 100])
@@ -83,7 +83,7 @@ function createRosePlot(data, metadata, id) {
         const textGroup = svg.append("g")
             .attr("class", "info-text")
             .attr("font-size", "11px")
-            .attr("transform", `translate(${xPos}, ${-R-2})`)
+            .attr("transform", `translate(${xPos}, ${-R - 2})`)
             .attr("text-anchor", align);
 
         lines.forEach((line, i) => {
@@ -102,18 +102,18 @@ function createRosePlot(data, metadata, id) {
             .style("stroke-width", "0.5px");
 
         const cw = svg.append("g").attr("class", "calmwind");
-        
+
         cw.append("text")
             .attr("transform", "translate(0,-2)")
             .text(Math.round(calmPercentage * 100) + "%");
-        
+
         cw.append("text")
             .attr("transform", "translate(0,12)")
             .text("calm");
     }
 
     function drawLevelGrid(svg, r) {
-        const directions = ['NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW','N'];
+        const directions = ['NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW', 'N'];
         const label = svg.append("g")
             .attr("class", "labels")
             .selectAll("g")
@@ -183,7 +183,7 @@ function createRosePlot(data, metadata, id) {
             .style("fill", "transparent")
             .style("pointer-events", "all");
 
-        hoverZones.on("mouseover", function(event, d) {
+        hoverZones.on("mouseover", function (event, d) {
             // Mettre en valeur le pétale correspondant
             petals.filter(petal => petal.d === d.d)
                 .transition()
@@ -191,10 +191,10 @@ function createRosePlot(data, metadata, id) {
                 .style("fill-opacity", 0.9)
                 .style("stroke-width", "2px")
                 .style("stroke", "#ff6b6b");
-            
+
             const infoLines = [`${(100 * d.p).toFixed(1)} %`, `${d.d}°`];
             drawInfoText(svg, r, infoLines);
-        }).on("mouseout", function(event, d) {
+        }).on("mouseout", function (event, d) {
             // Retirer la mise en valeur
             petals.filter(petal => petal.d === d.d)
                 .transition()
@@ -202,7 +202,7 @@ function createRosePlot(data, metadata, id) {
                 .style("fill-opacity", null)
                 .style("stroke-width", null)
                 .style("stroke", null);
-            
+
             svg.select(".info-text").remove();
         });
 
@@ -216,7 +216,7 @@ function createRosePlot(data, metadata, id) {
         const ip = 28;
 
         const svg = makeWindContainer(container, w, h, p);
-        
+
         let calm = 0;
         let maxSpdVal = 0;
         for (const key in data) {
@@ -278,7 +278,7 @@ function createRosePlot(data, metadata, id) {
             .style("fill", "transparent")
             .style("pointer-events", "all");
 
-        hoverZones.on("mouseover", function(event, d) {
+        hoverZones.on("mouseover", function (event, d) {
             // Mettre en valeur le pétale correspondant
             petals.filter(petal => petal.d === d.d)
                 .transition()
@@ -286,17 +286,17 @@ function createRosePlot(data, metadata, id) {
                 .style("fill-opacity", 0.9)
                 .style("stroke-width", "2px")
                 .style("stroke", "#ff6b6b");
-            
+
             // Mettre en valeur le pétale de rafale correspondant
             gustPetals.filter(petal => petal.d === d.d)
                 .transition()
                 .duration(50)
                 .style("fill-opacity", 0.7)
                 .style("stroke", "#ff6b6b");
-            
-            const infoLines = [ `Rafale: ${d.m.toFixed(1)} ${speedUnit}`, `Moy: ${d.s.toFixed(1)} ${speedUnit}`,`${d.d}°`];
+
+            const infoLines = [`Rafale: ${d.m.toFixed(1)} ${speedUnit}`, `Moy: ${d.s.toFixed(1)} ${speedUnit}`, `${d.d}°`];
             drawInfoText(svg, r, infoLines);
-        }).on("mouseout", function(event, d) {
+        }).on("mouseout", function (event, d) {
             // Retirer la mise en valeur du pétale
             petals.filter(petal => petal.d === d.d)
                 .transition()
@@ -304,7 +304,7 @@ function createRosePlot(data, metadata, id) {
                 .style("fill-opacity", null)
                 .style("stroke-width", null)
                 .style("stroke", null);
-            
+
             // Retirer la mise en valeur du pétale de rafale
             gustPetals.filter(petal => petal.d === d.d)
                 .transition()
@@ -362,8 +362,8 @@ function createRosePlot(data, metadata, id) {
 
     const aggregatedData = convertApiData(data);
 
-    const firstDate = new Date(metadata.first).toLocaleString('fr-FR', {dateStyle: "medium",timeStyle: "short",hour12: false});
-    const lastDate = new Date(metadata.last).toLocaleString('fr-FR', {dateStyle: "medium",timeStyle: "short",hour12: false});
+    const firstDate = new Date(metadata.first).toLocaleString('fr-FR', { dateStyle: "medium", timeStyle: "short", hour12: false });
+    const lastDate = new Date(metadata.last).toLocaleString('fr-FR', { dateStyle: "medium", timeStyle: "short", hour12: false });
 
     // Create containers for the three charts
     container.innerHTML = `
@@ -379,9 +379,9 @@ function createRosePlot(data, metadata, id) {
 
     // Render the plots
     // container height
-    const height = container.clientHeight / 2 -12;
+    const height = container.clientHeight / 2 - 12;
     plotProbabilityRose(aggregatedData, '#prob-rose-container', height);
-    plotSpeedRose(aggregatedData, '#speed-rose-container', height); 
+    plotSpeedRose(aggregatedData, '#speed-rose-container', height);
 }
 
 async function loadRosePlot(id, url) {
@@ -392,7 +392,7 @@ async function loadRosePlot(id, url) {
     }
 
     try {
-        const apiResponse = await fetchWithCache(url+'&startDate='+WIND.Start+'&endDate='+WIND.End);
+        const apiResponse = await queryManager.query(url + '&startDate=' + WIND.Start + '&endDate=' + WIND.End);
         if (apiResponse.success && Object.keys(apiResponse.data).length > 0) {
             createRosePlot(apiResponse.data, apiResponse.metadata, id);
         } else {
