@@ -117,7 +117,7 @@ class UnitsProvider {
         } catch (err) {
             console.error(`${V.error} Failed to load integratorProbes.json for sensor map:`, err.message);
         }
-        console.log(`${V.info} Sensor map loaded:`, map);
+        // console.log(`${V.info} Sensor map loaded:`, map);
         this.sensorTypeMap = map;
         this._sensorMapReady = true;
         return map;

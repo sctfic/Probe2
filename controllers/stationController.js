@@ -74,7 +74,7 @@ async function getCompositeProbes(weatherData, stationConfig) {
 
         for (const probeKey in compositeProbes) {
             const probeConfig = compositeProbes[probeKey];
-            console.log(probeConfig);
+            // console.log(probeConfig);
             if (probeConfig.scriptJS) {
                 for (const scriptPath of probeConfig.scriptJS) { // charge les scripts specifie dans la config
                     if (!loadedScripts.has(scriptPath)) { // evite de charger plusieurs fois le même script
@@ -103,7 +103,7 @@ async function getCompositeProbes(weatherData, stationConfig) {
                     calcInput[key] = weatherData[weatherData[key].currentMap].Value;
                 } else { // pas de mapping vers les condition Current, on utilise la valeur d'archive
                     console.log(V.Warn, `Missing data ${key} in currentConditions, use last archives`, weatherData[key].Value);
-                    console.log(`+-> verrifier ${probeKey}.currentMap['${key}'] la valeur est inconnue dans les current-conditions`);
+                    // console.log(`+-> verrifier ${probeKey}.currentMap['${key}'] la valeur est inconnue dans les current-conditions`);
                     calcInput[key] = weatherData[key].Value;
                 }
                 // console.log(key, calcInput);
@@ -153,7 +153,6 @@ async function getDbProbes(stationConfig) {
         const dbData = await influxdbService.queryLast(stationConfig.id, '-17d', 'now()');
         // on surchage dbData avec les données de dbProbes
         for (const sensorKey of Object.keys(dbData)) {
-            // console.log('1', dbData[sensorKey]);
             dbData[sensorKey] = { ...dbData[sensorKey], ...dbProbes[sensorKey] };
             if (dbData[sensorKey].value !== undefined) {
                 dbData[sensorKey]['Value'] = dbData[sensorKey].value;
@@ -176,7 +175,6 @@ async function getDbProbes(stationConfig) {
             dbData[sensorKey].Unit = type?.metric || null;
             dbData[sensorKey].userUnit = type?.user || null;
             dbData[sensorKey].toUserUnit = type?.available_units?.[type.user]?.fnFromMetric || null;
-            // console.log('2', dbData[sensorKey]);
 
         }
         return dbData;

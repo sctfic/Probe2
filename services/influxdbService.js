@@ -376,11 +376,11 @@ async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSecond
  * @param {string} endDate - Date de fin.
  * @returns {Promise<Object>} Un objet contenant les dernières données.
  */
-async function queryLast(stationId, startDate = '-7d', endDate = 'now()') {
+async function queryLast(stationId, startDate = '-7d', endDate = 'now()') { //  and r.source == "localDataCollection"
     const fluxQuery = `
         from(bucket: "${bucket}")
           |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'}) 
-          |> filter(fn: (r) => r.station_id == "${stationId}" and r.source == "localDataCollection")
+          |> filter(fn: (r) => r.station_id == "${stationId}" and r.source != "forecast")
           |> drop(columns: ["_start", "_stop", "station_id", "source"])
           |> last()
     `;
