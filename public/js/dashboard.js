@@ -705,15 +705,18 @@ function loadChartForItem(item) {
     const chartId = `chart_${item.key}`;
     const start = `startDate=${getStartDate(item.period)}`;
     const count = `stepCount=${item.measurement === 'rain' ? 24 : 246}`;
-
-    if (item.sensorDb.startsWith('vector:')) {
-        const sensorRef = item.sensorDb.substring('vector:'.length);
-        loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindVectors/${sensorRef}?${count}&${start}`);
-    } else if (item.sensorDb.startsWith('rose:')) {
-        const sensorRef = item.sensorDb.substring('rose:'.length);
-        // loadRosePlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindRose/${sensorRef}?${count}&${start}`);
+    if (document.getElementById(chartId)) {
+        if (item.sensorDb.startsWith('vector:')) {
+            const sensorRef = item.sensorDb.substring('vector:'.length);
+            loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindVectors/${sensorRef}?${count}&${start}`);
+        } else if (item.sensorDb.startsWith('rose:')) {
+            const sensorRef = item.sensorDb.substring('rose:'.length);
+            // loadRosePlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindRose/${sensorRef}?${count}&${start}`);
+        } else {
+            loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${count}&${start}`, item.period);
+        }
     } else {
-        loadData(chartId, `${API_BASE_URL}/${selectedStation.id}/Raw/${item.sensorDb}?${count}&${start}`, item.period);
+        // console.warn('[', item.key, '] n\'as pas de graphique a tracer !');
     }
 }
 
@@ -964,12 +967,24 @@ function showDetailsFooter(keys) {
 
     // Fonction interne pour charger les graphiques
     const loadCharts = () => {
+        // Nettoyage des instances précédentes (ResizeObserver, etc.)
+        if (contentContainer._spiraleInstance) {
+            contentContainer._spiraleInstance.destroy();
+            delete contentContainer._spiraleInstance;
+        }
+        if (contentContainer.__current_plot_instance && typeof contentContainer.__current_plot_instance.destroy === 'function') {
+            contentContainer.__current_plot_instance.destroy();
+            delete contentContainer.__current_plot_instance;
+        }
+
         contentContainer.innerHTML = ''; // Réinitialiser le contenu
         if (items.length === 1) {
             // Special case for wind (rose & vector)
             if (items[0].measurement === 'direction' || items[0].sensorDb.startsWith('vector:')) {
+                contentContainer.parentElement.style.maxHeight = '36vh';
                 loadWindPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}`, items[0].sensorDb);
             } else {
+                contentContainer.parentElement.style.maxHeight = '65vh';
                 loadSpiralePlot(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raw/${items[0].sensorDb}`);
             }
         } else if (items.length > 1) {
@@ -979,6 +994,7 @@ function showDetailsFooter(keys) {
                 return;
             }
             const sensorsQuery = sensorDbs.join(',');
+            contentContainer.parentElement.style.maxHeight = '36vh';
             mainPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}`, getStartDate('1y'));
         }
     };
@@ -986,7 +1002,6 @@ function showDetailsFooter(keys) {
     // Affiche le footer avec animation
     if (!detailsFooter.classList.contains('details-open')) {
         // Si le footer était fermé, on attend la fin de la transition d'ouverture pour dessiner
-        console.log('Footer closed, opening and drawing charts');
         const handleTransitionEnd = (e) => {
             if (e.target === detailsFooter && (e.propertyName === 'height' || e.propertyName === 'transform')) {
                 detailsFooter.removeEventListener('transitionend', handleTransitionEnd);
@@ -997,7 +1012,6 @@ function showDetailsFooter(keys) {
         detailsFooter.classList.add('details-open');
     } else {
         // S'il est déjà ouvert, on dessine tout de suite
-        console.log('Footer already open, drawing charts immediately');
         loadCharts();
     }
 }
@@ -1129,11 +1143,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         contextMenu.style.top = `${clientY + menuHeight > innerHeight ? pageY - menuHeight : pageY}px`;
         contextMenu.style.left = `${clientX + menuWidth > innerWidth ? pageX - menuWidth : pageX}px`;
-    };
-
-    const compareSelectedItems = () => {
-        plotsChart();
-        hideContextMenu();
     };
 
     function hideToTrash(element, trashIcon) {

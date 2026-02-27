@@ -65,7 +65,8 @@ class TimeSeriesPlot {
 
         this.margin = { top: 10, right: 40, bottom: 20, left: 40 };
         this.width = window.innerWidth;
-        this.height = 300;
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        this.height = isMobile ? 200 : 300;
         this.innerWidth = this.width - this.margin.left - this.margin.right;
         this.innerHeight = this.height - this.margin.top - this.margin.bottom;
 
@@ -80,6 +81,11 @@ class TimeSeriesPlot {
         this.originalData = [...data]; // Pour reset
 
         this.initializeScales();
+    }
+
+    // Nettoyage de l'instance
+    destroy() {
+        // Pour l'instant, pas de ResizeObserver ou de timers globaux dans TimeSeriesPlot
     }
 
     // Initialiser les échelles

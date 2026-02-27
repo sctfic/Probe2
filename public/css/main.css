@@ -1329,8 +1329,9 @@ input:checked+.slider:before {
     }
 
     /* .footer.details-open .chart-container {
-        max-height: 65vh; 
+        max-height: 50vh;
     } */
+
     .station-info {
         display: none;
     }
