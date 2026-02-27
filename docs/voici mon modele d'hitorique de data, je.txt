@@ -1,0 +1,17 @@
+voici mon modele d'hitorique de data, je dispose en plus de prevision a 48h sur temperature:outTemp et l'irradiance:solar mais pas sur temperature:inTemp
+je voudrai construire un algo de pilotage d'une ventilation qui recupere de l'air exterieur vers l'interieur pour temperer l'habitat qui s'appuis sur :
+    une temperature consigne theorique (Tcth = 19°C)
+    une tolerance de temperature consigne pour anticiper les variations d'energie (dT = ±3°C)
+    une duree d'inertie du batiment (12h)
+    tient compte de la moyenne de temperature:outTemp des 10 jours precedent et la tendance saisoniere (rechauffement en cour ou raffraichissement) pour antissiper en fonction des pevisions de temperature:outTemp
+    cette algo retournera la temperature consigne calculee
+ex 1 :
+si les jours precedant sont au dessus de (Tcth + dT) alors on recherche de la faicheur
+dans ce cas si le lendemain est froit on retourne : Tcth
+si le lendement est chaud on retourne : (Tcth - dT)
+ex 2 :
+    si les jours precedant sont au dessous de (Tcth - dT) alors on recherche de la chaleur
+    dans ce cas si le lendemain est froit on retourne : (Tcth + dT)
+    si le lendement est chaud on retourne : Tcth
+explique et decris un tel algorithme, propose des ameliorations
+je ne veux pas de code pour le moment
