@@ -360,7 +360,8 @@ class TimeSeriesPlot {
         const showNowEffects = now >= domain[0] && now <= domain[1];
 
         Object.entries(this.yScales).forEach(([groupName, scaleInfo]) => {
-            scaleInfo.sensors.forEach(sensor => {
+            const activeSensors = this.metadata.measurement[groupName] || [];
+            scaleInfo.sensors.filter(s => activeSensors.includes(s)).forEach(sensor => {
                 // 1. Filtrer les données pour ce capteur spécifique
                 const filteredData = this.data.filter(d =>
                     d[sensor] !== null &&
@@ -579,8 +580,7 @@ class TimeSeriesPlot {
         apiUrl += `&startDate=${apiStartDate}`;
         apiUrl += `&endDate=${apiEndDate}`;
 
-        // Appel API sans cache
-        queryManager.query(apiUrl, { cacheDuration: 0 })
+        queryManager.query(apiUrl)
             .then(apiResponse => {
                 if (!apiResponse.success) {
                     throw new Error(apiResponse.message || 'Erreur API');
@@ -687,7 +687,8 @@ class TimeSeriesPlot {
         const showNowEffects = now >= domain[0] && now <= domain[1];
 
         Object.entries(this.yScales).forEach(([groupName, scaleInfo]) => {
-            scaleInfo.sensors.forEach(sensor => {
+            const activeSensors = this.metadata.measurement[groupName] || [];
+            scaleInfo.sensors.filter(s => activeSensors.includes(s)).forEach(sensor => {
                 // Filtrer les données pour ce capteur spécifique
                 const filteredData = this.data.filter(d =>
                     d[sensor] !== null && d[sensor] !== undefined && !isNaN(d[sensor])

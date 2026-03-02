@@ -10,7 +10,7 @@
     <script src="js/queryManager.js"></script>
     <script src="js/drawing/d3.min.js"></script>
     <script src="js/drawing/Plots.js"></script>
-    <script src="js/tracker.js"></script>
+    <!-- <script src="js/tracker.js"></script> -->
     <style>
         @import url('css/main.css');
     </style>
@@ -78,11 +78,102 @@
             background: #333;
             color: #fff;
         }
+
+        /* Styles pour les contrôles UI (Add Sensor) */
+        #plot-ui-container {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px;
+            max-width: calc(100% - 100px);
+            padding-right: 10px;
+        }
+
+        #sensor-select {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 3px 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+            outline: none;
+            width: auto;
+        }
+
+        #sensor-select:hover {
+            background: #333;
+            color: #fff;
+        }
+
+        #active-sensors {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .active-sensor-btn {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 3px 6px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: background 0.2s, color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .active-sensor-btn:hover,
+        .active-sensor-btn.selected {
+            background: #333;
+            color: #fff;
+            border-color: #777;
+        }
+
+        .active-sensor-btn .remove-cross {
+            /* font-weight: bold; */
+            font-size: 26px;
+            line-height: 1;
+            padding: 0px;
+            margin: -6px -3px;
+        }
+
+        #sensor-stats-panel {
+            position: relative;
+            margin-top: -5px;
+            /* Pull it slightly up towards the chart */
+            z-index: 10;
+            padding: 4px 15px;
+            font-size: 13px;
+            color: #fff;
+            display: none;
+            white-space: nowrap;
+            text-align: center;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
     </style>
 </head>
 
 <body>
-    <div id="chart-container"></div>
+    <div id="chart-container">
+        <div id="sensor-stats-panel"></div>
+    </div>
+
+    <div id="plot-ui-container">
+        <select id="sensor-select">
+            <option value="" disabled selected>Add Sensor :</option>
+        </select>
+        <div id="active-sensors"></div>
+    </div>
     <button id="fs-btn"></button>
     <script>
         // Icônes SVG pour le bouton Fullscreen
@@ -128,6 +219,8 @@
             const sensorList = params.get('sensorList');
 
             const container = document.getElementById('chart-container');
+            const sensorSelect = document.getElementById('sensor-select');
+            const activeSensorsDiv = document.getElementById('active-sensors');
 
             if (!station || !sensorList) {
                 container.innerHTML =
@@ -137,19 +230,287 @@
                 return;
             }
 
-            // URL de l'API
-            const dataUrl = `/query/${station}/Raws/${sensorList}`;
+            let currentSensors = sensorList.split(',').filter(s => s.trim() !== '');
+            let allStationSensors = [];
+            let selectedSensor = null; // Capteur "verrouillé" par clic
+
+            // Fonction pour mettre à jour l'URL sans recharger la page
+            function updateUrl() {
+                const newSensorList = currentSensors.join(',');
+                const newUrl = `${window.location.pathname}?station=${station}&sensorList=${newSensorList}`;
+                window.history.replaceState({}, '', newUrl);
+                console.log('currentSensors', newSensorList);
+
+                // Synchronisation centralisée des métadonnées et de l'état du graphique
+                const plotInstance = container.__current_plot_instance;
+                if (plotInstance) {
+                    plotInstance.sensorList = newSensorList;
+
+                    // Synchronisation avec metadata.measurement
+                    [plotInstance.metadata, window.plotMetadata].forEach(meta => {
+                        if (meta && meta.measurement) {
+                            Object.keys(meta.measurement).forEach(group => {
+                                meta.measurement[group] = meta.measurement[group].filter(s => currentSensors.includes(s));
+                            });
+                        }
+                    });
+                }
+
+                return newSensorList;
+            }
+
+            // Calculer et afficher les statistiques
+            function showStats(sensor, color, plotInstance) {
+                const currentStatsPanel = document.getElementById('sensor-stats-panel');
+                if (!currentStatsPanel || !plotInstance || !plotInstance.data) return;
+
+                // Extraire les valeurs valides pour ce capteur
+                const values = plotInstance.data
+                    .map(d => d[sensor])
+                    .filter(v => v !== null && v !== undefined && !isNaN(v));
+
+                if (values.length === 0) return;
+
+                const min = d3.min(values);
+                const max = d3.max(values);
+                const avg = d3.mean(values);
+                const median = d3.median(values);
+                const stdDev = d3.deviation(values) || 0;
+                const sum = d3.sum(values);
+                const p5 = d3.quantile(values, 0.05);
+                const p95 = d3.quantile(values, 0.95);
+
+                // Trouver l'unité
+                let unit = '';
+                if (window.plotMetadata && window.plotMetadata.toUserUnit && window.plotMetadata.toUserUnit[sensor]) {
+                    unit = window.plotMetadata.toUserUnit[sensor].userUnit;
+                }
+
+                // Intervalle
+                const dates = plotInstance.data.map(d => d.datetime).filter(d => d instanceof Date && !isNaN(d));
+                let durationStr = '';
+                if (dates.length > 1) {
+                    const firstDate = dates[0];
+                    const lastDate = dates[dates.length - 1];
+                    const durationMs = lastDate - firstDate;
+                    const days = Math.floor(durationMs / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((durationMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    durationStr = `${days}j ${hours}h`;
+                }
+
+                currentStatsPanel.innerHTML = `
+                    <span>
+                        Min: <b style="color: ${color};">${min}${unit}</b> &nbsp;-&nbsp; 
+                        Max: <b style="color: ${color};">${max}${unit}</b> &nbsp;-&nbsp; 
+                        Moyenne: <b style="color: ${color};">${avg.toFixed(2)}${unit}</b> &nbsp;-&nbsp;
+                        ${sensor.startsWith('rain:') ?
+                        `Somme: <b style="color: ${color};">${sum}${unit}</b> &nbsp;-&nbsp;` :
+                        `Mediane: <b style="color: ${color};">${median.toFixed(2)}${unit}</b> &nbsp;-&nbsp;
+                        σ: <b style="color: ${color};">${stdDev.toFixed(2)}${unit}</b> &nbsp;-&nbsp;
+                        [ P5: <b style="color: ${color};">${p5.toFixed(2)}</b> - P95: <b style="color: ${color};">${p95.toFixed(2)}</b> ] &nbsp;-&nbsp;`
+                    }
+                        Periode: <b style="color: ${color};">${durationStr}</b>
+                    </span>
+                `;
+                currentStatsPanel.style.display = 'block';
+            }
+
+            function hideStats() {
+                // Si un capteur est sélectionné, on restaure ses stats au lieu de cacher
+                if (selectedSensor) {
+                    const sensorId = selectedSensor.replace(":", "_");
+                    const plotInstance = container.__current_plot_instance;
+                    if (plotInstance) {
+                        const color = plotInstance.colorScale(sensorId);
+                        showStats(selectedSensor, color, plotInstance);
+                        return;
+                    }
+                }
+                const currentStatsPanel = document.getElementById('sensor-stats-panel');
+                if (currentStatsPanel) currentStatsPanel.style.display = 'none';
+            }
+
+            // Rendre l'interface des capteurs (dropdown et boutons)
+            function renderSensorUI() {
+                // Remplir le dropdown (trié par ordre alphabétique)
+                sensorSelect.innerHTML = '<option value="" disabled selected>Add Sensor :</option>';
+                [...allStationSensors].sort((a, b) => a.localeCompare(b)).forEach(sensor => {
+                    if (!currentSensors.includes(sensor)) {
+                        const option = document.createElement('option');
+                        option.value = sensor;
+                        option.textContent = sensor;
+                        sensorSelect.appendChild(option);
+                    }
+                });
+
+                // Remplir les boutons actifs
+                activeSensorsDiv.innerHTML = '';
+                currentSensors.forEach(sensor => {
+                    const btn = document.createElement('div');
+                    btn.className = 'active-sensor-btn';
+                    if (sensor === selectedSensor) btn.classList.add('selected');
+                    btn.textContent = sensor;
+
+                    // Couleur du capteur (depuis l'instance courante si dispo)
+                    const sensorId = sensor.replace(":", "_");
+                    let color = '#ccc'; // default
+                    const plotInstance = container.__current_plot_instance;
+                    if (plotInstance && plotInstance.colorScale) {
+                        color = plotInstance.colorScale(sensorId);
+                    }
+
+                    const cross = document.createElement('span');
+                    cross.className = 'remove-cross';
+                    cross.innerHTML = '&times;';
+                    cross.style.color = color;
+                    cross.title = `Retirer ${sensor}`;
+
+                    btn.appendChild(cross);
+
+                    // Sélection du capteur au clic
+                    btn.addEventListener('click', () => {
+                        if (selectedSensor === sensor) {
+                            selectedSensor = null; // Déselection
+                        } else {
+                            selectedSensor = sensor;
+                        }
+                        renderSensorUI();
+                        // Forcer la mise en évidence
+                        if (plotInstance && plotInstance.g) {
+                            plotInstance.g.selectAll('.line').style('opacity', 0.1);
+                            if (selectedSensor) {
+                                plotInstance.g.selectAll(`[class*="line-${selectedSensor.replace(":", "_")}"]`).style('opacity', 1);
+                                showStats(selectedSensor, color, plotInstance);
+                            } else {
+                                plotInstance.g.selectAll('.line').style('opacity', 1);
+                                hideStats();
+                            }
+                        }
+                    });
+
+                    // Supprimer le capteur
+                    cross.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        if (selectedSensor === sensor) selectedSensor = null;
+                        currentSensors = currentSensors.filter(s => s !== sensor);
+
+                        // Retirer les lignes correspondantes du DOM
+                        const plotInstance = container.__current_plot_instance;
+                        if (plotInstance && plotInstance.g) {
+                            plotInstance.g.selectAll(`[class*="line-${sensorId}"]`).remove();
+                            // Restaurer l'opacité des lignes restantes
+                            plotInstance.g.selectAll('.line').style('opacity', selectedSensor ? 0.1 : 1);
+                            if (selectedSensor) {
+                                plotInstance.g.selectAll(`[class*="line-${selectedSensor.replace(":", "_")}"]`).style('opacity', 1);
+                            }
+                        }
+
+                        updateUrl(); // Centralise maintenant la sync metadata
+
+                        // Si c'est le dernier capteur, on peut afficher un message
+                        if (currentSensors.length === 0) {
+                            container.innerHTML = `<div id="sensor-stats-panel"></div><div style="color:white; text-align:center; padding-top:20%;">Aucun capteur sélectionné.</div>`;
+                        }
+
+                        renderSensorUI();
+                    });
+
+                    // Hover handler pour la surbrillance
+                    btn.addEventListener('mouseenter', () => {
+                        const plotInstance = container.__current_plot_instance;
+                        if (plotInstance && plotInstance.g) {
+                            // Griser les autres lignes
+                            plotInstance.g.selectAll('.line')
+                                .style('opacity', 0.1);
+                            // Mettre en évidence cette ligne (y compris segments before/after)
+                            plotInstance.g.selectAll(`[class*="line-${sensorId}"]`)
+                                .style('opacity', 1);
+
+                            showStats(sensor, color, plotInstance);
+                        }
+                    });
+
+                    btn.addEventListener('mouseleave', () => {
+                        const plotInstance = container.__current_plot_instance;
+                        if (plotInstance && plotInstance.g) {
+                            // Si un autre capteur est sélectionné, on restaure SA surbrillance
+                            if (selectedSensor && selectedSensor !== sensor) {
+                                const selId = selectedSensor.replace(":", "_");
+                                plotInstance.g.selectAll('.line').style('opacity', 0.1);
+                                plotInstance.g.selectAll(`[class*="line-${selId}"]`).style('opacity', 1);
+                                showStats(selectedSensor, plotInstance.colorScale(selId), plotInstance);
+                            } else if (selectedSensor === sensor) {
+                                // On reste surbrillant si c'est celui sélectionné
+                                plotInstance.g.selectAll('.line').style('opacity', 0.1);
+                                plotInstance.g.selectAll(`[class*="line-${sensorId}"]`).style('opacity', 1);
+                                showStats(sensor, color, plotInstance);
+                            } else {
+                                // Restaurer tout
+                                plotInstance.g.selectAll('.line').style('opacity', 1);
+                                hideStats();
+                            }
+                        }
+                    });
+
+                    activeSensorsDiv.appendChild(btn);
+                });
+            }
+
+            // Gestionnaire dropdown d'ajout
+            sensorSelect.addEventListener('change', async (e) => {
+                const selectedSensor = e.target.value;
+                if (selectedSensor && !currentSensors.includes(selectedSensor)) {
+                    currentSensors.push(selectedSensor);
+                    const newSensorStr = updateUrl();
+                    const dataUrl = `/query/${station}/Raws/${newSensorStr}`;
+                    container.innerHTML = ''; // Clear pour le spinner ou re-draw
+                    await drawChart(dataUrl);
+                    renderSensorUI();
+                }
+            });
+
+            // Récupérer la liste complète des capteurs pour la station
+            async function loadAllSensors() {
+                try {
+                    // API query base pour récupérer metadata, sur une très courte durée ou pas de donnée
+                    // On peut appeler Raws avec * ou juste la racine pour l'instant
+                    // On utilise queryManager
+                    const metaUrl = `/query/${station}`;
+                    const res = await queryManager.query(metaUrl);
+                    if (res && res.metadata && res.metadata.sensor) {
+                        allStationSensors = res.metadata.sensor;
+                    }
+                } catch (err) {
+                    console.error("Erreur lors du chargement des capteurs:", err);
+                }
+            }
+
+
+            // URL de l'API initiale
+            const initialDataUrl = `/query/${station}/Raws/${sensorList}`;
             console.log(`Chargement Série Temporelle pour : Station=${station}, Sensors=${sensorList}`);
 
             // Fonction centrale pour (re)tracer le graphique
-            async function drawChart() {
+            async function drawChart(url = null) {
                 // Ajuster la largeur du conteneur à la fenêtre (le height reste géré par CSS/Plots.js)
                 container.style.width = window.innerWidth + 'px';
+
+                const targetUrl = url || initialDataUrl;
 
                 // Appel de mainPlots qui va vider le conteneur et recréer le SVG
                 // Plots.js définit par défaut height=300, ce qui corrige le problème de hauteur.
                 if (typeof mainPlots === 'function') {
-                    await mainPlots(container, dataUrl);
+                    await mainPlots(container, targetUrl);
+
+                    // S'assurer que le stats-panel est bien présent après le clear de mainPlots
+                    if (!document.getElementById('sensor-stats-panel')) {
+                        const newStatsPanel = document.createElement('div');
+                        newStatsPanel.id = 'sensor-stats-panel';
+                        container.appendChild(newStatsPanel);
+                    }
+
+                    // Mettre à jour l'UI après le chargement pour avoir les bonnes couleurs
+                    renderSensorUI();
                 } else {
                     container.innerHTML = `<div style="color:red; text-align:center; padding-top:20%;">
                         Erreur: mainPlots introuvable.
@@ -157,13 +518,17 @@
                 }
             }
 
-            // 2. Premier tracé
-            await drawChart();
+            // 2. Initialisation : Charger les capteurs et le graphe
+            loadAllSensors();
+            drawChart(initialDataUrl);
 
             // 3. Gestionnaire de redimensionnement (avec debounce pour éviter les appels multiples)
             window.addEventListener('resize', () => {
                 clearTimeout(resizeTimeout);
-                resizeTimeout = setTimeout(drawChart, 200);
+                resizeTimeout = setTimeout(() => {
+                    const currentUrl = `/query/${station}/Raws/${currentSensors.join(',')}`;
+                    drawChart(currentUrl);
+                }, 200);
             });
 
             // 4. Gestionnaire spécifique pour le changement de plein écran
@@ -171,7 +536,10 @@
             document.addEventListener('fullscreenchange', () => {
                 updateFsButton(!!document.fullscreenElement);
                 // Petit délai pour s'assurer que le navigateur a fini la transition
-                setTimeout(drawChart, 100);
+                setTimeout(() => {
+                    const currentUrl = `/query/${station}/Raws/${currentSensors.join(',')}`;
+                    drawChart(currentUrl);
+                }, 100);
             });
         });
     </script>
