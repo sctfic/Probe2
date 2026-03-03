@@ -79,6 +79,7 @@ class TimeSeriesPlot {
         this.isBrushing = false;
         this.legendVisible = true;
         this.originalData = [...data]; // Pour reset
+        this.onUpdate = null; // Callback après mise à jour (zoom/pan/etc)
 
         this.initializeScales();
     }
@@ -770,6 +771,11 @@ class TimeSeriesPlot {
                 }
             });
         });
+
+        // Callback externe si défini (ex: pour restaurer une sélection persistante)
+        if (typeof this.onUpdate === 'function' && !withTransition) {
+            this.onUpdate();
+        }
     }
 
     // Créer le tooltip interactif
@@ -964,7 +970,7 @@ class TimeSeriesPlot {
         this.updateGradients();
         this.updateAxes();
         this.createNowLine();
-        this.updateLines();
+        this.updateLines(false);
     }
 }
 

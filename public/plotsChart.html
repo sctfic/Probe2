@@ -148,7 +148,6 @@
         #sensor-stats-panel {
             position: relative;
             margin-top: -5px;
-            /* Pull it slightly up towards the chart */
             z-index: 10;
             padding: 4px 15px;
             font-size: 13px;
@@ -160,6 +159,31 @@
             text-shadow: 1px 1px 2px #000;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
+
+        .stats-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            pointer-events: auto;
+        }
+
+        .stats-column {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            line-height: 1.2;
+        }
+
+        .stats-value {
+            font-weight: bold;
+        }
+
+        .stats-label {
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-right: 4px;
+        }
     </style>
 </head>
 
@@ -169,10 +193,10 @@
     </div>
 
     <div id="plot-ui-container">
+        <div id="active-sensors"></div>
         <select id="sensor-select">
             <option value="" disabled selected>Add Sensor :</option>
         </select>
-        <div id="active-sensors"></div>
     </div>
     <button id="fs-btn"></button>
     <script>
@@ -236,10 +260,16 @@
 
             // Fonction pour mettre à jour l'URL sans recharger la page
             function updateUrl() {
-                const newSensorList = currentSensors.join(',');
+                // Mettre le capteur sélectionné en premier si présent
+                let orderedSensors = [...currentSensors];
+                if (selectedSensor && orderedSensors.includes(selectedSensor)) {
+                    orderedSensors = [selectedSensor, ...orderedSensors.filter(s => s !== selectedSensor)];
+                }
+
+                const newSensorList = orderedSensors.join(',');
                 const newUrl = `${window.location.pathname}?station=${station}&sensorList=${newSensorList}`;
                 window.history.replaceState({}, '', newUrl);
-                console.log('currentSensors', newSensorList);
+                console.log('currentSensors ordered', newSensorList);
 
                 // Synchronisation centralisée des métadonnées et de l'état du graphique
                 const plotInstance = container.__current_plot_instance;
@@ -261,6 +291,7 @@
 
             // Calculer et afficher les statistiques
             function showStats(sensor, color, plotInstance) {
+                console.log('showStats', sensor, color, plotInstance);
                 const currentStatsPanel = document.getElementById('sensor-stats-panel');
                 if (!currentStatsPanel || !plotInstance || !plotInstance.data) return;
 
@@ -271,14 +302,17 @@
 
                 if (values.length === 0) return;
 
-                const min = d3.min(values);
-                const max = d3.max(values);
-                const avg = d3.mean(values);
-                const median = d3.median(values);
-                const stdDev = d3.deviation(values) || 0;
-                const sum = d3.sum(values);
-                const p5 = d3.quantile(values, 0.05);
-                const p95 = d3.quantile(values, 0.95);
+                const min = d3.min(values); // Minimum
+                const max = d3.max(values); // Maximum
+                const avg = d3.mean(values); // Moyenne
+                const sum = d3.fsum(values); // Somme
+                const variance = d3.variance(values); // 2ème moment central, moyenne des carrés des écarts à la moyenne
+                const stdDev = d3.deviation(values) || 0; // Écart-type, racine carrée de la variance
+                const p5 = d3.quantile(values, 0.05); // 5ème percentile
+                const p20 = d3.quantile(values, 0.20); // 20ème percentile
+                const median = d3.median(values); // d3.quantile(values, 0.50); // 50ème percentile
+                const p80 = d3.quantile(values, 0.80); // 80ème percentile
+                const p95 = d3.quantile(values, 0.95); // 95ème percentile
 
                 // Trouver l'unité
                 let unit = '';
@@ -299,18 +333,32 @@
                 }
 
                 currentStatsPanel.innerHTML = `
-                    <span>
-                        Min: <b style="color: ${color};">${min}${unit}</b> &nbsp;-&nbsp; 
-                        Max: <b style="color: ${color};">${max}${unit}</b> &nbsp;-&nbsp; 
-                        Moyenne: <b style="color: ${color};">${avg.toFixed(2)}${unit}</b> &nbsp;-&nbsp;
-                        ${sensor.startsWith('rain:') ?
-                        `Somme: <b style="color: ${color};">${sum}${unit}</b> &nbsp;-&nbsp;` :
-                        `Mediane: <b style="color: ${color};">${median.toFixed(2)}${unit}</b> &nbsp;-&nbsp;
-                        σ: <b style="color: ${color};">${stdDev.toFixed(2)}${unit}</b> &nbsp;-&nbsp;
-                        [ P5: <b style="color: ${color};">${p5.toFixed(2)}</b> - P95: <b style="color: ${color};">${p95.toFixed(2)}</b> ] &nbsp;-&nbsp;`
-                    }
-                        Periode: <b style="color: ${color};">${durationStr}</b>
-                    </span>
+                    <div class="stats-container">
+                        <div class="stats-column">
+                            <span style="font-size: 1.5em;"><span style="font-size: 2em;">&larrb;</span> <b style="color: ${color};">${durationStr}</b> <span style="font-size: 2em;"> &rarrb;</span></span>
+                        </div>
+
+                        <div class="stats-column">
+                            <span title="Maximum"><span class="stats-label">Max.</span><b class="stats-value" style="color: ${color};">${max} ${unit}</b></span>
+                            <span title="Moyenne"><span class="stats-label">Moy.</span><b class="stats-value" style="color: ${color};">${avg.toFixed(2)} ${unit}</b></span>
+                            <span title="Minimum"><span class="stats-label">Min.</span><b class="stats-value" style="color: ${color};">${min} ${unit}</b></span>
+                        </div>` +
+                    (sensor.startsWith('rain:') ?
+                        `<div class="stats-column">
+                            <span title="Cumul"><span style='font-size:1.2em'>&sum;</span> <b class="stats-value" style="color: ${color};">${sum} ${unit}</b></span>
+                        </div>` :
+                        `<div class="stats-column">
+                            <span title="Écart-type, racine carrée de la variance"><span style='font-size:1.4em'>&sigma;</span> <span class="stats-label">(stdDev)</span><b class="stats-value" style="color: ${color};">${stdDev.toFixed(2)} ${unit}</b></span>
+                            <span title="Variance, moyenne des carrés des écarts à la moyenne (2ème moment central)"><span class="stats-label">Variance</span><b class="stats-value" style="color: ${color};">${variance.toFixed(2)} (${unit})²</b></span>
+                        </div>`) +
+                    `<div class="stats-column" style="font-size: 0.9em;">
+                            <span title="95ème percentile"><span class="stats-label">P.95</span><b class="stats-value" style="color: ${color};">${p95.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8679;</span></span>
+                            <span title="80ème percentile"><span class="stats-label">P.80</span><b class="stats-value" style="color: ${color};">${p80.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8673;</span></span>
+                            <span title="50ème percentile"><span class="stats-label">Méd.</span><b class="stats-value" style="color: ${color};">${median.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8596;</span></span>
+                            <span title="20ème percentile"><span class="stats-label">P.20</span><b class="stats-value" style="color: ${color};">${p20.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8675;</span></span>
+                            <span title="5ème percentile"><span class="stats-label">P.05</span><b class="stats-value" style="color: ${color};">${p5.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8681;</span></span>
+                        </div>
+                    </div>
                 `;
                 currentStatsPanel.style.display = 'block';
             }
@@ -374,15 +422,28 @@
                         } else {
                             selectedSensor = sensor;
                         }
+                        updateUrl(); // Mettre à jour l'ordre dans l'URL
                         renderSensorUI();
                         // Forcer la mise en évidence
                         if (plotInstance && plotInstance.g) {
-                            plotInstance.g.selectAll('.line').style('opacity', 0.1);
                             if (selectedSensor) {
-                                plotInstance.g.selectAll(`[class*="line-${selectedSensor.replace(":", "_")}"]`).style('opacity', 1);
+                                plotInstance.g.selectAll('.line')
+                                    .style("opacity", 1)
+                                    .transition()
+                                    .duration(750)
+                                    .style('opacity', 0.1);
+
+                                plotInstance.g.selectAll(`[class*="line-${selectedSensor.replace(":", "_")}"]`)
+                                    .transition()
+                                    .duration(750)
+                                    .style('opacity', 1);
+
                                 showStats(selectedSensor, color, plotInstance);
                             } else {
-                                plotInstance.g.selectAll('.line').style('opacity', 1);
+                                plotInstance.g.selectAll('.line')
+                                    .transition()
+                                    .duration(750)
+                                    .style('opacity', 1);
                                 hideStats();
                             }
                         }
@@ -412,6 +473,7 @@
                             container.innerHTML = `<div id="sensor-stats-panel"></div><div style="color:white; text-align:center; padding-top:20%;">Aucun capteur sélectionné.</div>`;
                         }
 
+                        hideStats();
                         renderSensorUI();
                     });
 
@@ -476,7 +538,7 @@
                     // On peut appeler Raws avec * ou juste la racine pour l'instant
                     // On utilise queryManager
                     const metaUrl = `/query/${station}`;
-                    const res = await queryManager.query(metaUrl);
+                    const res = await queryManager.query(metaUrl, { cacheDuration: 10 * 60 * 1000 });
                     if (res && res.metadata && res.metadata.sensor) {
                         allStationSensors = res.metadata.sensor;
                     }
@@ -501,6 +563,37 @@
                 // Plots.js définit par défaut height=300, ce qui corrige le problème de hauteur.
                 if (typeof mainPlots === 'function') {
                     await mainPlots(container, targetUrl);
+
+                    const plotInstance = container.__current_plot_instance;
+                    if (plotInstance) {
+                        const restoreSelection = () => {
+                            if (selectedSensor) {
+                                const sensorId = selectedSensor.replace(":", "_");
+                                const color = plotInstance.colorScale(sensorId);
+
+                                // Restaurer la surbrillance avec transition (un peu plus rapide pour le redraw)
+                                plotInstance.g.selectAll('.line')
+                                    .transition()
+                                    .duration(300)
+                                    .style('opacity', 0.1);
+
+                                plotInstance.g.selectAll(`[class*="line-${sensorId}"]`)
+                                    .transition()
+                                    .duration(300)
+                                    .style('opacity', 1);
+
+                                showStats(selectedSensor, color, plotInstance);
+                            }
+                        };
+
+                        plotInstance.onUpdate = restoreSelection;
+
+                        // Restaurer immédiatement si un capteur est déjà sélectionné
+                        if (selectedSensor) {
+                            // On attend un tout petit peu que les lignes initiales soient rendues
+                            setTimeout(restoreSelection, 50);
+                        }
+                    }
 
                     // S'assurer que le stats-panel est bien présent après le clear de mainPlots
                     if (!document.getElementById('sensor-stats-panel')) {
