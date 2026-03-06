@@ -51,7 +51,7 @@
         }
 
         #chart-container {
-            padding-top: 3px;
+            padding-top: 8px;
             padding-right: 0px;
         }
 
@@ -189,10 +189,11 @@
 
 <body>
     <div id="plot-ui-container">
-        <div id="active-sensors"></div>
-        <select id="sensor-select">
-            <option value="" disabled selected>Add Sensor :</option>
-        </select>
+        <div id="active-sensors">
+            <select id="sensor-select">
+                <option value="" disabled selected>Add Sensor :</option>
+            </select>
+        </div>
     </div>
     <div id="chart-container">
         <div id="sensor-stats-panel"></div>
@@ -391,7 +392,10 @@
                 });
 
                 // Remplir les boutons actifs
-                activeSensorsDiv.innerHTML = '';
+                // On conserve uniquement le sensor-select et on ajoute les boutons avant
+                const existingBtns = activeSensorsDiv.querySelectorAll('.active-sensor-btn');
+                existingBtns.forEach(btn => btn.remove());
+
                 currentSensors.forEach(sensor => {
                     const btn = document.createElement('div');
                     btn.className = 'active-sensor-btn';
@@ -513,7 +517,7 @@
                         }
                     });
 
-                    activeSensorsDiv.appendChild(btn);
+                    activeSensorsDiv.insertBefore(btn, sensorSelect);
                 });
             }
 
