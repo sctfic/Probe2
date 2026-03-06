@@ -51,7 +51,7 @@
         }
 
         #chart-container {
-            padding-top: 36px;
+            padding-top: 3px;
             padding-right: 0px;
         }
 
@@ -81,7 +81,7 @@
 
         /* Styles pour les contrôles UI (Add Sensor) */
         #plot-ui-container {
-            position: absolute;
+            /* position: absolute; */
             top: 5px;
             left: 5px;
             z-index: 10;
@@ -188,16 +188,16 @@
 </head>
 
 <body>
-    <div id="chart-container">
-        <div id="sensor-stats-panel"></div>
-    </div>
-
     <div id="plot-ui-container">
         <div id="active-sensors"></div>
         <select id="sensor-select">
             <option value="" disabled selected>Add Sensor :</option>
         </select>
     </div>
+    <div id="chart-container">
+        <div id="sensor-stats-panel"></div>
+    </div>
+
     <button id="fs-btn"></button>
     <script>
         // Icônes SVG pour le bouton Fullscreen
@@ -291,7 +291,6 @@
 
             // Calculer et afficher les statistiques
             function showStats(sensor, color, plotInstance) {
-                console.log('showStats', sensor, color, plotInstance);
                 const currentStatsPanel = document.getElementById('sensor-stats-panel');
                 if (!currentStatsPanel || !plotInstance || !plotInstance.data) return;
 
@@ -305,7 +304,7 @@
                 const min = d3.min(values); // Minimum
                 const max = d3.max(values); // Maximum
                 const avg = d3.mean(values); // Moyenne
-                const sum = d3.fsum(values); // Somme
+                const sum = d3.sum(values); // Somme
                 const variance = d3.variance(values); // 2ème moment central, moyenne des carrés des écarts à la moyenne
                 const stdDev = d3.deviation(values) || 0; // Écart-type, racine carrée de la variance
                 const p5 = d3.quantile(values, 0.05); // 5ème percentile
@@ -345,7 +344,7 @@
                         </div>` +
                     (sensor.startsWith('rain:') ?
                         `<div class="stats-column">
-                            <span title="Cumul"><span style='font-size:1.2em'>&sum;</span> <b class="stats-value" style="color: ${color};">${sum} ${unit}</b></span>
+                            <span title="Cumul"><span style='font-size:1.2em'>&sum;</span> <b class="stats-value" style="color: ${color};">${sum.toFixed(1)} ${unit}</b></span>
                         </div>` :
                         `<div class="stats-column">
                             <span title="Écart-type, racine carrée de la variance"><span style='font-size:1.4em'>&sigma;</span> <span class="stats-label">(stdDev)</span><b class="stats-value" style="color: ${color};">${stdDev.toFixed(2)} ${unit}</b></span>

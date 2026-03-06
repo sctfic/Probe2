@@ -1,78 +1,74 @@
 # Probe
 
-## Description
+## Overview
 
-Probe est une application conçue pour collecter, stocker et afficher des données météorologiques provenant de multiples sources. Elle agrège les informations d'une station météo locale VP2 ainsi que des données de prévisions et historiques via l'API [Open-Meteo](https://open-meteo.com/).
+Probe is a professional-grade weather data collection and visualization application **compatible with VP2 stations only**. It is designed to operate **offline on a local network (LAN)**, ensuring total privacy and independence from external services like `www.wunderground.com`.
 
-Le projet permet de suivre une grande variété de mesures telles que la température, l'humidité, la vitesse et la direction du vent, les précipitations, l'indice UV, et bien plus encore.
+## Key Features
 
-## Fonctionnalités
+### 📡 Data Collection
+- **VP2 Integration**: Direct communication with Davis Vantage Pro 2 stations.
+- **Offline First**: All data is stored locally in an InfluxDB database.
+- **High Resolution**: Archive intervals are synchronized with the hardware settings (1 to 60 minutes).
 
-*   **Multi-source** : Collecte des données depuis une station météo personnelle ("Station") et l'API Open-Meteo.
-*   **Données Complètes** : Prend en charge un large éventail de capteurs :
-    *   Température (intérieure, extérieure, sol, feuille)
-    *   Humidité (intérieure, extérieure, sol, feuille)
-    *   Données sur le vent (vitesse, direction, rafales)
-    *   Pression atmosphérique
-    *   Précipitations et évapotranspiration
-    *   Données solaires (Irradiance, Index UV)
-*   **Configuration Flexible** : La gestion des capteurs et de leur configuration est centralisée dans le fichier `config/dbProbes.json`.
+### 📈 Advanced Visualization
+- **Dynamic 2D/3D Charts**: High-performance interactive visualizations (Time Series, 3D Spirals).
+- **Shareable URLs**: Open any chart in a new tab; the URL contains the full context for easy sharing.
+- **Custom Dashboards**: Aggregate data from multiple sensors.
 
-## Configuration
+### 🧪 Advanced Probes
+- **Composite Probes**: Create new parameters (e.g., THSW, Dew Point) using mathematical functions applied to real sensors.
+- **Integrator Probes**: Analyze trends by integrating data over specific time windows.
 
-La configuration des capteurs se trouve dans le fichier `config/dbProbes.json`. Ce fichier JSON définit chaque sonde de données disponible dans l'application.
+### 🌍 Historical & Forecasts
+- **Backfill to 1940**: Import historical weather data from Open-Meteo archives.
+- **Short-term Forecasts**: Enable 2-7 day forecasts tailored to your station's coordinates.
 
-### Structure d'un objet Sonde
+---
 
-Chaque entrée dans le fichier de configuration représente un capteur et suit la structure suivante :
+## 🛠 Operation & Cron Jobs
 
-```json
-"identifiant:unique": {
-    "label": "Nom lisible du capteur",
-    "comment": "Courte description du capteur.",
-    "currentMap": "Clé de mapping pour les données actuelles",
-    "period": 2592000,
-    "groupUsage": "db",
-    "groupCustom": "Groupe du capteur (ex: Station, open-meteo)",
-    "sensorDb": "Identifiant du capteur dans la base de données",
-    "measurement": "Type de mesure (ex: temperature, humidity)"
-}
-```
+The application relies on scheduled tasks (Crons) to maintain up-to-date data. These tasks are configured in each `config/stations/*.json` file.
 
-### Exemples
+### 1. Station Collect (Every X minutes)
+The primary loop that pulls new archive records from the VP2.
+- **Trigger**: Depends on the `collect.value` setting (e.g., every 5 minutes).
+- **Action**: Connects to the station, downloads new records, and writes them to InfluxDB.
 
-**Capteur de la station locale :**
-```json
-"temperature:outTemp": {
-    "label": "Température Extérieure",
-    "comment": "Température extérieure",
-    "currentMap": "outTemp",
-    "period": 2592000,
-    "groupUsage": "db",
-    "groupCustom": " Station",
-    "sensorDb": "temperature:outTemp",
-    "measurement": "temperature"
-}
-```
+### 2. Extender Collect
+Pulls data from secondary sensors (e.g., WhisperEye, Venti'Connect).
+- **Trigger**: Runs concurrently with the main collection loop.
 
-**Capteur Open-Meteo :**
-```json
-"temperature:open-meteo_outTemp": {
-    "label": "Température Extérieure (Open-Meteo)",
-    "comment": "Température extérieure (Open-Meteo)",
-    "currentMap": "outTemp",
-    "period": 2592000,
-    "groupUsage": "db",
-    "groupCustom": "open-meteo",
-    "sensorDb": "temperature:open-meteo_outTemp",
-    "measurement": "temperature"
-}
-```
+### 3. Historical Backfill (Daily)
+Automated synchronization with historical archives.
+- **Trigger**: Every day at **23:50:02** (Europe/Paris).
+- **Action**: Fills any gaps in the local database using Open-Meteo as a fallback.
 
-## Installation
+### 4. Forecast Sync (Hourly)
+- **Trigger**: Every hour at **minute 1 and 02 seconds**.
+- **Action**: Updates the forecast database and removes outdated predictions.
 
-*(Veuillez ajouter ici les étapes pour installer et lancer votre projet.)*
+---
 
-## Utilisation
+## 📂 Project Structure
 
-*(Veuillez décrire ici comment utiliser votre application.)*
+- `docs/`: Technical documentation.
+  - [configuration.md](./docs/configuration.md): Guide to all config files and station parameters.
+  - [api.md](./docs/api.md): Detailed API reference and data handling logic.
+- `config/`: JSON configuration files for stations, probes, and database.
+- `public/`: Frontend assets and dynamic plotting logic.
+- `services/`: Core logic for networking, crons, and data transformation.
+
+---
+
+## 🚀 Getting Started
+
+### Installation
+1. Clone the repository.
+2. Install dependencies: `npm install`.
+3. Configure your InfluxDB connection in `config/influx.json`.
+4. Add your station in `config/stations/YourStation.json`.
+
+### Running the App
+- Start the server: `npm start`.
+- Access the dashboard at `http://localhost:3000`.
