@@ -919,7 +919,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
                 for (const [openMeteoKey, values] of Object.entries(metrics)) {
                     const value = values[i];
                     if (value !== null && mapping[openMeteoKey]) {
-                        console.log(V.Parabol, openMeteoKey, value);
+                        // console.log(V.Parabol, openMeteoKey, value);
                         const { type, sensor, convert } = mapping[openMeteoKey];
                         const metricValue = convert ? convert(value) : value;
                         sensor.forEach(s => {
@@ -927,7 +927,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
                                 .tag('station_id', stationId)
                                 .tag('sensor', s)
                                 .tag('source', 'forecast')
-                                .floatField('value', metricValue.toFixed(2))
+                                .floatField('value', parseFloat(metricValue.toFixed(2)))
                                 .timestamp(timestamp));
                         });
                     }
@@ -963,18 +963,18 @@ exports.getOpenMeteoForecast = async (req, res) => {
 
         let writtenCount = 0;
         if (pointsChunk.length > 0) {
-            writtenCount = await influxdbService.writePoints(pointsChunk);
-            console.log(V.database, `Écriture de ${writtenCount} points de prévisions dans InfluxDB...`, V.Check);
+            writtenCount = await influxdbService.writePoints(pointsChunk, 'shortRetension');
+            console.log(V.database, `Écriture de ${writtenCount} points de prévisions dans InfluxDB (shortRetension)...`, V.Check);
         }
 
         // Suppression des points de prévisions obsolètes (ceux qui sont déjà passés)
-        const now = new Date();
-        const deleted = await influxdbService.deleteForecasts(stationId);
-        console.log(V.trash, ` Suppression de ${deleted.count} points de prévisions obsolètes pour ${stationId}.`, deleted, V.Check);
+        // const now = new Date();
+        // const deleted = await influxdbService.deleteForecasts(stationId);
+        // console.log(V.trash, ` Suppression de ${deleted.count} points de prévisions obsolètes pour ${stationId}.`, deleted, V.Check);
 
         if (stationConfig.forecast) {
             stationConfig.forecast.lastRun = new Date().toISOString();
-            stationConfig.forecast.msg = `${writtenCount} points imported, ${deleted.count} deleted.`;
+            stationConfig.forecast.msg = `${writtenCount} points imported`;
             configManager.autoSaveConfig(stationConfig);
         }
 
@@ -983,7 +983,6 @@ exports.getOpenMeteoForecast = async (req, res) => {
             stationId: stationId,
             message: `${writtenCount} points de données de prévisions ont été importés avec succès pour la station ${stationId}, jusqu'au [${timestamp.toISOString().slice(0, 16).replace('T', ' ')}]`,
             pointsWritten: writtenCount,
-            pointsDeleted: deleted,
         });
 
     } catch (error) {

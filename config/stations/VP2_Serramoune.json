@@ -74,17 +74,17 @@
     },
     "forecast": {
         "enabled": false,
-        "model": "meteofrance_arome_france",
+        "model": "best_match",
         "comment": "recupere les previsions pour les capteurs standard (toute les heures)",
-        "lastRun": "2026-03-07T08:01:08.409Z",
-        "msg": "1112 points imported, 14 deleted."
+        "lastRun": "2026-03-07T20:06:15.006Z",
+        "msg": "4112 points imported"
     },
     "historical": {
         "enabled": false,
-        "since": 2016,
+        "since": 1969,
         "comment": "recupere les previsions pour les capteurs standard (toute les jours a 23h30)",
-        "lastRun": "2026-02-13T22:50:02.931Z",
-        "msg": "672 points imported successfully."
+        "lastRun": "2026-03-07T20:07:10.336Z",
+        "msg": "1008 points imported successfully."
     },
     "deltaTimeSeconds": 1.48,
     "extenders": {

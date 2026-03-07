@@ -170,19 +170,55 @@ async function handleVerifyUpdate(event) {
 
 function displayInfluxForm(settings) {
     const container = document.getElementById('preferences-container');
-    const influxFormHTML = `
+
+    // On s'assure d'avoir au moins 'eternal' comme référence
+    const eternalConfig = settings.eternal || {};
+
+    let influxFormHTML = `
         <div class="settings-group">
             <h3>Configuration InfluxDB</h3>
+            <div class="influx-tabs-header" style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">
+                <button type="button" class="tab-btn active" data-tab="eternal" style="padding: 8px 15px; cursor: pointer; border-radius: 4px 4px 0 0; border: 1px solid #ddd; background: var(--header-bg);">Eternal</button>
+                <button type="button" class="tab-btn" data-tab="longRetention" style="padding: 8px 15px; cursor: pointer; border-radius: 4px 4px 0 0; border: 1px solid #ddd; background: var(--header-bg);">Long Retention</button>
+                <button type="button" class="tab-btn" data-tab="shortRetension" style="padding: 8px 15px; cursor: pointer; border-radius: 4px 4px 0 0; border: 1px solid #ddd; background: var(--header-bg);">Short Retention</button>
+            </div>
             <form id="influx-settings-form" class="settings-form">
-            <div class="settings-row">
-            ${generateInfluxField('url', 'URL du serveur InfluxDB', settings.url, 'url')}
-                ${generateInfluxField('org', 'Organisation InfluxDB', settings.org, 'text')}
-                ${generateInfluxField('bucket', 'Bucket de données', settings.bucket, 'text')}
+    `;
+
+    const bucketKeys = ['eternal', 'longRetention', 'shortRetension'];
+
+    bucketKeys.forEach((bucketKey, index) => {
+        const bucketConfig = settings[bucketKey] || {};
+        const isActive = index === 0;
+
+        // Fallback sur 'eternal' pour url, org, token si vide (sauf pour eternal lui-même)
+        const displayUrl = (bucketKey !== 'eternal' && !bucketConfig.url) ? eternalConfig.url : bucketConfig.url;
+        const displayOrg = (bucketKey !== 'eternal' && !bucketConfig.org) ? eternalConfig.org : bucketConfig.org;
+        const displayToken = (bucketKey !== 'eternal' && !bucketConfig.token) ? eternalConfig.token : bucketConfig.token;
+        const displayBucket = bucketConfig.bucket || '';
+
+        let bucketLabel = bucketKey === 'eternal' ? 'Données de Station (Eternal)' :
+            bucketKey === 'longRetention' ? 'Données Intégrateurs (1 An)' :
+                bucketKey === 'shortRetension' ? 'Prévisions (Court Terme)' : bucketKey.toUpperCase();
+
+        influxFormHTML += `
+            <div id="tab-${bucketKey}" class="tab-content" style="display: ${isActive ? 'block' : 'none'}; padding: 15px; border-radius: 8px; background: rgba(255,255,255,0.05);">
+                <h4 style="margin-top: 0; color: var(--accent-blue);">${bucketLabel}</h4>
+                <p style="font-size: 0.8em; margin-bottom: 15px; opacity: 0.8;">${bucketConfig.comment || ''}</p>
+                <div class="settings-row">
+                    ${generateInfluxField(bucketKey, 'url', 'URL du serveur', displayUrl, 'url')}
+                    ${generateInfluxField(bucketKey, 'org', 'Organisation', displayOrg, 'text')}
+                    ${generateInfluxField(bucketKey, 'bucket', 'Bucket', displayBucket, 'text')}
+                </div>
+                <div class="settings-row" style="margin-top: 10px;">
+                    ${generateInfluxField(bucketKey, 'token', 'Token d\'authentification', displayToken, 'text')}
+                </div>
             </div>
-            <div class="settings-row">
-                ${generateInfluxField('token', 'Token d\'authentification', settings.token, 'text')}
-            </div>
-                <div class="settings-actions">
+        `;
+    });
+
+    influxFormHTML += `
+                <div class="settings-actions" style="margin-top: 20px;">
                     <button type="submit">
                         <img src="svg/access-control.svg" title="authentification requise!" class="access-control-icon">Enregistrer la configuration InfluxDB
                     </button>
@@ -190,15 +226,54 @@ function displayInfluxForm(settings) {
             </form>
         </div>
     `;
+
     container.insertAdjacentHTML('beforeend', influxFormHTML);
-    document.getElementById('influx-settings-form').addEventListener('submit', handleInfluxFormSubmit);
+
+    // Gérer le changement d'onglet
+    const tabButtons = container.querySelectorAll('.tab-btn');
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetTab = btn.getAttribute('data-tab');
+
+            // Masquer tous les contenus
+            container.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = 'none';
+            });
+
+            // Supprimer la classe active de tous les boutons
+            tabButtons.forEach(b => {
+                b.classList.remove('active');
+                b.style.background = 'var(--header-bg)';
+                b.style.borderBottom = '1px solid #ddd';
+            });
+
+            // Afficher le contenu cible
+            const content = container.querySelector(`#tab-${targetTab}`);
+            if (content) content.style.display = 'block';
+
+            // Activer le bouton cliqué
+            btn.classList.add('active');
+            btn.style.background = 'rgba(255,255,255,0.1)';
+            btn.style.borderBottom = 'none';
+        });
+    });
+
+    const form = document.getElementById('influx-settings-form');
+    form.addEventListener('submit', handleInfluxFormSubmit);
+
+    // Style initial pour le bouton actif
+    const activeBtn = container.querySelector('.tab-btn.active');
+    if (activeBtn) {
+        activeBtn.style.background = 'rgba(255,255,255,0.1)';
+        activeBtn.style.borderBottom = 'none';
+    }
 }
 
-function generateInfluxField(key, label, value, type) {
+function generateInfluxField(bucketKey, field, label, value, type) {
     return `
         <div class="settings-field condition-tile">
-            <label for="influx-${key}">${label}</label>
-            <input type="${type}" id="influx-${key}" name="${key}" value="${value || ''}" ${type === 'password' ? 'placeholder="Laisser vide pour ne pas changer"' : ''}>
+            <label for="influx-${bucketKey}-${field}">${label}</label>
+            <input type="${type}" id="influx-${bucketKey}-${field}" name="${bucketKey}.${field}" value="${value || ''}">
         </div>
     `;
 }
@@ -390,9 +465,31 @@ async function handleInfluxFormSubmit(event) {
     try {
         const formData = new FormData(event.target);
         const settings = {};
-        for (const [key, value] of formData.entries()) {
-            settings[key] = value;
-        }
+
+        const rawEntries = Array.from(formData.entries());
+
+        // On récupère d'abord Eternal car il sert de référence
+        const eternalEntries = rawEntries.filter(([key]) => key.startsWith('eternal.'));
+        settings.eternal = {};
+        eternalEntries.forEach(([key, value]) => {
+            const field = key.split('.')[1];
+            settings.eternal[field] = value;
+        });
+
+        // Puis les autres buckets
+        rawEntries.forEach(([key, value]) => {
+            if (key.startsWith('eternal.')) return;
+
+            const [bucketKey, field] = key.split('.');
+            if (!settings[bucketKey]) settings[bucketKey] = {};
+
+            // Si le champ est vide, on prend celui d'eternal (sauf pour le nom du bucket lui-même)
+            if (!value && field !== 'bucket' && settings.eternal[field]) {
+                settings[bucketKey][field] = settings.eternal[field];
+            } else {
+                settings[bucketKey][field] = value;
+            }
+        });
 
         const response = await fetch('/api/influxdb', {
             method: 'PUT',

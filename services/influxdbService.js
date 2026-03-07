@@ -7,45 +7,84 @@ const { V } = require('../utils/icons');
 const { get } = require('http');
 
 const configPath = path.join(__dirname, '..', 'config', 'influx.json');
-let influxConfig;
-
-let influxDB;
-let writeApi;
-let queryApi;
-let deleteApi;
-let org;
-let bucket;
+let influxConfigs = {}; // Stocke les configurations pour chaque bucket
+let influxInstances = {}; // Stocke les instances (client, writeApi, queryApi, etc.) pour chaque bucket
 
 /**
- * Initialise ou réinitialise les clients InfluxDB avec une configuration donnée.
+ * Initialise les clients InfluxDB pour un bucket donné.
+ * @param {string} key - La clé du bucket ('eternal', 'longRetention', 'shortRetension').
  * @param {object} config - L'objet de configuration { url, token, org, bucket }.
  */
-function initialize(config) {
-    const { url, token } = config;
-    org = config.org;
-    bucket = config.bucket;
+function initializeBucket(key, config) {
+    if (!config || !config.url || !config.token) {
+        console.warn(`${V.warning} Configuration InfluxDB manquante ou incomplète pour le bucket '${key}'.`);
+        return;
+    }
 
-    influxDB = new InfluxDB({ url, token, timeout: 12000 });
-    writeApi = influxDB.getWriteApi(org, bucket);
-    queryApi = influxDB.getQueryApi(org);
-    deleteApi = new DeleteAPI(influxDB);
-
-    console.log(`${V.database} Service InfluxDB initialisé/réinitialisé pour l'organisation '${org}' et le bucket '${bucket}'.`);
+    try {
+        const client = new InfluxDB({ url: config.url, token: config.token, timeout: 12000 });
+        influxInstances[key] = {
+            client,
+            writeApi: client.getWriteApi(config.org, config.bucket),
+            queryApi: client.getQueryApi(config.org),
+            deleteApi: new DeleteAPI(client),
+            org: config.org,
+            bucket: config.bucket
+        };
+        console.log(`${V.database} Service InfluxDB initialisé pour le bucket '${key}' (${config.bucket}).`);
+    } catch (error) {
+        console.error(`${V.error} Erreur lors de l'initialisation du bucket InfluxDB '${key}':`, error);
+    }
 }
 
 /**
- * Charge la configuration depuis le fichier et initialise les clients.
+ * Charge la configuration depuis le fichier et initialise tous les buckets.
  */
 function loadAndInitialize() {
     try {
-        influxConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (fs.existsSync(configPath)) {
+            influxConfigs = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        } else {
+            console.warn(`${V.warning} Fichier de configuration InfluxDB non trouvé à ${configPath}.`);
+            influxConfigs = {};
+        }
     } catch (error) {
         console.error(`${V.error} Erreur lors du chargement de la configuration InfluxDB:`, error);
-        influxConfig = { url: '', token: '', org: '', bucket: '' };
+        influxConfigs = {};
     }
-    initialize(influxConfig);
+
+    // Initialiser chaque bucket défini dans la config
+    const buckets = ['eternal', 'longRetention', 'shortRetension'];
+    buckets.forEach(key => {
+        initializeBucket(key, influxConfigs[key]);
+    });
 }
+
 loadAndInitialize(); // Initialisation au démarrage
+
+/**
+ * Retourne la configuration complète d'InfluxDB.
+ */
+function getSettings() {
+    return influxConfigs;
+}
+
+/**
+ * Met à jour la configuration InfluxDB, la sauvegarde et réinitialise les services.
+ * @param {object} newConfigs - La nouvelle configuration complète.
+ */
+function updateSettings(newConfigs) {
+    console.log(`${V.write} Mise à jour de la configuration InfluxDB.`);
+    influxConfigs = newConfigs;
+    try {
+        fs.writeFileSync(configPath, JSON.stringify(influxConfigs, null, 4), 'utf8');
+        loadAndInitialize();
+        return true;
+    } catch (error) {
+        console.error(`${V.error} Erreur lors de la sauvegarde de la configuration InfluxDB:`, error);
+        return false;
+    }
+}
 
 /**
  * Teste la connexion à une instance InfluxDB avec une configuration donnée.
@@ -74,107 +113,114 @@ async function testInfluxConnection(config) {
 
 /**
  * Réinitialise le service InfluxDB avec une nouvelle configuration.
+ * @deprecated Utilisez updateSettings à la place.
  * @param {object} newConfig - La nouvelle configuration à utiliser.
  */
 function reinitializeInfluxDB(newConfig) {
-    console.log(`${V.gear} Réinitialisation du service InfluxDB avec la nouvelle configuration.`);
-    influxConfig = newConfig;
-    initialize(influxConfig);
+    console.warn(`${V.warning} reinitializeInfluxDB est déprécié. Utilisez updateSettings.`);
+    updateSettings(newConfig);
 }
 
 
-/**
- * Supprime les données de prévisions (tag source="forecast") d'une station antérieures à une date donnée.
- * @param {string} stationId - L'ID de la station.
- * @param {string} untilDateISO - Date limite (exclusive) pour la suppression (ISO string).
- * @returns {Promise<object|null>} Retourne un objet avec le nombre de points supprimés et la plage de dates, ou null si rien n'a été supprimé.
- */
-async function deleteForecasts(stationId) {
-    const sixMonthsAgo = new Date();
-    // sixMonthsAgo - 180 days;
-    sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180);
-    const start = sixMonthsAgo.toISOString();
-    const stop = new Date().toISOString(); // Jusqu'à maintenant (exclusive)
+// /**
+//  * Supprime les données de prévisions (tag source="forecast") d'une station antérieures à une date donnée.
+//  * @param {string} stationId - L'ID de la station.
+//  * @param {string} untilDateISO - Date limite (exclusive) pour la suppression (ISO string).
+//  * @returns {Promise<object|null>} Retourne un objet avec le nombre de points supprimés et la plage de dates, ou null si rien n'a été supprimé.
+//  */
+// async function deleteForecasts(stationId) {
+//     const instance = influxInstances['shortRetension'] || influxInstances['eternal'];
+//     if (!instance) return { count: 0, error: 'InfluxDB instance not initialized' };
 
-    // Le prédicat Flux pour le comptage
-    const fluxPredicate = `r["station_id"]=="${stationId}" and r["source"]=="forecast"`;
-    // Le prédicat pour l'API de suppression (syntaxe simplifiée)
-    const deletePredicate = `station_id="${stationId}" AND source="forecast"`;
+//     const { bucket, deleteApi, org } = instance;
+//     const sixMonthsAgo = new Date();
+//     sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180);
+//     const start = sixMonthsAgo.toISOString();
+//     const stop = new Date().toISOString();
 
-    try {
-        // 1. Compter les points à supprimer
-        const countQuery = `
-            from(bucket: "${bucket}")
-                |> range(start: ${start}, stop: ${stop})
-                |> filter(fn: (r) => ${fluxPredicate})
-                |> group()
-                |> count()
-        `;
-        const countResult = await executeQuery(countQuery);
-        const count = countResult.length > 0 ? countResult[0]._value : 0;
+//     const fluxPredicate = `r["station_id"]=="${stationId}" and r["source"]=="forecast"`;
+//     const deletePredicate = `station_id="${stationId}" AND source="forecast"`;
 
-        if (count === 0) {
-            console.log(`${V.info} Aucune prévision à supprimer pour ${stationId}.`);
-            return { count: 0, range: { start, stop } };
-        }
+//     try {
+//         const countQuery = `
+//             from(bucket: "${instance.bucket}")
+//                 |> range(start: ${start}, stop: ${stop})
+//                 |> filter(fn: (r) => ${fluxPredicate})
+//                 |> group()
+//                 |> count()
+//         `;
+//         const countResult = await executeQuery(countQuery, 'shortRetension');
+//         const count = countResult.length > 0 ? countResult[0]._value : 0;
 
-        console.log(`${V.trash}  ${count} points de prévisions à supprimer pour ${stationId} entre ${start} et ${stop}.`);
-        console.log(`Prédicat de suppression: ${deletePredicate}`);
-        const deleteObject = {
-            org,
-            bucket,
-            body: {
-                start: new Date(start),
-                stop: new Date(stop),
-                predicate: deletePredicate
-            },
-        };
-        console.log(deleteObject);
-        // 2. Supprimer les données avec un format RFC3339 strict
-        await deleteApi.postDelete(deleteObject);
+//         if (count === 0) {
+//             console.log(`${V.info} Aucune prévision à supprimer pour ${stationId}.`);
+//             return { count: 0, range: { start, stop } };
+//         }
 
-        console.log(`${V.Check} Suppression des prévisions pour ${stationId} réussie.`);
+//         console.log(`${V.trash}  ${count} points de prévisions à supprimer pour ${stationId} entre ${start} et ${stop}.`);
+//         console.log(`Prédicat de suppression: ${deletePredicate}`);
+//         const deleteObject = {
+//             org,
+//             bucket: instance.bucket,
+//             body: {
+//                 start: new Date(start),
+//                 stop: new Date(stop),
+//                 predicate: deletePredicate
+//             },
+//         };
+//         console.log(deleteObject);
+//         // 2. Supprimer les données avec un format RFC3339 strict
+//         await deleteApi.postDelete(deleteObject);
 
-        // 3. Retourner le résultat
-        return {
-            count: count,
-            range: { start, stop },
-        };
-    } catch (error) {
-        // Si l'erreur indique "no series found", on l'ignore et on retourne null.
-        if (error.message && error.message.includes('no series found')) {
-            console.log(`${V.info} Aucune série de prévisions trouvée à supprimer pour ${stationId}.`);
-            return {
-                count: 0,
-                message: 'restart infludb : sudo /etc/init.d/influxdb restart',
-                range: { start, stop },
-            };
-        }
-        // Pour les autres erreurs, on les logue mais on ne bloque pas l'exécution.
-        console.error(`${V.error} Erreur inattendue lors de la suppression des prévisions pour ${stationId}:`, error.message);
-        return {
-            count: false,
-            error: error.message,
-            range: { start, stop },
-        };
-    }
-}
+//         console.log(`${V.Check} Suppression des prévisions pour ${stationId} réussie.`);
+
+//         // 3. Retourner le résultat
+//         return {
+//             count: count,
+//             range: { start, stop },
+//         };
+//     } catch (error) {
+//         // Si l'erreur indique "no series found", on l'ignore et on retourne null.
+//         if (error.message && error.message.includes('no series found')) {
+//             console.log(`${V.info} Aucune série de prévisions trouvée à supprimer pour ${stationId}.`);
+//             return {
+//                 count: 0,
+//                 message: 'restart infludb : sudo /etc/init.d/influxdb restart',
+//                 range: { start, stop },
+//             };
+//         }
+//         // Pour les autres erreurs, on les logue mais on ne bloque pas l'exécution.
+//         console.error(`${V.error} Erreur inattendue lors de la suppression des prévisions pour ${stationId}:`, error.message);
+//         return {
+//             count: false,
+//             error: error.message,
+//             range: { start, stop },
+//         };
+//     }
+// }
 
 /**
  * Écrit un ensemble de points de données dans InfluxDB.
  * @param {Array<Point>} points - Un tableau d'objets Point à écrire.
  * @returns {Promise<boolean>} Retourne `true` si l'écriture a réussi, sinon `false`.
  */
-async function writePoints(points) {
+async function writePoints(points, bucketKey = 'eternal') {
     if (!points || points.length === 0) {
         return true;
     }
+    const instance = influxInstances[bucketKey] || influxInstances['eternal'];
+    if (!instance) {
+        console.error(`${V.error} Instance InfluxDB non trouvée pour le bucket '${bucketKey}'`);
+        return false;
+    }
     try {
-        writeApi.writePoints(points);
-        await writeApi.flush();
+        console.log(`${V.write} Écriture de ${points.length} points de données dans InfluxDB (${bucketKey})...`);
+        instance.writeApi.writePoints(points);
+        await instance.writeApi.flush();
+        console.log(`${V.Check} Écriture de ${points.length} points de données dans InfluxDB (${bucketKey}) réussie.`);
         return points.length;
     } catch (error) {
-        console.error(`${V.error} Erreur lors de l'écriture dans InfluxDB:`, error);
+        console.error(`${V.error} Erreur lors de l'écriture dans InfluxDB (${bucketKey}):`, error);
         return false;
     }
 }
@@ -184,36 +230,41 @@ async function writePoints(points) {
  * @param {string} fluxQuery - La requête Flux à exécuter.
  * @returns {Promise<Array>} Un tableau des résultats de la requête.
  */
-async function executeQuery(fluxQuery) {
-    // console.log(`${V.info} Exécution de la requête Flux...`);
-    console.log(`${V.info} Exécution de la requête Flux:\n${fluxQuery}`);
+async function executeQuery(fluxQuery, bucketKey = 'eternal') {
+    const instance = influxInstances[bucketKey] || influxInstances['eternal'];
+    if (!instance) {
+        throw new Error(`Instance InfluxDB non initialisée pour le bucket '${bucketKey}'`);
+    }
+    console.log(`${V.info} Exécution de la requête Flux (${bucketKey}):\n${fluxQuery}`);
     return new Promise((resolve, reject) => {
         const results = [];
-        queryApi.queryRows(fluxQuery, {
+        instance.queryApi.queryRows(fluxQuery, {
             next(row, tableMeta) {
                 results.push(tableMeta.toObject(row));
             },
             error(error) {
                 console.error(`${V.error} Erreur lors de l'exécution de la requête Flux:`, error);
-                error.body.message = 'Influxdb ' + error.body.message
-                console.log(`${V.error} Requête Flux:\n`, error);
+                if (error.body && error.body.message) {
+                    error.body.message = 'Influxdb ' + error.body.message;
+                }
                 reject(error);
             },
             complete() {
-                // console.log(`${V.Check} Requête Flux terminée avec succès.`);
                 resolve(results);
             },
         });
     });
 }
 
-async function getInfluxMetadata(stationId = null, knownTags = ['sensor', 'station_id'], daysBack = 100) {
+async function getInfluxMetadata(stationId = null, knownTags = ['sensor', 'station_id'], daysBack = 100, bucketKey = 'eternal') {
+    const instance = influxInstances[bucketKey] || influxInstances['eternal'];
+    if (!instance) return null;
+
     try {
-        // REQUÊTE UNIQUE avec les tags connus - LIMITÉ aux derniers jours
         const keepColumns = ['_measurement', '_field', ...knownTags].map(c => `"${c}"`).join(', ');
 
         const query = `
-            from(bucket: "${bucket}")
+            from(bucket: "${instance.bucket}")
                 |> range(start: -${daysBack}d)
                 ${stationId ? `|> filter(fn: (r) => r.station_id == "${stationId}")` : ''}
                 |> keep(columns: [${keepColumns}])
@@ -221,8 +272,7 @@ async function getInfluxMetadata(stationId = null, knownTags = ['sensor', 'stati
                 |> group()
             `;
 
-        // utilise executeQuery pour exécuter la requête
-        const allRows = await executeQuery(query);
+        const allRows = await executeQuery(query, bucketKey);
 
         // Construction de la structure
         const bucketStructure = {};
@@ -292,13 +342,16 @@ function getFilter(sensorRef) {
  * @param {string} endDate - Date de fin (optionnelle).
  * @returns {Promise<Object>} Un objet contenant la plage de dates.
  */
-async function queryDateRange(stationId, sensorRef, startDate, endDate, archivesOnly = false) {
+async function queryDateRange(stationId, sensorRef, startDate, endDate, archivesOnly = false, bucketKey = 'eternal') {
+    const instance = influxInstances[bucketKey] || influxInstances['eternal'];
+    console.log(instance);
+    if (!instance) return { firstUtc: null, lastUtc: null };
+
     let filter = '';
-    // si sensorRef endsWith '_calc', on ne peut pas utiliser ce capteur pour determiner la plage de temps
     console.log(stationId, sensorRef);
     if (sensorRef) {
         if (sensorRef.endsWith('_calc') || sensorRef.endsWith('_trend')) {
-            sensorRef = 'pressure:barometer'; // capteur par defaut pour le calcul de la plage de temps
+            sensorRef = 'pressure:barometer';
         }
         filter = getFilter(sensorRef);
     }
@@ -310,7 +363,7 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, archives
     const query = `
       import "array"
         // Premier timestamp, min '1940-01-01T00:00:00.00Z' = -946771200
-        first = from(bucket: "${bucket}")
+        first = from(bucket: "${instance.bucket}")
             |> range(start: ${startDate ? startDate : -946771200}${endDate ? `, stop: ${endDate}` : `, stop: ${(new Date(endStop)).toISOString()}`}) 
             |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
             ${scope}
@@ -318,7 +371,7 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, archives
             |> findRecord(fn: (key) => true, idx: 0)
 
         // Dernier timestamp - lecture inverse plus rapide
-        last = from(bucket: "${bucket}")
+        last = from(bucket: "${instance.bucket}")
             |> range(start: ${startDate ? startDate : -946771200}${endDate ? `, stop: ${endDate}` : `, stop: ${(new Date(endStop)).toISOString()}`}) 
             |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
             ${scope}
@@ -336,7 +389,7 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, archives
                 last: time(v: 0)
             }])
         `;
-    const result = await executeQuery(query);
+    const result = await executeQuery(query, bucketKey);
     if (!result || result.length === 0 || result[0].count === 0) {
         return { firstUtc: null, lastUtc: null };
     }
@@ -356,17 +409,20 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, archives
  * @param {string} endDate - Date de fin.
  * @returns {Promise<Array>} Un tableau des données brutes.
  */
-async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSeconds = 3600) {
+async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSeconds = 3600, bucketKey = 'eternal') {
+    const instance = influxInstances[bucketKey] || influxInstances['eternal'];
+    if (!instance) return [];
+
     console.log(`Demande de données brutes pour ${stationId} - ${sensorRef}`, startDate, endDate, intervalSeconds);
     const fluxQuery = `
-        from(bucket: "${bucket}")
+        from(bucket: "${instance.bucket}")
           |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'}) 
           |> filter(fn: (r) => r.station_id == "${stationId}" and ${getFilter(sensorRef)})
           |> aggregateWindow(every: ${intervalSeconds}s, fn: ${sensorRef.startsWith('rain:') ? 'sum' : 'mean'}, createEmpty: false)
           |> keep(columns: ["_time", "_field", "_value"])
           |> sort(columns: ["_time"])
     `;
-    return await executeQuery(fluxQuery);
+    return await executeQuery(fluxQuery, bucketKey);
 }
 
 /**
@@ -376,15 +432,18 @@ async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSecond
  * @param {string} endDate - Date de fin.
  * @returns {Promise<Object>} Un objet contenant les dernières données.
  */
-async function queryLast(stationId, startDate = '-7d', endDate = 'now()') { //  and r.source == "localDataCollection"
+async function queryLast(stationId, startDate = '-7d', endDate = 'now()', bucketKey = 'eternal') {
+    const instance = influxInstances[bucketKey] || influxInstances['eternal'];
+    if (!instance) return {};
+
     const fluxQuery = `
-        from(bucket: "${bucket}")
-          |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'}) 
-          |> filter(fn: (r) => r.station_id == "${stationId}" and r.source != "forecast")
-          |> drop(columns: ["_start", "_stop", "station_id", "source"])
-          |> last()
-    `;
-    const result = await executeQuery(fluxQuery)
+    from(bucket: "${instance.bucket}")
+        |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
+        |> filter(fn: (r) => r.station_id == "${stationId}" and r.source != "forecast")
+        |> drop(columns: ["_start", "_stop", "station_id", "source"])
+        |> last()
+            `;
+    const result = await executeQuery(fluxQuery, bucketKey)
 
     // parser return { "direction:Gust": { v: 247.5, d: '2025-10-08T17:55:00Z' } } // { "_measurement:sensor": { v: _value, d: _time } }
     const datas = {};
@@ -412,7 +471,10 @@ async function queryLast(stationId, startDate = '-7d', endDate = 'now()') { //  
  * @param {string} endDate - Date de fin.
  * @param {number} intervalSeconds - Intervalle en secondes.
  */
-async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeconds = 3600) {
+async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeconds = 3600, bucketKey = 'eternal') {
+    const instance = influxInstances[bucketKey] || influxInstances['eternal'];
+    if (!instance) return [];
+
     // Définir les champs qui doivent être sommés (mesures de pluie/évapotranspiration)
     const rainFields = ['rainFall', 'ET'];
 
@@ -440,14 +502,14 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
     // Requête pour les champs à sommer (rain)
     if (sumFilter) {
         fluxQuery += `
-        sumData = from(bucket: "${bucket}")
-            |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
-            |> filter(fn: (r) => r.station_id == "${stationId}" and (${sumFilter}))
-            |> map(fn: (r) => ({ r with sensor_key: r._measurement + ":" + r.sensor }))
-            |> group(columns: ["sensor_key"])
-            |> aggregateWindow(every: ${intervalSeconds}s, fn: sum, createEmpty: false)
-            |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement", "sensor"])
-        `;
+    sumData = from(bucket: "${instance.bucket}")
+        |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
+        |> filter(fn: (r) => r.station_id == "${stationId}" and(${sumFilter}))
+        |> map(fn: (r) => ({ r with sensor_key: r._measurement + ":" + r.sensor }))
+        |> group(columns: ["sensor_key"])
+        |> aggregateWindow(every: ${intervalSeconds}s, fn: sum, createEmpty: false)
+        |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement", "sensor"])
+            `;
     }
 
     // Requête pour les champs à moyenner
@@ -456,118 +518,121 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
             fluxQuery += '\n';
         }
         fluxQuery += `
-        meanData = from(bucket: "${bucket}")
-            |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
-            |> filter(fn: (r) => r.station_id == "${stationId}" and (${meanFilter}))
-            |> map(fn: (r) => ({ r with sensor_key: r._measurement + ":" + r.sensor }))
-            |> group(columns: ["sensor_key"])
-            |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
-            |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement", "sensor"])
-        `;
+    meanData = from(bucket: "${instance.bucket}")
+        |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
+        |> filter(fn: (r) => r.station_id == "${stationId}" and(${meanFilter}))
+        |> map(fn: (r) => ({ r with sensor_key: r._measurement + ":" + r.sensor }))
+        |> group(columns: ["sensor_key"])
+        |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
+        |> drop(columns: ["unit", "_start", "_stop", "station_id", "_measurement", "sensor"])
+            `;
     }
 
     // Combiner les résultats si nécessaire
     if (sumFilter && meanFilter) {
         fluxQuery += `
-        
-        union(tables: [sumData, meanData])
-            |> pivot(rowKey: ["_time"], columnKey: ["sensor_key"], valueColumn: "_value")
-            |> sort(columns: ["_time"])
-            |> yield()
-        `;
+
+    union(tables: [sumData, meanData])
+        |> pivot(rowKey: ["_time"], columnKey: ["sensor_key"], valueColumn: "_value")
+        |> sort(columns: ["_time"])
+        |> yield()
+            `;
     } else if (sumFilter) {
         fluxQuery += `
-        
-        sumData
-            |> pivot(rowKey: ["_time"], columnKey: ["sensor_key"], valueColumn: "_value")
-            |> sort(columns: ["_time"])
-            |> yield()
-        `;
+
+    sumData
+        |> pivot(rowKey: ["_time"], columnKey: ["sensor_key"], valueColumn: "_value")
+        |> sort(columns: ["_time"])
+        |> yield()
+            `;
     } else if (meanFilter) {
         fluxQuery += `
-        
-        meanData
-            |> pivot(rowKey: ["_time"], columnKey: ["sensor_key"], valueColumn: "_value")
-            |> sort(columns: ["_time"])
-            |> yield()
-        `;
+
+    meanData
+        |> pivot(rowKey: ["_time"], columnKey: ["sensor_key"], valueColumn: "_value")
+        |> sort(columns: ["_time"])
+        |> yield()
+            `;
     }
 
     return await executeQuery(fluxQuery);
 }
 
-async function queryWindRose(stationId, startDate, endDate, intervalSeconds = 3600, prefix = '') {
+async function queryWindRose(stationId, startDate, endDate, intervalSeconds = 3600, prefix = '', bucketKey = 'eternal') {
+    const instance = influxInstances[bucketKey] || influxInstances['eternal'];
+    if (!instance) return {};
+
     const fluxQuery = `
-        // 1. Récupérer les données de direction
-        directionData = from(bucket: "${bucket}")
-            |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
-            |> filter(fn: (r) => r.station_id == "${stationId}")
-            |> filter(fn: (r) => r._measurement == "direction" and (r.sensor == "${prefix}Wind" or r.sensor == "${prefix}Gust"))
-            |> keep(columns: ["_time", "_value", "sensor"])
-            |> rename(columns: {_value: "direction"})
+    // 1. Récupérer les données de direction
+    directionData = from(bucket: "${instance.bucket}")
+        |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
+        |> filter(fn: (r) => r.station_id == "${stationId}")
+        |> filter(fn: (r) => r._measurement == "direction" and(r.sensor == "${prefix}Wind" or r.sensor == "${prefix}Gust"))
+        |> keep(columns: ["_time", "_value", "sensor"])
+        |> rename(columns: { _value: "direction" })
 
 
-        // 2. Récupérer les données de vitesse
-        speedData = from(bucket: "${bucket}")
-            |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
-            |> filter(fn: (r) => r.station_id == "${stationId}")
-            |> filter(fn: (r) => r._measurement == "speed" and (r.sensor == "${prefix}Wind" or r.sensor == "${prefix}Gust"))
-            |> keep(columns: ["_time", "_value", "sensor"])
-            |> rename(columns: {_value: "speed"})
+    // 2. Récupérer les données de vitesse
+    speedData = from(bucket: "${instance.bucket}")
+        |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
+        |> filter(fn: (r) => r.station_id == "${stationId}")
+        |> filter(fn: (r) => r._measurement == "speed" and(r.sensor == "${prefix}Wind" or r.sensor == "${prefix}Gust"))
+        |> keep(columns: ["_time", "_value", "sensor"])
+        |> rename(columns: { _value: "speed" })
 
-        // 3. Joindre les données de direction et de vitesse par _time pour les cas directionnels (vitesse > 0)
-        directionalJoin = join(
-          tables: {direction: directionData, speed: speedData},
-          on: ["_time","sensor"]
-        )
+    // 3. Joindre les données de direction et de vitesse par _time pour les cas directionnels (vitesse > 0)
+    directionalJoin = join(
+        tables: { direction: directionData, speed: speedData },
+        on: ["_time", "sensor"]
+    )
         |> filter(fn: (r) => r.speed > 0)
 
-        // 4. Créer les données pour calm (vitesse == 0, direction = 360 pour mapping à "Calm")
-        calmData = speedData
-            |> filter(fn: (r) => r.speed == 0)
-            |> map(fn: (r) => ({r with direction: 360.0}))
+    // 4. Créer les données pour calm (vitesse == 0, direction = 360 pour mapping à "Calm")
+    calmData = speedData
+        |> filter(fn: (r) => r.speed == 0)
+        |> map(fn: (r) => ({ r with direction: 360.0}))
 
-        // 5. Union des données directionnelles et calm
-        grpPetal = union(tables: [directionalJoin, calmData])
-            |> group(columns: ["direction","sensor"])
-           
-        // 6. Agréger par intervalle et par petal
-        count = grpPetal
-            |> aggregateWindow(every: ${intervalSeconds}s, fn: count, column: "speed", createEmpty: false)
-            |> rename(columns: {speed: "count"})
-           
-        gust = grpPetal
-            |> filter(fn: (r) => r.sensor == "${prefix}Gust")
-            |> aggregateWindow(every: ${intervalSeconds}s, fn: max, column: "speed", createEmpty: false)
-            |> drop(columns: ["_start", "_stop"])
-        gCount = count
-            |> filter(fn: (r) => r.sensor == "${prefix}Gust")
-            |> drop(columns: ["_start", "_stop"])
-        avg = grpPetal
-            |> filter(fn: (r) => r.sensor == "${prefix}Wind")
-            |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, column: "speed", createEmpty: false)
-            |> drop(columns: ["_start", "_stop"])
-        aCount = count
-            |> filter(fn: (r) => r.sensor == "${prefix}Wind")
-            |> drop(columns: ["_start", "_stop"])
-           
-        gustC = join(
-            tables: {gCount: gCount, gust: gust},
-            on: ["direction","_time"]
-        )
-           
-        avgC = join(
-            tables: {aCount: aCount, avg: avg},
-            on: ["direction","_time"]
-        )
-           
-        join(
-            tables: {avg: avgC, gust: gustC},
-            on: ["direction","_time"]
-        )
-        |> drop(columns: ["_start", "_stop","sensor_aCount","sensor_gCount"])
+    // 5. Union des données directionnelles et calm
+    grpPetal = union(tables: [directionalJoin, calmData])
+        |> group(columns: ["direction", "sensor"])
+
+    // 6. Agréger par intervalle et par petal
+    count = grpPetal
+        |> aggregateWindow(every: ${intervalSeconds}s, fn: count, column: "speed", createEmpty: false)
+        |> rename(columns: { speed: "count" })
+
+    gust = grpPetal
+        |> filter(fn: (r) => r.sensor == "${prefix}Gust")
+        |> aggregateWindow(every: ${intervalSeconds}s, fn: max, column: "speed", createEmpty: false)
+        |> drop(columns: ["_start", "_stop"])
+    gCount = count
+        |> filter(fn: (r) => r.sensor == "${prefix}Gust")
+        |> drop(columns: ["_start", "_stop"])
+    avg = grpPetal
+        |> filter(fn: (r) => r.sensor == "${prefix}Wind")
+        |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, column: "speed", createEmpty: false)
+        |> drop(columns: ["_start", "_stop"])
+    aCount = count
+        |> filter(fn: (r) => r.sensor == "${prefix}Wind")
+        |> drop(columns: ["_start", "_stop"])
+
+    gustC = join(
+        tables: { gCount: gCount, gust: gust },
+        on: ["direction", "_time"]
+    )
+
+    avgC = join(
+        tables: { aCount: aCount, avg: avg },
+        on: ["direction", "_time"]
+    )
+
+    join(
+        tables: { avg: avgC, gust: gustC },
+        on: ["direction", "_time"]
+    )
+        |> drop(columns: ["_start", "_stop", "sensor_aCount", "sensor_gCount"])
         |> yield()
-    `;
+            `;
     const results = await executeQuery(fluxQuery);
     return parserWindRose(results);
 }
@@ -608,26 +673,29 @@ function parserWindRose(data) {
  * @returns {Promise<Array>} Un tableau des données pour le graphique du vent.
  */
 
-async function queryWindVectors(stationId, sensor, startDate, endDate, intervalSeconds = 3600) {
+async function queryWindVectors(stationId, sensor, startDate, endDate, intervalSeconds = 3600, bucketKey = 'eternal') {
+    const instance = influxInstances[bucketKey] || influxInstances['eternal'];
+    if (!instance) return [];
+
     const fluxQuery = `
-        import "math"
-        from(bucket: "${bucket}")
-            |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
-            |> filter(fn: (r) => r.station_id == "${stationId}")
-            |> filter(fn: (r) => r._measurement == "vector" and r.sensor == "${sensor}")
-            |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
-            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-            |> map(fn: (r) => {
-                    dir = math.atan2(y: r.Ux, x: r.Vy) * 180.0 / math.pi
-                return {
-                    d: r._time,
-                    Ux: r.Ux,
-                    Vy: r.Vy,
-                    spd: math.sqrt(x: r.Ux * r.Ux + r.Vy * r.Vy),
-                    dir: if dir < 0.0 then dir + 360.0 else dir
-                }
+    import "math"
+    from(bucket: "${instance.bucket}")
+        |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
+        |> filter(fn: (r) => r.station_id == "${stationId}")
+        |> filter(fn: (r) => r._measurement == "vector" and r.sensor == "${sensor}")
+        |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
+        |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+        |> map(fn: (r) => {
+            dir = math.atan2(y: r.Ux, x: r.Vy) * 180.0 / math.pi
+            return {
+                d: r._time,
+                Ux: r.Ux,
+                Vy: r.Vy,
+                spd: math.sqrt(x: r.Ux * r.Ux + r.Vy * r.Vy),
+                dir: if dir < 0.0 then dir + 360.0 else dir
+        }
             })
-    `;
+`;
 
     try {
         const results = await executeQuery(fluxQuery);
@@ -656,48 +724,51 @@ async function queryWindVectors(stationId, sensor, startDate, endDate, intervalS
  * @param {number} intervalSeconds - Intervalle en secondes (optionnel)
  * @returns {Promise<string>} Données au format TSV
  */
-async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSeconds = 3600) {
-    console.log(`Demande de données candle pour ${stationId} - ${sensorRef}`, startDate, endDate, intervalSeconds);
+async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSeconds = 3600, bucketKey = 'eternal') {
+    const instance = influxInstances[bucketKey] || influxInstances['eternal'];
+    if (!instance) return [];
+
+    console.log(`Demande de données candle pour ${stationId} - ${sensorRef} `, startDate, endDate, intervalSeconds);
     const fluxQuery = `
-        import "math"
-        from(bucket: "${bucket}")
-            |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'}) 
-            |> filter(fn: (r) => r.station_id == "${stationId}" and r.sensor == "${sensorRef}")
-            // |> group(columns: ["unit"])
-            |> window(every: ${intervalSeconds}s)
-            |> reduce(
-                identity: {
-                    first_value: 0.0,
-                    last_value: 0.0, 
-                    min_value: 999999.0, 
-                    max_value: -999999.0, 
-                    sum_value: 0.0,
-                    count: 0,
-                    first_time: time(v: "1970-01-01T00:00:00Z")
-                },
-                fn: (r, accumulator) => ({
-                    first_value: if accumulator.count == 0 then r._value else accumulator.first_value,
-                    last_value: r._value,
-                    min_value: if r._value < accumulator.min_value then r._value else accumulator.min_value,
-                    max_value: if r._value > accumulator.max_value then r._value else accumulator.max_value,
-                    sum_value: accumulator.sum_value + r._value,
-                    count: accumulator.count + 1,
-                    first_time: if accumulator.count == 0 then r._time else accumulator.first_time
-                })
-            )
-            |> map(fn: (r) => ({ 
-                datetime: r.first_time,
-                first: r.first_value,
-                min: r.min_value,
-                avg: math.round(x: r.sum_value / float(v: r.count) * 1000.0) / 1000.0,
-                max: r.max_value,
-                last: r.last_value,
-                count: r.count,
-                unit: r.unit
-            }))
-            |> sort(columns: ["datetime"])
-            |> keep(columns: ["datetime", "first", "min", "avg", "max", "last", "count"])
-    `;
+import "math"
+from(bucket: "${instance.bucket}")
+    |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
+    |> filter(fn: (r) => r.station_id == "${stationId}" and r.sensor == "${sensorRef}")
+    // |> group(columns: ["unit"])
+    |> window(every: ${intervalSeconds}s)
+    |> reduce(
+        identity: {
+        first_value: 0.0,
+        last_value: 0.0,
+        min_value: 999999.0,
+        max_value: -999999.0,
+        sum_value: 0.0,
+        count: 0,
+        first_time: time(v: "1970-01-01T00:00:00Z")
+    },
+        fn: (r, accumulator) => ({
+            first_value: if accumulator.count == 0 then r._value else accumulator.first_value,
+            last_value: r._value,
+            min_value: if r._value < accumulator.min_value then r._value else accumulator.min_value,
+            max_value: if r._value > accumulator.max_value then r._value else accumulator.max_value,
+            sum_value: accumulator.sum_value + r._value,
+            count: accumulator.count + 1,
+            first_time: if accumulator.count == 0 then r._time else accumulator.first_time
+        })
+    )
+    |> map(fn: (r) => ({
+        datetime: r.first_time,
+        first: r.first_value,
+        min: r.min_value,
+        avg: math.round(x: r.sum_value / float(v: r.count) * 1000.0) / 1000.0,
+        max: r.max_value,
+        last: r.last_value,
+        count: r.count,
+        unit: r.unit
+    }))
+    |> sort(columns: ["datetime"])
+    |> keep(columns: ["datetime", "first", "min", "avg", "max", "last", "count"])
+        `;
 
     return await executeQuery(fluxQuery);
 }
@@ -738,7 +809,10 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
  * @param {string} extenderId - (Optionnel) L'ID de l'extender pour supprimer uniquement ses données.
  * @returns {Promise<object>}
  */
-async function deleteExtenderData(stationId, extenderId = null) {
+async function deleteExtenderData(stationId, extenderId = null, bucketKey = 'longRetention') {
+    const instance = influxInstances[bucketKey] || influxInstances['eternal'];
+    if (!instance) return { success: false, error: 'InfluxDB instance not found' };
+
     if (!extenderId) return { success: true, count: 0, details: {} };
 
     const ids = Array.isArray(extenderId) ? extenderId : [extenderId];
@@ -757,13 +831,13 @@ async function deleteExtenderData(stationId, extenderId = null) {
             try {
                 const fluxPredicate = `r["station_id"]=="${stationId}" and r["source"]=="${id}"`;
                 const countQuery = `
-                    from(bucket: "${bucket}")
+                    from(bucket: "${instance.bucket}")
                         |> range(start: ${start}, stop: ${stop})
                         |> filter(fn: (r) => ${fluxPredicate})
                         |> group()
                         |> count()
                 `;
-                const countResult = await executeQuery(countQuery);
+                const countResult = await executeQuery(countQuery, bucketKey);
                 countForId = countResult.length > 0 ? countResult[0]._value : 0;
             } catch (e) {
                 console.warn(`${V.error} Erreur comptage pour ${id}:`, e.message);
@@ -772,15 +846,15 @@ async function deleteExtenderData(stationId, extenderId = null) {
             // 2. Supprimer pour cet ID spécifique
             const deletePredicate = `station_id="${stationId}" AND source="${id}"`;
             const deleteObject = {
-                org,
-                bucket,
+                org: instance.org,
+                bucket: instance.bucket,
                 body: {
                     start: new Date(start),
                     stop: new Date(stop),
                     predicate: deletePredicate
                 },
             };
-            await deleteApi.postDelete(deleteObject);
+            await instance.deleteApi.postDelete(deleteObject);
 
             console.log(`${V.trash} [${id}] Suppression de ${countForId} points.`);
             totalCount += countForId;
@@ -875,8 +949,11 @@ async function deleteExtenderData(stationId, extenderId = null) {
 //         };
 //     }
 // }
+
 module.exports = {
     // deleteLocalDataCollection,
+    getSettings,
+    updateSettings,
     testInfluxConnection,
     reinitializeInfluxDB,
     writePoints,
@@ -889,6 +966,6 @@ module.exports = {
     queryWindVectors,
     queryCandle,
     queryLast,
-    deleteForecasts,
+    // deleteForecasts,
     deleteExtenderData
 };
