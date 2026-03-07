@@ -10,6 +10,14 @@ let localExtendersState = {
     "WhisperEye": [],
     "Venti'Connect": []
 };
+const localFormat = {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+}
 
 // Variable pour suivre l'onglet actif (identifié par type + index, ex: "WhisperEye-0")
 let activeExtenderTab = null;
@@ -961,16 +969,15 @@ function createHistoricalFieldHTML(field, range, historicalSettings) {
         : (range === null ? "Loading Open-Meteo range..." : "No Open-Meteo data !");
     const downloadUrl = `/query/${selectedStation.id}/dbexpand`;
 
-    const lastRun = historicalSettings?.lastRun ? new Date(historicalSettings.lastRun).toLocaleString() : 'Jamais';
+    const lastRun = historicalSettings?.lastRun ? new Date(historicalSettings.lastRun).toLocaleString('fr-FR', localFormat) : 'Jamais';
     const msg = historicalSettings?.msg || '';
-    const titleAttr = `Collect Now!\nLast run: ${lastRun}${msg ? '\nMsg: ' + msg : ''}`;
 
     return `
         <div class="settings-field condition-tile">
         <button type="button" class="tile-action-btn-secondary" title="Import +10 years" onclick="runHistoricalExpand(this, '${selectedStation.id}', 10)">
             [+10]
         </button>
-        <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="${titleAttr}">
+        <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="Collect Now!">
             <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
         </a>
             <label>
@@ -986,7 +993,7 @@ function createHistoricalFieldHTML(field, range, historicalSettings) {
                     <text id="open-meteo-range-info">${rangeText}</text>
                 </div>
             </div>
-            ${msg && isEnabled ? `<div class="field-msg">${msg}</div>` : ''}
+            ${(lastRun || msg) && isEnabled ? `<div class="field-msg">[${lastRun}] ${msg}</div>` : ''}
         </div>
     `;
 }
@@ -996,9 +1003,8 @@ function createForecastFieldHTML(forecastSettings) {
     const currentModel = (forecastSettings && forecastSettings.model) ? forecastSettings.model : 'best_match';
     const downloadUrl = `/query/${selectedStation.id}/forecast`;
 
-    const lastRun = forecastSettings?.lastRun ? new Date(forecastSettings.lastRun).toLocaleString() : 'Jamais';
+    const lastRun = forecastSettings?.lastRun ? new Date(forecastSettings.lastRun).toLocaleString('fr-FR', localFormat) : 'Jamais';
     const msg = forecastSettings?.msg || '';
-    const titleAttr = `Télécharger maintenant !\nLast run: ${lastRun}${msg ? '\nMsg: ' + msg : ''}`;
 
     const models = [
         { value: 'best_match', label: 'Best Match (14d)' },
@@ -1014,7 +1020,7 @@ function createForecastFieldHTML(forecastSettings) {
 
     return `
         <div class="settings-field condition-tile">
-        <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="${titleAttr}">
+        <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="Collect Now!">
             <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
         </a>
             <label>
@@ -1030,7 +1036,7 @@ function createForecastFieldHTML(forecastSettings) {
                     ${optionsHTML}
                 </select>
             </div>
-            ${msg && isEnabled ? `<div class="field-msg">${msg}</div>` : ''}
+            ${(lastRun || msg) && isEnabled ? `<div class="field-msg">[${lastRun}] ${msg}</div>` : ''}
         </div>
     `;
 }
@@ -1044,9 +1050,8 @@ function createCollectFieldHTML(field) {
     const options = [5, 10, 15, 30, 60, 120, 240, 480];
     const downloadUrl = `/api/station/${selectedStation.id}/collect`;
 
-    const lastRun = field?.lastRun ? new Date(field.lastRun).toLocaleString() : 'Jamais';
+    const lastRun = field?.lastRun ? new Date(field.lastRun).toLocaleString('fr-FR', localFormat) : 'Jamais';
     const msg = field?.msg || '';
-    const titleAttr = `Exécuter maintenant !\nLast run: ${lastRun}${msg ? '\nMsg: ' + msg : ''}`;
 
     let optionsHTML = options.map(opt =>
         `<option value="${opt}" ${opt == currentValue ? 'selected' : ''}>${opt} minutes</option>`
@@ -1058,7 +1063,7 @@ function createCollectFieldHTML(field) {
 
     return `
         <div class="settings-field condition-tile">
-        <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="${titleAttr}">
+        <a href="${downloadUrl}" target="_blank" class="tile-action-btn" title="Collect Now!">
             <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
         </a>
             <label for="setting-collect-value">
@@ -1074,7 +1079,7 @@ function createCollectFieldHTML(field) {
                     ${optionsHTML}
                 </select>
             </div>
-            ${msg && isEnabled ? `<div class="field-msg">${msg}</div>` : ''}
+            ${(lastRun || msg) && isEnabled ? `<div class="field-msg">[${lastRun}] ${msg}</div>` : ''}
         </div>
     `;
 }
