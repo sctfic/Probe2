@@ -180,12 +180,12 @@ function displayInfluxForm(settings) {
             <div class="influx-tabs-header" style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">
                 <button type="button" class="tab-btn active" data-tab="eternal" style="padding: 8px 15px; cursor: pointer; border-radius: 4px 4px 0 0; border: 1px solid #ddd; background: var(--header-bg);">Eternal</button>
                 <button type="button" class="tab-btn" data-tab="longRetention" style="padding: 8px 15px; cursor: pointer; border-radius: 4px 4px 0 0; border: 1px solid #ddd; background: var(--header-bg);">Long Retention</button>
-                <button type="button" class="tab-btn" data-tab="shortRetension" style="padding: 8px 15px; cursor: pointer; border-radius: 4px 4px 0 0; border: 1px solid #ddd; background: var(--header-bg);">Short Retention</button>
+                <button type="button" class="tab-btn" data-tab="shortRetention" style="padding: 8px 15px; cursor: pointer; border-radius: 4px 4px 0 0; border: 1px solid #ddd; background: var(--header-bg);">Short Retention</button>
             </div>
             <form id="influx-settings-form" class="settings-form">
     `;
 
-    const bucketKeys = ['eternal', 'longRetention', 'shortRetension'];
+    const bucketKeys = ['eternal', 'longRetention', 'shortRetention'];
 
     bucketKeys.forEach((bucketKey, index) => {
         const bucketConfig = settings[bucketKey] || {};
@@ -199,7 +199,7 @@ function displayInfluxForm(settings) {
 
         let bucketLabel = bucketKey === 'eternal' ? 'Données de Station (Eternal)' :
             bucketKey === 'longRetention' ? 'Données Intégrateurs (1 An)' :
-                bucketKey === 'shortRetension' ? 'Prévisions (Court Terme)' : bucketKey.toUpperCase();
+                bucketKey === 'shortRetention' ? 'Prévisions (Court Terme)' : bucketKey.toUpperCase();
 
         influxFormHTML += `
             <div id="tab-${bucketKey}" class="tab-content" style="display: ${isActive ? 'block' : 'none'}; padding: 15px; border-radius: 8px; background: rgba(255,255,255,0.05);">

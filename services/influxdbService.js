@@ -12,7 +12,7 @@ let influxInstances = {}; // Stocke les instances (client, writeApi, queryApi, e
 
 /**
  * Initialise les clients InfluxDB pour un bucket donné.
- * @param {string} key - La clé du bucket ('eternal', 'longRetention', 'shortRetension').
+ * @param {string} key - La clé du bucket ('eternal', 'longRetention', 'shortRetention').
  * @param {object} config - L'objet de configuration { url, token, org, bucket }.
  */
 function initializeBucket(key, config) {
@@ -54,7 +54,7 @@ function loadAndInitialize() {
     }
 
     // Initialiser chaque bucket défini dans la config
-    const buckets = ['eternal', 'longRetention', 'shortRetension'];
+    const buckets = ['eternal', 'longRetention', 'shortRetention'];
     buckets.forEach(key => {
         initializeBucket(key, influxConfigs[key]);
     });
@@ -129,7 +129,7 @@ function reinitializeInfluxDB(newConfig) {
 //  * @returns {Promise<object|null>} Retourne un objet avec le nombre de points supprimés et la plage de dates, ou null si rien n'a été supprimé.
 //  */
 // async function deleteForecasts(stationId) {
-//     const instance = influxInstances['shortRetension'] || influxInstances['eternal'];
+//     const instance = influxInstances['shortRetention'] || influxInstances['eternal'];
 //     if (!instance) return { count: 0, error: 'InfluxDB instance not initialized' };
 
 //     const { bucket, deleteApi, org } = instance;
@@ -149,7 +149,7 @@ function reinitializeInfluxDB(newConfig) {
 //                 |> group()
 //                 |> count()
 //         `;
-//         const countResult = await executeQuery(countQuery, 'shortRetension');
+//         const countResult = await executeQuery(countQuery, 'shortRetention');
 //         const count = countResult.length > 0 ? countResult[0]._value : 0;
 
 //         if (count === 0) {
@@ -256,7 +256,7 @@ async function executeQuery(fluxQuery, bucketKey = 'eternal') {
     });
 }
 
-async function getInfluxMetadata(stationId = null, knownTags = ['sensor', 'station_id'], daysBack = 100, bucketKey = 'eternal') {
+async function getInfluxMetadata(stationId = null, knownTags = ['sensor', 'station_id', 'source'], daysBack = 100, bucketKey = 'eternal') {
     const instance = influxInstances[bucketKey] || influxInstances['eternal'];
     if (!instance) return null;
 
@@ -334,6 +334,38 @@ function getFilter(sensorRef) {
     }
     return Filter;
 }
+
+/**
+ * Helper to create a multi-bucket flux part.
+ * @param {string} stationId 
+ * @param {string} startDate 
+ * @param {string} endDate 
+ * @param {string} filter - A flux filter string like 'r._measurement == "..."'
+ * @param {boolean} archivesOnly - If true, skip the shortRetention bucket
+ */
+function getMultiBucketFrom(stationId, startDate, endDate, filter = null, archivesOnly = false) {
+    const buckets = ['eternal', 'longRetention', 'shortRetention'].filter(k => {
+        if (archivesOnly && k === 'shortRetention') return false;
+        return influxInstances[k];
+    });
+
+    if (buckets.length === 0) return 'from(bucket: "fake")';
+
+    const start = (startDate !== undefined && startDate !== null) ? startDate : 0;
+    const stop = (endDate !== undefined && endDate !== null) ? endDate : 'now()';
+
+    const range = `|> range(start: ${start}, stop: ${stop})`;
+    const stationFilter = `|> filter(fn: (r) => r.station_id == "${stationId}")`;
+    const customFilter = filter ? `|> filter(fn: (r) => ${filter})` : '';
+
+    if (buckets.length === 1) {
+        return `from(bucket: "${influxInstances[buckets[0]].bucket}") ${range} ${stationFilter} ${customFilter}`;
+    }
+
+    return `union(tables: [
+        ${buckets.map(k => `from(bucket: "${influxInstances[k].bucket}") ${range} ${stationFilter} ${customFilter}`).join(',\n        ')}
+    ]) |> group(columns: ["_measurement", "_field", "sensor", "station_id"])`;
+}
 /**
  * Récupère la plage de dates pour une station et un capteur spécifiques.
  * @param {string} stationId - Identifiant de la station.
@@ -344,44 +376,35 @@ function getFilter(sensorRef) {
  */
 async function queryDateRange(stationId, sensorRef, startDate, endDate, archivesOnly = false, bucketKey = 'eternal') {
     const instance = influxInstances[bucketKey] || influxInstances['eternal'];
-    console.log(instance);
     if (!instance) return { firstUtc: null, lastUtc: null };
 
     let filter = '';
-    console.log(stationId, sensorRef);
     if (sensorRef) {
         if (sensorRef.endsWith('_calc') || sensorRef.endsWith('_trend')) {
             sensorRef = 'pressure:barometer';
         }
         filter = getFilter(sensorRef);
     }
-    let scope = ' |> filter(fn: (r) => r.source != "forecast")';
-    if (!archivesOnly) { scope = '            |> group()' }
 
     const now = new Date();
-    const endStop = now.setUTCDate(now.getUTCDate() + 30);
+    const endStopDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
+    const startRange = startDate ? startDate : -946771200;
+    const stopRange = endDate ? endDate : endStopDate.toISOString();
+
+    const fromPart = getMultiBucketFrom(stationId, startRange, stopRange, filter, archivesOnly);
+
     const query = `
       import "array"
-        // Premier timestamp, min '1940-01-01T00:00:00.00Z' = -946771200
-        first = from(bucket: "${instance.bucket}")
-            |> range(start: ${startDate ? startDate : -946771200}${endDate ? `, stop: ${endDate}` : `, stop: ${(new Date(endStop)).toISOString()}`}) 
-            |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
-            ${scope}
-            |> first()
-            |> findRecord(fn: (key) => true, idx: 0)
+        data = ${fromPart}
+            |> group()
 
-        // Dernier timestamp - lecture inverse plus rapide
-        last = from(bucket: "${instance.bucket}")
-            |> range(start: ${startDate ? startDate : -946771200}${endDate ? `, stop: ${endDate}` : `, stop: ${(new Date(endStop)).toISOString()}`}) 
-            |> filter(fn: (r) => r.station_id == "${stationId}" ${filter ? 'and ' + filter : ''})
-            ${scope}
-            |> last()
-            |> findRecord(fn: (key) => true, idx: 0)
+        first_rec = data |> min(column: "_time") |> findRecord(fn: (key) => true, idx: 0)
+        last_rec = data |> max(column: "_time") |> findRecord(fn: (key) => true, idx: 0)
 
-        if exists first._time then
+        if exists first_rec._time then
             array.from(rows: [{
-                first: first._time,
-                last: last._time
+                first: first_rec._time,
+                last: last_rec._time
             }])
         else
             array.from(rows: [{
@@ -390,7 +413,7 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, archives
             }])
         `;
     const result = await executeQuery(query, bucketKey);
-    if (!result || result.length === 0 || result[0].count === 0) {
+    if (!result || result.length === 0 || !result[0].first || result[0].first.toString().startsWith('1970')) {
         return { firstUtc: null, lastUtc: null };
     }
     const data = result[0];
@@ -415,9 +438,7 @@ async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSecond
 
     console.log(`Demande de données brutes pour ${stationId} - ${sensorRef}`, startDate, endDate, intervalSeconds);
     const fluxQuery = `
-        from(bucket: "${instance.bucket}")
-          |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'}) 
-          |> filter(fn: (r) => r.station_id == "${stationId}" and ${getFilter(sensorRef)})
+        ${getMultiBucketFrom(stationId, startDate, endDate, getFilter(sensorRef))}
           |> aggregateWindow(every: ${intervalSeconds}s, fn: ${sensorRef.startsWith('rain:') ? 'sum' : 'mean'}, createEmpty: false)
           |> keep(columns: ["_time", "_field", "_value"])
           |> sort(columns: ["_time"])
@@ -437,10 +458,8 @@ async function queryLast(stationId, startDate = '-7d', endDate = 'now()', bucket
     if (!instance) return {};
 
     const fluxQuery = `
-    from(bucket: "${instance.bucket}")
-        |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
-        |> filter(fn: (r) => r.station_id == "${stationId}" and r.source != "forecast")
-        |> drop(columns: ["_start", "_stop", "station_id", "source"])
+    ${getMultiBucketFrom(stationId, startDate, endDate, null, true)}
+        |> drop(columns: ["_start", "_stop", "source"])
         |> last()
             `;
     const result = await executeQuery(fluxQuery, bucketKey)
@@ -475,18 +494,9 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
     const instance = influxInstances[bucketKey] || influxInstances['eternal'];
     if (!instance) return [];
 
-    // Définir les champs qui doivent être sommés (mesures de pluie/évapotranspiration)
-    const rainFields = ['rainFall', 'ET'];
-
-    // Séparer les capteurs en fonction de leur type (cumulatif ou moyenne)
-    const cumulativeSensors = sensorRefs.filter(ref => {
-        const [, sensor] = ref.includes(':') ? ref.split(':') : [null, ref];
-        return rainFields.includes(sensor);
-    });
-    const meanSensors = sensorRefs.filter(ref => {
-        const [, sensor] = ref.includes(':') ? ref.split(':') : [null, ref];
-        return !rainFields.includes(sensor);
-    });
+    // Séparer les capteurs en fonction de leur type (cumulatif ou moyenne) cumulatif si sensorRef.startsWith('rain:'), moyenne sinon
+    const cumulativeSensors = sensorRefs.filter(ref => ref.startsWith('rain:'));
+    const meanSensors = sensorRefs.filter(ref => !ref.startsWith('rain:'));
 
     // Construire les filtres
     const sumFilter = cumulativeSensors.length > 0
@@ -502,9 +512,7 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
     // Requête pour les champs à sommer (rain)
     if (sumFilter) {
         fluxQuery += `
-    sumData = from(bucket: "${instance.bucket}")
-        |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
-        |> filter(fn: (r) => r.station_id == "${stationId}" and(${sumFilter}))
+    sumData = ${getMultiBucketFrom(stationId, startDate, endDate, sumFilter)}
         |> map(fn: (r) => ({ r with sensor_key: r._measurement + ":" + r.sensor }))
         |> group(columns: ["sensor_key"])
         |> aggregateWindow(every: ${intervalSeconds}s, fn: sum, createEmpty: false)
@@ -518,9 +526,7 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
             fluxQuery += '\n';
         }
         fluxQuery += `
-    meanData = from(bucket: "${instance.bucket}")
-        |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
-        |> filter(fn: (r) => r.station_id == "${stationId}" and(${meanFilter}))
+    meanData = ${getMultiBucketFrom(stationId, startDate, endDate, meanFilter)}
         |> map(fn: (r) => ({ r with sensor_key: r._measurement + ":" + r.sensor }))
         |> group(columns: ["sensor_key"])
         |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
@@ -533,6 +539,7 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
         fluxQuery += `
 
     union(tables: [sumData, meanData])
+        |> group()
         |> pivot(rowKey: ["_time"], columnKey: ["sensor_key"], valueColumn: "_value")
         |> sort(columns: ["_time"])
         |> yield()
@@ -541,6 +548,7 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
         fluxQuery += `
 
     sumData
+        |> group()
         |> pivot(rowKey: ["_time"], columnKey: ["sensor_key"], valueColumn: "_value")
         |> sort(columns: ["_time"])
         |> yield()
@@ -549,13 +557,14 @@ async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeco
         fluxQuery += `
 
     meanData
+        |> group()
         |> pivot(rowKey: ["_time"], columnKey: ["sensor_key"], valueColumn: "_value")
         |> sort(columns: ["_time"])
         |> yield()
             `;
     }
 
-    return await executeQuery(fluxQuery);
+    return await executeQuery(fluxQuery, bucketKey);
 }
 
 async function queryWindRose(stationId, startDate, endDate, intervalSeconds = 3600, prefix = '', bucketKey = 'eternal') {
@@ -564,19 +573,13 @@ async function queryWindRose(stationId, startDate, endDate, intervalSeconds = 36
 
     const fluxQuery = `
     // 1. Récupérer les données de direction
-    directionData = from(bucket: "${instance.bucket}")
-        |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
-        |> filter(fn: (r) => r.station_id == "${stationId}")
-        |> filter(fn: (r) => r._measurement == "direction" and(r.sensor == "${prefix}Wind" or r.sensor == "${prefix}Gust"))
+    directionData = ${getMultiBucketFrom(stationId, startDate, endDate, `r._measurement == "direction" and (r.sensor == "${prefix}Wind" or r.sensor == "${prefix}Gust")`)}
         |> keep(columns: ["_time", "_value", "sensor"])
         |> rename(columns: { _value: "direction" })
 
 
     // 2. Récupérer les données de vitesse
-    speedData = from(bucket: "${instance.bucket}")
-        |> range(start: ${startDate ? startDate : 0}, stop: ${endDate ? endDate : 'now()'})
-        |> filter(fn: (r) => r.station_id == "${stationId}")
-        |> filter(fn: (r) => r._measurement == "speed" and(r.sensor == "${prefix}Wind" or r.sensor == "${prefix}Gust"))
+    speedData = ${getMultiBucketFrom(stationId, startDate, endDate, `r._measurement == "speed" and (r.sensor == "${prefix}Wind" or r.sensor == "${prefix}Gust")`)}
         |> keep(columns: ["_time", "_value", "sensor"])
         |> rename(columns: { _value: "speed" })
 
@@ -633,7 +636,7 @@ async function queryWindRose(stationId, startDate, endDate, intervalSeconds = 36
         |> drop(columns: ["_start", "_stop", "sensor_aCount", "sensor_gCount"])
         |> yield()
             `;
-    const results = await executeQuery(fluxQuery);
+    const results = await executeQuery(fluxQuery, bucketKey);
     return parserWindRose(results);
 }
 
@@ -679,11 +682,9 @@ async function queryWindVectors(stationId, sensor, startDate, endDate, intervalS
 
     const fluxQuery = `
     import "math"
-    from(bucket: "${instance.bucket}")
-        |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
-        |> filter(fn: (r) => r.station_id == "${stationId}")
-        |> filter(fn: (r) => r._measurement == "vector" and r.sensor == "${sensor}")
+    ${getMultiBucketFrom(stationId, startDate, endDate, `r._measurement == "vector" and r.sensor == "${sensor}"`)}
         |> aggregateWindow(every: ${intervalSeconds}s, fn: mean, createEmpty: false)
+        |> group()
         |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
         |> map(fn: (r) => {
             dir = math.atan2(y: r.Ux, x: r.Vy) * 180.0 / math.pi
@@ -698,7 +699,7 @@ async function queryWindVectors(stationId, sensor, startDate, endDate, intervalS
 `;
 
     try {
-        const results = await executeQuery(fluxQuery);
+        const results = await executeQuery(fluxQuery, bucketKey);
         return results.map(item => {
             return {
                 d: item.d,
@@ -731,9 +732,7 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
     console.log(`Demande de données candle pour ${stationId} - ${sensorRef} `, startDate, endDate, intervalSeconds);
     const fluxQuery = `
 import "math"
-from(bucket: "${instance.bucket}")
-    |> range(start: ${startDate ? startDate : '0'}, stop: ${endDate ? endDate : 'now()'})
-    |> filter(fn: (r) => r.station_id == "${stationId}" and r.sensor == "${sensorRef}")
+${getMultiBucketFrom(stationId, startDate, endDate, `r.sensor == "${sensorRef}"`)}
     // |> group(columns: ["unit"])
     |> window(every: ${intervalSeconds}s)
     |> reduce(
@@ -770,7 +769,7 @@ from(bucket: "${instance.bucket}")
     |> keep(columns: ["datetime", "first", "min", "avg", "max", "last", "count"])
         `;
 
-    return await executeQuery(fluxQuery);
+    return await executeQuery(fluxQuery, bucketKey);
 }
 
 // /**

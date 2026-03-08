@@ -118,12 +118,53 @@ function getMetadata(req, sensorRefs, { start, end, intervalSeconds }, data) {
 
 exports.getQueryMetadata = async (req, res) => {
     const stationId = req.params.stationId;
-    const start = Date.now();
     try {
-        const dateRange = await influxdbService.queryDateRange(stationId, 'pressure:*');
-        const _measurements = await influxdbService.getInfluxMetadata(stationId);
+        const buckets = ['eternal', 'longRetention', 'shortRetention'];
 
-        const allFields = Object.entries(_measurements) // liste des sensors en nom long
+        // Fetch metadata and date range from all buckets
+        const [metadataResults, dateRangeResults] = await Promise.all([
+            Promise.all(buckets.map(b => influxdbService.getInfluxMetadata(stationId, ['sensor', 'station_id', 'source'], 100, b))),
+            Promise.all(buckets.map(b => influxdbService.queryDateRange(stationId, 'pressure:*', null, null, false, b)))
+        ]);
+
+        // Merge date range
+        const firstUtc = dateRangeResults.filter(r => r.firstUtc).map(r => r.firstUtc).sort()[0] || null;
+        const lastUtc = dateRangeResults.filter(r => r.lastUtc).map(r => r.lastUtc).sort().reverse()[0] || null;
+        const dateRange = { firstUtc, lastUtc };
+
+        // Merge measurements and tags from all buckets
+        const _measurements = {};
+        metadataResults.forEach(meta => {
+            if (!meta) return;
+            Object.entries(meta).forEach(([mType, mData]) => {
+                if (!_measurements[mType]) {
+                    _measurements[mType] = { tags: {}, fields: new Set() };
+                }
+
+                if (mData.tags) {
+                    Object.entries(mData.tags).forEach(([tagKey, tagValues]) => {
+                        if (!_measurements[mType].tags[tagKey]) {
+                            _measurements[mType].tags[tagKey] = new Set();
+                        }
+                        tagValues.forEach(v => _measurements[mType].tags[tagKey].add(v));
+                    });
+                }
+
+                if (mData.fields) {
+                    mData.fields.forEach(f => _measurements[mType].fields.add(f));
+                }
+            });
+        });
+
+        // Convert Sets back to sorted Arrays
+        Object.keys(_measurements).forEach(mType => {
+            Object.keys(_measurements[mType].tags).forEach(tagKey => {
+                _measurements[mType].tags[tagKey] = Array.from(_measurements[mType].tags[tagKey]).sort();
+            });
+            _measurements[mType].fields = Array.from(_measurements[mType].fields).sort();
+        });
+
+        const allFields = Object.entries(_measurements)
             .flatMap(([measurementType, measurement]) =>
                 (measurement.tags?.sensor || []).map(sensor => `${measurementType}:${sensor}`)
             );
@@ -139,13 +180,13 @@ exports.getQueryMetadata = async (req, res) => {
                     longitude: req.stationConfig.longitude.lastReadValue,
                     altitude: req.stationConfig.altitude.lastReadValue,
                 },
-                sensor: [...new Set(allFields)], // liste dans la DB
+                sensor: [...new Set(allFields)].sort(),
                 queryTime: new Date().toISOString(),
                 first: dateRange.firstUtc,
                 last: dateRange.lastUtc,
-                unit: unitsProvider.getUnits(), // liste dans units.json
+                unit: unitsProvider.getUnits(),
             },
-            measurements: _measurements // liste dans la DB
+            measurements: _measurements
         });
     } catch (error) {
         handleError(res, stationId, error, 'getQueryMetadata');
@@ -963,8 +1004,8 @@ exports.getOpenMeteoForecast = async (req, res) => {
 
         let writtenCount = 0;
         if (pointsChunk.length > 0) {
-            writtenCount = await influxdbService.writePoints(pointsChunk, 'shortRetension');
-            console.log(V.database, `Écriture de ${writtenCount} points de prévisions dans InfluxDB (shortRetension)...`, V.Check);
+            writtenCount = await influxdbService.writePoints(pointsChunk, 'shortRetention');
+            console.log(V.database, `Écriture de ${writtenCount} points de prévisions dans InfluxDB (shortRetention)...`, V.Check);
         }
 
         // Suppression des points de prévisions obsolètes (ceux qui sont déjà passés)
