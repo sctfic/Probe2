@@ -148,7 +148,7 @@ async function runExtenderCollection(stationConfig) {
 
     if (points.length > 0) {
         try {
-            await influxdbService.writePoints(points, 'longRetention');
+            await influxdbService.writePoints(points, 'Extenders');
             console.log(`${V.database} [EXTENDERS] ${points.length} points écrits dans InfluxDB.`);
             configManager.autoSaveConfig(stationConfig);
         } catch (error) {

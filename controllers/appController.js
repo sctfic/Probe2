@@ -304,11 +304,11 @@ exports.getInfluxDbSettings = (req, res) => {
 
         // Masquer les tokens avant de renvoyer au client
         const configsToSend = JSON.parse(JSON.stringify(influxConfigs));
-        Object.keys(configsToSend).forEach(key => {
-            if (configsToSend[key] && configsToSend[key].token) {
-                configsToSend[key].token = '*********************************************************************';
-            }
-        });
+
+        // Masquer le token à la racine
+        if (configsToSend.token) {
+            configsToSend.token = configsToSend.token.substring(0, 6) + '*********************************************************************';
+        }
 
         res.json({
             success: true,
@@ -337,38 +337,38 @@ exports.updateInfluxDbSettings = async (req, res) => {
         const currentConfigs = influxdbService.getSettings();
         const updatedConfigs = { ...currentConfigs };
 
-        // Si newSettings a une structure plate (compatible avec l'ancien format), on le traite comme le bucket 'eternal'
-        if (newSettings.url && newSettings.token) {
-            updatedConfigs.eternal = {
-                ...updatedConfigs.eternal,
-                url: newSettings.url,
-                org: newSettings.org,
-                bucket: newSettings.bucket
-            };
-            if (newSettings.token && !/^\*+$/.test(newSettings.token)) {
-                updatedConfigs.eternal.token = newSettings.token;
-            }
-        } else {
-            // Sinon on parcourt les buckets (nouveau format)
-            for (const bucketKey of Object.keys(newSettings)) {
-                const bucketConfig = newSettings[bucketKey];
-                if (!updatedConfigs[bucketKey]) updatedConfigs[bucketKey] = {};
+        // 1. Mettre à jour les paramètres globaux (url, org, token)
+        if (newSettings.url) updatedConfigs.url = newSettings.url;
+        if (newSettings.org) updatedConfigs.org = newSettings.org;
 
-                updatedConfigs[bucketKey].url = bucketConfig.url;
-                updatedConfigs[bucketKey].org = bucketConfig.org;
-                updatedConfigs[bucketKey].bucket = bucketConfig.bucket;
-                if (bucketConfig.comment) updatedConfigs[bucketKey].comment = bucketConfig.comment;
-
-                if (bucketConfig.token && !/^\*+$/.test(bucketConfig.token)) {
-                    updatedConfigs[bucketKey].token = bucketConfig.token;
-                }
-            }
+        // Ne mettre à jour le token que s'il n'est pas masqué
+        // On vérifie s'il contient des étoiles (signe qu'il n'a pas été modifié côté client)
+        if (newSettings.token && !newSettings.token.includes('*')) {
+            updatedConfigs.token = newSettings.token;
         }
 
-        // Tester la connexion (priorité sur 'eternal')
-        const bucketToTest = updatedConfigs.eternal || Object.values(updatedConfigs)[0];
-        if (bucketToTest) {
-            const connectionTest = await influxdbService.testInfluxConnection(bucketToTest);
+        // 2. Mettre à jour les buckets
+        Object.keys(newSettings).forEach(key => {
+            if (key === 'url' || key === 'org' || key === 'token') return;
+
+            if (newSettings[key]) {
+                if (!updatedConfigs[key]) updatedConfigs[key] = {};
+                if (newSettings[key].bucket) updatedConfigs[key].bucket = newSettings[key].bucket;
+                if (newSettings[key].comment) updatedConfigs[key].comment = newSettings[key].comment;
+            }
+        });
+
+
+        // Tester la connexion (utiliser les paramètres globaux + le premier bucket configuré)
+        const firstBucketKey = Object.keys(updatedConfigs).find(k => k !== 'url' && k !== 'org' && k !== 'token' && updatedConfigs[k] && updatedConfigs[k].bucket);
+        if (updatedConfigs.url && updatedConfigs.token && firstBucketKey) {
+            const testConfig = {
+                url: updatedConfigs.url,
+                org: updatedConfigs.org,
+                token: updatedConfigs.token,
+                bucket: updatedConfigs[firstBucketKey].bucket
+            };
+            const connectionTest = await influxdbService.testInfluxConnection(testConfig);
             if (!connectionTest.success) {
                 return res.status(400).json({
                     success: false,

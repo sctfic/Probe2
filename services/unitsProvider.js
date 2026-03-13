@@ -79,7 +79,7 @@ class UnitsProvider {
 
             if (metadata) {
                 for (const measurementType in metadata) {
-                    const sensors = metadata[measurementType]?.tags?.sensor || [];
+                    const sensors = metadata[measurementType] || [];
                     for (const sensor of sensors) {
                         map[sensor] = measurementType;
                     }

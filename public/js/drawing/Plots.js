@@ -587,11 +587,15 @@ class TimeSeriesPlot {
                     throw new Error(apiResponse.message || 'Erreur API');
                 }
 
+                // Mettre à jour métadonnées globalement pour les tooltips
+                window.plotMetadata = apiResponse.metadata;
+
                 // Traiter les nouvelles données
                 const newData = processData(apiResponse.data, apiResponse.metadata);
 
                 // Mettre à jour la visualisation
                 this.data = newData;
+                this.metadata = apiResponse.metadata;
 
                 // RECALCULER LES DOMAINES Y AVEC LES NOUVELLES DONNÉES
                 this.updateYDomains(this.data);

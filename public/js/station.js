@@ -981,7 +981,7 @@ function createHistoricalFieldHTML(field, range, historicalSettings) {
             <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
         </a>
             <label>
-                Collect historical data
+                Collect local Archive
                 <span class="tooltip" data-tooltip="${field.comment}">?</span>
             </label>
             <div class="db-expand-controls" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
@@ -1191,7 +1191,7 @@ function formatSettingLabel(key) {
         'latitudeNorthSouth': 'Latitude Nord/Sud',
         'longitudeEastWest': 'Longitude Est/Ouest',
         'collect': 'Collecte auto. (station)',
-        'historical': 'Collect historical data',
+        'historical': 'Collect local Archive',
         'forecast': 'Collect local forecast',
     };
 
@@ -1303,7 +1303,7 @@ async function fetchOpenMeteoRange(stationId) {
     const infoEl = document.getElementById('open-meteo-range-info');
     if (!infoEl) return;
     try {
-        const rangeData = await queryManager.query(`/query/${stationId}/Range/open-meteo_barometer`);
+        const rangeData = await queryManager.query(`/query/${stationId}/Range/barometer`);
         if (rangeData.success && rangeData.metadata.first && rangeData.metadata.last) {
             const rangeText = `Archived since ${new Date(rangeData.metadata.first).toLocaleDateString()} to ${new Date(rangeData.metadata.last).toLocaleDateString()}`;
             infoEl.textContent = rangeText;

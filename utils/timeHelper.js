@@ -3,9 +3,9 @@ const tzLookup = require('tz-lookup');
 const moment = require('moment-timezone');
 
 async function getLocalTimeFromCoordinates(stationConfig) {
-    const lat = stationConfig.latitude.lastReadValue;
-    const lon = stationConfig.longitude.lastReadValue;
-    
+    const lat = stationConfig.latitude.desired || stationConfig.latitude.lastReadValue;
+    const lon = stationConfig.longitude.desired || stationConfig.longitude.lastReadValue;
+
     // Utiliser la nouvelle fonction utilitaire
     const timeZone = getTimeZoneFromCoordinates(lat, lon);
 
@@ -17,10 +17,10 @@ async function getLocalTimeFromCoordinates(stationConfig) {
     if (!timeZone) {
         throw new Error(`Impossible de déterminer le fuseau horaire pour les coordonnées : lat=${lat}, lon=${lon}`);
     }
-    
+
     const localTime = moment().tz(timeZone).toDate();
     console.log(`[Time Helper] Heure locale pour ${timeZone} : ${localTime}`);
-    
+
     return localTime;
 }
 
