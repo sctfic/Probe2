@@ -554,7 +554,7 @@ exports.getQueryCandle = async (req, res) => {
 
 exports.getQueryWindRose = async (req, res) => {
     const { stationId } = req.params;
-    const { startDate, endDate, stepCount = 10, prefix = '' } = req.query; // prefix peut être vide ou 'open-meteo_'
+    const { startDate, endDate, stepCount = 10, prefix = '' } = req.query; // prefix est obsolete
 
     if (!stationId) {
         return res.status(400).json({ success: false, error: 'Le paramètre stationId est requis.' });

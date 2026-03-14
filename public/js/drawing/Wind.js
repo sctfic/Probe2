@@ -714,7 +714,7 @@ async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url =
                 await createVectorPlot(vectorData.data, vectorData.metadata, chartDiv, fullUse, url);
 
                 const roseBaseUrl = url.split('/WindVectors')[0];
-                const roseUrl = `${roseBaseUrl}/WindRose?prefix=${prefix}`;
+                const roseUrl = `${roseBaseUrl}/WindRose?prefix=${prefix}`; // prefix est obsolete
                 loadRosePlot('windRoses-container', roseUrl);
             }
         } catch (error) {
@@ -871,7 +871,7 @@ async function loadWindPlots(windContainer, url, sensor, period = '3y') {
         </div>
     `;
 
-    const roseUrl = `${url}/WindRose?prefix=${prefix}`;
+    const roseUrl = `${url}/WindRose?prefix=${prefix}`; // prefix est obsolete
     loadRosePlot('windRoses-container', roseUrl);
 
     const vectorUrl = `${url}/WindVectors/${sensor.split(':')[1]}?stepCount=1000&startDate=${WIND.Start}`;

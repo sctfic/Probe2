@@ -182,6 +182,8 @@
             top: 0;
             left: 0;
             z-index: 1;
+            margin-top: 10px;
+            margin-left: 5px;
         }
 
         /* Custom Scrollbar for left panel if it overflows */
@@ -306,41 +308,15 @@
     </div>
 
     <script>
-        // Data Configuration (From Request)
-        const stationConfig = {
-            "stationId": "VP2_Serramoune",
-            "gps": {
-                "latitude": 43.20759,
-                "longitude": -0.479921,
-                "altitude": 242
-            },
-            "sensor": [
-                "pressure:barometer",
-                "temperature:inTemp",
-                "temperature:outTemp",
-                "temperature:soilTemp",
-                "humidity:inHumidity",
-                "humidity:outHumidity",
-                "direction:Gust",
-                "direction:Wind",
-                "irradiance:solar",
-                "irradiance:solarMax",
-                "rain:ET",
-                "rain:rainFall",
-                "soilMoisture:soilMoisture",
-                "speed:Gust",
-                "speed:Wind",
-                "uv:UV",
-                "uv:UVMax",
-                "vector:Gust",
-                "vector:Wind"
-            ],
-            "first": "1970-01-01T00:00:00Z",
-            "last": "2026-03-26T22:00:00.000Z"
-        };
-
+        // Data Configuration (Dynamic)
+        const urlParams = new URLSearchParams(window.location.search);
+        const STATION = urlParams.get('station') || 'VP2_Serramoune';
         const API_BASE = '/query';
-        const STATION = stationConfig.stationId;
+
+        let stationConfig = {
+            stationId: STATION,
+            gps: { latitude: 0, longitude: 0, altitude: 0 }
+        };
 
         // Init Clock
         setInterval(() => {
@@ -372,12 +348,14 @@
                 // Rotate to station
                 projection.rotate([-stationConfig.gps.longitude, -stationConfig.gps.latitude]);
 
-                svg.append("path")
+                const mapGroup = svg.append("g");
+
+                mapGroup.append("path")
                     .datum(d3.geoGraticule()())
                     .attr("class", "graticule")
                     .attr("d", path);
 
-                svg.selectAll(".country")
+                mapGroup.selectAll(".country")
                     .data(countries)
                     .enter().append("path")
                     .attr("class", "land")
@@ -387,36 +365,24 @@
                 const coords = projection([stationConfig.gps.longitude, stationConfig.gps.latitude]);
                 if (coords) {
                     // Pulse
-                    svg.append("circle")
+                    mapGroup.append("circle")
                         .attr("cx", coords[0])
                         .attr("cy", coords[1])
                         .attr("r", 5)
                         .attr("class", "marker-pulse");
 
                     // Center point
-                    svg.append("circle")
+                    mapGroup.append("circle")
                         .attr("cx", coords[0])
                         .attr("cy", coords[1])
                         .attr("r", 4)
                         .attr("class", "marker");
                 }
 
-                // Zoom and pan behavior for Orthographic projection
+                // Zoom and pan behavior
                 function zoomed(event) {
-                    const { k, x, y } = event.transform;
-                    // For orthographic, pan is rotation
-                    // rotate expects [lambda, phi, gamma]
-
-                    // We need a custom zoom behavior if we want to rotate
-                    // A simple scale works for zooming in/out
-                    projection.scale(Math.min(width, height) / 2.5 * k);
-
-                    svg.selectAll("path").attr("d", path);
-                    const coords = projection([stationConfig.gps.longitude, stationConfig.gps.latitude]);
-                    if (coords) {
-                        svg.select(".marker").attr("cx", coords[0]).attr("cy", coords[1]);
-                        svg.select(".marker-pulse").attr("cx", coords[0]).attr("cy", coords[1]);
-                    }
+                    // Apply the normal zoom transform to the group so it stays under mouse
+                    mapGroup.attr("transform", event.transform);
                 }
 
                 // Drag behavior for rotation
@@ -427,7 +393,11 @@
                 }
 
                 function dragged(event) {
-                    const sensitivity = 75 / projection.scale();
+                    // Adjust drag sensitivity based on current zoom scale
+                    const currentTransform = d3.zoomTransform(svg.node());
+                    const scale = currentTransform.k;
+                    const sensitivity = 75 / (projection.scale() * scale);
+                    
                     const p1 = [event.x, event.y];
                     const r1 = [r0[0] + (p1[0] - p0[0]) * sensitivity, r0[1] - (p1[1] - p0[1]) * sensitivity, r0[2]];
 
@@ -436,11 +406,11 @@
 
                     projection.rotate(r1);
 
-                    svg.selectAll("path").attr("d", path);
+                    mapGroup.selectAll("path").attr("d", path);
                     const coords = projection([stationConfig.gps.longitude, stationConfig.gps.latitude]);
                     if (coords) {
-                        svg.select(".marker").attr("cx", coords[0]).attr("cy", coords[1]);
-                        svg.select(".marker-pulse").attr("cx", coords[0]).attr("cy", coords[1]);
+                        mapGroup.select(".marker").attr("cx", coords[0]).attr("cy", coords[1]);
+                        mapGroup.select(".marker-pulse").attr("cx", coords[0]).attr("cy", coords[1]);
                     }
                 }
 
@@ -479,11 +449,11 @@
                     // Rotate the projection so the sun is centered, simulating earth rotation
                     if (!r0) { // Don't auto-rotate while dragging
                         projection.rotate([-sunLon, -sunLat]);
-                        svg.selectAll("path").attr("d", path);
+                        mapGroup.selectAll("path").attr("d", path);
                         const coords = projection([stationConfig.gps.longitude, stationConfig.gps.latitude]);
                         if (coords) {
-                            svg.select(".marker").attr("cx", coords[0]).attr("cy", coords[1]);
-                            svg.select(".marker-pulse").attr("cx", coords[0]).attr("cy", coords[1]);
+                            mapGroup.select(".marker").attr("cx", coords[0]).attr("cy", coords[1]);
+                            mapGroup.select(".marker-pulse").attr("cx", coords[0]).attr("cy", coords[1]);
                         }
                     }
                 }
@@ -505,98 +475,112 @@
         }
 
         async function initDashboard() {
-            initMap();
-
-            // Setup components using existing libraries.
-            // 1. Plot (Bottom Panel)
-            const plotContainer = document.getElementById('timeseries-container');
-            const plotUrl = `${API_BASE}/${STATION}/Raws/temperature:outTemp,humidity:outHumidity`;
-            // Fake dates for init or rely on mainPlots logic
-            if (window.mainPlots) {
-                // mainPlots handles the API call internally if passed with right args
-                // mainPlots(container, url, startDate, endDate, stepCount)
-                const endDate = new Date().toISOString();
-                const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
-                mainPlots(plotContainer, plotUrl, startDate, endDate, 250);
-            }
-
-            // 2. Spiral (Right Mid Panel)
-            const spiralContainer = document.getElementById('spiral-container');
-            if (window.loadSpiralePlot) {
-                const spiralUrl = `${API_BASE}/${STATION}/Raw/temperature:outTemp`;
-                // spiralplot expects raw url without params, it appends them
-                loadSpiralePlot(spiralContainer, spiralUrl, 'day');
-            }
-
-            // 3. Wind Rose (Right Top Panel)
-            const windRoseContainer = document.getElementById('wind-rose-container');
-            if (window.loadRosePlot) {
-                // Wind js requires setting global WINDOW variables first based on its implementation
-                // Start now()- 30 jours
-                const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
-                window.WIND = { Start: startDate, End: new Date().toISOString() };
-                const roseUrl = `${API_BASE}/${STATION}/WindRose?`;
-                loadRosePlot('wind-rose-container', roseUrl);
-            }
-
-            // 4. Populate Left Panel Values
-            // For now, let's fetch current-conditions or Raws to show values
             try {
-                // Simulate by getting latest for a few sensors
-                // Assuming queryManager exists
-                const latestUrl = `${API_BASE}/${STATION}/Raws/temperature:outTemp,humidity:outHumidity,pressure:barometer,speed:Wind?limit=1&order=desc`;
-                const res = await queryManager.query(latestUrl);
+                // 1. Fetch Station Config (Settings & GPS)
+                const stationRes = await queryManager.query(`/api/station/${STATION}`);
+                if (stationRes && stationRes.settings) {
+                    const s = stationRes.settings;
+                    stationConfig.gps = {
+                        latitude: s.latitude.desired || s.latitude.lastReadValue || 0,
+                        longitude: s.longitude.desired || s.longitude.lastReadValue || 0,
+                        altitude: s.altitude.desired || s.altitude.lastReadValue || 0
+                    };
+                    document.getElementById('station-name').innerText = `STATION: ${s.name || STATION}`;
+                }
 
-                if (res && res.data && res.data.length > 0) {
-                    const latest = res.data[0];
-                    const meta = res.metadata;
+                // Initialize Map
+                initMap();
 
+                // 2. Fetch all sensor definitions and latest values
+                const [conditionsRes, metaRes] = await Promise.all([
+                    queryManager.query(`/api/station/${STATION}/current-conditions`),
+                    queryManager.query(`${API_BASE}/${STATION}`) // Metadata containing sensors list
+                ]);
+
+                if (metaRes && metaRes.success && metaRes.metadata && metaRes.metadata.sensor) {
+                    const sensorsList = metaRes.metadata.sensor; 
                     const leftPanel = document.getElementById('values-container');
                     leftPanel.innerHTML = ''; // clear loaders
 
-                    const sensorsToShow = ['temperature:outTemp', 'humidity:outHumidity', 'pressure:barometer', 'speed:Wind'];
-
                     let newHtml = '';
-                    sensorsToShow.forEach(sensor => {
-                        if (latest[sensor] !== undefined) {
-                            let valStr = latest[sensor];
-                            let unit = '';
-                            if (meta && meta.toUserUnit && meta.toUserUnit[sensor]) {
-                                try {
-                                    const cv = eval(meta.toUserUnit[sensor].toUserUnit || 'x=>x');
-                                    valStr = cv(latest[sensor]).toFixed(1);
-                                } catch (e) { }
-                                unit = meta.toUserUnit[sensor].userUnit || '';
-                            }
 
-                            const safeId = "miniplot-" + sensor.replace(':', '-');
-                            newHtml += `
-                                <div class="panel value-display">
-                                    <div id="${safeId}" class="miniplot-container"></div>
-                                    <div class="label">${sensor.split(':')[1].toUpperCase()}</div>
-                                    <div class="value">${valStr} <span style="font-size:0.5em">${unit}</span></div>
-                                </div>
-                            `;
+                    sensorsList.forEach(sensorKey => {
+                        const def = (conditionsRes && conditionsRes.data) ? conditionsRes.data[sensorKey] : null;
+
+                        let rawValue = def ? def.Value : '--';
+                        let valStr = rawValue;
+                        let unit = def ? (def.userUnit || '') : '';
+
+                        if (def && def.toUserUnit && rawValue !== '--') {
+                            try {
+                                const cv = eval(def.toUserUnit);
+                                const processed = cv(rawValue);
+                                valStr = (typeof processed === 'number') ? processed.toFixed(1) : processed;
+                            } catch (e) {
+                                console.warn("Conversion failed for", sensorKey, e);
+                            }
                         }
+
+                        let label = sensorKey;
+                        if (def && def.label) {
+                            label = def.label;
+                        } else if (sensorKey.includes(':')) {
+                            label = sensorKey.split(':')[1].toUpperCase();
+                        }
+
+                        const safeId = "miniplot-" + sensorKey.replace(':', '-');
+
+                        newHtml += `
+                            <div class="panel value-display">
+                                <div id="${safeId}" class="miniplot-container"></div>
+                                <div class="label">${label}</div>
+                                <div class="value">${valStr} <span style="font-size:0.5em">${unit}</span></div>
+                            </div>
+                        `;
                     });
 
                     leftPanel.innerHTML = newHtml;
 
-                    sensorsToShow.forEach(sensor => {
-                        if (latest[sensor] !== undefined) {
-                            const safeId = "miniplot-" + sensor.replace(':', '-');
-                            // -7 days to +2 days
-                            const startPlot = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-                            const endPlot = new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString();
-                            const miniPlotUrl = `${API_BASE}/${STATION}/Raw/${sensor}?startDate=${startPlot}&endDate=${endPlot}`;
-                            if (window.loadData) {
-                                window.loadData(safeId, miniPlotUrl, 24 * 3600);
-                            }
+                    // Load miniPlots for each sensor
+                    sensorsList.forEach(sensorKey => {
+                        const safeId = "miniplot-" + sensorKey.replace(':', '-');
+                        // Use the precise format requested by the user, or dynamic startPlot
+                        const startPlot = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+                        const miniPlotUrl = `${API_BASE}/${STATION}/Raw/${sensorKey}?stepCount=480&startDate=${startPlot}`;
+                        
+                        if (window.loadData) {
+                            window.loadData(safeId, miniPlotUrl, 24 * 3600);
                         }
                     });
                 }
+
+                // 3. Other components
+                // TimeSeries Plot (Bottom)
+                const plotContainer = document.getElementById('timeseries-container');
+                const plotUrl = `${API_BASE}/${STATION}/Raws/temperature:outTemp,humidity:outHumidity`;
+                if (window.mainPlots) {
+                    const endDate = new Date().toISOString();
+                    const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+                    mainPlots(plotContainer, plotUrl, startDate, endDate, 250);
+                }
+
+                // Spiral
+                const spiralContainer = document.getElementById('spiral-container');
+                if (window.loadSpiralePlot) {
+                    const spiralUrl = `${API_BASE}/${STATION}/Raw/temperature:outTemp`;
+                    loadSpiralePlot(spiralContainer, spiralUrl, 'day');
+                }
+
+                // Wind Rose
+                if (window.loadRosePlot) {
+                    const startDateRose = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+                    window.WIND = { Start: startDateRose, End: new Date().toISOString() };
+                    const roseUrl = `${API_BASE}/${STATION}/WindRose?`;
+                    loadRosePlot('wind-rose-container', roseUrl);
+                }
+
             } catch (e) {
-                console.error("Values error", e);
+                console.error("Dashboard Init Error:", e);
             }
         }
 
