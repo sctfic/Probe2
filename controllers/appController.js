@@ -9,6 +9,8 @@ const probeVersion = require('../package.json').version;
 const ping = require('ping');
 const unitsProvider = require('../services/unitsProvider');
 const probesProvider = require('../services/probesProvider');
+const { Point } = require('@influxdata/influxdb-client');
+const dataMaintenanceService = require('../services/dataMaintenanceService');
 
 
 /**
@@ -662,7 +664,10 @@ exports.updateStation = (req, res) => {
     }
 };
 
+
 exports.getHealth = (req, res) => {
+    const { V } = require('../utils/icons');
+    const configManager = require('../utils/configManager');
     try {
         console.log(`${V.eye} Check de santé de l'application`);
 
@@ -706,22 +711,92 @@ exports.getHealth = (req, res) => {
     }
 };
 
+
+exports.exportBucketData = async (req, res) => {
+    const { V } = require('../utils/icons');
+    const dataMaintenanceService = require('../services/dataMaintenanceService');
+    const zlib = require('zlib');
+    const { promisify } = require('util');
+    const gzip = promisify(zlib.gzip);
+
+    try {
+        const { bucketKey } = req.params;
+        console.log(`${V.info} Exporting data from bucket: ${bucketKey} (compressed)`);
+
+        const data = await dataMaintenanceService.exportDataToJson(bucketKey);
+        const jsonString = JSON.stringify(data, null, 2);
+        const buffer = await gzip(jsonString);
+
+        res.setHeader('Content-Type', 'application/gzip');
+        res.setHeader('Content-Disposition', `attachment; filename="${bucketKey}_export.json.gz"`);
+        res.send(buffer);
+
+    } catch (error) {
+        console.error(`${V.error} Error exporting bucket data:`, error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+
+
+exports.importBucketData = async (req, res) => {
+    const { V } = require('../utils/icons');
+    const dataMaintenanceService = require('../services/dataMaintenanceService');
+    const zlib = require('zlib');
+    const { promisify } = require('util');
+    const gunzip = promisify(zlib.gunzip);
+
+    try {
+        const { bucketKey } = req.params;
+        let nestedData = req.body;
+
+        if (Buffer.isBuffer(req.body)) {
+            console.log(`${V.info} Decompressing Gzip Import payload on Backend...`);
+            try {
+                const decompressed = await gunzip(req.body);
+                nestedData = JSON.parse(decompressed.toString('utf8'));
+            } catch (err) {
+                throw new Error('Échec de la décompression Gzip : le fichier est corrompu ou invalide.');
+            }
+        }
+
+        console.log(`${V.info} Importing data to bucket: ${bucketKey}`);
+
+        if (!nestedData) {
+            return res.status(400).json({ success: false, error: 'Données invalides ou manquantes.' });
+        }
+
+        const count = await dataMaintenanceService.importDataFromJson(bucketKey, nestedData);
+
+        res.json({
+            success: true,
+            message: `${count} points importés avec succès dans le bucket ${bucketKey}.`,
+            count: count
+        });
+
+    } catch (error) {
+        console.error(`${V.error} Error importing bucket data:`, error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+
 exports.createStation = (req, res) => {
+    const { V } = require('../utils/icons');
+    const configManager = require('../utils/configManager');
+
     try {
         const newConfig = req.body;
         const allConfigs = configManager.loadAllConfigs();
-        console.log(newConfig, allConfigs);
-        // il faut netoyer le name pour enlever tous les caractere qui ne passent pas dans les url api
+
         const stationId = newConfig.name.replace(/[^a-zA-Z0-9_.-]/g, '');
 
-        // creation de la nouvelle configuration avec stationId base sur le name mais doit etre different de tous les stationId existant sinoon on retourne une ereur
         if (allConfigs[stationId]) {
             return res.status(409).json({ success: false, error: `La configuration pour la station ${stationId} existe déjà, choisiser un autre nom !` });
         }
 
         console.log(`${V.write} Création d'une nouvelle configuration pour la station ${stationId}`);
 
-        // Validation des champs requis
         if (!newConfig.host || !newConfig.port) {
             return res.status(400).json({
                 success: false,
@@ -729,7 +804,6 @@ exports.createStation = (req, res) => {
             });
         }
 
-        // on defini l'object complet
         const newConfigObject = {
             "id": stationId,
             "name": newConfig.name,
@@ -737,96 +811,26 @@ exports.createStation = (req, res) => {
             "host": newConfig.host,
             "port": newConfig.port,
             "location": "Default, 64290 devLab, FR",
-            "longitude": {
-                "desired": null,
-                "lastReadValue": null
-            },
-            "latitude": {
-                "desired": null,
-                "lastReadValue": null
-            },
-            "altitude": {
-                "comment": "in meters",
-                "desired": null,
-                "lastReadValue": null
-            },
-            "timezone": {
-                "comment": "Time zone detected by GPS position",
-                "value": null,
-                "desired": null,
-                "lastReadValue": null,
-                "method": "GPS"
-            },
-            "AMPMMode": {
-                "comment": "0=AM/PM, 1=24h",
-                "desired": null,
-                "lastReadValue": null
-            },
-            "dateFormat": {
-                "comment": "0=Month/Day, 1=Day/Month",
-                "desired": null,
-                "lastReadValue": null
-            },
-            "windCupSize": {
-                "comment": "0=Small, 1=Large",
-                "desired": null,
-                "lastReadValue": null
-            },
-            "rainCollectorSize": {
-                "comment": "0=0.01in, 1=0.2mm, 2=0.1mm",
-                "desired": null,
-                "lastReadValue": null
-            },
-            "rainSaisonStart": {
-                "comment": "Month for yearly rain reset",
-                "desired": null,
-                "lastReadValue": null
-            },
-            "latitudeNorthSouth": {
-                "comment": "0=South, 1=North",
-                "desired": null,
-                "lastReadValue": null
-            },
-            "longitudeEastWest": {
-                "comment": "0=East, 1=West",
-                "desired": null,
-                "lastReadValue": null
-            },
-            "archiveInterval": {
-                "comment": "Archive period in minutes",
-                "desired": null,
-                "lastReadValue": null
-            },
+            "longitude": { "desired": null, "lastReadValue": null },
+            "latitude": { "desired": null, "lastReadValue": null },
+            "altitude": { "comment": "in meters", "desired": null, "lastReadValue": null },
+            "timezone": { "comment": "Time zone detected by GPS position", "value": null, "desired": null, "lastReadValue": null, "method": "GPS" },
+            "AMPMMode": { "comment": "0=AM/PM, 1=24h", "desired": null, "lastReadValue": null },
+            "dateFormat": { "comment": "0=Month/Day, 1=Day/Month", "desired": null, "lastReadValue": null },
+            "windCupSize": { "comment": "0=Small, 1=Large", "desired": null, "lastReadValue": null },
+            "rainCollectorSize": { "comment": "0=0.01in, 1=0.2mm, 2=0.1mm", "desired": null, "lastReadValue": null },
+            "rainSaisonStart": { "comment": "Month for yearly rain reset", "desired": null, "lastReadValue": null },
+            "latitudeNorthSouth": { "comment": "0=South, 1=North", "desired": null, "lastReadValue": null },
+            "longitudeEastWest": { "comment": "0=East, 1=West", "desired": null, "lastReadValue": null },
+            "archiveInterval": { "comment": "Archive period in minutes", "desired": null, "lastReadValue": null },
             "lastArchiveDate": new Date().toISOString(),
-            "collect": {
-                "comment": "collecte des donnees des capteurs locaux (VP2 et autres capteurs)",
-                "value": 5,
-                "enabled": false,
-                "lastRun": "",
-                "msg": ""
-            },
-            "forecast": {
-                "comment": "recupere les previsions pour les capteurs standard (toute les heures)",
-                "model": "meteofrance_arome_france",
-                "enabled": false,
-                "lastRun": "",
-                "msg": ""
-            },
-            "historical": {
-                "comment": "recupere les previsions pour les capteurs standard (toute les jours a 23h30)",
-                "since": "1900",
-                "enabled": false,
-                "lastRun": "",
-                "msg": ""
-            },
+            "collect": { "comment": "collecte des donnees des capteurs locaux (VP2 et autres capteurs)", "value": 5, "enabled": false, "lastRun": "", "msg": "" },
+            "forecast": { "comment": "recupere les previsions pour les capteurs standard (toute les heures)", "model": "meteofrance_arome_france", "enabled": false, "lastRun": "", "msg": "" },
+            "historical": { "comment": "recupere les previsions pour les capteurs standard (toute les jours a 23h30)", "since": "1900", "enabled": false, "lastRun": "", "msg": "" },
             "deltaTimeSeconds": null,
-            "extenders": {
-                "WhisperEye": [],
-                "Venti'Connect": []
-            }
-        }
+            "extenders": { "WhisperEye": [], "Venti'Connect": [] }
+        };
 
-        // Sauvegarder la nouvelle configuration
         const success = configManager.saveConfig(stationId, newConfigObject);
 
         if (success) {

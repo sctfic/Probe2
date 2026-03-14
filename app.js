@@ -12,7 +12,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware pour parser le JSON
-app.use(express.json());
+app.use(express.json({ limit: '100mb' }));
 
 // Middleware de session (DOIT être avant les routes qui l'utilisent)
 app.use(session({

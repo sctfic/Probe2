@@ -56,4 +56,9 @@ router.post('/new', isAuthenticated, appController.createStation); // http://Pro
 // met à jour l'application, [<!> ne fonctionne pas <!>]
 router.post('/update', isAuthenticated, updateController.applyUpdate);
 
+// Export data from a bucket
+router.get('/export/:bucketKey', appController.exportBucketData);
+
+router.post('/import/:bucketKey', isAuthenticated, express.raw({ type: ['application/gzip', 'application/octet-stream'], limit: '100mb' }), appController.importBucketData);
+
 module.exports = router;

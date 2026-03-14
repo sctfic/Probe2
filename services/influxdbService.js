@@ -844,5 +844,6 @@ module.exports = {
     queryWindRose,
     queryWindVectors,
     queryCandle,
+    executeQuery,
     queryLast
 };
