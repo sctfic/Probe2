@@ -66,8 +66,8 @@ Automated synchronization with historical archives.
 ### Installation
 1. Clone the repository.
 2. Install dependencies: `npm install`.
-3. Configure your InfluxDB connection in `config/influx.json`.
-4. Add your station in `config/stations/YourStation.json`.
+3. Configure your InfluxDB connection in `config/influx.json` or use de web interface
+4. Add your station in `config/stations/YourStation.json` or use de web interface
 
 ### Running the App
 - Start the server: `npm start`.

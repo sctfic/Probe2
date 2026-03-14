@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Futuristic Dashboard - Probe2</title>
+
+    <!-- Dependencies -->
+    <script src="js/queryManager.js"></script>
+    <script src="js/queryManager.js"></script>
+    <script src="js/drawing/d3.min.js"></script>
+    <script src="js/drawing/plot.umd.js"></script>
+    <script src="js/drawing/spiralPlot.js"></script>
+    <script src="js/drawing/Plots.js"></script>
+    <script src="js/drawing/miniRose.js"></script>
+    <script src="js/drawing/Wind.js"></script>
+    <script src="js/drawing/miniPlot.js"></script>
+    <!-- d3-geo world map -->
+    <script src="https://d3js.org/d3-geo.v2.min.js"></script>
+    <script src="https://unpkg.com/topojson-client@3"></script>
+
+    <style>
+        @import url('css/main.css');
+
+        :root {
+            --futuristic-cyan: #00ffff;
+            --futuristic-cyan-dim: rgba(0, 255, 255, 0.3);
+            --futuristic-dark: rgb(26, 26, 26);
+            --futuristic-panel: rgba(28, 28, 28, 0.05);
+            --futuristic-border: 1px solid rgba(0, 255, 255, 0.2);
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--futuristic-dark);
+            color: var(--futuristic-cyan);
+            font-family: 'Courier New', Courier, monospace;
+            /* Monospace for tech feel */
+            overflow: hidden;
+            display: grid;
+            /* grid-template-columns: 300px 1fr 350px; */
+            /* pertube l'affichage, limite a 300px la zone visible */
+            /* Left panel, Center map, Right panels */
+            /* grid-template-rows: 80px 1fr 250px; */
+            /* pertube l'affichage, limite a 80px la zone visible */
+            /* Header, Main, Bottom panels */
+            gap: 10px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .panel {
+            background: var(--futuristic-panel);
+            border: var(--futuristic-border);
+            border-radius: 4px;
+            box-shadow: 0 0 10px var(--futuristic-cyan-dim);
+            padding: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 10px;
+            height: 10px;
+            border-top: 2px solid var(--futuristic-cyan);
+            border-left: 2px solid var(--futuristic-cyan);
+        }
+
+        .panel::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 10px;
+            height: 10px;
+            border-bottom: 2px solid var(--futuristic-cyan);
+            border-right: 2px solid var(--futuristic-cyan);
+        }
+
+        /* Header Area */
+        .header {
+            grid-column: 1 / -1;
+            grid-row: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.5em;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Left Column - Gauges / Text Values */
+        .left-panel {
+            grid-column: 1;
+            grid-row: 2 / 4;
+            display: grid;
+            grid-template-rows: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            overflow-y: auto;
+        }
+
+        /* Center Map Area */
+        .center-map {
+            grid-column: 2;
+            grid-row: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        #world-map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Right Column - Plots & Wind Rose */
+        .right-top {
+            grid-column: 3;
+            grid-row: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .wind-rose-container {
+            flex: 1;
+        }
+
+        .spiral-container {
+            flex: 1.5;
+        }
+
+        /* Bottom Row - TimeSeries Plots */
+        .bottom-panel {
+            grid-column: 2 / 4;
+            grid-row: 3;
+        }
+
+        /* Value Displays */
+        .value-display {
+            text-align: center;
+            padding: 0 !important;
+            position: relative;
+            min-height: 80px;
+        }
+
+        .value-display .label {
+            font-size: 0.8em;
+            opacity: 0.7;
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            z-index: 2;
+        }
+
+        .value-display .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 5px var(--futuristic-cyan), 0 0 10px #000;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+        }
+
+        .value-display .miniplot-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* Custom Scrollbar for left panel if it overflows */
+        .left-panel::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .left-panel::-webkit-scrollbar-thumb {
+            background: var(--futuristic-cyan);
+        }
+
+        /* Loader */
+        .loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--futuristic-cyan);
+            font-size: 1.2em;
+            letter-spacing: 2px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+                text-shadow: 0 0 10px var(--futuristic-cyan);
+            }
+
+            100% {
+                opacity: 0.5;
+            }
+        }
+
+        /* Map specific styling */
+        .graticule {
+            fill: none;
+            stroke: rgba(0, 255, 255, 0.1);
+            stroke-width: .5px;
+        }
+
+        .land {
+            fill: rgba(0, 40, 60, 0.8);
+            stroke: var(--futuristic-cyan);
+            stroke-width: 0.5px;
+        }
+
+        .marker {
+            fill: #ff0055;
+            stroke: #fff;
+            stroke-width: 1px;
+            cursor: pointer;
+        }
+
+        .marker-pulse {
+            fill: none;
+            stroke: #ff0055;
+            stroke-width: 2px;
+            animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes ping {
+            0% {
+                r: 5;
+                opacity: 1;
+            }
+
+            100% {
+                r: 30;
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header -->
+    <div class="panel header" id="header-panel">
+        <div>SYS.CONN: ONLINE</div>
+        <div id="station-name">INITIALIZING...</div>
+        <div id="sys-time">00:00:00</div>
+    </div>
+
+    <!-- Left Panel: Sensor Values -->
+    <div class="left-panel" id="values-container">
+        <!-- Sensor values will be injected here -->
+        <div class="panel value-display loader-holder">
+            <div class="loader">LOADING...</div>
+        </div>
+    </div>
+
+    <!-- Center Panel: World Map -->
+    <div class="panel center-map" id="map-container">
+        <svg id="world-map"></svg>
+        <div id="map-overlay" style="position:absolute; top: 10px; right: 10px; text-align:right;">
+            <div id="gps-lat">LAT: --</div>
+            <div id="gps-lon">LON: --</div>
+            <div id="gps-alt">ALT: --</div>
+        </div>
+    </div>
+
+    <!-- Right Top: Wind Rose and 3D Spiral -->
+    <div class="right-top">
+        <div class="panel wind-rose-container" id="wind-rose-container">
+            <!-- Mini Rose goes here -->
+            <div style="text-align: center; margin-top: 50%;">WIND VECTORS INITIALIZING...</div>
+        </div>
+        <div class="panel spiral-container" id="spiral-container">
+            <!-- 3D Spiral goes here -->
+            <div style="text-align: center; margin-top: 50%;">3D PROJECTION INITIALIZING...</div>
+        </div>
+    </div>
+
+    <!-- Bottom Panel: TimeSeries Plot -->
+    <div class="panel bottom-panel" id="timeseries-container">
+        <div style="text-align: center; margin-top: 5%;">TIME SERIES MODULE INITIALIZING...</div>
+    </div>
+
+    <script>
+        // Data Configuration (From Request)
+        const stationConfig = {
+            "stationId": "VP2_Serramoune",
+            "gps": {
+                "latitude": 43.20759,
+                "longitude": -0.479921,
+                "altitude": 242
+            },
+            "sensor": [
+                "pressure:barometer",
+                "temperature:inTemp",
+                "temperature:outTemp",
+                "temperature:soilTemp",
+                "humidity:inHumidity",
+                "humidity:outHumidity",
+                "direction:Gust",
+                "direction:Wind",
+                "irradiance:solar",
+                "irradiance:solarMax",
+                "rain:ET",
+                "rain:rainFall",
+                "soilMoisture:soilMoisture",
+                "speed:Gust",
+                "speed:Wind",
+                "uv:UV",
+                "uv:UVMax",
+                "vector:Gust",
+                "vector:Wind"
+            ],
+            "first": "1970-01-01T00:00:00Z",
+            "last": "2026-03-26T22:00:00.000Z"
+        };
+
+        const API_BASE = '/query';
+        const STATION = stationConfig.stationId;
+
+        // Init Clock
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('sys-time').innerText = now.toISOString().split('T')[1].split('.')[0] + ' UTC';
+        }, 1000);
+
+        document.getElementById('station-name').innerText = `STATION_ID: ${STATION}`;
+
+        // Initialize Map
+        async function initMap() {
+            const svg = d3.select("#world-map");
+            const width = svg.node().clientWidth || 800;
+            const height = svg.node().clientHeight || 600;
+
+            // Geo projection
+            const projection = d3.geoOrthographic()
+                .scale(250)
+                .translate([width / 2, height / 2])
+                .clipAngle(90);
+
+            const path = d3.geoPath().projection(projection);
+
+            try {
+                // Using 50m resolution for more detail
+                const worldData = await d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json");
+                const countries = topojson.feature(worldData, worldData.objects.countries).features;
+
+                // Rotate to station
+                projection.rotate([-stationConfig.gps.longitude, -stationConfig.gps.latitude]);
+
+                svg.append("path")
+                    .datum(d3.geoGraticule()())
+                    .attr("class", "graticule")
+                    .attr("d", path);
+
+                svg.selectAll(".country")
+                    .data(countries)
+                    .enter().append("path")
+                    .attr("class", "land")
+                    .attr("d", path);
+
+                // Draw Marker
+                const coords = projection([stationConfig.gps.longitude, stationConfig.gps.latitude]);
+                if (coords) {
+                    // Pulse
+                    svg.append("circle")
+                        .attr("cx", coords[0])
+                        .attr("cy", coords[1])
+                        .attr("r", 5)
+                        .attr("class", "marker-pulse");
+
+                    // Center point
+                    svg.append("circle")
+                        .attr("cx", coords[0])
+                        .attr("cy", coords[1])
+                        .attr("r", 4)
+                        .attr("class", "marker");
+                }
+
+                // Zoom and pan behavior for Orthographic projection
+                function zoomed(event) {
+                    const { k, x, y } = event.transform;
+                    // For orthographic, pan is rotation
+                    // rotate expects [lambda, phi, gamma]
+
+                    // We need a custom zoom behavior if we want to rotate
+                    // A simple scale works for zooming in/out
+                    projection.scale(Math.min(width, height) / 2.5 * k);
+
+                    svg.selectAll("path").attr("d", path);
+                    const coords = projection([stationConfig.gps.longitude, stationConfig.gps.latitude]);
+                    if (coords) {
+                        svg.select(".marker").attr("cx", coords[0]).attr("cy", coords[1]);
+                        svg.select(".marker-pulse").attr("cx", coords[0]).attr("cy", coords[1]);
+                    }
+                }
+
+                // Drag behavior for rotation
+                let r0, p0;
+                function dragstarted(event) {
+                    r0 = projection.rotate();
+                    p0 = [event.x, event.y];
+                }
+
+                function dragged(event) {
+                    const sensitivity = 75 / projection.scale();
+                    const p1 = [event.x, event.y];
+                    const r1 = [r0[0] + (p1[0] - p0[0]) * sensitivity, r0[1] - (p1[1] - p0[1]) * sensitivity, r0[2]];
+
+                    // Limit pitch (phi) to prevent flipping
+                    r1[1] = Math.max(-90, Math.min(90, r1[1]));
+
+                    projection.rotate(r1);
+
+                    svg.selectAll("path").attr("d", path);
+                    const coords = projection([stationConfig.gps.longitude, stationConfig.gps.latitude]);
+                    if (coords) {
+                        svg.select(".marker").attr("cx", coords[0]).attr("cy", coords[1]);
+                        svg.select(".marker-pulse").attr("cx", coords[0]).attr("cy", coords[1]);
+                    }
+                }
+
+                svg.call(d3.zoom()
+                    .scaleExtent([0.5, 10])
+                    .on("zoom", zoomed)
+                );
+
+                svg.call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                );
+
+                // Auto-rotation based on sun position
+                function updateSunRotation() {
+                    const now = new Date();
+                    const hours = now.getUTCHours();
+                    const minutes = now.getUTCMinutes();
+                    const seconds = now.getUTCSeconds();
+                    const ms = now.getUTCMilliseconds();
+
+                    // Earth rotates 360 degrees in 24 hours.
+                    const timeInDays = (hours + minutes / 60 + seconds / 3600 + ms / 3600000) / 24;
+
+                    // Longitude of the sun (subsolar point). At UTC noon, it's 0.
+                    const sunLon = (0.5 - timeInDays) * 360;
+
+                    // Day of year for declination
+                    const startOfYear = new Date(now.getUTCFullYear(), 0, 0);
+                    const diff = now - startOfYear;
+                    const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+                    // Solar declination (approx latitude)
+                    const sunLat = -23.44 * Math.cos((360 / 365) * (dayOfYear + 10) * Math.PI / 180);
+
+                    // Rotate the projection so the sun is centered, simulating earth rotation
+                    if (!r0) { // Don't auto-rotate while dragging
+                        projection.rotate([-sunLon, -sunLat]);
+                        svg.selectAll("path").attr("d", path);
+                        const coords = projection([stationConfig.gps.longitude, stationConfig.gps.latitude]);
+                        if (coords) {
+                            svg.select(".marker").attr("cx", coords[0]).attr("cy", coords[1]);
+                            svg.select(".marker-pulse").attr("cx", coords[0]).attr("cy", coords[1]);
+                        }
+                    }
+                }
+
+                // Initial rotation
+                updateSunRotation();
+
+                // Keep rotating every frame
+                d3.timer(updateSunRotation);
+
+                // Update overlay
+                document.getElementById('gps-lat').innerText = `LAT: ${stationConfig.gps.latitude.toFixed(4)}`;
+                document.getElementById('gps-lon').innerText = `LON: ${stationConfig.gps.longitude.toFixed(4)}`;
+                document.getElementById('gps-alt').innerText = `ALT: ${stationConfig.gps.altitude}m`;
+
+            } catch (e) {
+                console.error("Map load failed", e);
+            }
+        }
+
+        async function initDashboard() {
+            initMap();
+
+            // Setup components using existing libraries.
+            // 1. Plot (Bottom Panel)
+            const plotContainer = document.getElementById('timeseries-container');
+            const plotUrl = `${API_BASE}/${STATION}/Raws/temperature:outTemp,humidity:outHumidity`;
+            // Fake dates for init or rely on mainPlots logic
+            if (window.mainPlots) {
+                // mainPlots handles the API call internally if passed with right args
+                // mainPlots(container, url, startDate, endDate, stepCount)
+                const endDate = new Date().toISOString();
+                const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+                mainPlots(plotContainer, plotUrl, startDate, endDate, 250);
+            }
+
+            // 2. Spiral (Right Mid Panel)
+            const spiralContainer = document.getElementById('spiral-container');
+            if (window.loadSpiralePlot) {
+                const spiralUrl = `${API_BASE}/${STATION}/Raw/temperature:outTemp`;
+                // spiralplot expects raw url without params, it appends them
+                loadSpiralePlot(spiralContainer, spiralUrl, 'day');
+            }
+
+            // 3. Wind Rose (Right Top Panel)
+            const windRoseContainer = document.getElementById('wind-rose-container');
+            if (window.loadRosePlot) {
+                // Wind js requires setting global WINDOW variables first based on its implementation
+                // Start now()- 30 jours
+                const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
+                window.WIND = { Start: startDate, End: new Date().toISOString() };
+                const roseUrl = `${API_BASE}/${STATION}/WindRose?`;
+                loadRosePlot('wind-rose-container', roseUrl);
+            }
+
+            // 4. Populate Left Panel Values
+            // For now, let's fetch current-conditions or Raws to show values
+            try {
+                // Simulate by getting latest for a few sensors
+                // Assuming queryManager exists
+                const latestUrl = `${API_BASE}/${STATION}/Raws/temperature:outTemp,humidity:outHumidity,pressure:barometer,speed:Wind?limit=1&order=desc`;
+                const res = await queryManager.query(latestUrl);
+
+                if (res && res.data && res.data.length > 0) {
+                    const latest = res.data[0];
+                    const meta = res.metadata;
+
+                    const leftPanel = document.getElementById('values-container');
+                    leftPanel.innerHTML = ''; // clear loaders
+
+                    const sensorsToShow = ['temperature:outTemp', 'humidity:outHumidity', 'pressure:barometer', 'speed:Wind'];
+
+                    let newHtml = '';
+                    sensorsToShow.forEach(sensor => {
+                        if (latest[sensor] !== undefined) {
+                            let valStr = latest[sensor];
+                            let unit = '';
+                            if (meta && meta.toUserUnit && meta.toUserUnit[sensor]) {
+                                try {
+                                    const cv = eval(meta.toUserUnit[sensor].toUserUnit || 'x=>x');
+                                    valStr = cv(latest[sensor]).toFixed(1);
+                                } catch (e) { }
+                                unit = meta.toUserUnit[sensor].userUnit || '';
+                            }
+
+                            const safeId = "miniplot-" + sensor.replace(':', '-');
+                            newHtml += `
+                                <div class="panel value-display">
+                                    <div id="${safeId}" class="miniplot-container"></div>
+                                    <div class="label">${sensor.split(':')[1].toUpperCase()}</div>
+                                    <div class="value">${valStr} <span style="font-size:0.5em">${unit}</span></div>
+                                </div>
+                            `;
+                        }
+                    });
+
+                    leftPanel.innerHTML = newHtml;
+
+                    sensorsToShow.forEach(sensor => {
+                        if (latest[sensor] !== undefined) {
+                            const safeId = "miniplot-" + sensor.replace(':', '-');
+                            // -7 days to +2 days
+                            const startPlot = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+                            const endPlot = new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString();
+                            const miniPlotUrl = `${API_BASE}/${STATION}/Raw/${sensor}?startDate=${startPlot}&endDate=${endPlot}`;
+                            if (window.loadData) {
+                                window.loadData(safeId, miniPlotUrl, 24 * 3600);
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Values error", e);
+            }
+        }
+
+        // Wait for fonts/css then init
+        window.addEventListener('load', initDashboard);
+
+    </script>
+</body>
+
+</html>
