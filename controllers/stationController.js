@@ -109,9 +109,9 @@ async function getCompositeProbes(weatherData, stationConfig) {
                 // console.log(key, calcInput);
             });
             const fnCalcStr = probeConfig.fnCalc
-                .replace("%longitude%", stationConfig.longitude.lastReadValue)
-                .replace("%latitude%", stationConfig.latitude.lastReadValue)
-                .replace("%altitude%", stationConfig.altitude.lastReadValue);
+                .replace("%longitude%", stationConfig.longitude.desired || stationConfig.longitude.lastReadValue)
+                .replace("%latitude%", stationConfig.latitude.desired || stationConfig.latitude.lastReadValue)
+                .replace("%altitude%", stationConfig.altitude.desired || stationConfig.altitude.lastReadValue);
             // console.log(fnCalcStr);
             const calculate = vm.runInNewContext(`(${fnCalcStr})`, scriptContext);
             const calculatedValue = calculate(calcInput);
@@ -150,7 +150,7 @@ async function getCompositeProbes(weatherData, stationConfig) {
 async function getDbProbes(stationConfig) {
     try {
         // 1. Get all sensors with data in the last 7 days from InfluxDB
-        const dbData = await influxdbService.queryLast(stationConfig.id, '-17d', 'now()');
+        const dbData = await influxdbService.queryLast(stationConfig.id, '-7d', 'now()');
         // on surchage dbData avec les données de dbProbes
         for (const sensorKey of Object.keys(dbData)) {
             dbData[sensorKey] = { ...dbData[sensorKey], ...dbProbes[sensorKey] };
@@ -218,7 +218,7 @@ exports.getArchiveData = async (req, res) => {
         const stationConfig = req.stationConfig;
         console.log(`${V.Parabol} Demande de données d'archive pour la station ${stationConfig.id}`);
 
-        const endDate = (await queryDateRange(stationConfig.id, 'barometer', '-107d', '1d', true)).lastUtc;
+        const endDate = (await queryDateRange(stationConfig.id, 'pressure:barometer', '-107d', '1d', 'Stations')).lastUtc;
         // si endDate est 01/01/1970, on se comporte comme getArchiveDataAll
         let force = (endDate === '1970-01-01T00:00:00Z');
         const archiveData = await stationService.downloadArchiveData(req, stationConfig, endDate, force);

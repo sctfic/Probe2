@@ -61,7 +61,7 @@ async function getIntervalSeconds(stationId, sensorRef, startDate, endDate, step
     const endTime = new Date(dateRange.lastUtc);
     // 3. Calcule l'intervalle optimal
     const totalSeconds = (endTime.getTime() - startTime.getTime()) / 1000;
-    const interval = Math.max(1, Math.round(totalSeconds / parseInt(stepCount) / 300) * 300);
+    const interval = Math.max(1, Math.round(totalSeconds / parseInt(stepCount) / 300)) * 300;
     return {
         start: startTime.toISOString().replace('.000Z', 'Z'),
         end: endTime.toISOString().replace('.000Z', 'Z'),
@@ -99,9 +99,9 @@ function getMetadata(req, sensorRefs, { start, end, intervalSeconds }, data) {
     return {
         stationId: req.stationConfig.id,
         gps: {
-            latitude: req.stationConfig.latitude.lastReadValue,
-            longitude: req.stationConfig.longitude.lastReadValue,
-            altitude: req.stationConfig.altitude.lastReadValue,
+            latitude: req.stationConfig.latitude.desired || req.stationConfig.latitude.lastReadValue,
+            longitude: req.stationConfig.longitude.desired || req.stationConfig.longitude.lastReadValue,
+            altitude: req.stationConfig.altitude.desired || req.stationConfig.altitude.lastReadValue,
         },
         measurement: mix,
         sensor: sensors,
@@ -118,16 +118,24 @@ function getMetadata(req, sensorRefs, { start, end, intervalSeconds }, data) {
 
 exports.getQueryMetadata = async (req, res) => {
     const stationId = req.params.stationId;
-    const start = Date.now();
     try {
-        const dateRange = await influxdbService.queryDateRange(stationId, 'pressure:*');
-        const _measurements = await influxdbService.getInfluxMetadata(stationId);
+        const buckets = Object.keys(influxdbService.getSettings()).filter(k => k !== 'url' && k !== 'org' && k !== 'token');
 
-        const allFields = Object.entries(_measurements) // liste des sensors en nom long
-            .flatMap(([measurementType, measurement]) =>
-                (measurement.tags?.sensor || []).map(sensor => `${measurementType}:${sensor}`)
-            );
+        // Fetch metadata and date range from all buckets
+        const [metadata, dateRangeResults] = await Promise.all([
+            influxdbService.getInfluxMetadata(stationId, 100),
+            Promise.all(buckets.map(b => influxdbService.queryDateRange(stationId, 'pressure:barometer', null, null, b)))
+        ]);
 
+        // Merge date range
+        const firstUtc = dateRangeResults.filter(r => r.firstUtc).map(r => r.firstUtc).sort()[0] || null;
+        const lastUtc = dateRangeResults.filter(r => r.lastUtc).map(r => r.lastUtc).sort().reverse()[0] || null;
+        const dateRange = { firstUtc, lastUtc };
+
+        const allFields = metadata ? Object.entries(metadata)
+            .flatMap(([measurementType, sensors]) =>
+                sensors.map(sensor => `${measurementType}:${sensor}`)
+            ) : [];
         res.json({
             success: true,
             message: 'Success',
@@ -135,17 +143,17 @@ exports.getQueryMetadata = async (req, res) => {
             metadata: {
                 stationId: stationId,
                 gps: {
-                    latitude: req.stationConfig.latitude.lastReadValue,
-                    longitude: req.stationConfig.longitude.lastReadValue,
-                    altitude: req.stationConfig.altitude.lastReadValue,
+                    latitude: req.stationConfig.latitude.desired || req.stationConfig.latitude.lastReadValue,
+                    longitude: req.stationConfig.longitude.desired || req.stationConfig.longitude.lastReadValue,
+                    altitude: req.stationConfig.altitude.desired || req.stationConfig.altitude.lastReadValue,
                 },
-                sensor: [...new Set(allFields)], // liste dans la DB
+                sensor: [...new Set(allFields)].sort(),
                 queryTime: new Date().toISOString(),
                 first: dateRange.firstUtc,
                 last: dateRange.lastUtc,
-                unit: unitsProvider.getUnits(), // liste dans units.json
+                unit: unitsProvider.getUnits(),
             },
-            measurements: _measurements // liste dans la DB
+            measurements: metadata
         });
     } catch (error) {
         handleError(res, stationId, error, 'getQueryMetadata');
@@ -160,13 +168,12 @@ function getTypeAndSensor(sensorRef = '') {
         type = unitsProvider.getSensorTypeMap()[sensorRef];
         sensor = sensorRef;
     } else {
-        console.log(`${V.Warn} Sensor reference ${sensorRef} not found in Units.json`);
+        console.log(`${V.Warn} Sensor reference [${sensorRef}] not found in Units.json`);
         type = null;
         sensor = sensorRef;
     }
     return { type, sensor };
 }
-
 exports.getQueryRange = async (req, res) => {
     const { stationId, sensorRef } = req.params;
     const { startDate, endDate } = req.query;
@@ -183,12 +190,13 @@ exports.getQueryRange = async (req, res) => {
         res.json({
             success: true,
             message: 'Success',
+            version: probeVersion,
             metadata: {
                 stationId: stationId,
                 gps: {
-                    latitude: req.stationConfig.latitude.lastReadValue,
-                    longitude: req.stationConfig.longitude.lastReadValue,
-                    altitude: req.stationConfig.altitude.lastReadValue,
+                    latitude: req.stationConfig.latitude.desired || req.stationConfig.latitude.lastReadValue,
+                    longitude: req.stationConfig.longitude.desired || req.stationConfig.longitude.lastReadValue,
+                    altitude: req.stationConfig.altitude.desired || req.stationConfig.altitude.lastReadValue,
                 },
                 measurement: type,
                 sensor: sensor,
@@ -237,9 +245,9 @@ async function getCompositeData(stationConfig, probeConfig, start, end, interval
 
     // Prepare calculation function from fnCalc string
     const fnCalcStr = probeConfig.fnCalc
-        .replace("%longitude%", stationConfig.longitude.lastReadValue)
-        .replace("%latitude%", stationConfig.latitude.lastReadValue)
-        .replace("%altitude%", stationConfig.altitude.lastReadValue);
+        .replace("%longitude%", stationConfig.longitude.desired || stationConfig.longitude.lastReadValue)
+        .replace("%latitude%", stationConfig.latitude.desired || stationConfig.latitude.lastReadValue)
+        .replace("%altitude%", stationConfig.altitude.desired || stationConfig.altitude.lastReadValue);
 
     const fnCalc = vm.runInNewContext(`(${fnCalcStr})`, scriptContext);
     console.log('fnCalc()', fnCalcStr, fnCalc(0.5, 43.2, 242.01, 45));
@@ -313,9 +321,9 @@ exports.getQueryRaw = async (req, res) => {
         const metadata = {
             stationId: stationId,
             gps: {
-                latitude: req.stationConfig.latitude.lastReadValue,
-                longitude: req.stationConfig.longitude.lastReadValue,
-                altitude: req.stationConfig.altitude.lastReadValue,
+                latitude: req.stationConfig.latitude.desired || req.stationConfig.latitude.lastReadValue,
+                longitude: req.stationConfig.longitude.desired || req.stationConfig.longitude.lastReadValue,
+                altitude: req.stationConfig.altitude.desired || req.stationConfig.altitude.lastReadValue,
             },
             measurement: type,
             sensor: sensor,
@@ -332,6 +340,7 @@ exports.getQueryRaw = async (req, res) => {
         res.json({
             success: true,
             message: msg,
+            version: probeVersion,
             metadata,
             data: Data
         });
@@ -474,6 +483,7 @@ exports.getQueryRaws = async (req, res) => {
         res.json({
             success: true,
             message: msg,
+            version: probeVersion,
             metadata,
             data: Data
         });
@@ -516,12 +526,13 @@ exports.getQueryCandle = async (req, res) => {
         res.json({
             success: true,
             message: msg,
+            version: probeVersion,
             metadata: {
                 stationId: stationId,
                 gps: {
-                    latitude: req.stationConfig.latitude.lastReadValue,
-                    longitude: req.stationConfig.longitude.lastReadValue,
-                    altitude: req.stationConfig.altitude.lastReadValue,
+                    latitude: req.stationConfig.latitude.desired || req.stationConfig.latitude.lastReadValue,
+                    longitude: req.stationConfig.longitude.desired || req.stationConfig.longitude.lastReadValue,
+                    altitude: req.stationConfig.altitude.desired || req.stationConfig.altitude.lastReadValue,
                 },
                 measurement: type,
                 sensor: sensor,
@@ -564,6 +575,7 @@ exports.getQueryWindRose = async (req, res) => {
         res.json({
             success: true,
             message: msg,
+            version: probeVersion,
             metadata,
             data
         });
@@ -604,6 +616,7 @@ exports.getQueryWindVectors = async (req, res) => {
         res.json({
             success: true,
             message: msg,
+            version: probeVersion,
             metadata,
             data
         });
@@ -637,7 +650,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
         let endDate = new Date();
         let startDate;
 
-        const { firstUtc, lastUtc } = (await influxdbService.queryDateRange(stationId, 'open-meteo_barometer'));
+        const { firstUtc, lastUtc } = (await influxdbService.queryDateRange(stationId, 'pressure:barometer', null, null, 'Archives'));
 
         // Validation de stationConfig.historical.since
         let since = parseInt(stationConfig.historical && stationConfig.historical.since, 10);
@@ -700,17 +713,17 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
         let totalPointsWritten = 0;
 
         const mapping = {
-            'temperature_2m': { type: 'temperature', sensor: ['open-meteo_outTemp'], convert: (v) => v + 273.15 }, // °C -> K
-            'relative_humidity_2m': { type: 'humidity', sensor: ['open-meteo_outHumidity'] },
-            'precipitation': { type: 'rain', sensor: ['open-meteo_rainFall'] },
-            'et0_fao_evapotranspiration': { type: 'rain', sensor: ['open-meteo_ET'] },
-            'wind_speed_10m': { type: 'speed', sensor: ['open-meteo_Wind'], convert: (v) => v / 3.6 }, // km/h -> m/s
-            'wind_gusts_10m': { type: 'speed', sensor: ['open-meteo_Gust'], convert: (v) => v / 3.6 }, // km/h -> m/s
-            'wind_direction_10m': { type: 'direction', sensor: ['open-meteo_Wind', 'open-meteo_Gust'] },
-            'soil_temperature_7_to_28cm': { type: 'temperature', sensor: ['open-meteo_soilTemp'], convert: (v) => v + 273.15 }, // °C -> K
-            'soil_moisture_7_to_28cm': { type: 'soilMoisture', sensor: ['open-meteo_soilMoisture'], convert: (v) => v * 100 },
-            'pressure_msl': { type: 'pressure', sensor: ['open-meteo_barometer'] },
-            'shortwave_radiation': { type: 'irradiance', sensor: ['open-meteo_solar'] }
+            'temperature_2m': { type: 'temperature', sensor: ['outTemp'], convert: (v) => v + 273.15 }, // °C -> K
+            'relative_humidity_2m': { type: 'humidity', sensor: ['outHumidity'] },
+            'precipitation': { type: 'rain', sensor: ['rainFall'] },
+            'et0_fao_evapotranspiration': { type: 'rain', sensor: ['ET'] },
+            'wind_speed_10m': { type: 'speed', sensor: ['Wind'], convert: (v) => v / 3.6 }, // km/h -> m/s
+            'wind_gusts_10m': { type: 'speed', sensor: ['Gust'], convert: (v) => v / 3.6 }, // km/h -> m/s
+            'wind_direction_10m': { type: 'direction', sensor: ['Wind', 'Gust'] },
+            'soil_temperature_7_to_28cm': { type: 'temperature', sensor: ['soilTemp'], convert: (v) => v + 273.15 }, // °C -> K
+            'soil_moisture_7_to_28cm': { type: 'soilMoisture', sensor: ['soilMoisture'], convert: (v) => v * 100 },
+            'pressure_msl': { type: 'pressure', sensor: ['barometer'] },
+            'shortwave_radiation': { type: 'irradiance', sensor: ['solar'] }
         };
 
         let pointsChunk = [];
@@ -748,14 +761,19 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
                             if (value !== null && mapping[openMeteoKey]) {
                                 const { type, sensor, convert } = mapping[openMeteoKey];
                                 const metricValue = convert ? convert(value) : value;
-                                sensor.forEach(s => {
+                                for (const s of sensor) {
                                     pointsChunk.push(new influxdbService.Point(type)
                                         .tag('station_id', stationId)
                                         .tag('sensor', s)
                                         .tag('source', 'rebuildedHistoricalData')
                                         .floatField('value', metricValue.toFixed(2))
                                         .timestamp(timestamp));
-                                });
+
+                                    // if (pointsChunk.length >= 1000) {
+                                    //     totalPointsWritten += await influxdbService.writePoints(pointsChunk, 'Archives');
+                                    //     pointsChunk = [];
+                                    // }
+                                }
                             }
                         }
 
@@ -767,7 +785,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
                             .tag('station_id', stationId)
                             .floatField('Ux', UxWind)
                             .floatField('Vy', VyWind)
-                            .tag('sensor', 'open-meteo_Wind')
+                            .tag('sensor', 'Wind')
                             .tag('source', 'rebuildedHistoricalData')
                             .timestamp(timestamp));
 
@@ -779,16 +797,22 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
                             .tag('station_id', stationId)
                             .floatField('Ux', UxGust)
                             .floatField('Vy', VyGust)
-                            .tag('sensor', 'open-meteo_Gust')
+                            .tag('sensor', 'Gust')
                             .tag('source', 'rebuildedHistoricalData')
                             .timestamp(timestamp));
 
                         const daysDiff = (timestamp - lastChunkDate) / (1000 * 60 * 60 * 24);
 
-                        if (pointsChunk.length > 0 && (daysDiff >= CHUNK_SIZE_DAYS || i === time.length - 1)) {
-                            const writtenCount = await influxdbService.writePoints(pointsChunk);
+                        if (pointsChunk.length > 0 && (daysDiff >= CHUNK_SIZE_DAYS || i >= time.length - 1)) {
+                            const writtenCount = await influxdbService.writePoints(pointsChunk, 'Archives');
                             console.log(V.database, `Écriture d'un lot de ${pointsChunk.length} points dans InfluxDB... (Jusqu'à ${timestamp.toISOString()})`, V.Check);
                             totalPointsWritten += writtenCount;
+                            if (stationConfig.historical) {
+                                stationConfig.historical.lastRun = new Date().toISOString();
+                                stationConfig.historical.msg = `${totalPointsWritten} points imported successfully (Jusqu'à ${timestamp.toISOString()})`;
+                                stationConfig.historical.since = firstUtc != lastUtc ? new Date(firstUtc).getFullYear() - moreYearsValue : startDate.getFullYear();
+                                configManager.autoSaveConfig(stationConfig);
+                            }
                             pointsChunk = [];
                             lastChunkDate = timestamp;
                         }
@@ -808,20 +832,17 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             console.log(`${V.info} Aucune nouvelle donnée à importer. La base de données est déjà à jour.`);
             return res.json({
                 success: true,
+                version: probeVersion,
                 message: `Aucune nouvelle donnée à importer pour la station ${stationId}. La base est à jour.`
             });
         }
 
-        if (stationConfig.historical) {
-            stationConfig.historical.lastRun = new Date().toISOString();
-            stationConfig.historical.msg = `${totalPointsWritten} points imported successfully.`;
-            stationConfig.historical.since = firstUtc != lastUtc ? new Date(firstUtc).getFullYear() - moreYearsValue : startDate.getFullYear();
-            configManager.autoSaveConfig(stationConfig);
-        }
+
 
         res.json({
             success: true,
             stationId: stationId,
+            version: probeVersion,
             message: `${totalPointsWritten} points de données historiques ont été importés avec succès pour la station ${stationId}, pour la période [${startDate.toISOString().slice(0, 16).replace('T', ' ')}, ${endDate.toISOString().slice(0, 16).replace('T', ' ')}]`,
             pointsCount: totalPointsWritten,
             startDate,
@@ -919,7 +940,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
                 for (const [openMeteoKey, values] of Object.entries(metrics)) {
                     const value = values[i];
                     if (value !== null && mapping[openMeteoKey]) {
-                        console.log(V.Parabol, openMeteoKey, value);
+                        // console.log(V.Parabol, openMeteoKey, value);
                         const { type, sensor, convert } = mapping[openMeteoKey];
                         const metricValue = convert ? convert(value) : value;
                         sensor.forEach(s => {
@@ -927,7 +948,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
                                 .tag('station_id', stationId)
                                 .tag('sensor', s)
                                 .tag('source', 'forecast')
-                                .floatField('value', metricValue.toFixed(2))
+                                .floatField('value', parseFloat(metricValue.toFixed(2)))
                                 .timestamp(timestamp));
                         });
                     }
@@ -963,27 +984,21 @@ exports.getOpenMeteoForecast = async (req, res) => {
 
         let writtenCount = 0;
         if (pointsChunk.length > 0) {
-            writtenCount = await influxdbService.writePoints(pointsChunk);
-            console.log(V.database, `Écriture de ${writtenCount} points de prévisions dans InfluxDB...`, V.Check);
+            writtenCount = await influxdbService.writePoints(pointsChunk, 'Forecasts');
         }
-
-        // Suppression des points de prévisions obsolètes (ceux qui sont déjà passés)
-        const now = new Date();
-        const deleted = await influxdbService.deleteForecasts(stationId);
-        console.log(V.trash, ` Suppression de ${deleted.count} points de prévisions obsolètes pour ${stationId}.`, deleted, V.Check);
 
         if (stationConfig.forecast) {
             stationConfig.forecast.lastRun = new Date().toISOString();
-            stationConfig.forecast.msg = `${writtenCount} points imported, ${deleted.count} deleted.`;
+            stationConfig.forecast.msg = `${writtenCount} points imported`;
             configManager.autoSaveConfig(stationConfig);
         }
 
         res.json({
             success: true,
             stationId: stationId,
+            version: probeVersion,
             message: `${writtenCount} points de données de prévisions ont été importés avec succès pour la station ${stationId}, jusqu'au [${timestamp.toISOString().slice(0, 16).replace('T', ' ')}]`,
             pointsWritten: writtenCount,
-            pointsDeleted: deleted,
         });
 
     } catch (error) {

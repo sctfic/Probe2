@@ -299,24 +299,22 @@ exports.updateUnitsSettings = (req, res) => {
 
 exports.getInfluxDbSettings = (req, res) => {
     try {
-        console.log(`${V.gear} Récupération de la configuration InfluxDB (influx.json)`);
-        const influxPath = path.join(__dirname, '..', 'config', 'influx.json');
-        if (!fs.existsSync(influxPath)) {
-            return res.json({ success: true, settings: { url: '', token: '', org: '', bucket: '' } });
-        }
-        const influxConfig = JSON.parse(fs.readFileSync(influxPath, 'utf8'));
+        console.log(`${V.gear} Récupération de la configuration InfluxDB (via influxdbService)`);
+        const influxConfigs = influxdbService.getSettings();
 
-        // Ne pas renvoyer le token au client
-        const settingsToSend = { ...influxConfig };
-        if (settingsToSend.token) {
-            settingsToSend.token = '*********************************************************************';
+        // Masquer les tokens avant de renvoyer au client
+        const configsToSend = JSON.parse(JSON.stringify(influxConfigs));
+
+        // Masquer le token à la racine
+        if (configsToSend.token) {
+            configsToSend.token = configsToSend.token.substring(0, 6) + '*********************************************************************';
         }
 
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
             version: probeVersion,
-            settings: settingsToSend
+            settings: configsToSend
         });
     } catch (error) {
         console.error(`${V.error} Erreur lors de la récupération de la configuration InfluxDB:`, error);
@@ -334,43 +332,62 @@ exports.updateInfluxDbSettings = async (req, res) => {
             return res.status(400).json({ success: false, error: 'Données de configuration invalides.' });
         }
 
-        console.log(`${V.write} Mise à jour de la configuration InfluxDB (influx.json)`);
-        const influxPath = path.join(__dirname, '..', 'config', 'influx.json');
+        console.log(`${V.write} Mise à jour de la configuration InfluxDB (via influxdbService)`);
 
-        let currentConfig = {};
-        if (fs.existsSync(influxPath)) {
-            currentConfig = JSON.parse(fs.readFileSync(influxPath, 'utf8'));
+        const currentConfigs = influxdbService.getSettings();
+        const updatedConfigs = { ...currentConfigs };
+
+        // 1. Mettre à jour les paramètres globaux (url, org, token)
+        if (newSettings.url) updatedConfigs.url = newSettings.url;
+        if (newSettings.org) updatedConfigs.org = newSettings.org;
+
+        // Ne mettre à jour le token que s'il n'est pas masqué
+        // On vérifie s'il contient des étoiles (signe qu'il n'a pas été modifié côté client)
+        if (newSettings.token && !newSettings.token.includes('*')) {
+            updatedConfigs.token = newSettings.token;
         }
 
-        // Préparer la configuration à tester (et potentiellement à sauvegarder)
-        const configToTest = { ...currentConfig };
-        configToTest.url = newSettings.url;
-        configToTest.org = newSettings.org;
-        configToTest.bucket = newSettings.bucket;
-        // Ne met à jour le token que s'il est explicitement fourni et non masqué
-        if (newSettings.token && !/^\*+$/.test(newSettings.token)) {
-            configToTest.token = newSettings.token;
+        // 2. Mettre à jour les buckets
+        Object.keys(newSettings).forEach(key => {
+            if (key === 'url' || key === 'org' || key === 'token') return;
+
+            if (newSettings[key]) {
+                if (!updatedConfigs[key]) updatedConfigs[key] = {};
+                if (newSettings[key].bucket) updatedConfigs[key].bucket = newSettings[key].bucket;
+                if (newSettings[key].comment) updatedConfigs[key].comment = newSettings[key].comment;
+            }
+        });
+
+
+        // Tester la connexion (utiliser les paramètres globaux + le premier bucket configuré)
+        const firstBucketKey = Object.keys(updatedConfigs).find(k => k !== 'url' && k !== 'org' && k !== 'token' && updatedConfigs[k] && updatedConfigs[k].bucket);
+        if (updatedConfigs.url && updatedConfigs.token && firstBucketKey) {
+            const testConfig = {
+                url: updatedConfigs.url,
+                org: updatedConfigs.org,
+                token: updatedConfigs.token,
+                bucket: updatedConfigs[firstBucketKey].bucket
+            };
+            const connectionTest = await influxdbService.testInfluxConnection(testConfig);
+            if (!connectionTest.success) {
+                return res.status(400).json({
+                    success: false,
+                    error: `La connexion à InfluxDB a échoué. Détails: ${connectionTest.message}`
+                });
+            }
         }
 
-        // Tester la connexion avant de sauvegarder
-        const connectionTest = await influxdbService.testInfluxConnection(configToTest);
-        if (!connectionTest.success) {
-            return res.status(400).json({
-                success: false,
-                error: `La connexion à InfluxDB a échoué. Veuillez vérifier vos paramètres. Détails: ${connectionTest.message}`
-            });
+        // Sauvegarder et appliquer
+        const success = influxdbService.updateSettings(updatedConfigs);
+
+        if (success) {
+            res.json({ success: true, message: 'Configuration InfluxDB mise à jour et appliquée avec succès.' });
+        } else {
+            throw new Error('Erreur lors de la sauvegarde de la configuration InfluxDB.');
         }
-
-        // Si le test réussit, sauvegarder la configuration
-        fs.writeFileSync(influxPath, JSON.stringify(configToTest, null, 4), 'utf8');
-
-        // Réinitialiser le service InfluxDB avec la nouvelle configuration sans redémarrer le serveur
-        influxdbService.reinitializeInfluxDB(configToTest);
-
-        res.json({ success: true, message: 'Configuration InfluxDB mise à jour et appliquée avec succès.' });
     } catch (error) {
         console.error(`${V.error} Erreur lors de la mise à jour de la configuration InfluxDB:`, error);
-        res.status(500).json({ success: false, error: 'Erreur lors de la mise à jour de la configuration InfluxDB.' });
+        res.status(500).json({ success: false, error: error.message });
     }
 };
 

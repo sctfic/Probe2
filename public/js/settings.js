@@ -170,19 +170,47 @@ async function handleVerifyUpdate(event) {
 
 function displayInfluxForm(settings) {
     const container = document.getElementById('preferences-container');
-    const influxFormHTML = `
+
+    let influxFormHTML = `
         <div class="settings-group">
             <h3>Configuration InfluxDB</h3>
             <form id="influx-settings-form" class="settings-form">
-            <div class="settings-row">
-            ${generateInfluxField('url', 'URL du serveur InfluxDB', settings.url, 'url')}
-                ${generateInfluxField('org', 'Organisation InfluxDB', settings.org, 'text')}
-                ${generateInfluxField('bucket', 'Bucket de données', settings.bucket, 'text')}
+                <div class="settings-section" style="margin-bottom: 20px; padding: 15px; border-radius: 8px; background: rgba(255,255,255,0.05);">
+                    <h4 style="margin-top: 0; color: var(--accent-blue);">Paramètres Globaux</h4>
+                    <div class="settings-row">
+                        ${generateInfluxGlobalField('url', 'URL du serveur', settings.url, 'url')}
+                        ${generateInfluxGlobalField('org', 'Organisation', settings.org, 'text')}
+                    </div>
+                    <div class="settings-row" style="margin-top: 10px;">
+                        ${generateInfluxGlobalField('token', 'Token d\'authentification (Read & Write)', settings.token, 'text')}
+                    </div>
+                </div>
+
+                <div class="settings-section" style="padding: 15px; border-radius: 8px; background: rgba(255,255,255,0.05);">
+                    <h4 style="margin-top: 0; color: var(--accent-blue);">Buckets par Retention</h4>
+                    <div class="settings-row">
+    `;
+
+    const bucketKeys = Object.keys(settings).filter(k => k !== 'url' && k !== 'org' && k !== 'token');
+
+    bucketKeys.forEach((bucketKey) => {
+        const bucketConfig = settings[bucketKey] || {};
+
+        influxFormHTML += `
+            <div class="settings-field condition-tile">
+                <label for="influx-${bucketKey}-bucket" style="font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${bucketKey}</label>
+                <input type="text" id="influx-${bucketKey}-bucket" name="${bucketKey}.bucket" value="${bucketConfig.bucket || ''}" style="width: 100%; margin-top: auto;">
+                <div class="field-msg" style="font-size: 0.75em; margin-top: 5px; opacity: 0.8; line-height: 1.1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">${bucketConfig.comment || ''}</div>
+                <input type="hidden" name="${bucketKey}.comment" value="${bucketConfig.comment || ''}">
             </div>
-            <div class="settings-row">
-                ${generateInfluxField('token', 'Token d\'authentification', settings.token, 'text')}
-            </div>
-                <div class="settings-actions">
+        `;
+    });
+
+    influxFormHTML += `
+                    </div>
+                </div>
+
+                <div class="settings-actions" style="margin-top: 20px;">
                     <button type="submit">
                         <img src="svg/access-control.svg" title="authentification requise!" class="access-control-icon">Enregistrer la configuration InfluxDB
                     </button>
@@ -190,18 +218,22 @@ function displayInfluxForm(settings) {
             </form>
         </div>
     `;
+
     container.insertAdjacentHTML('beforeend', influxFormHTML);
-    document.getElementById('influx-settings-form').addEventListener('submit', handleInfluxFormSubmit);
+
+    const form = document.getElementById('influx-settings-form');
+    form.addEventListener('submit', handleInfluxFormSubmit);
 }
 
-function generateInfluxField(key, label, value, type) {
+function generateInfluxGlobalField(field, label, value, type) {
     return `
         <div class="settings-field condition-tile">
-            <label for="influx-${key}">${label}</label>
-            <input type="${type}" id="influx-${key}" name="${key}" value="${value || ''}" ${type === 'password' ? 'placeholder="Laisser vide pour ne pas changer"' : ''}>
+            <label for="influx-global-${field}">${label}</label>
+            <input type="${type}" id="influx-global-${field}" name="global.${field}" value="${value || ''}">
         </div>
     `;
 }
+
 
 function displayUnitsForm(settings) {
     const container = document.getElementById('preferences-container');
@@ -390,9 +422,28 @@ async function handleInfluxFormSubmit(event) {
     try {
         const formData = new FormData(event.target);
         const settings = {};
-        for (const [key, value] of formData.entries()) {
-            settings[key] = value;
-        }
+
+        const rawEntries = Array.from(formData.entries());
+
+        // 1. Paramètres globaux
+        rawEntries.forEach(([key, value]) => {
+            if (key.startsWith('global.')) {
+                const field = key.split('.')[1];
+                settings[field] = value;
+            }
+        });
+
+        // 2. Paramètres des buckets
+        const bucketKeys = Object.keys(currentInfluxSettings).filter(k => k !== 'url' && k !== 'org' && k !== 'token');
+        bucketKeys.forEach(bucketKey => {
+            settings[bucketKey] = {};
+            rawEntries.forEach(([key, value]) => {
+                if (key.startsWith(bucketKey + '.')) {
+                    const field = key.split('.')[1];
+                    settings[bucketKey][field] = value;
+                }
+            });
+        });
 
         const response = await fetch('/api/influxdb', {
             method: 'PUT',

@@ -37,10 +37,10 @@ async function getVp2DateTime(req, stationConfig) {
 
 async function updateStationTime(req, stationConfig) {
     const ianaTimeZone = await getTimeZoneFromCoordinates(
-        stationConfig.latitude.lastReadValue,
-        stationConfig.longitude.lastReadValue
+        stationConfig.latitude.desired || stationConfig.latitude.lastReadValue,
+        stationConfig.longitude.desired || stationConfig.longitude.lastReadValue
     );
-    console.log(`${V.network} Fuseau horaire : ${ianaTimeZone} pour les coordonnées`, stationConfig.latitude.lastReadValue, stationConfig.longitude.lastReadValue);
+    console.log(`${V.network} Fuseau horaire : ${ianaTimeZone} pour les coordonnées`, stationConfig.latitude.desired || stationConfig.latitude.lastReadValue, stationConfig.longitude.desired || stationConfig.longitude.lastReadValue);
 
     const davisTimeZoneIndex = findDavisTimeZoneIndex(ianaTimeZone);
     const davisTimeZoneIndexHex = davisTimeZoneIndex.toString(16).padStart(2, '0').toUpperCase();
@@ -518,9 +518,9 @@ async function getStationInfo(req, stationConfig) {
                 port: stationConfig.port
             },
             coordinates: {
-                latitude: stationConfig.latitude.lastReadValue || null,
-                longitude: stationConfig.longitude.lastReadValue || null,
-                altitude: stationConfig.altitude.lastReadValue || null
+                latitude: stationConfig.latitude.desired || stationConfig.latitude.lastReadValue || null,
+                longitude: stationConfig.longitude.desired || stationConfig.longitude.lastReadValue || null,
+                altitude: stationConfig.altitude.desired || stationConfig.altitude.lastReadValue || null
             },
             timezone: stationConfig.timezone.value || null,
             lastArchiveDate: stationConfig.lastArchiveDate || null
@@ -597,7 +597,7 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
 
     if (points.length > 0) {
         // console.log(`${V.thermometer} :`, points);
-        return await writePoints(points);
+        return await writePoints(points, 'Stations');
     }
 
     return true;

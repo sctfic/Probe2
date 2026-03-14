@@ -45,7 +45,7 @@ router.put('/integrator-probes', isAuthenticated, appController.updateIntegrator
 // retourne la configuration de connexion à InfluxDB
 router.get('/influxdb', appController.getInfluxDbSettings);
 // modifie la configuration de connexion à InfluxDB
-router.put('/influxdb', isAuthenticated, appController.updateInfluxDbSettings);
+router.put('/influxdb', isAuthenticated, appController.updateInfluxDbSettings); // http://probe.local/api/influxdb
 
 // retourne la liste de toutes les stations configurées
 router.get('/stations', appController.getAllStations); // http://Probe.lpz.ovh/api/stations

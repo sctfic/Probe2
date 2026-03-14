@@ -318,11 +318,13 @@
                 let unit = '';
                 if (window.plotMetadata && window.plotMetadata.toUserUnit && window.plotMetadata.toUserUnit[sensor]) {
                     unit = window.plotMetadata.toUserUnit[sensor].userUnit;
+                    intervalSeconds = window.plotMetadata.intervalSeconds;
                 }
 
                 // Intervalle
                 const dates = plotInstance.data.map(d => d.datetime).filter(d => d instanceof Date && !isNaN(d));
                 let durationStr = '';
+                let intervalStr = '';
                 if (dates.length > 1) {
                     const firstDate = dates[0];
                     const lastDate = dates[dates.length - 1];
@@ -330,12 +332,26 @@
                     const days = Math.floor(durationMs / (1000 * 60 * 60 * 24));
                     const hours = Math.floor((durationMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                     durationStr = `${days}j ${hours}h`;
+
+                    // Calcul de l'intervalle moyen
+                    const avgIntervalMs = intervalSeconds ? intervalSeconds * 1000 : durationMs / (dates.length - 1);
+                    const totalMin = Math.round(avgIntervalMs / 60000);
+                    const iDays = Math.floor(totalMin / (24 * 60));
+                    const iHours = Math.floor((totalMin % (24 * 60)) / 60);
+                    const iMin = totalMin % 60;
+
+                    if (iDays > 0) intervalStr = `${iDays}j ${iHours}h:${iMin.toString().padStart(2, '0')}`;
+                    else if (iHours > 0) intervalStr = `${iHours}h:${iMin.toString().padStart(2, '0')}`;
+                    else intervalStr = `${totalMin}m`;
                 }
 
                 currentStatsPanel.innerHTML = `
                     <div class="stats-container">
-                        <div class="stats-column">
-                            <span style="font-size: 1.5em;"><span style="font-size: 2em;">&larrb;</span> <b style="color: ${color};">${durationStr}</b> <span style="font-size: 2em;"> &rarrb;</span></span>
+                        <div class="stats-column" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                            <span style="font-size: 1.5em; line-height: 1;">
+                                <span style="font-size: 1.6em;">&larrb;</span> <b style="color: ${color};">${durationStr}</b> <span style="font-size: 1.6em;"> &rarrb;</span>
+                            </span>
+                            <span style="font-size: 0.9em; opacity: 0.8; margin-top: 5px;" title="Intervalle moyen entre 2 points">&Delta; t: <b style="color: ${color};">${intervalStr}</b></span>
                         </div>
 
                         <div class="stats-column">
@@ -544,6 +560,7 @@
                     const res = await queryManager.query(metaUrl, { cacheDuration: 10 * 60 * 1000 });
                     if (res && res.metadata && res.metadata.sensor) {
                         allStationSensors = res.metadata.sensor;
+                        renderSensorUI(); // Nouveau: Rafraîchir l'UI une fois les capteurs chargés
                     }
                 } catch (err) {
                     console.error("Erreur lors du chargement des capteurs:", err);
