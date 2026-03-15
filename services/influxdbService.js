@@ -830,6 +830,23 @@ from(bucket: "${bucket}")
 }
 
 
+/**
+ * Retourne les informations runtime de chaque bucket initialisé.
+ * @returns {Array<{key: string, bucket: string, comment: string, firstDate: string|null}>}
+ */
+function getBucketsInfo() {
+    return Object.keys(influxInstances).map(key => {
+        const instance = influxInstances[key];
+        const configEntry = influxConfigs[key] || {};
+        return {
+            key,
+            bucket: instance.bucket,
+            comment: configEntry.comment || '',
+            firstDate: instance.firstDate || null
+        };
+    });
+}
+
 
 module.exports = {
     getSettings,
@@ -845,5 +862,6 @@ module.exports = {
     queryWindVectors,
     queryCandle,
     executeQuery,
-    queryLast
+    queryLast,
+    getBucketsInfo
 };

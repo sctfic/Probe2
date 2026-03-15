@@ -10,8 +10,8 @@ const { isAuthenticated } = require('../middleware/authMiddleware');
 // Route pour les informations générales de l'application
 router.get('/', appController.getApiEndpoints); // http://Probe.lpz.ovh/api/
 
-// Route pour le health check
-router.get('/health', appController.getHealth); // http://probe.local/api/health
+// Route pour le statut complet de l'application (health + info + stations + influxdb)
+router.get('/status', appController.getStatus); // http://probe.local/api/status
 
 // connecte l'utilisateur, ouvre une session
 router.post('/login', authController.login);

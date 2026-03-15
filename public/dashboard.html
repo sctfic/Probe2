@@ -8,7 +8,6 @@
 
     <!-- Dependencies -->
     <script src="js/queryManager.js"></script>
-    <script src="js/queryManager.js"></script>
     <script src="js/drawing/d3.min.js"></script>
     <script src="js/drawing/plot.umd.js"></script>
     <script src="js/drawing/spiralPlot.js"></script>
@@ -16,15 +15,18 @@
     <script src="js/drawing/miniRose.js"></script>
     <script src="js/drawing/Wind.js"></script>
     <script src="js/drawing/miniPlot.js"></script>
+    <script src="js/drawing/neonRose.js"></script>
+    <script src="js/drawing/worldPosition.js"></script>
     <!-- d3-geo world map -->
     <script src="https://d3js.org/d3-geo.v2.min.js"></script>
     <script src="https://unpkg.com/topojson-client@3"></script>
 
     <style>
-        @import url('css/main.css');
+        /* @import url('css/main.css'); */
 
         :root {
             --futuristic-cyan: #00ffff;
+            --futuristic-pink: #FF6B6B;
             --futuristic-cyan-dim: rgba(0, 255, 255, 0.3);
             --futuristic-dark: rgb(26, 26, 26);
             --futuristic-panel: rgba(28, 28, 28, 0.05);
@@ -40,17 +42,19 @@
             background-color: var(--futuristic-dark);
             color: var(--futuristic-cyan);
             font-family: 'Courier New', Courier, monospace;
-            /* Monospace for tech feel */
             overflow: hidden;
+
             display: grid;
-            /* grid-template-columns: 300px 1fr 350px; */
-            /* pertube l'affichage, limite a 300px la zone visible */
-            /* Left panel, Center map, Right panels */
-            /* grid-template-rows: 80px 1fr 250px; */
-            /* pertube l'affichage, limite a 80px la zone visible */
-            /* Header, Main, Bottom panels */
-            gap: 10px;
-            padding: 10px;
+            grid-template-areas:
+                "header header header"
+                "left top right"
+                "left middle right"
+                "left bottom right";
+            grid-template-columns: 350px 1fr 380px;
+            grid-template-rows: 60px 140px 1fr 140px;
+
+            gap: 5px;
+            padding: 5px;
             box-sizing: border-box;
         }
 
@@ -62,6 +66,9 @@
             padding: 15px;
             position: relative;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
         .panel::before {
@@ -86,64 +93,83 @@
             border-right: 2px solid var(--futuristic-cyan);
         }
 
-        /* Header Area */
-        .header {
-            grid-column: 1 / -1;
-            grid-row: 1;
+        /* Ratios */
+        .vertical-ratio {
+            width: 100%;
+            aspect-ratio: 2 / 3;
+            flex-shrink: 0;
+        }
+
+        .horizontal-ratio {
+            width: 100%;
+            aspect-ratio: 5 / 2;
+            flex-shrink: 0;
+        }
+
+        .sqare-ratio {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            flex-shrink: 0;
+        }
+
+        /* Grid Areas */
+        #header-panel {
+            grid-area: header;
             display: flex;
             justify-content: space-between;
             align-items: center;
             font-size: 1.5em;
             letter-spacing: 2px;
             text-transform: uppercase;
+            flex-direction: row;
         }
 
-        /* Left Column - Gauges / Text Values */
-        .left-panel {
-            grid-column: 1;
-            grid-row: 2 / 4;
-            display: grid;
-            grid-template-rows: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 10px;
+        #left-panel {
+            grid-area: left;
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: -5px;
+            padding: 5px;
         }
 
-        /* Center Map Area */
-        .center-map {
-            grid-column: 2;
-            grid-row: 2;
+        #right-panel {
+            grid-area: right;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #middle-panel {
+            grid-area: middle;
             display: flex;
             justify-content: center;
             align-items: center;
             position: relative;
+            padding: 0;
+        }
+
+        #top-panel {
+            grid-area: top;
+            display: flex;
+            flex-direction: row;
+            gap: 15px;
+            overflow-x: auto;
+        }
+
+        #bottom-panel {
+            grid-area: bottom;
+            display: flex;
+            flex-direction: row;
+            gap: 15px;
+            overflow-x: auto;
         }
 
         #world-map {
             width: 100%;
             height: 100%;
-        }
-
-        /* Right Column - Plots & Wind Rose */
-        .right-top {
-            grid-column: 3;
-            grid-row: 2;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .wind-rose-container {
-            flex: 1;
-        }
-
-        .spiral-container {
-            flex: 1.5;
-        }
-
-        /* Bottom Row - TimeSeries Plots */
-        .bottom-panel {
-            grid-column: 2 / 4;
-            grid-row: 3;
         }
 
         /* Value Displays */
@@ -266,22 +292,56 @@
 <body>
 
     <!-- Header -->
-    <div class="panel header" id="header-panel">
+    <div class="panel" id="header-panel">
         <div>SYS.CONN: ONLINE</div>
         <div id="station-name">INITIALIZING...</div>
         <div id="sys-time">00:00:00</div>
     </div>
 
-    <!-- Left Panel: Sensor Values -->
-    <div class="left-panel" id="values-container">
-        <!-- Sensor values will be injected here -->
-        <div class="panel value-display loader-holder">
-            <div class="loader">LOADING...</div>
+    <!-- Top Panel -->
+    <div class="" id="top-panel">
+        <div class="panel value-display horizontal-ratio" id="plot-pressure-wrapper">
+            <div id="plot-pressure" class="miniplot-container"></div>
+            <div class="label">Pression</div>
+            <div class="value">--</div>
         </div>
     </div>
 
-    <!-- Center Panel: World Map -->
-    <div class="panel center-map" id="map-container">
+    <!-- Left Panel -->
+    <div class="" id="left-panel">
+        <div class="panel value-display horizontal-ratio" id="plot-humidity-wrapper">
+            <div id="plot-humidity" class="miniplot-container"></div>
+            <div class="label">Humidité</div>
+            <div class="value">--</div>
+        </div>
+        <div class="panel value-display horizontal-ratio" id="plot-irradiance-solar-wrapper">
+            <div id="plot-irradiance-solar" class="miniplot-container"></div>
+            <div class="label">Solaire</div>
+            <div class="value">--</div>
+        </div>
+        <div class="panel value-display horizontal-ratio" id="plot-uv-UV-wrapper">
+            <div id="plot-uv-UV" class="miniplot-container"></div>
+            <div class="label">UV</div>
+            <div class="value">--</div>
+        </div>
+        <div class="panel value-display horizontal-ratio" id="plot-rain-wrapper">
+            <div id="plot-rain" class="miniplot-container"></div>
+            <div class="label">Pluie</div>
+            <div class="value">--</div>
+        </div>
+        <div class="panel value-display horizontal-ratio" id="plot-temperature-inTemp-wrapper">
+            <div id="plot-temperature-inTemp" class="miniplot-container"></div>
+            <div class="label">Temp Int</div>
+            <div class="value">--</div>
+        </div>
+        <div class="panel value-display vertical-ratio" id="plot-temperature-wrapper">
+            <div id="plot-temperature" class="miniplot-container"></div>
+            <div class="label">Temp Ext</div>
+        </div>
+    </div>
+
+    <!-- Center/Middle Panel -->
+    <div class="panel" id="middle-panel">
         <svg id="world-map"></svg>
         <div id="map-overlay" style="position:absolute; top: 10px; right: 10px; text-align:right;">
             <div id="gps-lat">LAT: --</div>
@@ -290,21 +350,27 @@
         </div>
     </div>
 
-    <!-- Right Top: Wind Rose and 3D Spiral -->
-    <div class="right-top">
-        <div class="panel wind-rose-container" id="wind-rose-container">
-            <!-- Mini Rose goes here -->
-            <div style="text-align: center; margin-top: 50%;">WIND VECTORS INITIALIZING...</div>
+    <!-- Right Panel -->
+    <div class="" id="right-panel">
+        <div class="panel value-display sqare-ratio" id="plot-direction" style="height:350px;"></div>
+        <div class="panel value-display horizontal-ratio" id="plot-speed-wrapper">
+            <div id="plot-speed" class="miniplot-container"></div>
+            <div class="label">Vitesse Vent</div>
+            <div class="value">--</div>
         </div>
-        <div class="panel spiral-container" id="spiral-container">
-            <!-- 3D Spiral goes here -->
-            <div style="text-align: center; margin-top: 50%;">3D PROJECTION INITIALIZING...</div>
+        <div class="panel value-display horizontal-ratio" id="plot-vector-Gust-wrapper">
+            <div id="plot-vector-Gust" class="miniplot-container" style="position:relative;width:100%;height:100%;">
+            </div>
+            <div class="label">Rafales</div>
         </div>
     </div>
 
-    <!-- Bottom Panel: TimeSeries Plot -->
-    <div class="panel bottom-panel" id="timeseries-container">
-        <div style="text-align: center; margin-top: 5%;">TIME SERIES MODULE INITIALIZING...</div>
+    <!-- Bottom Panel -->
+    <div class="" id="bottom-panel">
+        <div class="panel value-display vertical-ratio" id="plot-soilMoisture-wrapper">
+            <div id="plot-soilMoisture" class="miniplot-container"></div>
+            <div class="label">Humidité Sol</div>
+        </div>
     </div>
 
     <script>
@@ -327,152 +393,6 @@
         document.getElementById('station-name').innerText = `STATION_ID: ${STATION}`;
 
         // Initialize Map
-        async function initMap() {
-            const svg = d3.select("#world-map");
-            const width = svg.node().clientWidth || 800;
-            const height = svg.node().clientHeight || 600;
-
-            // Geo projection
-            const projection = d3.geoOrthographic()
-                .scale(250)
-                .translate([width / 2, height / 2])
-                .clipAngle(90);
-
-            const path = d3.geoPath().projection(projection);
-
-            try {
-                // Using 50m resolution for more detail
-                const worldData = await d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json");
-                const countries = topojson.feature(worldData, worldData.objects.countries).features;
-
-                // Rotate to station
-                projection.rotate([-stationConfig.gps.longitude, -stationConfig.gps.latitude]);
-
-                const mapGroup = svg.append("g");
-
-                mapGroup.append("path")
-                    .datum(d3.geoGraticule()())
-                    .attr("class", "graticule")
-                    .attr("d", path);
-
-                mapGroup.selectAll(".country")
-                    .data(countries)
-                    .enter().append("path")
-                    .attr("class", "land")
-                    .attr("d", path);
-
-                // Draw Marker
-                const coords = projection([stationConfig.gps.longitude, stationConfig.gps.latitude]);
-                if (coords) {
-                    // Pulse
-                    mapGroup.append("circle")
-                        .attr("cx", coords[0])
-                        .attr("cy", coords[1])
-                        .attr("r", 5)
-                        .attr("class", "marker-pulse");
-
-                    // Center point
-                    mapGroup.append("circle")
-                        .attr("cx", coords[0])
-                        .attr("cy", coords[1])
-                        .attr("r", 4)
-                        .attr("class", "marker");
-                }
-
-                // Zoom and pan behavior
-                function zoomed(event) {
-                    // Apply the normal zoom transform to the group so it stays under mouse
-                    mapGroup.attr("transform", event.transform);
-                }
-
-                // Drag behavior for rotation
-                let r0, p0;
-                function dragstarted(event) {
-                    r0 = projection.rotate();
-                    p0 = [event.x, event.y];
-                }
-
-                function dragged(event) {
-                    // Adjust drag sensitivity based on current zoom scale
-                    const currentTransform = d3.zoomTransform(svg.node());
-                    const scale = currentTransform.k;
-                    const sensitivity = 75 / (projection.scale() * scale);
-                    
-                    const p1 = [event.x, event.y];
-                    const r1 = [r0[0] + (p1[0] - p0[0]) * sensitivity, r0[1] - (p1[1] - p0[1]) * sensitivity, r0[2]];
-
-                    // Limit pitch (phi) to prevent flipping
-                    r1[1] = Math.max(-90, Math.min(90, r1[1]));
-
-                    projection.rotate(r1);
-
-                    mapGroup.selectAll("path").attr("d", path);
-                    const coords = projection([stationConfig.gps.longitude, stationConfig.gps.latitude]);
-                    if (coords) {
-                        mapGroup.select(".marker").attr("cx", coords[0]).attr("cy", coords[1]);
-                        mapGroup.select(".marker-pulse").attr("cx", coords[0]).attr("cy", coords[1]);
-                    }
-                }
-
-                svg.call(d3.zoom()
-                    .scaleExtent([0.5, 10])
-                    .on("zoom", zoomed)
-                );
-
-                svg.call(d3.drag()
-                    .on("start", dragstarted)
-                    .on("drag", dragged)
-                );
-
-                // Auto-rotation based on sun position
-                function updateSunRotation() {
-                    const now = new Date();
-                    const hours = now.getUTCHours();
-                    const minutes = now.getUTCMinutes();
-                    const seconds = now.getUTCSeconds();
-                    const ms = now.getUTCMilliseconds();
-
-                    // Earth rotates 360 degrees in 24 hours.
-                    const timeInDays = (hours + minutes / 60 + seconds / 3600 + ms / 3600000) / 24;
-
-                    // Longitude of the sun (subsolar point). At UTC noon, it's 0.
-                    const sunLon = (0.5 - timeInDays) * 360;
-
-                    // Day of year for declination
-                    const startOfYear = new Date(now.getUTCFullYear(), 0, 0);
-                    const diff = now - startOfYear;
-                    const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-                    // Solar declination (approx latitude)
-                    const sunLat = -23.44 * Math.cos((360 / 365) * (dayOfYear + 10) * Math.PI / 180);
-
-                    // Rotate the projection so the sun is centered, simulating earth rotation
-                    if (!r0) { // Don't auto-rotate while dragging
-                        projection.rotate([-sunLon, -sunLat]);
-                        mapGroup.selectAll("path").attr("d", path);
-                        const coords = projection([stationConfig.gps.longitude, stationConfig.gps.latitude]);
-                        if (coords) {
-                            mapGroup.select(".marker").attr("cx", coords[0]).attr("cy", coords[1]);
-                            mapGroup.select(".marker-pulse").attr("cx", coords[0]).attr("cy", coords[1]);
-                        }
-                    }
-                }
-
-                // Initial rotation
-                updateSunRotation();
-
-                // Keep rotating every frame
-                d3.timer(updateSunRotation);
-
-                // Update overlay
-                document.getElementById('gps-lat').innerText = `LAT: ${stationConfig.gps.latitude.toFixed(4)}`;
-                document.getElementById('gps-lon').innerText = `LON: ${stationConfig.gps.longitude.toFixed(4)}`;
-                document.getElementById('gps-alt').innerText = `ALT: ${stationConfig.gps.altitude}m`;
-
-            } catch (e) {
-                console.error("Map load failed", e);
-            }
-        }
 
         async function initDashboard() {
             try {
@@ -489,7 +409,7 @@
                 }
 
                 // Initialize Map
-                initMap();
+                loadWorldMap("#world-map", stationConfig);
 
                 // 2. Fetch all sensor definitions and latest values
                 const [conditionsRes, metaRes] = await Promise.all([
@@ -497,86 +417,77 @@
                     queryManager.query(`${API_BASE}/${STATION}`) // Metadata containing sensors list
                 ]);
 
-                if (metaRes && metaRes.success && metaRes.metadata && metaRes.metadata.sensor) {
-                    const sensorsList = metaRes.metadata.sensor; 
-                    const leftPanel = document.getElementById('values-container');
-                    leftPanel.innerHTML = ''; // clear loaders
+                const classification = {
+                    "Usage": {
+                        "header": { "position": "top & bottom", "drawing": "JS", "data": ["/api/status", "query/:station/Raw"] },
+                        "pressure": { "position": "top", "drawing": "miniPlot.js", "data": ["current-conditions", "query/:station/Raw"] },
+                        "direction": { "position": "right", "drawing": "panel neonRose", "data": ["current-conditions"] },
+                        "speed": { "position": "right", "drawing": "miniPlot.js", "data": ["current-conditions"] },
+                        "vector:Gust": { "position": "right", "drawing": "Wind.js", "data": ["current-conditions", "query/:station/Raw"] },
+                        "humidity": { "position": "left", "drawing": "miniPlot.js", "data": ["current-conditions", "query/:station/Raw"] },
+                        "irradiance:solar": { "position": "left", "drawing": "miniPlot.js", "data": ["current-conditions", "query/:station/Raw"] },
+                        "uv:UV": { "position": "left", "drawing": "miniPlot.js", "data": ["current-conditions", "query/:station/Raw"] },
+                        "rain": { "position": "left", "drawing": "miniPlot.js", "data": ["current-conditions", "query/:station/Raw"] },
+                        "soilMoisture": { "position": "bottom", "drawing": "spiralPlot.js", "data": ["current-conditions", "query/:station/Raw"] },
+                        "temperature:inTemp": { "position": "left", "drawing": "miniPlot.js", "data": ["current-conditions", "query/:station/Raw"] },
+                        "temperature": { "position": "left", "drawing": "spiralPlot.js", "data": ["current-conditions", "query/:station/Raw"] },
+                        "GPS": { "position": "middle", "drawing": "worldPosition.js", "data": ["api/station/:station"] }
+                    }
+                };
 
-                    let newHtml = '';
+                const startPlot = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+
+                if (metaRes && metaRes.success && metaRes.metadata && metaRes.metadata.sensor) {
+                    const sensorsList = metaRes.metadata.sensor;
+                    const actions = [];
 
                     sensorsList.forEach(sensorKey => {
                         const def = (conditionsRes && conditionsRes.data) ? conditionsRes.data[sensorKey] : null;
 
-                        let rawValue = def ? def.Value : '--';
-                        let valStr = rawValue;
+                        let valStr = def ? def.Value : '--';
                         let unit = def ? (def.userUnit || '') : '';
 
-                        if (def && def.toUserUnit && rawValue !== '--') {
+                        if (def && def.toUserUnit && valStr !== '--') {
                             try {
-                                const cv = eval(def.toUserUnit);
-                                const processed = cv(rawValue);
-                                valStr = (typeof processed === 'number') ? processed.toFixed(1) : processed;
-                            } catch (e) {
-                                console.warn("Conversion failed for", sensorKey, e);
-                            }
+                                valStr = eval(def.toUserUnit)(valStr);
+                                if (typeof valStr === 'number') valStr = valStr.toFixed(1);
+                            } catch (e) { }
                         }
 
-                        let label = sensorKey;
-                        if (def && def.label) {
-                            label = def.label;
-                        } else if (sensorKey.includes(':')) {
-                            label = sensorKey.split(':')[1].toUpperCase();
+                        // Update Text Statically
+                        const safeId = "plot-" + sensorKey.replace(':', '-');
+                        const wrapperElem = document.getElementById(`${safeId}-wrapper`);
+                        if (wrapperElem) {
+                            const valueNode = wrapperElem.querySelector(".value");
+                            if (valueNode) valueNode.innerHTML = `${valStr} <span style="font-size:0.5em">${unit}</span>`;
                         }
 
-                        const safeId = "miniplot-" + sensorKey.replace(':', '-');
+                        let baseKey = sensorKey.includes(':') ? sensorKey.split(':')[0] : sensorKey;
+                        const usageDef = classification.Usage[sensorKey] || classification.Usage[baseKey];
 
-                        newHtml += `
-                            <div class="panel value-display">
-                                <div id="${safeId}" class="miniplot-container"></div>
-                                <div class="label">${label}</div>
-                                <div class="value">${valStr} <span style="font-size:0.5em">${unit}</span></div>
-                            </div>
-                        `;
-                    });
+                        if (usageDef) {
+                            const drawerType = usageDef.drawing;
+                            const containerId = safeId;
 
-                    leftPanel.innerHTML = newHtml;
+                            actions.push(() => {
+                                const containerElem = document.getElementById(containerId);
+                                if (!containerElem) return;
 
-                    // Load miniPlots for each sensor
-                    sensorsList.forEach(sensorKey => {
-                        const safeId = "miniplot-" + sensorKey.replace(':', '-');
-                        // Use the precise format requested by the user, or dynamic startPlot
-                        const startPlot = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-                        const miniPlotUrl = `${API_BASE}/${STATION}/Raw/${sensorKey}?stepCount=480&startDate=${startPlot}`;
-                        
-                        if (window.loadData) {
-                            window.loadData(safeId, miniPlotUrl, 24 * 3600);
+                                if (drawerType.includes("miniPlot") && window.loadData) {
+                                    const miniPlotUrl = `${API_BASE}/${STATION}/Raw/${sensorKey}?stepCount=480&startDate=${startPlot}`;
+                                    loadData(containerId, miniPlotUrl, 24 * 3600);
+                                } else if (drawerType.includes("spiralPlot") && window.loadSpiralePlot) {
+                                    loadSpiralePlot(containerElem, `${API_BASE}/${STATION}/Raw/${sensorKey}`, 'day');
+                                } else if (drawerType.includes("neonRose") && window.loadNeonRose) {
+                                    loadNeonRose(containerId, conditionsRes.data);
+                                } else if (drawerType.includes("Wind.js")) {
+                                    containerElem.innerHTML = "<div style='display:flex;justify-content:center;align-items:center;height:100%;color:#ff009d;'>Wind.js Canvas Here</div>";
+                                }
+                            });
                         }
                     });
-                }
 
-                // 3. Other components
-                // TimeSeries Plot (Bottom)
-                const plotContainer = document.getElementById('timeseries-container');
-                const plotUrl = `${API_BASE}/${STATION}/Raws/temperature:outTemp,humidity:outHumidity`;
-                if (window.mainPlots) {
-                    const endDate = new Date().toISOString();
-                    const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-                    mainPlots(plotContainer, plotUrl, startDate, endDate, 250);
-                }
-
-                // Spiral
-                const spiralContainer = document.getElementById('spiral-container');
-                if (window.loadSpiralePlot) {
-                    const spiralUrl = `${API_BASE}/${STATION}/Raw/temperature:outTemp`;
-                    loadSpiralePlot(spiralContainer, spiralUrl, 'day');
-                }
-
-                // Wind Rose
-                if (window.loadRosePlot) {
-                    const startDateRose = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-                    window.WIND = { Start: startDateRose, End: new Date().toISOString() };
-                    const roseUrl = `${API_BASE}/${STATION}/WindRose?`;
-                    loadRosePlot('wind-rose-container', roseUrl);
+                    setTimeout(() => actions.forEach(fn => fn()), 50);
                 }
 
             } catch (e) {

@@ -8,6 +8,8 @@
     /* Hauteur du navbar */
     --footer-height: 40px;
     /* Hauteur du footer en mode normal */
+    --futuristic-cyan: #00ffff;
+    --futuristic-magenta: #ff009d;
 }
 
 body {

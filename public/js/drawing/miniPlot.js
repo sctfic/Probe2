@@ -122,8 +122,8 @@ function createPlot(data, metadata, id, period) {
                 Plot.differenceY(pastData, Plot.shiftX(`+${period}`, {
                     x: "Date",
                     y: "Value",
-                    stroke: "#3397d1", // Ou "series" si disponible, ici gardé fixe ou paramétrable
-                    positiveFill: "#FF6B6B",
+                    stroke: "var(--futuristic-cyan)", // Ou "series" si disponible, ici gardé fixe ou paramétrable
+                    positiveFill: "var(--futuristic-magenta)",
                     negativeFill: "#0dec0d",
                     fillOpacity: 0.4,
                     curve: metadata.measurement === 'rain' ? "step" : "monotone-x",
@@ -137,7 +137,7 @@ function createPlot(data, metadata, id, period) {
                     y: "Value",
                     // Application du gradient sur le trait
                     stroke: futureData.length > 1 ? `url(#${gradientId})` : forecastColor,
-                    positiveFill: "#FF6B6B",
+                    positiveFill: "var(--futuristic-magenta)",
                     negativeFill: "#0dec0d",
                     fillOpacity: 0.2,
                     // Application du gradient sur le remplissage (remplace pos/neg)

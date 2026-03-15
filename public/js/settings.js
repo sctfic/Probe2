@@ -122,12 +122,12 @@ async function handleApplyUpdate() {
         }
 
         try {
-            const response = await fetch('/api/health', { cache: 'no-cache' });
+            const response = await fetch('/api/status', { cache: 'no-cache' });
             if (response.ok) {
-                const healthData = await response.json();
-                if (healthData.version && healthData.version !== localVersion) {
+                const statusData = await response.json();
+                if (statusData.version && statusData.version !== localVersion) {
                     clearInterval(poll);
-                    showGlobalStatus(`Mise à jour vers la version ${healthData.version} réussie ! Rechargement...`, 'success');
+                    showGlobalStatus(`Mise à jour vers la version ${statusData.version} réussie ! Rechargement...`, 'success');
                     updateButton.textContent = 'Mise à jour terminée !';
                     setTimeout(() => window.location.reload(), 2000);
                 }

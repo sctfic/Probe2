@@ -12,7 +12,6 @@ const probesProvider = require('../services/probesProvider');
 const { Point } = require('@influxdata/influxdb-client');
 const dataMaintenanceService = require('../services/dataMaintenanceService');
 
-
 /**
  * Extrait toutes les routes Express avec leurs chemins complets par parsing de fichiers.
  * @returns {Array<{method: string, path: string, description: string}>} Liste des routes.
@@ -202,48 +201,74 @@ exports.getApiEndpoints = (req, res) => {
     }
 };
 
-exports.getAppInfo = (req, res) => { // http://Probe.lpz.ovh/api/info
+exports.getStatus = async (req, res) => { // http://probe.local/api/status
     try {
-        console.log(`${V.info} Récupération des informations de l'application`);
+        console.log(`${V.eye} Récupération du statut complet de l'application`);
 
         const allConfigs = configManager.loadAllConfigs();
-        const stationsList = Object.keys(allConfigs);
 
-        const info = {
+        // Détail des stations avec ping (comme getAllStations)
+        const stationPingPromises = Object.keys(allConfigs).map(async (stationId) => {
+            const config = allConfigs[stationId];
+            let pingTime = 'unreachable!';
+            try {
+                const pingResult = await ping.promise.probe(config.host, { timeout: 1 });
+                if (pingResult.alive) {
+                    pingTime = Math.round(pingResult.time);
+                }
+            } catch (pingError) {
+                console.warn(`${V.warning} Ping failed for ${config.host}: ${pingError.message}`);
+            }
+
+            return {
+                id: stationId,
+                name: config.name || stationId,
+                location: config.location || 'Non défini',
+                host: config.host,
+                port: config.port,
+                ping: pingTime
+            };
+        });
+        const stationsList = await Promise.all(stationPingPromises);
+
+        // Informations InfluxDB (buckets)
+        // const bucketsInfo = influxdbService.getBucketsInfo();
+
+        const status = {
             name: 'Probe API',
-            version: probeVersion,
             description: 'API pour la surveillance de stations météorologiques Davis Vantage Pro 2',
-            status: 'running',
+            version: probeVersion,
+            status: 'healthy',
             timestamp: new Date().toISOString(),
             uptime: process.uptime(),
-            nodeVersion: process.version,
-            platform: process.platform,
-            arch: process.arch,
-            stations: {
-                count: stationsList.length,
-                configured: stationsList.map(stationId => ({
-                    id: stationId,
-                    host: allConfigs[stationId].host,
-                    port: allConfigs[stationId].port,
-                    name: allConfigs[stationId].name || stationId,
-                    location: allConfigs[stationId].location || 'Non défini'
-                }))
+            system: {
+                nodeVersion: process.version,
+                platform: process.platform,
+                arch: process.arch,
+                memory: {
+                    used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+                    total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+                    external: Math.round(process.memoryUsage().external / 1024 / 1024),
+                    rss: Math.round(process.memoryUsage().rss / 1024 / 1024)
+                },
+                cpu: process.cpuUsage()
             },
-            endpoints: {
-                info: '/api/info',
-                health: '/api/health',
-                stations: '/api/stations',
-                station: '/api/station/:stationId/*',
-                config: '/api/station/:stationId/config'
-            }
+            stations: stationsList,
+            // influxdb: {
+            //     url: influxdbService.getSettings().url || null,
+            //     org: influxdbService.getSettings().org || null,
+            //     buckets: bucketsInfo
+            // }
         };
 
-        res.json(info);
+        res.json(status);
     } catch (error) {
-        console.error(`${V.error} Erreur lors de la récupération des informations:`, error);
+        console.error(`${V.error} Erreur lors de la récupération du statut:`, error);
         res.status(500).json({
-            success: false,
-            error: 'Erreur lors de la récupération des informations de l\'application'
+            status: 'unhealthy',
+            timestamp: new Date().toISOString(),
+            error: 'Erreur lors de la récupération du statut',
+            message: error.message
         });
     }
 };
@@ -344,7 +369,6 @@ exports.updateInfluxDbSettings = async (req, res) => {
         if (newSettings.org) updatedConfigs.org = newSettings.org;
 
         // Ne mettre à jour le token que s'il n'est pas masqué
-        // On vérifie s'il contient des étoiles (signe qu'il n'a pas été modifié côté client)
         if (newSettings.token && !newSettings.token.includes('*')) {
             updatedConfigs.token = newSettings.token;
         }
@@ -359,7 +383,6 @@ exports.updateInfluxDbSettings = async (req, res) => {
                 if (newSettings[key].comment) updatedConfigs[key].comment = newSettings[key].comment;
             }
         });
-
 
         // Tester la connexion (utiliser les paramètres globaux + le premier bucket configuré)
         const firstBucketKey = Object.keys(updatedConfigs).find(k => k !== 'url' && k !== 'org' && k !== 'token' && updatedConfigs[k] && updatedConfigs[k].bucket);
@@ -461,7 +484,6 @@ exports.updatecompositeProbesSettings = (req, res) => {
             console.log(`${V.write} Fichier Units.json mis à jour avec les sondes calculées.`);
         } catch (unitsError) {
             console.error(`${V.error} Erreur lors de la mise à jour de Units.json:`, unitsError);
-            // Ne pas bloquer la réponse principale pour une erreur sur Units.json
         }
 
         res.json({
@@ -553,7 +575,6 @@ exports.getAllStations = async (req, res) => {
             const config = allConfigs[stationId];
             let pingTime = 'unreachable!';
             try {
-                // Using a short timeout to not block the response for too long
                 const pingResult = await ping.promise.probe(config.host, { timeout: 1 });
                 if (pingResult.alive) {
                     pingTime = Math.round(pingResult.time);
@@ -630,7 +651,6 @@ exports.updateStation = (req, res) => {
             });
         }
 
-        // Charger la config actuelle pour ne pas écraser l'ID par erreur et fusionner proprement
         const currentConfig = configManager.getConfig(stationId);
         if (!currentConfig) {
             return res.status(404).json({
@@ -639,10 +659,7 @@ exports.updateStation = (req, res) => {
             });
         }
 
-        // Merge des settings. On s'assure que l'ID ne change pas.
         const updatedConfig = { ...currentConfig, ...newSettings, id: stationId };
-
-        // Sauvegarde via le ConfigManager
         const success = configManager.saveConfig(stationId, updatedConfig);
 
         if (success) {
@@ -660,53 +677,6 @@ exports.updateStation = (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Erreur lors de la mise à jour de la configuration de la station'
-        });
-    }
-};
-
-
-exports.getHealth = (req, res) => {
-    const { V } = require('../utils/icons');
-    const configManager = require('../utils/configManager');
-    try {
-        console.log(`${V.eye} Check de santé de l'application`);
-
-        const allConfigs = configManager.loadAllConfigs();
-        const stationsList = Object.keys(allConfigs);
-
-        const health = {
-            status: 'healthy',
-            timestamp: new Date().toISOString(),
-            uptime: process.uptime(),
-            version: probeVersion,
-            system: {
-                nodeVersion: process.version,
-                platform: process.platform,
-                arch: process.arch
-            },
-            stations: {
-                total: stationsList.length,
-                configured: stationsList
-            },
-            memory: {
-                used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-                total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
-                external: Math.round(process.memoryUsage().external / 1024 / 1024),
-                rss: Math.round(process.memoryUsage().rss / 1024 / 1024)
-            },
-            cpu: {
-                usage: process.cpuUsage()
-            }
-        };
-
-        res.json(health);
-    } catch (error) {
-        console.error(`${V.error} Erreur lors du check de santé:`, error);
-        res.status(500).json({
-            status: 'unhealthy',
-            timestamp: new Date().toISOString(),
-            error: 'Erreur lors du check de santé',
-            message: error.message
         });
     }
 };
@@ -782,9 +752,6 @@ exports.importBucketData = async (req, res) => {
 
 
 exports.createStation = (req, res) => {
-    const { V } = require('../utils/icons');
-    const configManager = require('../utils/configManager');
-
     try {
         const newConfig = req.body;
         const allConfigs = configManager.loadAllConfigs();
