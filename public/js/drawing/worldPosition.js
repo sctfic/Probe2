@@ -37,7 +37,7 @@ window.loadWorldMap = async function (svgElement, config) {
 
         const countries110m = topojson.feature(worldData110m, worldData110m.objects.countries).features;
         const countries50m = topojson.feature(worldData50m, worldData50m.objects.countries).features;
-        
+
         let currentCountries = countries50m; // start with high-res
 
         // Initial rotation to station
@@ -97,7 +97,7 @@ window.loadWorldMap = async function (svgElement, config) {
         function updateMarkers() {
             const lon = config.gps.longitude;
             const lat = config.gps.latitude;
-            
+
             const rot = projectionFront.rotate();
             const centerLon = -rot[0];
             const centerLat = -rot[1];
@@ -136,11 +136,11 @@ window.loadWorldMap = async function (svgElement, config) {
 
             // Switch to low-res for dragging performance
             currentCountries = countries110m;
-            
+
             const landBackSelection = backGroup.selectAll(".land-back").data(currentCountries);
             landBackSelection.enter().append("path").attr("class", "land land-back");
             landBackSelection.exit().remove();
-            
+
             const landFrontSelection = frontGroup.selectAll(".land").data(currentCountries);
             landFrontSelection.enter().append("path").attr("class", "land");
             landFrontSelection.exit().remove();
@@ -168,12 +168,12 @@ window.loadWorldMap = async function (svgElement, config) {
         function dragended(event) {
             // Switch back to high-res after dragging
             currentCountries = countries50m;
-            
+
             const landBackSelection = backGroup.selectAll(".land-back").data(currentCountries);
             landBackSelection.enter().append("path").attr("class", "land land-back")
                 .style("fill", "rgba(0, 40, 60, 0.2)").style("stroke", "rgba(0, 255, 255, 0.1)");
             landBackSelection.exit().remove();
-            
+
             const landFrontSelection = frontGroup.selectAll(".land").data(currentCountries);
             landFrontSelection.enter().append("path").attr("class", "land");
             landFrontSelection.exit().remove();
@@ -199,66 +199,48 @@ window.loadWorldMap = async function (svgElement, config) {
             .on("zoom", zoomed);
 
         svg.call(zoomBehavior)
-           .on("dblclick.zoom", null); // Disable default dblclick
+            .on("dblclick.zoom", null); // Disable default dblclick
 
         svg.on("dblclick", () => {
             r0 = null; // Re-enable auto-rotation
             svg.transition().duration(750).call(zoomBehavior.transform, d3.zoomIdentity);
-            
+
             // Re-fetch latest coordinates if onDblClick is configured (optional)
             if (config.onDblClick) config.onDblClick();
-            
+
             // Force immediate update
             updateSunRotation();
         });
 
-        // Auto-rotation based on sun position
-        let hoverTimer = null;
-        let isHoverRotating = false;
-        let hoverRotateAngle = 0;
+        // --- Continuous auto-rotation with hover pause/reset ---
+        let isHovered = false;
+        let continuousAngle = initialRotate[0]; // Start at initial roll
 
-        // Enable cover interaction pointer-events so we can capture mouse movements
         svg.style("pointer-events", "all");
 
-        svg.on("mousemove", (event) => {
-             if (r0) return; // ignore during drags
-             if (isHoverRotating) {
-                 isHoverRotating = false; // Mouse is moving, resume sun sync
-             }
-             clearTimeout(hoverTimer);
-             hoverTimer = setTimeout(() => {
-                 isHoverRotating = true;
-                 hoverRotateAngle = projectionFront.rotate()[0]; // starting position
-             }, 600);
+        svg.on("mouseenter", () => {
+            isHovered = true;
         });
 
         svg.on("mouseleave", () => {
-             clearTimeout(hoverTimer);
-             if (isHoverRotating) {
-                 isHoverRotating = false;
-             }
+            isHovered = false;
         });
 
         let currentRotate = null;
-        const lerpFactor = 0.08; // Vitesse de la transition fluide (0.1 = rapide, 0.01 = lent)
+        const lerpFactor = 0.08; // Vitesse de la transition fluide
 
         function updateSunRotation() {
-            const now = new Date();
-            const timeInDays = (now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600 + now.getUTCMilliseconds() / 3600000) / 24;
-            const sunLon = (0.5 - timeInDays) * 360;
-            const startOfYear = new Date(now.getUTCFullYear(), 0, 0);
-            const dayOfYear = Math.floor((now - startOfYear) / (1000 * 60 * 60 * 24));
-            const sunLat = -23.44 * Math.cos((360 / 365) * (dayOfYear + 10) * Math.PI / 180);
-            const sunRoll = 23.44 * Math.sin((360 / 365) * (dayOfYear + 10) * Math.PI / 180);
-
             let targetRotate;
-            if (isHoverRotating) {
-                hoverRotateAngle += 0.5; // continuous spin (speed slightly increased)
-                targetRotate = [hoverRotateAngle, -sunLat, sunRoll];
+
+            if (isHovered) {
+                // Stand still at initialRotate (position of the station)
+                targetRotate = [initialRotate[0], initialRotate[1], 0];
             } else if (!r0) {
-                targetRotate = [-sunLon, -sunLat, sunRoll];
+                // Continuous rotation
+                continuousAngle += 0.2; // Speed of eternal rotation
+                targetRotate = [continuousAngle, initialRotate[1], 0];
             } else {
-                currentRotate = null; // Reset for next time if dragging
+                currentRotate = null; // Reset if dragging
                 return;
             }
 
@@ -272,6 +254,9 @@ window.loadWorldMap = async function (svgElement, config) {
                 currentRotate[0] += diff0 * lerpFactor;
                 currentRotate[1] += (targetRotate[1] - currentRotate[1]) * lerpFactor;
                 currentRotate[2] += (targetRotate[2] - currentRotate[2]) * lerpFactor;
+
+                // Keep continuous angle synced when resuming
+                if (!isHovered) continuousAngle = currentRotate[0];
             }
 
             projectionFront.rotate(currentRotate);
@@ -282,7 +267,6 @@ window.loadWorldMap = async function (svgElement, config) {
             updateMarkers();
         }
 
-        updateSunRotation();
         d3.timer(updateSunRotation);
 
         // Update GPS overlay

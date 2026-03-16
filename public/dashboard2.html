@@ -8,8 +8,12 @@
     <title>Dashboard</title>
     <script src="js/queryManager.js"></script>
     <script src="js/drawing/d3.min.js"></script>
+    <script src="js/drawing/plot.umd.js"></script>
+    <script src="js/drawing/miniPlot.js"></script>
+    <script src="js/drawing/Wind.js"></script>
     <script src="js/drawing/worldPosition.js"></script>
     <script src="js/drawing/solarPath.js"></script>
+    <script src="js/drawing/spiralPlot.js"></script>
     <script src="https://d3js.org/d3-geo.v2.min.js"></script>
     <script src="https://unpkg.com/topojson-client@3"></script>
     <style>
@@ -19,8 +23,10 @@
             --futuristic-pink: #FF6B6B;
             --futuristic-green: #39ff14;
             --futuristic-amber: #ffb347;
+            --futuristic-white: #dddddd;
             --futuristic-cyan-dim: rgba(0, 255, 255, 0.3);
             --futuristic-dark: rgb(26, 26, 26);
+            --futuristic-gray: rgb(40, 40, 40, 0.9);
             --futuristic-panel: rgba(26, 26, 26, 0.97);
             --futuristic-border: 1px solid rgba(0, 255, 255, 0.18);
             --font-mono: 'Share Tech Mono', monospace;
@@ -142,15 +148,15 @@
             font-family: var(--font-mono);
             font-size: 22px;
             line-height: 1;
-            color: var(--futuristic-cyan);
-            text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+            color: var(--futuristic-magenta);
+            text-shadow: 0 0 8px rgba(255, 0, 157, 0.5);
         }
 
         .panel-unit {
             font-family: var(--font-label);
             font-size: 16px;
             font-weight: 500;
-            color: rgba(0, 255, 255, 0.45);
+            color: #ffffff;
             letter-spacing: 1px;
         }
 
@@ -163,9 +169,28 @@
         }
 
         .viz {
-            flex: 1;
-            min-height: 0;
+            position: absolute;
+            padding: 16px 0px 2px 2px;
+            inset: 0;
+            z-index: 0;
             overflow: hidden;
+        }
+
+        .viz svg {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .panel>.panel-label,
+        .panel>.val-row,
+        .panel>.panel-sub {
+            position: relative;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .panel>.panel-sub {
+            margin-top: auto;
         }
 
         .header {
@@ -300,12 +325,12 @@
       MAIN GRID — 14 colonnes × 6 lignes
 
       Col :  1  2  3  4 │ 5  6  7  8  9 10 │ 11 12 13 14
-      Row 1: [  intemp   ] [   hum.in  ] │ [        baro        ] │ [    speed.w   ]
-      Row 2: [         outtemp--       ] │ [         GPS        ] │ [  solar-path  ]
-      Row 3: [         outtemp--       ] │ [         GPS        ] │ [  solar-path  ]
-      Row 4: [   rain    ] [    et     ] │ [         GPS        ] │ [   vec-wind   ]
-      Row 5: [         soilmois-       ] │ [  solar ] [   uv    ] │ [ moon ] [ sun ]
-      Row 6: [         soilmois-       ] │ [soiltemp] [ hum.out ] │ [    system    ]
+      Row 1: [  intemp   ] [   hum.in  ] │ [                 baro                  ] │ [ rain ] [   et    ] 
+      Row 2: [         outtemp--       ] │ [                  GPS                  ] │ [    soilmois-     ]
+      Row 3: [         outtemp--       ] │ [                  GPS                  ] │ [    soilmois-     ]
+      Row 4: [         outtemp--       ] │ [                  GPS                  ] │ [    soilmois-     ]
+      Row 5: [         outtemp--       ] │ [   hum.out   ] [   solar   ] [   uv    ] │ [    soilmois-     ]
+      Row 6: [   moon    ] [   sun     ] │ [ soiltemp (2 col) ] [ vec-wind (4 col) ] │ [ speed. ][ system ]
 
       Vérification 14 × 6 = 84 cellules :
       R1: intemp(2)+hum-in(2)+baro(6)+speed(4)=14
@@ -339,14 +364,19 @@
             grid-row: 1;
         }
 
-        .p-speed {
-            grid-column: 11/15;
+        .p-rain {
+            grid-column: 11/13;
+            grid-row: 1;
+        }
+
+        .p-et {
+            grid-column: 13/15;
             grid-row: 1;
         }
 
         .p-outtemp {
             grid-column: 1/5;
-            grid-row: 2/4;
+            grid-row: 2/6;
         }
 
         .p-gps {
@@ -354,63 +384,57 @@
             grid-row: 2/5;
         }
 
-        .p-solar-path {
-            grid-column: 11/15;
-            grid-row: 2/4;
-        }
-
-        .p-rain {
-            grid-column: 1/3;
-            grid-row: 4;
-        }
-
-        .p-et {
-            grid-column: 3/5;
-            grid-row: 4;
-        }
-
-        .p-vec-wind {
-            grid-column: 11/15;
-            grid-row: 4;
-        }
-
         .p-soilmois {
-            grid-column: 1/5;
-            grid-row: 5/7;
+            grid-column: 11/15;
+            grid-row: 2/6;
+        }
+
+        .p-solar-path {
+            display: none;
+        }
+
+        .p-humid-out {
+            grid-column: 5/7;
+            grid-row: 5;
         }
 
         .p-solar {
-            grid-column: 5/8;
+            grid-column: 7/9;
             grid-row: 5;
         }
 
         .p-uv {
-            grid-column: 8/11;
+            grid-column: 9/11;
             grid-row: 5;
         }
 
         .p-moon {
-            grid-column: 11/13;
-            grid-row: 5;
-        }
-
-        .p-sun {
-            grid-column: 13/15;
-            grid-row: 5;
-        }
-
-        .p-soiltemp {
-            grid-column: 5/8;
+            grid-column: 1/3;
             grid-row: 6;
         }
 
-        .p-humid-out {
-            grid-column: 8/11;
+        .p-sun {
+            grid-column: 3/5;
+            grid-row: 6;
+        }
+
+        .p-soiltemp {
+            grid-column: 5/7;
+            grid-row: 6;
+        }
+
+        .p-vec-wind {
+            grid-column: 7/11;
+            grid-row: 6;
+        }
+
+        .p-speed {
+            grid-column: 11/13;
             grid-row: 6;
         }
 
         .p-system {
-            grid-column: 11/15;
+            grid-column: 13/15;
             grid-row: 6;
         }
 
@@ -653,6 +677,7 @@
             position: absolute;
             top: 0;
             left: 0;
+            padding: 0px;
             width: 100%;
             height: 100%;
             z-index: 0;
@@ -741,6 +766,33 @@
                 opacity: 0;
             }
         }
+
+        .spiral-btn {
+            background: var(--futuristic-gr);
+            border: var(--futuristic-border);
+            color: var(--futuristic-cyan);
+            padding: 5px 10px;
+            font-size: 11px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: sans-serif;
+            transition: background 0.2s;
+        }
+
+        .axis-label {
+            font-family: sans-serif;
+            font-size: 10px;
+            fill: var(--futuristic-cyan);
+            pointer-events: none;
+        }
+
+        .svg-hover-date {
+            font-family: 'Segoe UI', sans-serif;
+            font-weight: 900;
+            fill: var(--futuristic-cyan-dim);
+            pointer-events: none;
+            text-anchor: middle;
+        }
     </style>
 </head>
 
@@ -796,7 +848,6 @@
                     <span class="panel-unit">hPa</span>
                 </div>
                 <div class="viz baro-container"></div>
-                <div class="panel-sub" id="baro-trend">▲ +1.2 hPa/3h · STABLE</div>
             </div>
 
             <div class="panel p-speed">
@@ -1004,7 +1055,8 @@
                         color: rgba(0, 255, 255, 0.4);
                     }
                 </style>
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
                     <div>
                         <div class="panel-label">Système</div>
                         <div class="panel-sub" id="sys-info">INITIALIZING...</div>
@@ -1159,7 +1211,7 @@
                 // World Map
                 if (window.loadWorldMap) {
                     loadWorldMap('#gps-globe-svg', {
-                        gps: { latitude: lat, longitude: lon, altitude: alt },
+                        gps: { latitude: lat, longitude: lon, altitude: alt, name: 'VP2' },
                         stationId: STATION,
                         onDblClick: () => loadStationInfo()
                     });
@@ -1239,19 +1291,19 @@
                 if (data.system) {
                     const mem = data.system.memory;
                     const cpu = data.system.cpu;
-                    
+
                     let cpuPct = 0;
                     if (cpu && cpu.total) {
                         cpuPct = cpu.total.percent || 0;
                     }
-                    
+
                     let memPct = 0;
                     if (mem && mem.total) {
                         memPct = mem.total.percent || 0;
                     }
 
                     if (sysInfo) {
-                        sysInfo.textContent = `V${data.version || '--'} · Node ${data.system.nodeVersion || '--'}`;
+                        sysInfo.textContent = `Probe V${data.version || '--'} · Node ${data.system.nodeVersion || '--'}`;
                     }
 
                     const cpuEl = document.getElementById('sys-cpu-val');
@@ -1270,7 +1322,7 @@
 
                     if (sysLoad && cpu && cpu.total && cpu.total.loadAverage) {
                         const l = cpu.total.loadAverage;
-                        sysLoad.textContent = `${(l['1min']||0).toFixed(1)}, ${(l['5min']||0).toFixed(1)}`;
+                        sysLoad.textContent = `${(l['1min'] || 0).toFixed(1)}, ${(l['5min'] || 0).toFixed(1)}`;
                     }
 
                     if (sysMemTxt && mem && mem.total) {
@@ -1376,14 +1428,6 @@
                     if (sunInfo) sunInfo.textContent = `Élév: ${sunSensor.Value.toFixed(1)}°`;
                 }
 
-                // Barometer trend placeholder
-                const baroSensor = sensors['pressure:barometer'];
-                if (baroSensor) {
-                    const unit = baroSensor.userUnit || 'hPa';
-                    const baroTrend = document.getElementById('baro-trend');
-                    if (baroTrend) baroTrend.textContent = `${applyConversion(baroSensor)} ${unit}`;
-                }
-
                 // Out temp min/max (from data timestamp)
                 const outTempSensor = sensors['temperature:outTemp'];
                 if (outTempSensor) {
@@ -1404,6 +1448,73 @@
             await loadStationInfo();
             pollStatus();
             pollConditions();
+
+            window.loadAllCharts = function () {
+                if (window.loadData) {
+                    const API_BASE = '/query';
+                    const startPlot = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString(); // 7dernier jours
+                    const endPlot = new Date(Date.now() + 48 * 3600 * 1000).toISOString(); // aujourd'hui +48h
+
+                    const plots = [
+                        { selector: '.p-intemp .intemp-container', key: 'temperature:inTemp' },
+                        { selector: '.p-humid-in .humidin-container', key: 'humidity:inHumidity' },
+                        { selector: '.p-baro .baro-container', key: 'pressure:barometer' },
+                        { selector: '.p-rain .rainfall-container', key: 'rain:rainFall' },
+                        { selector: '.p-et .et-container', key: 'rain:ET' },
+                        { selector: '.p-solar .solar-container', key: 'irradiance:solar' },
+                        { selector: '.p-uv .uv-container', key: 'uv:UV' },
+                        { selector: '.p-moon .moon-container', key: 'angle:MOON_calc' },
+                        { selector: '.p-sun .sun-container', key: 'angle:SUN_V_calc' },
+                        { selector: '.p-humid-out .humidout-container', key: 'humidity:outHumidity' },
+                        { selector: '.p-soiltemp .soiltemp-container', key: 'temperature:soilTemp' },
+                        { selector: '.p-speed .speed-container', key: 'speed:Wind' }
+                    ];
+
+                    plots.forEach(p => {
+                        const el = document.querySelector(p.selector);
+                        if (el) {
+                            const safeId = `plot-${p.key.replace(':', '-')}`;
+                            if (!el.id) el.id = safeId;
+                            loadData(el.id, `${API_BASE}/${STATION}/Raw/${p.key}?stepCount=480&startDate=${startPlot}&endDate=${endPlot}`);
+                        }
+                    });
+
+                    // --- outtemp-container spiralPlot.js ---
+                    if (window.loadSpiralePlot) {
+                        const outTempContainer = document.querySelector('.p-outtemp .outtemp-container');
+                        if (outTempContainer) {
+                            loadSpiralePlot(outTempContainer, `${API_BASE}/${STATION}/Raw/temperature:outTemp`);
+                        }
+                    }
+
+                    // --- vec-container Wind.js ---
+                    if (window.loadVectorPlot) {
+                        const vecContainer = document.querySelector('.p-vec-wind .vec-container');
+                        if (vecContainer) {
+                            if (!vecContainer.id) vecContainer.id = "plot-vec-container";
+                            const fullUrl = `${API_BASE}/${STATION}/WindVectors/Gust?stepCount=1000&startDate=${startPlot}&endDate=${endPlot}`;
+                            loadVectorPlot(vecContainer.id, fullUrl, true);
+                        }
+                    }
+                }
+            };
+
+            // Init charts right away
+            loadAllCharts();
+
+            // --- Resize observer for redrawing ---
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(async () => {
+                    if (typeof loadStationInfo === 'function') {
+                        await loadStationInfo(); // Redraw worldMap, solarPath
+                    }
+                    if (typeof loadAllCharts === 'function') {
+                        loadAllCharts(); // Redraw plots
+                    }
+                }, 300);
+            });
 
             setInterval(pollStatus, 3000);
             setInterval(pollConditions, 60000);

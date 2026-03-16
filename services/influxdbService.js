@@ -344,7 +344,7 @@ function getFilter(sensorRef) {
  * @param {Function} buildFluxFn - Callback (bucketName, start, stop) => fluxQueryString.
  * @param {Function} mergeFn - Callback (resultsArray) => mergedResults.
  */
-async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn) {
+async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn, sensorRef = null, stationId = null) {
     const toISO = (val, defaultVal) => {
         if (!val) return defaultVal;
         const sVal = val.toString();
@@ -353,31 +353,62 @@ async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn) {
         return sVal;
     };
 
-    const start = toISO(reqStart, '1969-12-31T00:00:00Z');
+    const start = toISO(reqStart, 0);
     const stop = toISO(reqEnd, 'now()');
 
     // Mettre à jour lastDate pour Stations (pour savoir où commence Forecasts)
-    let stationsLastTime = Date.now();
+    let stationsLastDateStr = new Date().toISOString();
+    let stationsFirstDateStr = influxInstances['Stations']?.firstDate || '2020-01-01T00:00:00Z';
+
     if (influxInstances['Stations']) {
-        const query = `
+        const filter = sensorRef ? getFilter(sensorRef) : null;
+        const fluxFilter = (filter && stationId) ? `r.station_id == "${stationId}" and (${filter})` : null;
+
+        const query = fluxFilter ? `
+            import "array"
+            first = from(bucket: "${influxInstances['Stations'].bucket}")
+                |> range(start: ${stationsFirstDateStr})
+                |> filter(fn: (r) => ${fluxFilter})
+                |> first()
+                |> findRecord(fn: (key) => true, idx: 0)
+
+            last = from(bucket: "${influxInstances['Stations'].bucket}")
+                |> range(start: ${stationsFirstDateStr})
+                |> filter(fn: (r) => ${fluxFilter})
+                |> last()
+                |> findRecord(fn: (key) => true, idx: 0)
+
+            if exists first._time then
+                array.from(rows: [{
+                    first: first._time,
+                    last: last._time
+                }])
+            else
+                array.from(rows: [{
+                    first: time(v: 0),
+                    last: time(v: 0)
+                }])
+        ` : `
             from(bucket: "${influxInstances['Stations'].bucket}")
                 |> range(start: -7d)
+                ${stationId ? `|> filter(fn: (r) => r.station_id == "${stationId}")` : ''}
                 |> keep(columns: ["_time"])
                 |> last()
         `;
+
         try {
             const res = await executeQuery(query, 'Stations');
-            if (res && res.length > 0 && res[0]._time) {
-                stationsLastTime = new Date(res[0]._time).getTime();
+            stationsFirstDateStr = stationsLastDateStr = new Date().toISOString();
+            if (res && res.length > 0 && fluxFilter && typeof res[0].first !== 'undefined' && !res[0].first.startsWith('1970-01-01T00:00')) {
+                stationsFirstDateStr = res[0].first;
+                stationsLastDateStr = res[0].last;
+            } else {
+                console.log(V.warning, `Aucune donnée trouvée pour ${stationId} '${sensorRef}' sur le bucket [${influxInstances['Stations'].bucket}]`);
             }
         } catch (e) { /* ignore */ }
     }
 
-    const stationsFirstDateStr = influxInstances['Stations']?.firstDate || '2020-01-01T00:00:00Z';
-    const stationsLastDateStr = new Date(stationsLastTime).toISOString();
-
     const plan = [];
-
     // 1. Stations (priorité centrale)
     if (influxInstances['Stations']) {
         plan.push({ key: 'Stations', bucket: influxInstances['Stations'].bucket, start: start, stop: stop });
@@ -531,8 +562,7 @@ async function queryRaw(stationId, sensorRef, startDate, endDate, intervalSecond
           |> aggregateWindow(every: ${intervalSeconds}s, fn: ${aggFn}, createEmpty: false)
           |> keep(columns: ["_time", "_field", "_value"])
     `;
-
-    const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn);
+    const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn, sensorRef, stationId);
 
     // Aplatir et trier par temps
     const merged = resultsArray.flat().sort((a, b) => new Date(a._time) - new Date(b._time));
@@ -548,7 +578,7 @@ async function queryLast(stationId, startDate = '-7d', endDate = 'now()') {
             |> last()
     `;
 
-    const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn);
+    const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn, null, stationId);
     const result = resultsArray.flat();
 
     const datas = {};
@@ -617,7 +647,7 @@ union(tables: [sumData, meanData])
         return fluxQuery;
     };
 
-    const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn);
+    const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn, null, stationId);
     const merged = resultsArray.flat().sort((a, b) => new Date(a._time) - new Date(b._time));
     return merged;
 }
@@ -691,7 +721,7 @@ async function queryWindRose(stationId, startDate, endDate, intervalSeconds = 36
         |> yield()
     `;
 
-    const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn);
+    const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn, null, stationId);
     const merged = resultsArray.flat().sort((a, b) => new Date(a._time) - new Date(b._time));
     return parserWindRose(merged);
 }
@@ -754,7 +784,7 @@ async function queryWindVectors(stationId, sensor, startDate, endDate, intervalS
     `;
 
     try {
-        const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn);
+        const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn, sensor, stationId);
         const merged = resultsArray.flat().sort((a, b) => new Date(a.d) - new Date(b.d));
 
         return merged.map(item => {
@@ -824,7 +854,7 @@ from(bucket: "${bucket}")
     |> keep(columns: ["datetime", "first", "min", "avg", "max", "last", "count"])
     `;
 
-    const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn);
+    const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn, sensorRef, stationId);
     const merged = resultsArray.flat().sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
     return merged;
 }

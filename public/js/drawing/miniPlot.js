@@ -19,21 +19,20 @@ function transformDataForPlot(apiData, metadata) {
 }
 
 function createPlot(data, metadata, id, period) {
-    // console.log(period);
     if (typeof period !== 'number') { // gere le decalage
         period = '0 day';
-    } else if (period <= 24 * 3600) {
+    } else if (period < (24 * 3600)) { // 24*3600 = 86400 = 1 day
         period = '1 hour';
-    } else if (period <= 24 * 3600 * 7) {
+    } else if (period < (24 * 3600 * 7)) { // 24*3600*7 = 604800 = 1 week
         period = '1 day';
-    } else if (period <= 24 * 3600 * 31) {
+    } else if (period < (24 * 3600 * 31)) { // 24*3600*31 = 2678400 = 1 month
         period = '1 day';
-    } else if (period <= 24 * 3600 * 365) {
+    } else if (period < (24 * 3600 * 365)) { // 24*3600*365 = 31536000 = 1 year
         period = '1 day';
     } else {
         period = '1 day';
     }
-    // console.log(data, metadata, id, period);
+    console.log(id, period, (period < (24 * 3600)), (period <= (24 * 3600)));
 
     const chartDiv = document.getElementById(id);
     if (!chartDiv) {
@@ -46,7 +45,7 @@ function createPlot(data, metadata, id, period) {
     }
 
     const now = new Date();
-    const forecastColor = "#9b59b6"; // Couleur violette pour le forecast
+    const forecastColor = "var(--futuristic-magenta)"; // Couleur violette pour le forecast
     // Création d'un ID unique pour le gradient afin d'éviter les conflits si plusieurs graphes sont affichés
     const gradientId = `forecast-gradient-${id}-${Math.floor(Math.random() * 1000000)}`;
 
