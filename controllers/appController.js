@@ -11,6 +11,7 @@ const unitsProvider = require('../services/unitsProvider');
 const probesProvider = require('../services/probesProvider');
 const { Point } = require('@influxdata/influxdb-client');
 const dataMaintenanceService = require('../services/dataMaintenanceService');
+const os = require('os');
 
 /**
  * Extrait toutes les routes Express avec leurs chemins complets par parsing de fichiers.
@@ -231,8 +232,294 @@ exports.getStatus = async (req, res) => { // http://probe.local/api/status
         });
         const stationsList = await Promise.all(stationPingPromises);
 
-        // Informations InfluxDB (buckets)
-        // const bucketsInfo = influxdbService.getBucketsInfo();
+        // === Cache pour les métriques système lourdes ===
+        // Stocker en mémoire pour éviter les appels répétés à ps
+        if (!global.systemMetricsCache) {
+            global.systemMetricsCache = {
+                lastUpdate: 0,
+                data: null,
+                ttl: 5000 // 5 secondes de cache
+            };
+        }
+
+        const getSystemMetrics = async () => {
+            const now = Date.now();
+
+            // Retourner le cache si valide
+            if (global.systemMetricsCache.data && (now - global.systemMetricsCache.lastUpdate) < global.systemMetricsCache.ttl) {
+                return global.systemMetricsCache.data;
+            }
+
+            // Sous Windows : retourner des métriques basiques sans exec
+            if (process.platform === 'win32') {
+                const winMetrics = {
+                    cpu: {
+                        total: {
+                            percent: Math.min(100, Math.round((os.loadavg()[0] / os.cpus().length) * 100)) || 0,
+                            loadAverage: { '1min': 0, '5min': 0, '15min': 0 }, // Non dispo sur Windows
+                            cores: os.cpus().length
+                        },
+                        nodejs: 0,
+                        nginx: null, // Non disponible sur Windows
+                        influxdb: null // Non disponible sur Windows
+                    },
+                    memory: {
+                        total: getTotalMemory(),
+                        nodejs: getNodeMemory(),
+                        nginx: null,
+                        influxdb: null
+                    }
+                };
+                global.systemMetricsCache = { lastUpdate: now, data: winMetrics, ttl: 5000 };
+                return winMetrics;
+            }
+
+            // Sous Linux : commande légère sans shell interactif
+            const metrics = await getLinuxMetrics();
+            global.systemMetricsCache = { lastUpdate: now, data: metrics, ttl: 5000 };
+            return metrics;
+        };
+
+        // Helper mémoire totale
+        function getTotalMemory() {
+            const totalMem = os.totalmem();
+            const freeMem = os.freemem();
+            const usedMem = totalMem - freeMem;
+            return {
+                total: Math.round(totalMem / 1024 / 1024),
+                used: Math.round(usedMem / 1024 / 1024),
+                free: Math.round(freeMem / 1024 / 1024),
+                percent: Math.round((usedMem / totalMem) * 100)
+            };
+        }
+
+        // Helper mémoire Node.js
+        function getNodeMemory() {
+            const mu = process.memoryUsage();
+            return {
+                heapUsed: Math.round(mu.heapUsed / 1024 / 1024),
+                heapTotal: Math.round(mu.heapTotal / 1024 / 1024),
+                rss: Math.round(mu.rss / 1024 / 1024),
+                external: Math.round(mu.external / 1024 / 1024)
+            };
+        }
+
+        // Récupération métriques Linux (optimisé)
+        const getLinuxMetrics = () => {
+            return new Promise((resolve) => {
+                // Utiliser spawn au lieu de exec pour plus de contrôle, ou commande directe
+                // Option légère : lire /proc directement si disponible, sinon ps optimisé
+                const fs = require('fs');
+
+                // Essayer d'abord /proc (plus rapide, pas de subprocess)
+                try {
+                    const cpuInfo = getCpuFromProc();
+                    const memInfo = getMemoryFromProc();
+
+                    if (cpuInfo && memInfo) {
+                        resolve({
+                            cpu: cpuInfo,
+                            memory: memInfo
+                        });
+                        return;
+                    }
+                } catch (e) {
+                    // Fallback sur ps si /proc échoue
+                }
+
+                // Fallback : ps avec options minimales, sans shell
+                const { spawn } = require('child_process');
+                const ps = spawn('ps', ['-eo', 'comm,pcpu,pmem,rss', '--no-headers']);
+
+                let stdout = '';
+                let timeout = setTimeout(() => {
+                    ps.kill();
+                    resolve(getEmptyMetrics());
+                }, 2000); // Timeout 2s max
+
+                ps.stdout.on('data', (data) => {
+                    stdout += data.toString();
+                });
+
+                ps.on('close', (code) => {
+                    clearTimeout(timeout);
+                    if (code !== 0) {
+                        resolve(getEmptyMetrics());
+                        return;
+                    }
+
+                    const processes = parsePsOutput(stdout);
+                    resolve({
+                        cpu: {
+                            total: getTotalCpuLoad(),
+                            nodejs: processes.nodejs.cpu,
+                            nginx: processes.nginx.cpu,
+                            influxdb: processes.influxdb.cpu
+                        },
+                        memory: {
+                            total: getTotalMemory(),
+                            nodejs: {
+                                ...getNodeMemory(),
+                                system: processes.nodejs.memoryMB,
+                                systemPercent: processes.nodejs.memoryPercent
+                            },
+                            nginx: processes.nginx.memoryMB > 0 ? {
+                                memoryMB: processes.nodejs.memoryMB,
+                                memoryPercent: processes.nodejs.memoryPercent
+                            } : null,
+                            influxdb: processes.influxdb.memoryMB > 0 ? {
+                                memoryMB: processes.influxdb.memoryMB,
+                                memoryPercent: processes.influxdb.memoryPercent
+                            } : null
+                        }
+                    });
+                });
+
+                ps.on('error', () => {
+                    clearTimeout(timeout);
+                    resolve(getEmptyMetrics());
+                });
+            });
+        };
+
+        // Parser sortie ps
+        const parsePsOutput = (stdout) => {
+            const processes = {
+                nodejs: { cpu: 0, memoryPercent: 0, memoryMB: 0 },
+                nginx: { cpu: 0, memoryPercent: 0, memoryMB: 0 },
+                influxdb: { cpu: 0, memoryPercent: 0, memoryMB: 0 }
+            };
+
+            const lines = stdout.trim().split('\n');
+            lines.forEach(line => {
+                const parts = line.trim().split(/\s+/);
+                if (parts.length >= 4) {
+                    const comm = parts[0];
+                    const cpu = parseFloat(parts[1]) || 0;
+                    const memPercent = parseFloat(parts[2]) || 0;
+                    const rss = parseInt(parts[3]) || 0;
+
+                    if (comm.includes('node')) {
+                        processes.nodejs.cpu += cpu;
+                        processes.nodejs.memoryPercent += memPercent;
+                        processes.nodejs.memoryMB += rss / 1024;
+                    } else if (comm.includes('nginx')) {
+                        processes.nginx.cpu += cpu;
+                        processes.nginx.memoryPercent += memPercent;
+                        processes.nginx.memoryMB += rss / 1024;
+                    } else if (comm.includes('influxd')) {
+                        processes.influxdb.cpu += cpu;
+                        processes.influxdb.memoryPercent += memPercent;
+                        processes.influxdb.memoryMB += rss / 1024;
+                    }
+                }
+            });
+
+            // Arrondir
+            Object.keys(processes).forEach(key => {
+                processes[key].cpu = Math.round(processes[key].cpu * 100) / 100;
+                processes[key].memoryPercent = Math.round(processes[key].memoryPercent * 100) / 100;
+                processes[key].memoryMB = Math.round(processes[key].memoryMB);
+            });
+
+            return processes;
+        };
+
+        // Métriques vides (fallback)
+        const getEmptyMetrics = () => ({
+            cpu: {
+                total: getTotalCpuLoad(),
+                nodejs: 0,
+                nginx: null,
+                influxdb: null
+            },
+            memory: {
+                total: getTotalMemory(),
+                nodejs: getNodeMemory(),
+                nginx: null,
+                influxdb: null
+            }
+        });
+
+        // CPU total
+        const getTotalCpuLoad = () => {
+            const loadAvg = os.loadavg();
+            const cpuCount = os.cpus().length;
+            return {
+                percent: Math.min(100, Math.round((loadAvg[0] / cpuCount) * 100)),
+                loadAverage: {
+                    '1min': Math.round(loadAvg[0] * 100) / 100,
+                    '5min': Math.round(loadAvg[1] * 100) / 100,
+                    '15min': Math.round(loadAvg[2] * 100) / 100
+                },
+                cores: cpuCount
+            };
+        };
+
+        // Lecture /proc/stat pour CPU (Linux only, très rapide)
+        const getCpuFromProc = () => {
+            try {
+                const stat = fs.readFileSync('/proc/stat', 'utf8');
+                const cpuLine = stat.split('\n')[0].split(/\s+/).slice(1).map(Number);
+                // Calcul simplifié - pourrait être amélioré avec delta
+                const idle = cpuLine[3];
+                const total = cpuLine.reduce((a, b) => a + b, 0);
+                const used = total - idle;
+                const percent = Math.round((used / total) * 100);
+
+                return {
+                    total: {
+                        percent: isNaN(percent) ? 0 : percent,
+                        loadAverage: {
+                            '1min': Math.round(os.loadavg()[0] * 100) / 100,
+                            '5min': Math.round(os.loadavg()[1] * 100) / 100,
+                            '15min': Math.round(os.loadavg()[2] * 100) / 100
+                        },
+                        cores: os.cpus().length
+                    },
+                    nodejs: 0, // Sera rempli par ps ou laissé à 0
+                    nginx: null,
+                    influxdb: null
+                };
+            } catch (e) {
+                return null;
+            }
+        };
+
+        // Lecture /proc/meminfo (Linux only, très rapide)
+        const getMemoryFromProc = () => {
+            try {
+                const meminfo = fs.readFileSync('/proc/meminfo', 'utf8');
+                const lines = meminfo.split('\n');
+                const data = {};
+                lines.forEach(line => {
+                    const parts = line.split(':');
+                    if (parts.length === 2) {
+                        data[parts[0].trim()] = parseInt(parts[1].trim()) || 0;
+                    }
+                });
+
+                const total = data.MemTotal || 0;
+                const available = data.MemAvailable || data.MemFree || 0;
+                const used = total - available;
+
+                return {
+                    total: {
+                        total: Math.round(total / 1024),
+                        used: Math.round(used / 1024),
+                        free: Math.round(available / 1024),
+                        percent: Math.round((used / total) * 100)
+                    },
+                    nodejs: getNodeMemory(),
+                    nginx: null,
+                    influxdb: null
+                };
+            } catch (e) {
+                return null;
+            }
+        };
+
+        const metrics = await getSystemMetrics();
 
         const status = {
             name: 'Probe API',
@@ -245,20 +532,10 @@ exports.getStatus = async (req, res) => { // http://probe.local/api/status
                 nodeVersion: process.version,
                 platform: process.platform,
                 arch: process.arch,
-                memory: {
-                    used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-                    total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
-                    external: Math.round(process.memoryUsage().external / 1024 / 1024),
-                    rss: Math.round(process.memoryUsage().rss / 1024 / 1024)
-                },
-                cpu: process.cpuUsage()
+                memory: metrics.memory,
+                cpu: metrics.cpu
             },
             stations: stationsList,
-            // influxdb: {
-            //     url: influxdbService.getSettings().url || null,
-            //     org: influxdbService.getSettings().org || null,
-            //     buckets: bucketsInfo
-            // }
         };
 
         res.json(status);

@@ -2,6 +2,10 @@
  * World Map Drawing Module for Probe2
  * Renders a 3D Earth projection with back face transparency.
  */
+//   .call(zoom(projection)
+//       .on("zoom.render", () => render(countries-110m))
+//       .on("end.render", () => render(countries-50m)))
+//   .call(() => render(countries-50m))
 
 window.loadWorldMap = async function (svgElement, config) {
     const svg = d3.select(svgElement);
@@ -25,9 +29,16 @@ window.loadWorldMap = async function (svgElement, config) {
     const pathFront = d3.geoPath().projection(projectionFront);
 
     try {
-        // Fetch map data
-        const worldData = await d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
-        const countries = topojson.feature(worldData, worldData.objects.countries).features;
+        // Fetch map data - load both resolutions
+        const [worldData110m, worldData50m] = await Promise.all([
+            d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"),
+            d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json")
+        ]);
+
+        const countries110m = topojson.feature(worldData110m, worldData110m.objects.countries).features;
+        const countries50m = topojson.feature(worldData50m, worldData50m.objects.countries).features;
+        
+        let currentCountries = countries50m; // start with high-res
 
         // Initial rotation to station
         const initialRotate = [-config.gps.longitude, -config.gps.latitude];
@@ -50,12 +61,17 @@ window.loadWorldMap = async function (svgElement, config) {
 
         // Land Back
         backGroup.selectAll(".land-back")
-            .data(countries)
+            .data(currentCountries)
             .enter().append("path")
             .attr("class", "land land-back")
             .style("fill", "rgba(0, 40, 60, 0.2)") // transparent
             .style("stroke", "rgba(0, 255, 255, 0.1)") // transparent stroke
             .attr("d", pathBack);
+
+        // --- Markers Back Face ---
+        const markerBackGroup = mapGroup.append("g").attr("class", "marker-back");
+        const pulseBack = markerBackGroup.append("circle").attr("r", 5).attr("class", "marker-pulse");
+        const dotBack = markerBackGroup.append("circle").attr("r", 4).attr("class", "marker");
 
         // --- Pass 2: Front Face ---
         const frontGroup = mapGroup.append("g").attr("class", "front-face");
@@ -68,32 +84,45 @@ window.loadWorldMap = async function (svgElement, config) {
 
         // Land Front
         frontGroup.selectAll(".land")
-            .data(countries)
+            .data(currentCountries)
             .enter().append("path")
             .attr("class", "land")
             .attr("d", pathFront);
 
-        // --- Markers (Always on top/front) ---
-        const markerGroup = mapGroup.append("g");
+        // --- Markers Front Face ---
+        const markerFrontGroup = mapGroup.append("g").attr("class", "marker-front");
+        const pulseFront = markerFrontGroup.append("circle").attr("r", 5).attr("class", "marker-pulse");
+        const dotFront = markerFrontGroup.append("circle").attr("r", 4).attr("class", "marker");
 
         function updateMarkers() {
-            const coords = projectionFront([config.gps.longitude, config.gps.latitude]);
-            markerGroup.selectAll("*").remove();
+            const lon = config.gps.longitude;
+            const lat = config.gps.latitude;
+            
+            const rot = projectionFront.rotate();
+            const centerLon = -rot[0];
+            const centerLat = -rot[1];
+            const distance = d3.geoDistance([lon, lat], [centerLon, centerLat]);
+            const isFront = distance < Math.PI / 2;
+
+            const coords = projectionFront([lon, lat]);
 
             if (coords) {
-                // Pulse
-                markerGroup.append("circle")
-                    .attr("cx", coords[0])
-                    .attr("cy", coords[1])
-                    .attr("r", 5)
-                    .attr("class", "marker-pulse");
-
-                // Center point
-                markerGroup.append("circle")
-                    .attr("cx", coords[0])
-                    .attr("cy", coords[1])
-                    .attr("r", 4)
-                    .attr("class", "marker");
+                if (isFront) {
+                    pulseFront.attr("cx", coords[0]).attr("cy", coords[1]).style("display", null).style("opacity", 1);
+                    dotFront.attr("cx", coords[0]).attr("cy", coords[1]).style("display", null).style("opacity", 1);
+                    pulseBack.style("display", "none");
+                    dotBack.style("display", "none");
+                } else {
+                    pulseBack.attr("cx", coords[0]).attr("cy", coords[1]).style("display", null).style("opacity", 0.4);
+                    dotBack.attr("cx", coords[0]).attr("cy", coords[1]).style("display", null).style("opacity", 0.4);
+                    pulseFront.style("display", "none");
+                    dotFront.style("display", "none");
+                }
+            } else {
+                pulseFront.style("display", "none");
+                dotFront.style("display", "none");
+                pulseBack.style("display", "none");
+                dotBack.style("display", "none");
             }
         }
 
@@ -104,6 +133,17 @@ window.loadWorldMap = async function (svgElement, config) {
         function dragstarted(event) {
             r0 = projectionFront.rotate();
             p0 = [event.x, event.y];
+
+            // Switch to low-res for dragging performance
+            currentCountries = countries110m;
+            
+            const landBackSelection = backGroup.selectAll(".land-back").data(currentCountries);
+            landBackSelection.enter().append("path").attr("class", "land land-back");
+            landBackSelection.exit().remove();
+            
+            const landFrontSelection = frontGroup.selectAll(".land").data(currentCountries);
+            landFrontSelection.enter().append("path").attr("class", "land");
+            landFrontSelection.exit().remove();
         }
 
         function dragged(event) {
@@ -125,9 +165,28 @@ window.loadWorldMap = async function (svgElement, config) {
             updateMarkers();
         }
 
+        function dragended(event) {
+            // Switch back to high-res after dragging
+            currentCountries = countries50m;
+            
+            const landBackSelection = backGroup.selectAll(".land-back").data(currentCountries);
+            landBackSelection.enter().append("path").attr("class", "land land-back")
+                .style("fill", "rgba(0, 40, 60, 0.2)").style("stroke", "rgba(0, 255, 255, 0.1)");
+            landBackSelection.exit().remove();
+            
+            const landFrontSelection = frontGroup.selectAll(".land").data(currentCountries);
+            landFrontSelection.enter().append("path").attr("class", "land");
+            landFrontSelection.exit().remove();
+
+            // Redraw with high-res
+            frontGroup.selectAll(".land").attr("d", pathFront);
+            backGroup.selectAll(".land-back").attr("d", pathBack);
+        }
+
         svg.call(d3.drag()
             .on("start", dragstarted)
             .on("drag", dragged)
+            .on("end", dragended)
         );
 
         // Zoom Behavior
@@ -135,12 +194,54 @@ window.loadWorldMap = async function (svgElement, config) {
             mapGroup.attr("transform", event.transform);
         }
 
-        svg.call(d3.zoom()
+        const zoomBehavior = d3.zoom()
             .scaleExtent([0.5, 10])
-            .on("zoom", zoomed)
-        );
+            .on("zoom", zoomed);
+
+        svg.call(zoomBehavior)
+           .on("dblclick.zoom", null); // Disable default dblclick
+
+        svg.on("dblclick", () => {
+            r0 = null; // Re-enable auto-rotation
+            svg.transition().duration(750).call(zoomBehavior.transform, d3.zoomIdentity);
+            
+            // Re-fetch latest coordinates if onDblClick is configured (optional)
+            if (config.onDblClick) config.onDblClick();
+            
+            // Force immediate update
+            updateSunRotation();
+        });
 
         // Auto-rotation based on sun position
+        let hoverTimer = null;
+        let isHoverRotating = false;
+        let hoverRotateAngle = 0;
+
+        // Enable cover interaction pointer-events so we can capture mouse movements
+        svg.style("pointer-events", "all");
+
+        svg.on("mousemove", (event) => {
+             if (r0) return; // ignore during drags
+             if (isHoverRotating) {
+                 isHoverRotating = false; // Mouse is moving, resume sun sync
+             }
+             clearTimeout(hoverTimer);
+             hoverTimer = setTimeout(() => {
+                 isHoverRotating = true;
+                 hoverRotateAngle = projectionFront.rotate()[0]; // starting position
+             }, 600);
+        });
+
+        svg.on("mouseleave", () => {
+             clearTimeout(hoverTimer);
+             if (isHoverRotating) {
+                 isHoverRotating = false;
+             }
+        });
+
+        let currentRotate = null;
+        const lerpFactor = 0.08; // Vitesse de la transition fluide (0.1 = rapide, 0.01 = lent)
+
         function updateSunRotation() {
             const now = new Date();
             const timeInDays = (now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600 + now.getUTCMilliseconds() / 3600000) / 24;
@@ -148,16 +249,37 @@ window.loadWorldMap = async function (svgElement, config) {
             const startOfYear = new Date(now.getUTCFullYear(), 0, 0);
             const dayOfYear = Math.floor((now - startOfYear) / (1000 * 60 * 60 * 24));
             const sunLat = -23.44 * Math.cos((360 / 365) * (dayOfYear + 10) * Math.PI / 180);
+            const sunRoll = 23.44 * Math.sin((360 / 365) * (dayOfYear + 10) * Math.PI / 180);
 
-            if (!r0) { // Don't auto-rotate while dragging
-                const sunRotate = [-sunLon, -sunLat];
-                projectionFront.rotate(sunRotate);
-                projectionBack.rotate(sunRotate);
-
-                frontGroup.selectAll("path").attr("d", pathFront);
-                backGroup.selectAll("path").attr("d", pathBack);
-                updateMarkers();
+            let targetRotate;
+            if (isHoverRotating) {
+                hoverRotateAngle += 0.5; // continuous spin (speed slightly increased)
+                targetRotate = [hoverRotateAngle, -sunLat, sunRoll];
+            } else if (!r0) {
+                targetRotate = [-sunLon, -sunLat, sunRoll];
+            } else {
+                currentRotate = null; // Reset for next time if dragging
+                return;
             }
+
+            if (!currentRotate) {
+                currentRotate = [...targetRotate];
+            } else {
+                // Interpolation fluide (LERP) avec gestion du rebouclage à 360°
+                let diff0 = targetRotate[0] - currentRotate[0];
+                diff0 = ((diff0 + 180) % 360 + 360) % 360 - 180; // Shortest path
+
+                currentRotate[0] += diff0 * lerpFactor;
+                currentRotate[1] += (targetRotate[1] - currentRotate[1]) * lerpFactor;
+                currentRotate[2] += (targetRotate[2] - currentRotate[2]) * lerpFactor;
+            }
+
+            projectionFront.rotate(currentRotate);
+            projectionBack.rotate(currentRotate);
+
+            frontGroup.selectAll("path").attr("d", pathFront);
+            backGroup.selectAll("path").attr("d", pathBack);
+            updateMarkers();
         }
 
         updateSunRotation();

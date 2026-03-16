@@ -3,27 +3,25 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WX Dashboard</title>
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Dashboard</title>
+    <script src="js/queryManager.js"></script>
+    <script src="js/drawing/d3.min.js"></script>
+    <script src="js/drawing/worldPosition.js"></script>
+    <script src="js/drawing/solarPath.js"></script>
+    <script src="https://d3js.org/d3-geo.v2.min.js"></script>
+    <script src="https://unpkg.com/topojson-client@3"></script>
     <style>
-        /* latin */
-        @font-face {
-            font-family: 'Share Tech Mono';
-            font-style: normal;
-            font-weight: 400;
-            font-display: swap;
-            src: url(/fonts/ShareTechMono.woff2) format('woff2');
-            unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-        }
-
         :root {
             --futuristic-cyan: #00ffff;
+            --futuristic-magenta: #ff009d;
             --futuristic-pink: #FF6B6B;
             --futuristic-green: #39ff14;
             --futuristic-amber: #ffb347;
             --futuristic-cyan-dim: rgba(0, 255, 255, 0.3);
-            --futuristic-dark: rgb(18, 18, 20);
-            --futuristic-panel: rgba(22, 24, 28, 0.97);
+            --futuristic-dark: rgb(26, 26, 26);
+            --futuristic-panel: rgba(26, 26, 26, 0.97);
             --futuristic-border: 1px solid rgba(0, 255, 255, 0.18);
             --font-mono: 'Share Tech Mono', monospace;
             --font-label: 'Rajdhani', sans-serif;
@@ -44,8 +42,11 @@
             height: 100%;
             background: var(--futuristic-dark);
             color: var(--futuristic-cyan);
-            font-family: var(--font-label);
+            font-family: 'Courier New', Courier, monospace;
             overflow: hidden;
+            /* FORCER LE PIXEL RATIO À 1:1 */
+            -webkit-text-size-adjust: none;
+            text-size-adjust: none;
         }
 
         body::after {
@@ -80,6 +81,8 @@
             grid-template-rows: 50px 1fr;
             gap: var(--gap);
             padding: var(--gap);
+            /* Empêcher le zoom sur mobile */
+            touch-action: none;
         }
 
         .panel {
@@ -145,7 +148,7 @@
 
         .panel-unit {
             font-family: var(--font-label);
-            font-size: 10px;
+            font-size: 16px;
             font-weight: 500;
             color: rgba(0, 255, 255, 0.45);
             letter-spacing: 1px;
@@ -153,7 +156,7 @@
 
         .panel-sub {
             font-family: var(--font-mono);
-            font-size: 9px;
+            font-size: 14px;
             color: rgba(0, 255, 255, 0.35);
             line-height: 1.3;
             flex-shrink: 0;
@@ -446,26 +449,31 @@
             text-shadow: 0 0 8px rgba(200, 180, 255, 0.5);
         }
 
+        /* MEDIA QUERY MOBILE - AJUSTÉ POUR PIXEL 1:1 */
         @media (max-width: 1100px) {
 
             html,
             body {
-                overflow-y: auto;
-                overflow-x: hidden;
+                overflow: hidden;
+                height: 100%;
+                width: 100%;
             }
 
             .dashboard {
-                height: auto;
+                height: 100vh;
                 min-height: 100vh;
-                grid-template-rows: 48px auto;
+                grid-template-rows: 40px 1fr;
+                padding: 3px;
+                gap: 3px;
             }
 
             .main-grid {
-                grid-template-columns: repeat(4, 1fr);
-                grid-template-rows: auto;
-                grid-auto-rows: minmax(90px, auto);
+                grid-template-columns: repeat(14, 1fr);
+                grid-template-rows: repeat(6, 1fr);
+                gap: 3px;
             }
 
+            /* Tous les panels conservent leur position desktop mais réduits */
             .p-intemp {
                 grid-column: 1/3;
                 grid-row: 1;
@@ -477,96 +485,115 @@
             }
 
             .p-baro {
-                grid-column: 1/5;
-                grid-row: 2;
+                grid-column: 5/11;
+                grid-row: 1;
             }
 
             .p-speed {
-                grid-column: 1/3;
-                grid-row: 3;
+                grid-column: 11/15;
+                grid-row: 1;
             }
 
             .p-outtemp {
                 grid-column: 1/5;
-                grid-row: 4/6;
+                grid-row: 2/4;
             }
 
             .p-gps {
-                grid-column: 1/5;
-                grid-row: 6/9;
+                grid-column: 5/11;
+                grid-row: 2/5;
             }
 
             .p-solar-path {
-                grid-column: 3/5;
-                grid-row: 3;
+                grid-column: 11/15;
+                grid-row: 2/4;
             }
 
             .p-rain {
                 grid-column: 1/3;
-                grid-row: 9;
+                grid-row: 4;
             }
 
             .p-et {
                 grid-column: 3/5;
-                grid-row: 9;
+                grid-row: 4;
             }
 
             .p-vec-wind {
-                grid-column: 1/5;
-                grid-row: 10;
+                grid-column: 11/15;
+                grid-row: 4;
             }
 
             .p-soilmois {
                 grid-column: 1/5;
-                grid-row: 11/13;
+                grid-row: 5/7;
             }
 
             .p-solar {
-                grid-column: 1/3;
-                grid-row: 13;
+                grid-column: 5/8;
+                grid-row: 5;
             }
 
             .p-uv {
-                grid-column: 3/5;
-                grid-row: 13;
+                grid-column: 8/11;
+                grid-row: 5;
             }
 
             .p-moon {
-                grid-column: 1/3;
-                grid-row: 14;
+                grid-column: 11/13;
+                grid-row: 5;
             }
 
             .p-sun {
-                grid-column: 3/5;
-                grid-row: 14;
+                grid-column: 13/15;
+                grid-row: 5;
             }
 
             .p-soiltemp {
-                grid-column: 1/3;
-                grid-row: 15;
+                grid-column: 5/8;
+                grid-row: 6;
             }
 
             .p-humid-out {
-                grid-column: 3/5;
-                grid-row: 15;
+                grid-column: 8/11;
+                grid-row: 6;
             }
 
             .p-system {
-                grid-column: 1/5;
-                grid-row: 16;
+                grid-column: 11/15;
+                grid-row: 6;
             }
 
+            /* Réduction des tailles de police pour mobile */
             .panel-value {
-                font-size: 18px;
+                font-size: 14px;
+            }
+
+            .panel-label {
+                font-size: 7px;
+                letter-spacing: 1.5px;
+            }
+
+            .panel-unit {
+                font-size: 8px;
+            }
+
+            .panel-sub {
+                font-size: 10px;
             }
 
             .header-station {
-                font-size: 12px;
+                font-size: 10px;
                 letter-spacing: 2px;
             }
 
             .header-time {
-                font-size: 16px;
+                font-size: 14px;
+                letter-spacing: 1px;
+            }
+
+            .header-date {
+                font-size: 7px;
             }
 
             .header-location {
@@ -576,6 +603,143 @@
             .header-fs-hint {
                 display: none;
             }
+
+            .header {
+                padding: 0 8px;
+            }
+
+            .header-right {
+                gap: 10px;
+            }
+
+            .status-label {
+                font-size: 8px;
+            }
+
+            .panel {
+                padding: 4px 5px;
+            }
+        }
+
+        /* Très petits écrans - mode ultra compact */
+        @media (max-height: 900px) {
+            .panel-value {
+                font-size: 12px;
+            }
+
+            .panel-label {
+                font-size: 6px;
+                letter-spacing: 1px;
+            }
+
+            .panel {
+                padding: 3px 4px;
+                gap: 2px;
+            }
+
+            .header-time {
+                font-size: 12px;
+            }
+        }
+
+        /* Map specific styling */
+        .p-gps {
+            position: relative;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .p-gps .gps-globe-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .p-gps .panel-label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1;
+            font-size: 1.5em;
+            /* +50% */
+            margin: 0;
+            pointer-events: none;
+        }
+
+        .p-gps .gps-meta {
+            position: absolute;
+            display: flex;
+            justify-content: space-between;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .p-gps .gps-coords {
+            position: absolute;
+            display: flex;
+            bottom: 10px;
+            left: 10px;
+            flex-direction: column;
+            align-items: flex-start;
+            text-align: left;
+            font-size: 1.2em;
+        }
+
+        .p-gps .gps-info {
+            position: absolute;
+            display: flex;
+            bottom: 10px;
+            right: 10px;
+            flex-direction: column;
+            align-items: flex-end;
+            text-align: right;
+        }
+
+        .p-gps .gps-meta .panel-sub {
+            font-size: 1.3em;
+            /* +50% */
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+        }
+
+        .graticule {
+            fill: none;
+            stroke: rgba(0, 255, 255, 0.1);
+            stroke-width: .5px;
+        }
+
+        .land {
+            fill: rgba(0, 40, 60, 0.8);
+            stroke: var(--futuristic-cyan);
+            stroke-width: 0.5px;
+        }
+
+        .marker {
+            fill: #ff0055;
+            stroke: #fff;
+            stroke-width: 1px;
+            cursor: pointer;
+        }
+
+        .marker-pulse {
+            fill: none;
+            stroke: #ff0055;
+            stroke-width: 2px;
+            animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes ping {
+            0% {
+                r: 5;
+                opacity: 1;
+            }
+
+            100% {
+                r: 30;
+                opacity: 0;
+            }
         }
     </style>
 </head>
@@ -583,11 +747,10 @@
 <body>
 
     <div class="dashboard">
-
         <header class="panel header" id="header" title="Cliquer pour plein écran">
             <div>
-                <div class="header-station">WX Station — ALPHA</div>
-                <div class="header-location">MOURENX · 43.378°N / 0.596°W · ALT 147m</div>
+                <div class="header-station" id="header-station">WX Station — ALPHA</div>
+                <div class="header-location" id="header-location">MOURENX · 43.378°N / 0.596°W · ALT 147m</div>
             </div>
             <div class="header-center">
                 <div class="header-time" id="hdr-time">--:--:--</div>
@@ -595,13 +758,13 @@
             </div>
             <div class="header-right">
                 <div class="status-indicator">
-                    <div class="status-dot"></div>
-                    <span class="status-label">ONLINE</span>
+                    <div class="status-dot" id="status-dot"></div>
+                    <span class="status-label" id="status-label">ONLINE</span>
                 </div>
-                <div class="header-signal">
+                <!-- <div class="header-signal">
                     <span class="panel-label">Signal</span>
                     <span class="panel-value">▮▮▮▮▯</span>
-                </div>
+                </div> -->
                 <span class="header-fs-hint" id="fs-hint">[ FULLSCREEN ]</span>
             </div>
         </header>
@@ -656,18 +819,17 @@
             </div>
 
             <div class="panel p-gps">
-                <div class="panel-label">GPS · Globe 3D</div>
-                <div class="viz gps-globe-container"></div>
-                <div class="gps-meta">
-                    <div class="gps-coords">
-                        <span class="panel-sub" id="gps-lat">LAT: 43.3781°N</span>
-                        <span class="panel-sub" id="gps-lon">LON: 0.5963°W</span>
-                    </div>
-                    <div class="gps-info">
-                        <span class="panel-sub" id="gps-alt">ALT: 147m</span>
-                        <span class="panel-sub" id="gps-sats">SATS: 9</span>
-                    </div>
+                <div class="viz gps-globe-container"><svg id="gps-globe-svg" style="width:100%;height:100%"></svg></div>
+                <div class="panel-label">World Map</div>
+                <!-- <div class="gps-meta"> -->
+                <div class="gps-coords">
+                    <span class="panel-sub" id="gps-lat">LAT: --</span>
+                    <span class="panel-sub" id="gps-lon">LON: --</span>
                 </div>
+                <div class="gps-info">
+                    <span class="panel-sub" id="gps-alt">ALT: --</span>
+                </div>
+                <!-- </div> -->
             </div>
 
             <div class="panel p-solar-path">
@@ -776,13 +938,119 @@
             </div>
 
             <div class="panel p-system">
-                <div class="panel-label">Système</div>
-                <div class="val-row">
-                    <span class="panel-value" id="sys-val">14d</span>
-                    <span class="panel-unit">uptime</span>
+                <style>
+                    .sys-gauges {
+                        display: flex;
+                        justify-content: space-around;
+                        align-items: center;
+                        height: 100%;
+                        flex: 1.5;
+                    }
+
+                    .gauge {
+                        width: 70px;
+                        height: 70px;
+                        position: relative;
+                    }
+
+                    .gauge svg {
+                        width: 100%;
+                        height: 100%;
+                        transform: rotate(-90deg);
+                    }
+
+                    .gauge-label {
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        text-align: center;
+                    }
+
+                    .gauge-val {
+                        font-size: 1.1em;
+                        font-weight: bold;
+                        color: #fff;
+                        text-shadow: 0 0 5px var(--futuristic-cyan);
+                    }
+
+                    .gauge-title {
+                        font-size: 0.6em;
+                        color: var(--futuristic-cyan);
+                        opacity: 0.8;
+                        margin-top: 1px;
+                    }
+
+                    .sys-details {
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        gap: 3px;
+                        font-family: var(--font-mono);
+                        font-size: 9px;
+                        color: rgba(0, 255, 255, 0.75);
+                        border-left: 1px solid rgba(0, 255, 255, 0.1);
+                        padding-left: 8px;
+                    }
+
+                    .sys-detail-row {
+                        display: flex;
+                        justify-content: space-between;
+                        white-space: nowrap;
+                    }
+
+                    .sys-detail-label {
+                        color: rgba(0, 255, 255, 0.4);
+                    }
+                </style>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                    <div>
+                        <div class="panel-label">Système</div>
+                        <div class="panel-sub" id="sys-info">INITIALIZING...</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="panel-sub" style="color:#fff;" id="sys-val">--</span>
+                        <div class="panel-unit" style="font-size:8px;">uptime</div>
+                    </div>
                 </div>
-                <div class="viz system-container"></div>
-                <div class="panel-sub" id="sys-info">CPU 12% · RAM 38% · BAT 94%</div>
+
+                <div style="display: flex; flex: 1; min-height: 0; align-items: center; gap: 4px;">
+                    <div class="sys-gauges">
+                        <div class="gauge">
+                            <svg id="sys-cpu-arc"></svg>
+                            <div class="gauge-label">
+                                <div class="gauge-val" id="sys-cpu-val">0%</div>
+                                <div class="gauge-title">CPU</div>
+                            </div>
+                        </div>
+                        <div class="gauge">
+                            <svg id="sys-mem-arc"></svg>
+                            <div class="gauge-label">
+                                <div class="gauge-val" id="sys-mem-val">0%</div>
+                                <div class="gauge-title">MEM</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sys-details">
+                        <div class="sys-detail-row">
+                            <span class="sys-detail-label">Load:</span>
+                            <span id="sys-load">--</span>
+                        </div>
+                        <div class="sys-detail-row">
+                            <span class="sys-detail-label">Mem:</span>
+                            <span id="sys-mem-txt">--</span>
+                        </div>
+                        <div class="sys-detail-row" style="margin-top:2px; font-size:8px; opacity:0.8;">
+                            <span class="sys-detail-label">Node:</span>
+                            <span id="sys-node">--</span>
+                        </div>
+                        <div class="sys-detail-row" style="font-size:8px; opacity:0.8;">
+                            <span class="sys-detail-label">Ngx/Inf:</span>
+                            <span id="sys-proc">--</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -790,6 +1058,7 @@
     </div>
 
     <script>
+        // --- Fullscreen toggle ---
         document.getElementById('header').addEventListener('click', function () {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(function () { });
@@ -799,11 +1068,345 @@
                 document.getElementById('fs-hint').textContent = '[ FULLSCREEN ]';
             }
         });
-
         document.addEventListener('fullscreenchange', function () {
             if (!document.fullscreenElement) {
                 document.getElementById('fs-hint').textContent = '[ FULLSCREEN ]';
             }
+        });
+
+        // ═══════════════════════════════════════════
+        //  DASHBOARD INIT — API Data Integration
+        // ═══════════════════════════════════════════
+
+        const STATION = new URLSearchParams(location.search).get('station') || 'VP2_Serramoune';
+
+        // --- Clock ---
+        function updateClock() {
+            const now = new Date();
+            const hdrTime = document.getElementById('hdr-time');
+            const hdrDate = document.getElementById('hdr-date');
+            if (hdrTime) hdrTime.textContent = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            if (hdrDate) hdrDate.textContent = now.toLocaleDateString('fr-FR', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        // ─── Sensor key → DOM mapping ───
+        const SENSOR_MAP = {
+            'temperature:inTemp': { valId: 'intemp-val', unitEl: null },
+            'temperature:outTemp': { valId: 'outtemp-val', unitEl: null },
+            'humidity:inHumidity': { valId: 'humid-in-val', unitEl: null },
+            'humidity:outHumidity': { valId: 'humid-out-val', unitEl: null },
+            'pressure:barometer': { valId: 'baro-val', unitEl: null },
+            'speed:Wind': { valId: 'speed-val', unitEl: null },
+            'speed:Gust': { valId: 'vec-val', unitEl: null },
+            'irradiance:solar': { valId: 'solar-val', unitEl: null },
+            'uv:UV': { valId: 'uv-val', unitEl: 'uv-label' },
+            'rain:rainFall': { valId: 'rain-val', unitEl: null },
+            'rain:ET': { valId: 'et-val', unitEl: null },
+            'angle:SUN_V_calc': { valId: 'sun-val', unitEl: null },
+            'angle:MOON_calc': { valId: 'moon-val', unitEl: null },
+            'direction:Gust': { valId: null, subId: 'vec-sub' },
+        };
+
+        function applyConversion(sensorData) {
+            if (!sensorData || sensorData.Value === undefined || sensorData.Value === null) return '--';
+            if (sensorData.toUserUnit) {
+                try {
+                    const fn = eval(sensorData.toUserUnit);
+                    return fn(sensorData.Value);
+                } catch (e) { /* fall through */ }
+            }
+            return typeof sensorData.Value === 'number' ? sensorData.Value.toFixed(1) : sensorData.Value;
+        }
+
+        function cardinalDir(deg) {
+            const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+            return dirs[Math.round(deg / 22.5) % 16];
+        }
+
+        function uvLabel(index) {
+            if (index <= 2) return 'FAIBLE';
+            if (index <= 5) return 'MODÉRÉ';
+            if (index <= 7) return 'ÉLEVÉ';
+            if (index <= 10) return 'TRÈS ÉLEVÉ';
+            return 'EXTRÊME';
+        }
+
+        // ─── 1. Station Info (one-shot) ───
+        async function loadStationInfo() {
+            try {
+                const res = await queryManager.query(`/api/station/${STATION}/info`, { cacheDuration: 5 * 60 * 1000 });
+                if (!res || !res.data) return;
+                const d = res.data;
+
+                // Header
+                const stEl = document.getElementById('header-station');
+                const locEl = document.getElementById('header-location');
+                if (stEl) stEl.textContent = d.name || STATION;
+                if (locEl && d.location && d.coordinates) {
+                    locEl.textContent = `${d.location} · ${d.coordinates.latitude.toFixed(3)}°N / ${Math.abs(d.coordinates.longitude).toFixed(3)}°${d.coordinates.longitude < 0 ? 'W' : 'E'} · ALT ${d.coordinates.altitude}m`;
+                }
+
+                // GPS info
+                const lat = d.coordinates?.latitude || 0;
+                const lon = d.coordinates?.longitude || 0;
+                const alt = d.coordinates?.altitude || 0;
+                document.getElementById('gps-lat').textContent = `LAT: ${lat.toFixed(4)}`;
+                document.getElementById('gps-lon').textContent = `LON: ${lon.toFixed(4)}`;
+                document.getElementById('gps-alt').textContent = `ALT: ${alt}m`;
+
+                // World Map
+                if (window.loadWorldMap) {
+                    loadWorldMap('#gps-globe-svg', {
+                        gps: { latitude: lat, longitude: lon, altitude: alt },
+                        stationId: STATION,
+                        onDblClick: () => loadStationInfo()
+                    });
+                }
+
+                // Solar Path
+                if (window.loadPath) {
+                    const solarContainer = document.querySelector('.solar-path-container');
+                    if (solarContainer) {
+                        path = loadPath(solarContainer, {
+                            timestamp: new Date().toISOString(),
+                            gps: {
+                                latitude: lat,
+                                longitude: lon,
+                                altitude: alt
+                            }
+                        });
+                    }
+                }
+
+            } catch (e) {
+                console.error('[Dashboard] Station info error:', e);
+            }
+        }
+
+        // ─── 2. Status polling (every 3s) ───
+        function formatUptime(seconds) {
+            if (!seconds) return '--';
+            const d = Math.floor(seconds / 86400);
+            const h = Math.floor((seconds % 86400) / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            if (d > 0) return `${d}d${h}h`;
+            if (h > 0) return `${h}h${m}m`;
+            return `${m}m`;
+        }
+
+        async function pollStatus() {
+            try {
+                const res = await fetch('/api/status');
+                if (!res.ok) throw new Error(res.statusText);
+                const data = await res.json();
+
+                // Gauges drawing helper
+                function drawArc(svgId, percentage, color) {
+                    const svg = d3.select(svgId);
+                    svg.selectAll('*').remove();
+                    const w = svg.node().clientWidth || 80;
+                    const h = svg.node().clientHeight || 80;
+                    const radius = Math.min(w, h) / 2 - 4;
+
+                    const g = svg.append('g').attr('transform', `translate(${w / 2},${h / 2})`);
+
+                    const arc = d3.arc()
+                        .innerRadius(radius - 6)
+                        .outerRadius(radius)
+                        .startAngle(0);
+
+                    // Background
+                    g.append('path')
+                        .datum({ endAngle: 2 * Math.PI })
+                        .style('fill', 'rgba(0,255,255,0.1)')
+                        .attr('d', arc);
+
+                    // Foreground
+                    g.append('path')
+                        .datum({ endAngle: (percentage / 100) * 2 * Math.PI })
+                        .style('fill', color)
+                        .style('filter', `drop-shadow(0 0 4px ${color})`)
+                        .attr('d', arc);
+                }
+
+                // System panel
+                const sysVal = document.getElementById('sys-val');
+                const sysInfo = document.getElementById('sys-info');
+                if (sysVal) sysVal.textContent = formatUptime(data.uptime);
+
+                if (data.system) {
+                    const mem = data.system.memory;
+                    const cpu = data.system.cpu;
+                    
+                    let cpuPct = 0;
+                    if (cpu && cpu.total) {
+                        cpuPct = cpu.total.percent || 0;
+                    }
+                    
+                    let memPct = 0;
+                    if (mem && mem.total) {
+                        memPct = mem.total.percent || 0;
+                    }
+
+                    if (sysInfo) {
+                        sysInfo.textContent = `V${data.version || '--'} · Node ${data.system.nodeVersion || '--'}`;
+                    }
+
+                    const cpuEl = document.getElementById('sys-cpu-val');
+                    const memEl = document.getElementById('sys-mem-val');
+                    if (cpuEl) cpuEl.textContent = Math.round(cpuPct) + '%';
+                    if (memEl) memEl.textContent = Math.round(memPct) + '%';
+
+                    drawArc('#sys-cpu-arc', cpuPct, cpuPct > 80 ? 'var(--futuristic-pink)' : 'var(--futuristic-cyan)');
+                    drawArc('#sys-mem-arc', memPct, memPct > 80 ? 'var(--futuristic-pink)' : '#ffb347');
+
+                    // Details update
+                    const sysLoad = document.getElementById('sys-load');
+                    const sysMemTxt = document.getElementById('sys-mem-txt');
+                    const sysNode = document.getElementById('sys-node');
+                    const sysProc = document.getElementById('sys-proc');
+
+                    if (sysLoad && cpu && cpu.total && cpu.total.loadAverage) {
+                        const l = cpu.total.loadAverage;
+                        sysLoad.textContent = `${(l['1min']||0).toFixed(1)}, ${(l['5min']||0).toFixed(1)}`;
+                    }
+
+                    if (sysMemTxt && mem && mem.total) {
+                        const totalGB = (mem.total.total / 1024).toFixed(1);
+                        const usedGB = (mem.total.used / 1024).toFixed(1);
+                        sysMemTxt.textContent = `${usedGB}/${totalGB}G`;
+                    }
+
+                    if (sysNode && mem && mem.nodejs) {
+                        const rss = mem.nodejs.rss || 0;
+                        const pct = mem.nodejs.systemPercent || 0;
+                        sysNode.textContent = `${rss}M (${Math.round(pct)}%)`;
+                    }
+
+                    if (sysProc && mem && mem.processes) {
+                        const ng = mem.processes.nginx?.memoryMB || 0;
+                        const inf = mem.processes.influxdb?.memoryMB || 0;
+                        sysProc.textContent = `${Math.round(ng)}M / ${Math.round(inf)}M`;
+                    }
+                }
+
+                // Header status: check station ping
+                const dotEl = document.getElementById('status-dot');
+                const labelEl = document.getElementById('status-label');
+                const station = data.stations?.find(s => s.id === STATION);
+                if (station) {
+                    const online = station.ping && station.ping !== 'unreachable!';
+                    if (dotEl) {
+                        dotEl.style.background = online ? 'var(--futuristic-green)' : 'var(--futuristic-pink)';
+                        dotEl.style.boxShadow = online ? '0 0 8px var(--futuristic-green)' : '0 0 8px var(--futuristic-pink)';
+                    }
+                    if (labelEl) {
+                        labelEl.textContent = online ? 'ONLINE' : 'OFFLINE';
+                        labelEl.style.color = online ? 'var(--futuristic-green)' : 'var(--futuristic-pink)';
+                        labelEl.style.textShadow = online ? '0 0 6px var(--futuristic-green)' : '0 0 6px var(--futuristic-pink)';
+                    }
+                }
+
+            } catch (e) {
+                // Mark offline on fetch error
+                const dotEl = document.getElementById('status-dot');
+                const labelEl = document.getElementById('status-label');
+                if (dotEl) { dotEl.style.background = 'var(--futuristic-pink)'; dotEl.style.boxShadow = '0 0 8px var(--futuristic-pink)'; }
+                if (labelEl) { labelEl.textContent = 'ERROR'; labelEl.style.color = 'var(--futuristic-pink)'; }
+            }
+        }
+
+        // ─── 3. Current conditions polling (every 60s) ───
+        async function pollConditions() {
+            try {
+                const res = await queryManager.refetch(`/api/station/${STATION}/current-conditions`, { cacheDuration: 55 * 1000 });
+                if (!res || !res.data) return;
+                const sensors = res.data;
+
+                for (const [key, mapping] of Object.entries(SENSOR_MAP)) {
+                    const sensor = sensors[key];
+                    if (!sensor) continue;
+
+                    const val = applyConversion(sensor);
+
+                    if (mapping.valId) {
+                        const el = document.getElementById(mapping.valId);
+                        if (el) el.textContent = val;
+                    }
+
+                    // Special: UV label
+                    if (key === 'uv:UV' && mapping.unitEl) {
+                        const uel = document.getElementById(mapping.unitEl);
+                        if (uel) uel.textContent = uvLabel(sensor.Value);
+                    }
+
+                    // Special: gust direction → vec-sub
+                    if (key === 'direction:Gust' && mapping.subId) {
+                        const gustSpeed = sensors['speed:Gust'];
+                        const subEl = document.getElementById(mapping.subId);
+                        if (subEl) {
+                            const dir = sensor.Value;
+                            const spd = gustSpeed ? applyConversion(gustSpeed) : '--';
+                            const unit = gustSpeed?.userUnit || 'km/h';
+                            subEl.textContent = `${dir}° ${cardinalDir(dir)} · ${spd} ${unit}`;
+                        }
+                    }
+                }
+
+                // Moon info
+                const moonSensor = sensors['angle:MOON_calc'];
+                if (moonSensor) {
+                    const moonInfo = document.getElementById('moon-info');
+                    const phase = moonSensor.Value;
+                    const pct = Math.abs(phase);
+                    let phaseName = 'Nouvelle Lune';
+                    if (pct > 80) phaseName = phase > 0 ? 'Pleine Lune' : 'Pleine Lune';
+                    else if (pct > 50) phaseName = phase > 0 ? 'Gibbeuse ↑' : 'Gibbeuse ↓';
+                    else if (pct > 20) phaseName = phase > 0 ? 'Premier Q.' : 'Dernier Q.';
+                    else if (pct > 5) phaseName = phase > 0 ? 'Croissant ↑' : 'Croissant ↓';
+                    if (moonInfo) moonInfo.textContent = phaseName;
+                }
+
+                // Sun info
+                const sunSensor = sensors['angle:SUN_V_calc'];
+                if (sunSensor) {
+                    const sunInfo = document.getElementById('sun-info');
+                    if (sunInfo) sunInfo.textContent = `Élév: ${sunSensor.Value.toFixed(1)}°`;
+                }
+
+                // Barometer trend placeholder
+                const baroSensor = sensors['pressure:barometer'];
+                if (baroSensor) {
+                    const unit = baroSensor.userUnit || 'hPa';
+                    const baroTrend = document.getElementById('baro-trend');
+                    if (baroTrend) baroTrend.textContent = `${applyConversion(baroSensor)} ${unit}`;
+                }
+
+                // Out temp min/max (from data timestamp)
+                const outTempSensor = sensors['temperature:outTemp'];
+                if (outTempSensor) {
+                    const outMinMax = document.getElementById('outtemp-minmax');
+                    if (outMinMax) {
+                        const d = outTempSensor.d ? new Date(outTempSensor.d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '--';
+                        outMinMax.textContent = `dernière mesure : ${d}`;
+                    }
+                }
+
+            } catch (e) {
+                console.error('[Dashboard] Conditions error:', e);
+            }
+        }
+
+        // ─── Boot ───
+        window.addEventListener('load', async () => {
+            await loadStationInfo();
+            pollStatus();
+            pollConditions();
+
+            setInterval(pollStatus, 3000);
+            setInterval(pollConditions, 60000);
         });
     </script>
 

@@ -1,20 +1,22 @@
 // public/js/queryManager.js
-// Probe\public\js\queryManager.js
 // Author: LOPEZ Alban
 // License: AGPL
 // Project: https://probe.lpz.ovh/
 
 /**
  * @file queryManager.js
- * @description A library to manage API requests with caching, retries, and mutations.
+ * @description A library to manage API requests with caching, retries, mutations, and DOM subscriptions.
  */
 
 class QueryManager {
     constructor(options = {}) {
         this.cache = new Map();
-        this.defaultCacheDuration = options.cacheDuration || 1 * 60 * 1000; // 1 minute
-        this.defaultRetries = options.retries || 2; // 2 tentatives
-        this.defaultRetryDelay = options.retryDelay || 1500; // 1.5 secondes
+        this.subscriptions = new Map(); // URL -> Set de callbacks
+        this.globalSubscribers = new Set(); // Callbacks pour toutes les mises à jour
+
+        this.defaultCacheDuration = options.cacheDuration || 1 * 60 * 1000;
+        this.defaultRetries = options.retries || 2;
+        this.defaultRetryDelay = options.retryDelay || 1500;
 
         // Nettoyage périodique du cache
         setInterval(() => this.cleanCache(), 60 * 1000);
@@ -28,9 +30,9 @@ class QueryManager {
         for (const [url, cached] of this.cache.entries()) {
             if (cached.status === 'resolved' && now >= cached.expiresAt) {
                 this.cache.delete(url);
-                // console.log(`[QueryManager] Cache cleaned for: ${url}`);
+                // Notifier les abonnés de l'expiration
+                this._notifySubscribers(url, null, 'expired');
             }
-            // Supprimer les entrées pending trop anciennes (> 5 min) pour éviter les fuites mémoire
             if (cached.status === 'pending' && now - cached.createdAt > 5 * 60 * 1000) {
                 console.warn(`[QueryManager] Removing stale pending entry for: ${url}`);
                 this.cache.delete(url);
@@ -39,8 +41,75 @@ class QueryManager {
     }
 
     /**
-     * Invalide les entrées du cache qui correspondent à un ou plusieurs motifs.
-     * @param {string|string[]} patterns - Un motif ou un tableau de motifs. Les entrées dont l'URL contient le motif seront supprimées.
+     * S'abonne aux mises à jour d'une URL spécifique.
+     * @param {string} url - L'URL à surveiller.
+     * @param {Function} callback - Fonction appelée avec (data, eventType, url).
+     * @returns {Function} Fonction pour se désabonner.
+     */
+    subscribe(url, callback) {
+        if (!this.subscriptions.has(url)) {
+            this.subscriptions.set(url, new Set());
+        }
+        this.subscriptions.get(url).add(callback);
+
+        // Retourner la fonction de désabonnement
+        return () => this.unsubscribe(url, callback);
+    }
+
+    /**
+     * Se désabonne d'une URL.
+     * @param {string} url 
+     * @param {Function} callback 
+     */
+    unsubscribe(url, callback) {
+        const subs = this.subscriptions.get(url);
+        if (subs) {
+            subs.delete(callback);
+            if (subs.size === 0) {
+                this.subscriptions.delete(url);
+            }
+        }
+    }
+
+    /**
+     * S'abonne à toutes les mises à jour (global).
+     * @param {Function} callback - Fonction appelée avec (url, data, eventType).
+     * @returns {Function} Fonction pour se désabonner.
+     */
+    subscribeAll(callback) {
+        this.globalSubscribers.add(callback);
+        return () => this.globalSubscribers.delete(callback);
+    }
+
+    /**
+     * Notifie tous les abonnés d'une URL et les abonnés globaux.
+     * @private
+     */
+    _notifySubscribers(url, data, eventType = 'updated') {
+        // Notifier les abonnés spécifiques à cette URL
+        const specificSubs = this.subscriptions.get(url);
+        if (specificSubs) {
+            specificSubs.forEach(callback => {
+                try {
+                    callback(data, eventType, url);
+                } catch (err) {
+                    console.error(`[QueryManager] Subscriber error for ${url}:`, err);
+                }
+            });
+        }
+
+        // Notifier les abonnés globaux
+        this.globalSubscribers.forEach(callback => {
+            try {
+                callback(url, data, eventType);
+            } catch (err) {
+                console.error(`[QueryManager] Global subscriber error:`, err);
+            }
+        });
+    }
+
+    /**
+     * Invalide les entrées du cache et notifie les abonnés.
      */
     invalidate(patterns) {
         if (!Array.isArray(patterns)) {
@@ -50,20 +119,29 @@ class QueryManager {
         for (const pattern of patterns) {
             for (const url of this.cache.keys()) {
                 if (url.includes(pattern)) {
+                    const cached = this.cache.get(url);
                     this.cache.delete(url);
-                    // console.log(`[QueryManager] Cache invalidated for URL matching "${pattern}": ${url}`);
+                    // Notifier que les données sont invalidées
+                    this._notifySubscribers(url, cached?.data || null, 'invalidated');
                 }
             }
         }
     }
 
     /**
+     * Force un rafraîchissement des données et notifie les abonnés.
+     * @param {string} url - L'URL à rafraîchir.
+     * @param {object} [options={}] - Options de requête.
+     */
+    async refetch(url, options = {}) {
+        // Supprimer du cache pour forcer un nouveau fetch
+        this.cache.delete(url);
+        // Relancer la requête
+        return this.query(url, options);
+    }
+
+    /**
      * Exécute une requête GET avec gestion du cache et des tentatives multiples.
-     * @param {string} url - L'URL à interroger.
-     * @param {object} [options={}] - Options pour la requête.
-     * @param {number} [options.retries] - Nombre de tentatives.
-     * @param {number} [options.cacheDuration] - Durée de validité du cache en ms.
-     * @returns {Promise<object>} Une promesse qui résout avec la réponse de l'API.
      */
     async query(url, options = {}) {
         const now = Date.now();
@@ -72,48 +150,44 @@ class QueryManager {
         // 1. Vérifier le cache
         if (cached) {
             if (cached.status === 'pending') {
-                // console.log(`[QueryManager] Cache HIT (pending) for: ${url}`);
-                return cached.promise; // Requête déjà en cours
+                return cached.promise;
             }
             if (cached.status === 'resolved' && now < cached.expiresAt) {
-                // console.log(`[QueryManager] Cache HIT (resolved) for: ${url}, expires in ${Math.round((cached.expiresAt - now) / 1000)}s`);
-                return Promise.resolve(cached.data); // Donnée fraîche du cache
+                // Notifier même si données en cache (pour les nouveaux abonnés)
+                this._notifySubscribers(url, cached.data, 'cached');
+                return Promise.resolve(cached.data);
             }
-            // Entrée expirée ou invalide, la supprimer
-            // console.log(`[QueryManager] Cache entry expired for: ${url}`);
             this.cache.delete(url);
-        } else {
-            // console.log(`[QueryManager] Cache Missing for: ${url}`);
         }
 
         // 2. Lancer la requête avec tentatives multiples
         const retries = options.retries ?? this.defaultRetries;
         const cacheDuration = options.cacheDuration ?? this.defaultCacheDuration;
 
-        // Créer la promesse de fetch
         const fetchPromise = this._fetchWithRetries(url, { method: 'GET' }, retries)
             .then(apiResponse => {
-                // Mettre à jour le cache avec la réponse
-                // console.log(`[QueryManager] Storing in cache for ${cacheDuration}ms: ${url}`);
                 this.cache.set(url, {
                     status: 'resolved',
                     expiresAt: Date.now() + cacheDuration,
                     data: apiResponse,
                 });
+                // NOTIFIER LES ABONNÉS des nouvelles données
+                this._notifySubscribers(url, apiResponse, 'updated');
                 return apiResponse;
             })
             .catch(error => {
-                this.cache.delete(url); // Supprimer du cache en cas d'échec final
+                this.cache.delete(url);
+                // NOTIFIER LES ABONNÉS de l'erreur
+                this._notifySubscribers(url, null, 'error');
                 console.error(`[QueryManager] Request failed, removed from cache: ${url}`);
                 throw error;
             });
 
-        // 3. Stocker la promesse en cours pour éviter les requêtes parallèles
-        //    IMPORTANT: Stocker AVANT de retourner pour prévenir les race conditions
+        // 3. Stocker la promesse en cours
         this.cache.set(url, {
             status: 'pending',
             promise: fetchPromise,
-            createdAt: now, // Pour nettoyer les stale pending entries
+            createdAt: now,
             expiresAt: 0
         });
 
@@ -121,32 +195,32 @@ class QueryManager {
     }
 
     /**
-     * Exécute une requête de mutation (POST, PUT, DELETE) et invalide le cache.
-     * @param {string} url - L'URL pour la mutation.
-     * @param {object} options - Options de fetch (method, body, headers).
-     * @param {string|string[]} [options.invalidatePatterns] - Motifs d'URL à invalider dans le cache après succès.
-     * @returns {Promise<object>} Une promesse qui résout avec la réponse de l'API.
+     * Exécute une requête de mutation et notifie les abonnés des patterns invalidés.
      */
     async mutate(url, options) {
         const { invalidatePatterns, ...fetchOptions } = options;
 
         try {
-            const apiResponse = await this._fetchWithRetries(url, fetchOptions, 0); // Pas de retry par défaut pour les mutations
+            const apiResponse = await this._fetchWithRetries(url, fetchOptions, 0);
 
-            // Invalider le cache si la mutation réussit
+            // Invalider le cache et notifier
             if (invalidatePatterns) {
                 this.invalidate(invalidatePatterns);
             }
 
+            // Notifier spécifiquement cette mutation
+            this._notifySubscribers(url, apiResponse, 'mutated');
+
             return apiResponse;
         } catch (error) {
+            this._notifySubscribers(url, null, 'mutation-error');
             console.error(`[QueryManager] Mutation failed for ${url}:`, error);
             throw error;
         }
     }
 
     /**
-     * Fonction interne pour gérer fetch avec tentatives multiples et backoff exponentiel.
+     * Fonction interne pour gérer fetch avec tentatives multiples.
      * @private
      */
     async _fetchWithRetries(url, options, retries) {
@@ -156,11 +230,9 @@ class QueryManager {
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    // Ne pas réessayer pour certaines erreurs client (ex: 404 Not Found, 400 Bad Request)
                     if (response.status >= 400 && response.status < 500) {
                         throw new Error(`Erreur HTTP client: ${response.status} ${response.statusText} - ${errorText}`);
                     }
-                    // Pour les erreurs serveur, on peut réessayer
                     throw new Error(`Erreur HTTP serveur: ${response.status} ${response.statusText} - ${errorText}`);
                 }
 
@@ -170,20 +242,50 @@ class QueryManager {
                     throw new Error(apiResponse.error || apiResponse.message || 'Erreur inconnue de l\'API');
                 }
 
-                return apiResponse; // Succès, on retourne la réponse
+                return apiResponse;
 
             } catch (error) {
                 console.warn(`[QueryManager] Attempt ${i + 1}/${retries + 1} failed for ${url}: ${error.message}`);
                 if (i === retries) {
-                    throw error; // C'est la dernière tentative, on propage l'erreur
+                    throw error;
                 }
-                // Attendre avant la prochaine tentative (backoff)
                 const delay = this.defaultRetryDelay * Math.pow(2, i);
                 await new Promise(res => setTimeout(res, delay));
             }
         }
     }
+
+    /**
+     * Hook React-style pour les composants (si vous utilisez un framework).
+     * @param {string} url 
+     * @param {Function} onData 
+     * @param {Function} onError 
+     */
+    useQuery(url, onData, onError = null) {
+        const unsubscribe = this.subscribe(url, (data, eventType) => {
+            if (eventType === 'error' || eventType === 'mutation-error') {
+                if (onError) onError(data);
+            } else {
+                onData(data, eventType);
+            }
+        });
+
+        // Lancer la requête initiale
+        this.query(url).catch(err => {
+            if (onError) onError(err);
+        });
+
+        return unsubscribe;
+    }
 }
 
-// Exporter une instance unique pour être utilisée comme un singleton dans toute l'application.
+// Instance singleton
 const queryManager = new QueryManager();
+
+// Export pour module ou global
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { QueryManager, queryManager };
+} else {
+    window.QueryManager = QueryManager;
+    window.queryManager = queryManager;
+}

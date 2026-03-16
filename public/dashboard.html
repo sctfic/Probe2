@@ -50,8 +50,6 @@
                 "left top right"
                 "left middle right"
                 "left bottom right";
-            grid-template-columns: 350px 1fr 380px;
-            grid-template-rows: 60px 140px 1fr 140px;
 
             gap: 5px;
             padding: 5px;
@@ -409,6 +407,7 @@
                 }
 
                 // Initialize Map
+                console.log("Initializing Map with stationConfig:", stationConfig);
                 loadWorldMap("#world-map", stationConfig);
 
                 // 2. Fetch all sensor definitions and latest values
