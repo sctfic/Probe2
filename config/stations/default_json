@@ -1,59 +1,59 @@
 {
-    "id": "default",
-    "name": "Config VP2 par Default",
-    "comment": "Cabled Plus",
-    "host": "vp2.dev",
+    "id": "VP2_Serramoune",
+    "name": "VP2 chantier Serramoune",
+    "comment": "Cabled Plus, alban",
+    "host": "vp2.lan",
     "port": 22222,
-    "location": "Default, 64290 devLab, FR",
+    "location": "Serramoune, 64290 Lasseube, FR",
     "longitude": {
         "desired": -0.479921,
-        "lastReadValue": -0.5
+        "lastReadValue": 0
     },
     "latitude": {
         "desired": 43.20759,
-        "lastReadValue": 43.2
+        "lastReadValue": 0
     },
     "altitude": {
         "comment": "in meters",
         "desired": 242,
-        "lastReadValue": 242.01
+        "lastReadValue": 0
     },
     "timezone": {
         "comment": "Time zone detected by GPS position",
         "value": "Europe/Paris",
         "desired": 21,
-        "lastReadValue": 21,
+        "lastReadValue": 0,
         "method": "GPS"
     },
     "AMPMMode": {
         "comment": "0=AM/PM, 1=24h",
         "desired": 1,
-        "lastReadValue": 1
+        "lastReadValue": 0
     },
     "dateFormat": {
         "comment": "0=Month/Day, 1=Day/Month",
         "desired": 1,
-        "lastReadValue": 1
+        "lastReadValue": 0
     },
     "windCupSize": {
         "comment": "0=Small, 1=Large",
         "desired": 1,
-        "lastReadValue": 1
+        "lastReadValue": 0
     },
     "rainCollectorSize": {
         "comment": "0=0.01in, 1=0.2mm, 2=0.1mm",
         "desired": 1,
-        "lastReadValue": 1
+        "lastReadValue": 0
     },
     "rainSaisonStart": {
         "comment": "Month for yearly rain reset",
         "desired": 1,
-        "lastReadValue": 1
+        "lastReadValue": 0
     },
     "latitudeNorthSouth": {
         "comment": "0=South, 1=North",
         "desired": 1,
-        "lastReadValue": 1
+        "lastReadValue": 0
     },
     "longitudeEastWest": {
         "comment": "0=East, 1=West",
@@ -63,28 +63,33 @@
     "archiveInterval": {
         "comment": "Archive period in minutes",
         "desired": 5,
-        "lastReadValue": 5
+        "lastReadValue": 0
     },
     "collect": {
-        "comment": "collecte des donnees des capteurs locaux (VP2 et autres capteurs)",
-        "value": 5,
         "enabled": false,
-        "lastRun": "",
-        "msg": ""
+        "value": 5,
+        "comment": "collecte des donnees des capteurs locaux (VP2 et autres capteurs)",
+        "lastRun": "2026-03-13T18:25:09.769Z",
+        "msg": "Error: Command timeout: "
     },
     "forecast": {
-        "comment": "recupere les previsions pour les capteurs standard (toute les heures)",
+        "enabled": true,
         "model": "meteofrance_arome_france",
-        "enabled": false,
-        "lastRun": "",
-        "msg": ""
+        "comment": "recupere les previsions pour les capteurs standard (toute les heures)",
+        "lastRun": "2026-03-17T02:01:02.377Z",
+        "msg": "1124 points imported"
     },
     "historical": {
+        "enabled": true,
+        "since": 1970,
         "comment": "recupere les previsions pour les capteurs standard (toute les jours a 23h30)",
-        "since": "1900",
-        "enabled": false,
-        "lastRun": "",
-        "msg": ""
+        "lastRun": "2026-03-16T22:50:03.862Z",
+        "msg": "1008 points imported successfully (Jusqu'à 2026-03-16T23:00:00.000Z)"
     },
-    "deltaTimeSeconds": 0.959
+    "deltaTimeSeconds": 1.48,
+    "extenders": {
+        "WhisperEye": [],
+        "Venti'Connect": []
+    },
+    "lastArchiveDate": "2026-03-13 18:55"
 }

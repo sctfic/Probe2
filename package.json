@@ -1,6 +1,6 @@
 {
   "name": "Probe-api",
-  "version": "0.5.01",
+  "version": "0.5.02",
   "description": "API pour récupérer des informations sur l'application Probe",
   "main": "app.js",
   "scripts": {
@@ -24,6 +24,7 @@
     "bcrypt": "^6.0.0",
     "child_process": "^1.0.2",
     "crc": "^4.3.2",
+    "d3-geo": "^3.1.1",
     "date-fns-tz": "^3.2.0",
     "express": "^5.1.0",
     "express-routes-catalogue": "^1.1.0",

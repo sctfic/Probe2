@@ -93,9 +93,9 @@ function createPlot(data, metadata, id, period) {
         yLabelSize = (Math.abs(extent[0]) > 1 && Math.abs(extent[1]) > 1) ?
             d3.max(extent, d => Math.round(d).toString().length + 1) * 7 + 8 :
             d3.max(extent, d => Math.round(d, 1).toString().length + 1) * 7 + 8;
-        console.log(metadata.sensor, extent, 'yLabelSize', yLabelSize);
-        console.log(chartDiv.clientWidth, 'chartDiv.clientWidth', chartDiv.clientWidth - yLabelSize - 2);
-        console.log(chartDiv.clientHeight, 'chartDiv.clientHeight', chartDiv.clientHeight - 17 - 16);
+        // console.log(metadata.sensor, extent, 'yLabelSize', yLabelSize);
+        // console.log(chartDiv.clientWidth, 'chartDiv.clientWidth', chartDiv.clientWidth - yLabelSize - 2);
+        // console.log(chartDiv.clientHeight, 'chartDiv.clientHeight', chartDiv.clientHeight - 17 - 16);
         const plot = Plot.plot({
             width: chartDiv.clientWidth ? chartDiv.clientWidth - yLabelSize - 2 : 240,
             height: chartDiv.clientHeight ? chartDiv.clientHeight - 17 - 16 : 100,

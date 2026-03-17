@@ -9,13 +9,12 @@
     <script src="js/queryManager.js"></script>
     <script src="js/drawing/d3.min.js"></script>
     <script src="js/drawing/plot.umd.js"></script>
+    <script src="js/drawing/d3-geo.v3.1.1.min.js"></script>
+    <script src="js/drawing/topojson-client.v3.1.0.min.js"></script>
     <script src="js/drawing/miniPlot.js"></script>
     <script src="js/drawing/Wind.js"></script>
-    <script src="js/drawing/worldPosition.js"></script>
-    <script src="js/drawing/solarPath.js"></script>
     <script src="js/drawing/spiralPlot.js"></script>
-    <script src="https://d3js.org/d3-geo.v2.min.js"></script>
-    <script src="https://unpkg.com/topojson-client@3"></script>
+    <script src="js/drawing/earthSpaceModel.js"></script>
     <style>
         :root {
             --futuristic-cyan: #00ffff;
@@ -310,9 +309,9 @@
             text-shadow: 0 0 6px var(--futuristic-green);
         }
 
-        .header-signal .panel-value {
-            /* font-size: 12px; */
-        }
+        /* .header-signal .panel-value { 
+             font-size: 12px; 
+        }*/
 
         .gps-meta {
             display: flex;
@@ -875,8 +874,8 @@
             </div>
 
             <div class="panel p-gps">
-                <div class="viz gps-globe-container"><svg id="gps-globe-svg" style="width:100%;height:100%"></svg></div>
-                <div class="panel-label">World Map</div>
+                <div class="viz gps-globe-container" id="gps-globe-svg"></div>
+                <div class="panel-label">Earth Space Model</div>
                 <!-- <div class="gps-meta"> -->
                 <div class="gps-coords">
                     <span class="panel-sub" id="gps-lat">LAT: --</span>
@@ -1202,28 +1201,19 @@
                 document.getElementById('gps-alt').textContent = `ALT: ${alt}m`;
 
                 // World Map
-                if (window.loadWorldMap) {
-                    loadWorldMap('#gps-globe-svg', {
-                        gps: { latitude: lat, longitude: lon, altitude: alt, name: 'VP2' },
-                        stationId: STATION,
-                        onDblClick: () => loadStationInfo()
-                    });
-                }
-
-                // Solar Path
-                if (window.loadPath) {
-                    const solarContainer = document.querySelector('.solar-path-container');
-                    if (solarContainer) {
-                        path = loadPath(solarContainer, {
-                            timestamp: new Date().toISOString(),
-                            gps: {
-                                latitude: lat,
-                                longitude: lon,
-                                altitude: alt
-                            }
-                        });
-                    }
-                }
+                // if (window.loadEarthSpaceModel) {
+                loadEarthSpaceModel(
+                    document.getElementById('gps-globe-svg'),
+                    [
+                        { latitude: lat, longitude: lon, altitude: alt, name: STATION },
+                        { latitude: 23.37, longitude: 10.62, altitude: 150, name: 'Garmadon' },
+                        { latitude: 61.37, longitude: 162, altitude: 1500, name: 'Krux et Acronix' },
+                        { latitude: 23.37, longitude: 10.62, altitude: 6400, name: 'Base des Oni' },
+                        { latitude: 3.37, longitude: 100.62, altitude: 6100, name: 'Nadakhan' }
+                    ],
+                    new Date()
+                );
+                // }
 
             } catch (e) {
                 console.error('[Dashboard] Station info error:', e);

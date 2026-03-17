@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="utf-8">
+  <title>Globe 3D Interactif</title>
+  <style>
+    :root {
+      --futuristic-cyan: #00ffff;
+      --futuristic-cyan-shadow: rgba(0, 255, 255, 0.5);
+      --futuristic-cyan-dim: rgba(0, 255, 255, 0.3);
+      --futuristic-magenta: #ff009d;
+      --futuristic-magenta-shadow: rgba(255, 0, 157, 0.5);
+      --futuristic-pink: #FF6B6B;
+      --futuristic-pink-shadow: rgba(255, 107, 107, 0.5);
+      --futuristic-green: #39ff14;
+      --futuristic-green-shadow: rgba(57, 255, 20, 0.5);
+      --futuristic-amber: #ffb347;
+      --futuristic-amber-shadow: rgba(255, 179, 71, 0.9);
+      --futuristic-white: #dddddd;
+      --futuristic-dark: rgb(26, 26, 26);
+      --futuristic-gray: rgba(40, 40, 40, 0.9);
+      --futuristic-panel: rgba(26, 26, 26, 0.97);
+      --futuristic-border: 1px solid rgba(0, 255, 255, 0.18);
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--futuristic-dark);
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    #globe-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Styles de la Terre */
+    .sphere {
+      fill: transparent;
+      stroke: var(--futuristic-cyan-dim);
+      stroke-width: 1;
+    }
+
+    .graticule-back {
+      fill: none;
+      stroke: var(--futuristic-cyan-dim);
+      stroke-width: 0.3;
+      opacity: 0.2;
+    }
+
+    .graticule-front {
+      fill: none;
+      stroke: var(--futuristic-cyan-dim);
+      stroke-width: 0.5;
+      opacity: 0.6;
+    }
+
+    .land-back {
+      fill: var(--futuristic-cyan-dim);
+      opacity: 0.15;
+      stroke: var(--futuristic-cyan-dim);
+      stroke-width: 0.2;
+    }
+
+    .land-front {
+      fill: rgba(0, 255, 255, 0.12);
+      /* Surface semi-transparente pour les pays */
+      stroke: var(--futuristic-cyan);
+      stroke-width: 0.8;
+      stroke-linejoin: round;
+    }
+
+    /* Styles de la Lune */
+    .moon-sphere {
+      fill: #22222a; /* Opaque pour bloquer la transparence */
+      stroke: rgba(221, 221, 221, 0.5);
+      stroke-width: 1;
+      filter: drop-shadow(0 0 10px rgba(221, 221, 221, 0.2));
+    }
+
+    .moon-graticule-back {
+      fill: none;
+      stroke: rgba(221, 221, 221, 0.3);
+      stroke-width: 0.3;
+      opacity: 0.2;
+    }
+
+    .moon-graticule-front {
+      fill: none;
+      stroke: rgba(221, 221, 221, 0.3);
+      stroke-width: 0.5;
+      opacity: 0.6;
+    }
+
+    .moon-crater-back {
+      fill: rgba(221, 221, 221, 0.05);
+      stroke: rgba(221, 221, 221, 0.2);
+      stroke-width: 0.3;
+    }
+
+    .moon-crater-front {
+      fill: rgba(221, 221, 221, 0.1);
+      stroke: rgba(221, 221, 221, 0.6);
+      stroke-width: 0.8;
+    }
+
+    /* Styles du marqueur */
+    .marker-pulse {
+      animation: pulse 2s infinite;
+      fill: var(--futuristic-pink);
+    }
+
+    .marker-core {
+      fill: var(--futuristic-pink);
+    }
+
+    .marker-text {
+      fill: var(--futuristic-white);
+      font-family: monospace;
+      font-size: 14px;
+      font-weight: bold;
+      pointer-events: none;
+      text-shadow: 0 0 5px var(--futuristic-pink-shadow);
+    }
+
+    .marker-back .marker-pulse,
+    .marker-back .marker-core {
+      fill: var(--futuristic-magenta-shadow);
+      opacity: 0.4;
+      animation: none;
+    }
+
+    .marker-back .marker-text {
+      fill: var(--futuristic-gray);
+      opacity: 0.4;
+      text-shadow: none;
+    }
+
+    @keyframes pulse {
+      0% {
+        r: 4;
+        opacity: 1;
+      }
+
+      100% {
+        r: 20;
+        opacity: 0;
+      }
+    }
+  </style>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/topojson-client@3"></script>
+</head>
+
+<body>
+  <div id="globe-container"></div>
+  <script src="./sunpath3d.js" type="module"></script>
+  <script type="module">
+    import { loadWorldMap } from './sunpath3d.js';
+
+    const now = Date.now();
+    loadWorldMap('#globe-container', { latitude: 43.193, longitude: -0.478, altitude: 0, name: 'VP2' }, now);
+  </script>
+</body>
+
+</html>
