@@ -11,6 +11,7 @@
     cyan: '#00ffff',
     magenta: '#ff009d',
     amber: '#ffb347',
+    pink: '#ff6b6b',
     cyanDim: 'rgba(0,255,255,0.3)',
     dark: 'rgb(26,26,26)',
   };
@@ -53,15 +54,87 @@
   }
 
   function getMoonPhase(date) {
-    const REF = new Date('2000-01-06T18:14:00Z');
+    const REF = Date.UTC(2000, 0, 6, 18, 14);
     const SYN = 29.53058867 * 86400000;
-    return (((date - REF) % SYN) + SYN) % SYN / SYN;
+    return (((date.getTime() - REF) / SYN) % 1 + 1) % 1;
   }
 
   function geoDepth(rotation, lon, lat) {
     const [rLon, rLat] = rotation([lon, lat]);
     return Math.cos(rLat * Math.PI / 180) * Math.cos(rLon * Math.PI / 180);
   }
+
+  /* ─── DONNÉES DE LA LUNE (Cratères, Mers, Éjectas) ────────────────────── */
+  const MARE_N = [
+    [-57.4,18.4,32,.73],[-15.6,32.8,15.5,.74],[17.5,28,10,.70],
+    [31.4,8.5,11.5,.72],[1.4,56,10.5,.67],[-16.6,-21.3,9.5,.70],
+    [51.3,-7.8,11.5,.68],[-38.6,-24.4,7.5,.67],[59.1,17,8,.67],
+    [3.6,13.3,5.5,.62],[34.3,-15.2,5.5,.64],[37.4,45.2,3,.60],
+    [-1,9,3.5,.58],[-16,12,3.5,.60],[-33,44.5,3,.57]
+  ];
+  const MARE_F = [
+    [147,27,5.2,.64],[129,-20,3.4,.72],[163,-33,3.6,.61],
+    [163,-57,2.6,.55],[-95,-19.4,9,.60]
+  ];
+  const SPA_BASIN = {c:[-169,-56],r:40,op:.35};
+  const ALL_MARE = [...MARE_N,...MARE_F];
+
+  const NC = [
+    [-69.1,-66.8,287,0],[-14.4,-58.4,231,0],[-68.3,-5.5,222,0],
+    [-54.6,-44.4,206,0],[60.4,-25.1,177,0],[-39.9,-51.8,175,0],
+    [-27.5,-60.5,177,0],[-6,-50.5,163,0],[-4.8,-32.5,162,0],
+    [-74.6,-3,156,0],[61.6,-16.4,147,0],[34,-54.6,125,0],
+    [-1.9,-9.3,153,0],[24.1,-47.5,190,0],[-4.1,-11.7,114,0],
+    [-2.8,-13.4,108,0],[-1.9,-18.2,96,0],[-20.08,9.62,97,1],
+    [-9.4,51.6,101,0],[-39.9,-17.5,101,0],[26.4,-11.4,100,0],
+    [17.4,50.2,87,0],[-11.36,-43.31,86,1],[44.4,46.7,87,0],
+    [39.1,46.7,69,0],[-47.4,23.7,40,1],[-11.3,14.5,58,0],
+    [-38,8.1,32,1],[34.6,17,39,1],[16.3,44.3,67,0],
+    [-13.5,-29.9,97,0],[6,-41.1,126,0],[14,-42,114,0],
+    [20,-38,116,0],[13.5,-34.2,88,0],[-21.4,-63.6,117,0],
+    [11.4,-56.5,106,0],[30.9,-50.4,82,0],[51.3,-54.9,76,0],
+    [-5.5,-70.6,114,0],[-10,-66.9,83,0],[62.3,46.6,85,0],
+    [-22.2,-20.7,61,0],[-22.8,3.3,48,0],[9.1,14.5,39,0],
+    [129,-20,185,0],[-128,2,591,0],[-157,4,437,0],[141,6,313,0],
+    [149,-20,272,0],[136,-57,319,0],[134,-75,312,0],[-152,36,345,0],
+    [-152,-36,492,0],[163,-57,319,0],[-172,69,143,0],[-152,45,222,0],
+    [147,27,276,0],[163,-33,320,0],[106,-47,226,0],[123,-72,146,0],
+    [175,-30,236,0],[111,55,209,0],[-138,31,225,0],[-143,-6,114,0],
+    [-165,-36,98,0],[164,14,140,0],[105,-5,94,0],[118,28,92,0],
+    [-161,-21,88,0],[175,6,93,0],[115,-44,109,0],[-118,54,117,0],
+    [-132,-8,121,0],[122,-57,104,0],[-156,64,136,0],[153,25,96,0],
+    [143,-42,222,0],[-119,20,88,0],[101,-30,73,0]
+  ];
+
+  const ZONES = [
+    [-35,35,-68,-32,58,33],[-72,-35,-68,-32,32,30],[35,72,-68,-32,30,30],
+    [-35,35,-82,-65,20,28],[35,72,-82,-65,16,26],[-72,-35,-82,-65,16,26],
+    [-80,80,35,80,42,26],[54,88,-56,55,35,26],[-88,-54,-56,55,32,26],
+    [-32,32,-38,-20,22,22],[-68,-32,-58,-36,24,28],[30,68,-58,-36,22,28],
+    [90,180,-80,80,90,36],[-180,-90,-80,80,85,36],[90,180,-85,-65,30,28],
+    [-180,-90,-85,-65,28,28],[-180,-130,-75,-30,45,38],[130,180,-75,-30,42,38]
+  ];
+
+  const RAYS = [
+    {c:[-11.36,-43.31],len:46,n:22,a:.14,lw:1.4},
+    {c:[-20.08,9.62],  len:28,n:16,a:.09,lw:.9},
+    {c:[-47.4,23.7],   len:18,n:14,a:.11,lw:.85},
+    {c:[-38,8.1],      len:17,n:12,a:.08,lw:.80},
+    {c:[129,-20],      len:14,n:10,a:.08,lw:.75}
+  ];
+
+  let fs = 43219;
+  const frng = () => ((fs = Math.imul(fs ^ fs >>> 17, fs | 1)) >>> 0) / 2 ** 32;
+  const FC = [];
+  ZONES.forEach(([lo,hi,la,lb,cnt,dm]) => {
+    for(let i=0; i<cnt; i++){
+      const lon = lo + (hi - lo) * frng(), lat = la + (lb - la) * frng(), d = 12 + frng() * (dm - 12);
+      if(!ALL_MARE.some(([ml,mp,mr]) => Math.sqrt(((lon - ml) * Math.cos(mp * Math.PI / 180)) ** 2 + (lat - mp) ** 2) < mr * 0.78))
+        FC.push([lon, lat, d, 0]);
+    }
+  });
+
+  const ALL_C = [...NC, ...FC];
 
   /* ═══════════════════════════════════════════════════════════════════════════
      MAIN
@@ -319,16 +392,78 @@
       const lx = toLightX / lightLen;
       const ly = toLightY / lightLen;
 
-      ctx.beginPath(); ctx.arc(mx, my, currentMoonR, 0, Math.PI * 2);
-      const mg = ctx.createRadialGradient(mx + lx * currentMoonR * 0.45, my + ly * currentMoonR * 0.45, currentMoonR * 0.05, mx, my, currentMoonR);
-      mg.addColorStop(0, '#ddd8c8'); mg.addColorStop(0.45, '#8888a0'); mg.addColorStop(1, '#1a1a28');
-      ctx.fillStyle = mg; ctx.fill();
+      // Shading de base retiré pour préserver la transparence
 
-      // Halo
-      const ga = 0.1 + (inFront ? 0.2 : 0);
-      const halo = ctx.createRadialGradient(mx, my, currentMoonR * 0.95, mx, my, currentMoonR * 1.6);
+      ctx.save();
+      ctx.beginPath(); ctx.arc(mx, my, currentMoonR, 0, Math.PI * 2); ctx.clip();
+
+      // Local projection pour les coordonées de la Lune
+      // On tourne de camLon + moonEclLon pour que la face visible [0,0] regarde toujours la Terre (Vérrouillage maréal)
+      const localProj = d3.geoOrthographic()
+        .scale(currentMoonR)
+        .translate([mx, my])
+        .rotate([camLon + moonEclLon, camLat, 0])
+        .clipAngle(90);
+
+      const gpLocal = d3.geoPath().projection(localProj).context(ctx);
+      const isVisMoon = (lon, lat) => d3.geoDistance([lon, lat], [-localProj.rotate()[0], -localProj.rotate()[1]]) < Math.PI / 2 * 0.97;
+
+      const gc = d3.geoCircle();
+
+      // 1. Bassin SPA et Mers (Maria) - Fills
+      const SPA_F = gc.center(SPA_BASIN.c).radius(SPA_BASIN.r)();
+      ctx.beginPath(); gpLocal(SPA_F); ctx.fillStyle = `rgba(10,8,6,${SPA_BASIN.op})`; ctx.fill();
+
+      ALL_MARE.forEach(([ml, mp, mr, op]) => {
+        const f = gc.center([ml, mp]).radius(mr)();
+        ctx.beginPath(); gpLocal(f); ctx.fillStyle = `rgba(18,16,14,${op})`; ctx.fill();
+      });
+
+      // 2. Éjectas (Rays)
+      RAYS.forEach(({ c, len, n, a, lw }) => {
+        if (!isVisMoon(c[0], c[1])) return;
+        const ptLocal = localProj(c); if (!ptLocal) return;
+        for (let i = 0; i < n; i++) {
+          const ang = i / n * Math.PI * 2, dst = len * currentMoonR / 90;
+          const ex = ptLocal[0] + Math.cos(ang) * dst, ey = ptLocal[1] + Math.sin(ang) * dst;
+          const gr = ctx.createLinearGradient(ptLocal[0], ptLocal[1], ex, ey);
+          gr.addColorStop(0, `rgba(234,230,218,${a})`); gr.addColorStop(1, 'rgba(234,230,218,0)');
+          ctx.beginPath(); ctx.moveTo(ptLocal[0], ptLocal[1]); ctx.lineTo(ex, ey);
+          ctx.strokeStyle = gr; ctx.lineWidth = lw * currentMoonR / 150; ctx.stroke();
+        }
+      });
+
+      // 3. Cratères - Ellipses perspectivées
+      ALL_C.forEach(([clon, clat, dkm, fresh]) => {
+        if (!isVisMoon(clon, clat)) return;
+        const ptLocal = localProj([clon, clat]); if (!ptLocal) return;
+        const crs = currentMoonR * Math.asin(Math.min(dkm / 2 / 1737.4, 0.9999));
+        if (crs < 0.6) return;
+        const theta = d3.geoDistance([clon, clat], [-localProj.rotate()[0], -localProj.rotate()[1]]);
+        const fore = Math.max(0.07, Math.cos(theta));
+        const rA = Math.atan2(ptLocal[1] - my, ptLocal[0] - mx);
+        const rx = crs * fore, ry = crs;
+
+        ctx.beginPath(); ctx.ellipse(ptLocal[0], ptLocal[1], rx, ry, rA, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255,255,255,${fresh ? 0.8 : 0.4})`; ctx.lineWidth = fresh ? 1 : 0.6; ctx.stroke();
+      });
+
+      // 4. Ombres dynamiques overlay (Le gradient radial sur le dessus pour ombrager selon le Soleil)
+      const mgDetails = ctx.createRadialGradient(mx + lx * currentMoonR * 0.45, my + ly * currentMoonR * 0.45, currentMoonR * 0.05, mx, my, currentMoonR);
+      mgDetails.addColorStop(0, 'rgba(250,248,240,0)');
+      mgDetails.addColorStop(0.3, 'rgba(234,230,220,0.1)');
+      mgDetails.addColorStop(0.65, 'rgba(100,100,110,0.5)');
+      mgDetails.addColorStop(1, 'rgba(10,10,20,0.95)');
+      ctx.beginPath(); ctx.arc(mx, my, currentMoonR + 1, 0, Math.PI * 2);
+      ctx.fillStyle = mgDetails; ctx.fill();
+
+      ctx.restore();
+
+      // Halo réduit
+      const ga = 0.05 + (inFront ? 0.08 : 0);
+      const halo = ctx.createRadialGradient(mx, my, currentMoonR * 0.95, mx, my, currentMoonR * 1.25);
       halo.addColorStop(0, `rgba(160,160,210,${ga})`); halo.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.beginPath(); ctx.arc(mx, my, currentMoonR * 1.6, 0, Math.PI * 2);
+      ctx.beginPath(); ctx.arc(mx, my, currentMoonR * 1.25, 0, Math.PI * 2);
       ctx.fillStyle = halo; ctx.fill();
       ctx.beginPath(); ctx.arc(mx, my, currentMoonR, 0, Math.PI * 2);
       ctx.strokeStyle = `rgba(200,200,240,${ga})`; ctx.lineWidth = 1; ctx.stroke();
@@ -379,12 +514,12 @@
     function drawDate() {
       ctx.save();
       ctx.font = "bold 16px 'Share Tech Mono', monospace";
-      ctx.fillStyle = C.cyan;
+      ctx.fillStyle = C.pink;
       ctx.textAlign = "right";
-      ctx.textBaseline = "bottom";
-      ctx.shadowColor = C.cyan;
+      ctx.textBaseline = "top";
+      ctx.shadowColor = C.pink;
       ctx.shadowBlur = 4;
-      ctx.fillText(virtualDate.toLocaleString('fr-FR', { timeZone: 'UTC' }) + ' UTC', W - 20, H - 20);
+      ctx.fillText(virtualDate.toLocaleString('fr-FR', { timeZone: 'UTC' }) + ' UTC', W - 20, 20);
       ctx.restore();
     }
 
@@ -405,7 +540,9 @@
 
       const solar = solarSubpoint(virtualDate);
 
-      const sunEclLon = (dayOfYear(virtualDate) - 81 + virtualDate.getUTCHours() / 24 + virtualDate.getUTCMinutes() / 1440) * 360 / 365.24;
+      const baseUTC = Date.UTC(virtualDate.getUTCFullYear(), 0, 0);
+      const dayFrac = (virtualDate.getTime() - baseUTC) / 86400000;
+      const sunEclLon = (dayFrac - 81) * 360 / 365.2422;
 
       const GST = sunEclLon - solar.longitude;
 
