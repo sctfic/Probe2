@@ -122,12 +122,12 @@ async function handleApplyUpdate() {
         }
 
         try {
-            const response = await fetch('/api/health', { cache: 'no-cache' });
+            const response = await fetch('/api/status', { cache: 'no-cache' });
             if (response.ok) {
-                const healthData = await response.json();
-                if (healthData.version && healthData.version !== localVersion) {
+                const statusData = await response.json();
+                if (statusData.version && statusData.version !== localVersion) {
                     clearInterval(poll);
-                    showGlobalStatus(`Mise à jour vers la version ${healthData.version} réussie ! Rechargement...`, 'success');
+                    showGlobalStatus(`Mise à jour vers la version ${statusData.version} réussie ! Rechargement...`, 'success');
                     updateButton.textContent = 'Mise à jour terminée !';
                     setTimeout(() => window.location.reload(), 2000);
                 }
@@ -202,6 +202,19 @@ function displayInfluxForm(settings) {
                 <input type="text" id="influx-${bucketKey}-bucket" name="${bucketKey}.bucket" value="${bucketConfig.bucket || ''}" style="width: 100%; margin-top: auto;">
                 <div class="field-msg" style="font-size: 0.75em; margin-top: 5px; opacity: 0.8; line-height: 1.1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">${bucketConfig.comment || ''}</div>
                 <input type="hidden" name="${bucketKey}.comment" value="${bucketConfig.comment || ''}">
+                <div class="bucket-actions" style="margin-top: 10px; display: flex; gap: 8px; width: 100%;">
+                    <a href="/api/export/${bucketKey}" target="_blank" class="tile-action-btn" title="Download bucket Fully!">
+                        <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path></svg>
+                    </a>
+                </div>`;
+        if (bucketKey !== 'Archives' && bucketKey !== 'Forecasts') {
+            console.log('bucketKey', bucketKey);
+            influxFormHTML += `
+                    <button type="button" class="btn-import" onclick="triggerImport('${bucketKey}')" style="background: rgba(76, 175, 80, 0.2); border: 1px solid #4CAF50; padding: 4px 8px; font-size: 0.85em; flex: 1; border-radius: 4px; cursor: pointer; color: white;">Restaure</button>
+                    <input type="file" id="import-file-${bucketKey}" style="display: none;" accept=".json" onchange="handleImportFile(event, '${bucketKey}')">
+                `;
+        }
+        influxFormHTML += `
             </div>
         `;
     });
@@ -583,5 +596,82 @@ async function resetUnitsToDefault() {
     } catch (error) {
         console.error('Erreur:', error);
         showGlobalStatus(`Erreur: ${error.message}`, 'error');
+    }
+}
+
+// --- Data Backup (Export/Import) functions ---
+
+function downloadBucketData(bucketKey) {
+    if (!bucketKey) return;
+    showGlobalStatus(`Exportation du bucket ${bucketKey} en cours...`, 'loading');
+
+    const link = document.createElement('a');
+    link.href = `/api/export/${bucketKey}`;
+    link.download = `${bucketKey}_export.json.gz`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => {
+        showGlobalStatus('Export lancé ! Vérifiez vos téléchargements.', 'success');
+    }, 2000);
+}
+
+function triggerImport(bucketKey) {
+    const fileInput = document.getElementById(`import-file-${bucketKey}`);
+    if (fileInput) fileInput.click();
+}
+
+async function handleImportFile(event, bucketKey) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!confirm(`Voulez-vous vraiment importer les données depuis le fichier ${file.name} dans le bucket ${bucketKey} ?`)) {
+        event.target.value = '';
+        return;
+    }
+
+    showGlobalStatus(`Importation vers ${bucketKey} en cours... (Lecture du fichier)`, 'loading');
+
+    try {
+        let text = '';
+        if (file.name.endsWith('.json.gz') && typeof DecompressionStream !== 'undefined') {
+            showGlobalStatus(`Décompression du fichier Gzip...`, 'loading');
+            const decompressor = new DecompressionStream('gzip');
+            const decompressedStream = file.stream().pipeThrough(decompressor);
+            const response = new Response(decompressedStream);
+            text = await response.text();
+        } else {
+            text = await file.text();
+        }
+
+        let jsonData;
+        try {
+            jsonData = JSON.parse(text);
+        } catch (err) {
+            throw new Error('Le fichier n\\\'est pas un JSON valide.');
+        }
+
+        showGlobalStatus(`Envoi des données vers le serveur... (Bucket: ${bucketKey})`, 'loading');
+
+        const response = await fetch(`/api/import/${bucketKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(jsonData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erreur lors de l\\\'importation');
+        }
+
+        const result = await response.json();
+        showGlobalStatus(result.message || 'Importation réussie !', 'success');
+
+    } catch (error) {
+        console.error('Erreur Importation:', error);
+        showGlobalStatus(`Erreur Importation: ${error.message}`, 'error');
+    } finally {
+        event.target.value = '';
     }
 }

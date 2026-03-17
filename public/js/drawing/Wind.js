@@ -401,7 +401,7 @@ async function loadRosePlot(id, url) {
     // Afficher le message de chargement avec animation
     chartDiv.innerHTML = `
         <div class="rose-container" id="prob-rose-container">
-            <div style="border: 3px solid rgba(52, 152, 219, 0.2); border-top: 3px solid #3397d1; border-radius: 50%; width: 30px; height: 30px; animation: windSpinner 1s linear infinite; margin: 0 auto 10px;"></div>
+            <div style="border: 3px solid rgba(52, 152, 219, 0.2); border-top: 3px solid var(--futuristic-cyan); border-radius: 50%; width: 30px; height: 30px; animation: windSpinner 1s linear infinite; margin: 0 auto 10px;"></div>
             <div style="color: #ccc; font-size: 12px;">Chargement des données...</div>
         </div>
         <div class="wind-period-display">
@@ -409,7 +409,7 @@ async function loadRosePlot(id, url) {
              <div id="last-date">${WIND.End}</div>
         </div>
         <div class="rose-container" id="speed-rose-container">
-            <div style="border: 3px solid rgba(52, 152, 219, 0.2); border-top: 3px solid #3397d1; border-radius: 50%; width: 30px; height: 30px; animation: windSpinner 1s linear infinite; margin: 0 auto 10px;"></div>
+            <div style="border: 3px solid rgba(52, 152, 219, 0.2); border-top: 3px solid var(--futuristic-cyan); border-radius: 50%; width: 30px; height: 30px; animation: windSpinner 1s linear infinite; margin: 0 auto 10px;"></div>
             <div style="color: #ccc; font-size: 12px;">Chargement des données...</div>
         </div>`;
 
@@ -521,7 +521,7 @@ async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url =
         .attr("markerWidth", 6).attr("markerHeight", 12)
         .attr("orient", "auto")
         .append("polygon")
-        .attr("stroke", "#3397d1").attr("fill", "#3397d1")
+        .attr("stroke", "var(--futuristic-cyan)").attr("fill", "var(--futuristic-cyan)")
         .attr("points", "0,0 -2.5,-2.5 5,0 -2.5,2.5");
 
     // Marqueur Forecast (Violet)
@@ -533,7 +533,7 @@ async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url =
         .attr("markerWidth", 6).attr("markerHeight", 12)
         .attr("orient", "auto")
         .append("polygon")
-        .attr("stroke", "#9b59b6").attr("fill", "#9b59b6")
+        .attr("stroke", "var(--futuristic-magenta)").attr("fill", "var(--futuristic-magenta)")
         .attr("points", "0,0 -2.5,-2.5 5,0 -2.5,2.5");
 
     // Marqueur Hover (Rouge)
@@ -714,7 +714,7 @@ async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url =
                 await createVectorPlot(vectorData.data, vectorData.metadata, chartDiv, fullUse, url);
 
                 const roseBaseUrl = url.split('/WindVectors')[0];
-                const roseUrl = `${roseBaseUrl}/WindRose?prefix=${prefix}`;
+                const roseUrl = `${roseBaseUrl}/WindRose?prefix=${prefix}`; // prefix est obsolete
                 loadRosePlot('windRoses-container', roseUrl);
             }
         } catch (error) {
@@ -757,7 +757,7 @@ async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url =
         .attr("y1", yScale(0))
         .attr("x2", d => xScale(d.date) + d.Ux * coef)
         .attr("y2", d => yScale(d.Vy))
-        .attr("stroke", d => d.date > now ? "#9b59b6" : "#3397d1") // Violet pour le futur
+        .attr("stroke", d => d.date > now ? "var(--futuristic-magenta)" : "var(--futuristic-cyan)") // Violet pour le futur
         .attr("stroke-width", 1)
         .attr("marker-end", d => d.date > now ? `url(#arrowheadForecast-${id})` : `url(#arrowhead-${id})`)
         .style("opacity", d => {
@@ -803,7 +803,7 @@ async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url =
             const isForecast = d.date > now;
 
             d3.select(this).select(".hair")
-                .attr("stroke", isForecast ? "#9b59b6" : "#3397d1")
+                .attr("stroke", isForecast ? "var(--futuristic-magenta)" : "var(--futuristic-cyan)")
                 .attr("stroke-width", 1)
                 .attr("marker-end", isForecast ? `url(#arrowheadForecast-${id})` : `url(#arrowhead-${id})`);
 
@@ -871,7 +871,7 @@ async function loadWindPlots(windContainer, url, sensor, period = '3y') {
         </div>
     `;
 
-    const roseUrl = `${url}/WindRose?prefix=${prefix}`;
+    const roseUrl = `${url}/WindRose?prefix=${prefix}`; // prefix est obsolete
     loadRosePlot('windRoses-container', roseUrl);
 
     const vectorUrl = `${url}/WindVectors/${sensor.split(':')[1]}?stepCount=1000&startDate=${WIND.Start}`;

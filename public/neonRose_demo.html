@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Wind Rose - Demo</title>
+    
+    <!-- D3.js dependency -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Our module -->
+    <script src="js/drawing/neonRose.js"></script>
+
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #00ffff;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            gap: 20px;
+        }
+
+        #neon-rose-container {
+            width: 380px;
+            height: 320px;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            overflow: hidden;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+        }
+
+        button {
+            background: rgba(0, 255, 255, 0.1);
+            color: #00ffff;
+            border: 1px solid #00ffff;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #ff009d;
+            color: white;
+            border-color: #ff009d;
+            box-shadow: 0 0 10px #ff009d;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Holographic Neon Wind Rose</h1>
+
+    <div class="controls">
+        <button id="btn-start">▶ Play Updates</button>
+        <button id="btn-stop">⏸ Pause</button>
+        <button id="btn-random">🎲 Randomize</button>
+    </div>
+
+    <div id="neon-rose-container"></div>
+
+    <script>
+        const containerId = 'neon-rose-container';
+
+        // Helper to generate consistent Mock Sensor Definitions
+        function createSensorMock(value, unit, toUserUnit) {
+            return {
+                Value: value,
+                userUnit: unit,
+                toUserUnit: toUserUnit
+            };
+        }
+
+        // Generate full random object matches our dashboard formats
+        function generateRandomConditions() {
+            // Speed in m/s, represented converted to km/h later or direct
+            const speed = Math.random() * 15; // 0 to 15 m/s
+            const gust = speed + Math.random() * 5; // higher gust
+            const dir = Math.random() * 360;
+            const dirG = dir + (Math.random() - 0.5) * 40; // close to angle
+
+            return {
+                "speed:Wind": createSensorMock(speed, "km/h", "(ms) => Number((ms*3.6).toFixed(1))"),
+                "speed:Gust": createSensorMock(gust, "km/h", "(ms) => Number((ms*3.6).toFixed(1))"),
+                "direction:Wind": createSensorMock(Math.round(dir), "°", "(deg) => deg"),
+                "direction:Gust": createSensorMock(Math.round((dirG + 360) % 360), "°", "(deg) => deg")
+            };
+        }
+
+        function updateWidget() {
+            const data = generateRandomConditions();
+            loadNeonRose(containerId, data);
+        }
+
+        // Initial Load
+        updateWidget();
+
+        let intervalId = null;
+
+        document.getElementById('btn-start').addEventListener('click', () => {
+            if (intervalId) return;
+            intervalId = setInterval(updateWidget, 1500); // update every 1.5s
+            document.getElementById('btn-start').innerText = "Running...";
+        });
+
+        document.getElementById('btn-stop').addEventListener('click', () => {
+            clearInterval(intervalId);
+            intervalId = null;
+            document.getElementById('btn-start').innerText = "▶ Play Updates";
+        });
+
+        document.getElementById('btn-random').addEventListener('click', () => {
+            updateWidget();
+        });
+
+        // Trigger Play automatically
+        document.getElementById('btn-start').click();
+
+    </script>
+
+</body>
+</html>

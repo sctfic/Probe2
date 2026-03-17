@@ -17,15 +17,7 @@
 async function loadSpiralePlot(container, url, forcedMode = null) {
     if (!container || !(container instanceof HTMLElement)) return;
 
-    // 1. Loader centré et hauteur minimale temporaire
-    container.style.position = "relative";
-    container.style.minHeight = "200px";
-
-    // Couleur unifiée rgb(26, 26, 26)
-    container.innerHTML = `
-        <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; justify-content:center; align-items:center; background:rgb(26, 26, 26); z-index:100;">
-            <div class="loader-spinner" style="width:20px; height:20px; border:2px solid #555; border-top:2px solid #fff; border-radius:50%; animation:spin 1s linear infinite;"></div>
-        </div>`;
+    container.innerHTML = '';
 
     try {
         // Nettoyage de l'instance précédente
@@ -112,7 +104,6 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
 
         // Initialisation du Plot
         container.innerHTML = '';
-        container.style.minHeight = "";
 
         const plot = new SpiralePlot(container, processedData, {
             grouping: mode,
@@ -421,7 +412,7 @@ class SpiralePlot {
 
         // MODIF: Le conteneur doit être relatif pour que les boutons (absolus) se positionnent dedans
         container
-            .style("position", "relative")
+            // .style("position", "relative") // confli avec le dashboard.html
             .style("display", "flex")
             .style("flex-direction", isHorizontal ? "row" : "column")
             .style("width", "100%")
@@ -464,8 +455,8 @@ class SpiralePlot {
         this.sidePanel = container.append("div")
             .attr("class", "spiralChart-side-panel")
             .style("position", "relative")
-            .style("border-left", isHorizontal ? "1px solid #333" : "none")
-            .style("border-top", isHorizontal ? "none" : "1px solid #333")
+            .style("border-left", isHorizontal ? "1px solid var(--futuristic-gray)" : "none")
+            .style("border-top", isHorizontal ? "none" : "1px solid var(--futuristic-gray)")
             .style("background", "rgb(26, 26, 26)")
             .style("flex", isHorizontal ? "none" : "none") // On fixe manuellement les tailles maintenant
             .style("width", isHorizontal ? "auto" : "100%")
@@ -945,10 +936,10 @@ class SpiralePlot {
         const btn = this.sidePanel.select("#btn-play-toggle");
 
         if (this.isPlaying) {
-            btn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>`).style("background", "#552222");
+            btn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>`).style("background", "var(--futuristic-magenta)");
             this.playInterval = setInterval(() => this.stepAnimation(), 120);
         } else {
-            btn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`).style("background", "");
+            btn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`).style("background", "var(--futuristic-gray)");
             if (this.playInterval) clearInterval(this.playInterval);
             this.playInterval = null;
         }
@@ -967,7 +958,7 @@ class SpiralePlot {
             this.isPlaying = false;
             if (this.sidePanel) {
                 const btn = this.sidePanel.select("#btn-play-toggle");
-                if (!btn.empty()) btn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`).style("background", "");
+                if (!btn.empty()) btn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`).style("background", "var(--futuristic-gray)");
             }
             return;
         }
@@ -1085,7 +1076,7 @@ class SpiralePlot {
                 ${infoHtml}
                 <div id="mini-stats-header" style="margin-bottom:2px;"></div>
                 <div id="mini-chart-container" style="width:100%; height:${chartHeight}px; position:relative;"></div>
-                <div id="mini-chart-legend" style="padding-top:4px; border-top:1px solid #333; margin-top:2px;"></div>
+                <div id="mini-chart-legend" style="padding-top:4px; border-top:1px solid var(--futuristic-gray); margin-top:2px;"></div>
             `);
 
             content.select("#btn-play-toggle").on("click", () => this.togglePlay());
@@ -1104,9 +1095,9 @@ class SpiralePlot {
 
         const playBtn = content.select("#btn-play-toggle");
         if (this.isPlaying) {
-            playBtn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>`).style("background", "#552222");
+            playBtn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>`).style("background", "var(--futuristic-magenta)");
         } else {
-            playBtn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`).style("background", "");
+            playBtn.html(`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`).style("background", "var(--futuristic-gray)");
         }
 
         const subset = this.data.filter(d => d.ts >= pStart.getTime() && d.ts <= pEnd.getTime());
@@ -1157,10 +1148,10 @@ class SpiralePlot {
         const std = d3.deviation(data, d => d.val);
 
         statsContainer.innerHTML = `
-            <div style="display:flex; justify-content:space-between; font-size:13px; color:#999; margin-bottom:6px; font-family:sans-serif; padding-bottom:4px;">
-                <span>Min: <b style="color:#ccc">${min.toFixed(1)}${this.options.unit}</b></span>
-                <span>${aggregateLabel}: <b style="color:${this.scales.colorMean(aggregateValue)}">${aggregateValue.toFixed(1)}${this.options.unit}</b></span>
-                <span>Max: <b style="color:#ccc">${max.toFixed(1)}${this.options.unit}</b></span>
+            <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--futuristic-white); margin-bottom:6px; font-family:sans-serif; padding-bottom:4px;">
+                <span>Min: <b style="color:#00ffff">${min.toFixed(1)}${this.options.unit}</b></span>
+                <span>${aggregateLabel}: <b style="color:#ff55ff">${aggregateValue.toFixed(1)}${this.options.unit}</b></span>
+                <span>Max: <b style="color:#ff5555">${max.toFixed(1)}${this.options.unit}</b></span>
                 <span>σ: <b style="color:#888">${std ? std.toFixed(1) : '-'}${this.options.unit}</b></span>
             </div>`;
 
@@ -1234,7 +1225,7 @@ class SpiralePlot {
                     domain: [yMin, yMax]
                 },
                 marks: [
-                    Plot.areaY(mappedBgData, { x: "date", y1: "gMin", y2: "gMax", fill: "#333", fillOpacity: 0.2 }),
+                    Plot.areaY(mappedBgData, { x: "date", y1: "gMin", y2: "gMax", fill: "var(--futuristic-gray)", fillOpacity: 0.2 }),
 
                     Plot.lineY(mappedBgData, { x: "date", y: "gMin", stroke: "#00ffff", strokeOpacity: 0.3, strokeWidth: 1 }),
                     Plot.lineY(mappedBgData, { x: "date", y: "gMax", stroke: "#ff5555", strokeOpacity: 0.3, strokeWidth: 1 }),
@@ -1306,7 +1297,6 @@ class SpiralePlot {
         if (legendContainer) {
             legendContainer.innerHTML = `
                 <div style="display:flex; justify-content:center; gap:15px; font-size:10px; color:#888; font-family:sans-serif;">
-                    <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ccc; margin-right:4px;"></span> Selected Data</div>
                     <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ff55ff; opacity:0.6; margin-right:4px;"></span>Previous Mean</div>
                     <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#ff5555; opacity:0.5; margin-right:4px;"></span>Previous Max</div>
                     <div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:2px; background:#00ffff; opacity:0.5; margin-right:4px;"></span>Previous Min</div>
@@ -1320,13 +1310,13 @@ class SpiralePlot {
 function getControlsHtml() {
     return `
     <div class="panel-controls" style="display:flex; gap:2px;">
-        <button id="btn-prev" style="padding:4px; background:#333; color:#fff; border:1px solid #555; cursor:pointer; display:flex; align-items:center;">
+        <button id="btn-prev" class="spiral-btn" style="padding:4px; background:var(--futuristic-gray); color:#fff; border:var(--futuristic-border); cursor:pointer; display:flex; align-items:center;">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
         </button>
-        <button id="btn-play-toggle" style="padding:4px 10px; background:#333; color:#fff; border:1px solid #555; cursor:pointer; display:flex; align-items:center;">
+        <button id="btn-play-toggle" class="spiral-btn" style="padding:4px 10px; background:var(--futuristic-gray); color:#fff; border:var(--futuristic-border); cursor:pointer; display:flex; align-items:center;">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
         </button>
-        <button id="btn-next" style="padding:4px; background:#333; color:#fff; border:1px solid #555; cursor:pointer; display:flex; align-items:center;">
+        <button id="btn-next" class="spiral-btn" style="padding:4px; background:var(--futuristic-gray); color:#fff; border:var(--futuristic-border); cursor:pointer; display:flex; align-items:center;">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
         </button>
     </div>`;

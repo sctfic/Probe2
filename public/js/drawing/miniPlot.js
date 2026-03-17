@@ -19,21 +19,19 @@ function transformDataForPlot(apiData, metadata) {
 }
 
 function createPlot(data, metadata, id, period) {
-    // console.log(period);
     if (typeof period !== 'number') { // gere le decalage
         period = '0 day';
-    } else if (period <= 24 * 3600) {
+    } else if (period < (24 * 3600)) { // 24*3600 = 86400 = 1 day
         period = '1 hour';
-    } else if (period <= 24 * 3600 * 7) {
+    } else if (period < (24 * 3600 * 7)) { // 24*3600*7 = 604800 = 1 week
         period = '1 day';
-    } else if (period <= 24 * 3600 * 31) {
+    } else if (period < (24 * 3600 * 31)) { // 24*3600*31 = 2678400 = 1 month
         period = '1 day';
-    } else if (period <= 24 * 3600 * 365) {
+    } else if (period < (24 * 3600 * 365)) { // 24*3600*365 = 31536000 = 1 year
         period = '1 day';
     } else {
         period = '1 day';
     }
-    // console.log(data, metadata, id, period);
 
     const chartDiv = document.getElementById(id);
     if (!chartDiv) {
@@ -46,7 +44,7 @@ function createPlot(data, metadata, id, period) {
     }
 
     const now = new Date();
-    const forecastColor = "#9b59b6"; // Couleur violette pour le forecast
+    const forecastColor = "var(--futuristic-magenta)"; // Couleur violette pour le forecast
     // Création d'un ID unique pour le gradient afin d'éviter les conflits si plusieurs graphes sont affichés
     const gradientId = `forecast-gradient-${id}-${Math.floor(Math.random() * 1000000)}`;
 
@@ -91,13 +89,20 @@ function createPlot(data, metadata, id, period) {
     }
 
     try {
-        // console.log(metadata, chartDiv.clientWidth, chartDiv.clientHeight);
+        const extent = d3.extent(data, d => d.Value)
+        yLabelSize = (Math.abs(extent[0]) > 1 && Math.abs(extent[1]) > 1) ?
+            d3.max(extent, d => Math.round(d).toString().length + 1) * 7 + 8 :
+            d3.max(extent, d => Math.round(d, 1).toString().length + 1) * 7 + 8;
+        console.log(metadata.sensor, extent, 'yLabelSize', yLabelSize);
+        console.log(chartDiv.clientWidth, 'chartDiv.clientWidth', chartDiv.clientWidth - yLabelSize - 2);
+        console.log(chartDiv.clientHeight, 'chartDiv.clientHeight', chartDiv.clientHeight - 17 - 16);
         const plot = Plot.plot({
-            width: chartDiv.clientWidth,
-            height: chartDiv.clientHeight || 100,
-            marginLeft: 0,
-            marginTop: 16,
-            marginBottom: 17,
+            width: chartDiv.clientWidth ? chartDiv.clientWidth - yLabelSize - 2 : 240,
+            height: chartDiv.clientHeight ? chartDiv.clientHeight - 17 - 16 : 100,
+            marginLeft: 2,
+            marginRight: yLabelSize, // voir le nonbre de caractere dans le label Y * 8px + 5px
+            marginTop: 16, // pour la legende dynamique
+            marginBottom: 17, // pour les label X
             x: {
                 type: "time",
                 tickFormat: "%d/%m %H:%M",
@@ -113,7 +118,7 @@ function createPlot(data, metadata, id, period) {
                 nice: true,
                 domain: metadata.measurement === 'rain'
                     ? [0, d3.max(data, d => d.Value)]
-                    : d3.extent(data, d => d.Value)
+                    : extent
             },
             marks: [
                 // --- DIFFERENCE (Passé) ---
@@ -122,9 +127,9 @@ function createPlot(data, metadata, id, period) {
                 Plot.differenceY(pastData, Plot.shiftX(`+${period}`, {
                     x: "Date",
                     y: "Value",
-                    stroke: "#3397d1", // Ou "series" si disponible, ici gardé fixe ou paramétrable
-                    positiveFill: "#FF6B6B",
-                    negativeFill: "#0dec0d",
+                    stroke: "var(--futuristic-cyan)", // Ou "series" si disponible, ici gardé fixe ou paramétrable
+                    positiveFill: "var(--futuristic-magenta-shadow)",
+                    negativeFill: "var(--futuristic-cyan-shadow)",
                     fillOpacity: 0.4,
                     curve: metadata.measurement === 'rain' ? "step" : "monotone-x",
                 }
@@ -137,8 +142,8 @@ function createPlot(data, metadata, id, period) {
                     y: "Value",
                     // Application du gradient sur le trait
                     stroke: futureData.length > 1 ? `url(#${gradientId})` : forecastColor,
-                    positiveFill: "#FF6B6B",
-                    negativeFill: "#0dec0d",
+                    positiveFill: "var(--futuristic-magenta-shadow)",
+                    negativeFill: "var(--futuristic-cyan-shadow)",
                     fillOpacity: 0.2,
                     // Application du gradient sur le remplissage (remplace pos/neg)
                     fill: futureData.length > 1 ? `url(#${gradientId})` : forecastColor,
@@ -149,7 +154,7 @@ function createPlot(data, metadata, id, period) {
                 // --- INTERACTION & TEXTE ---
                 Plot.dot(data, Plot.pointerX({ x: "Date", y: "Value", stroke: "red" })),
                 Plot.text(data, Plot.pointerX({
-                    px: "Date", py: "Value", dy: -16, dx: 30,
+                    px: "Date", py: "Value", dy: -16, dx: (yLabelSize - 4),
                     frameAnchor: "top-right",
                     fontVariant: "tabular-nums",
                     text: (d) => ` ${d.Value} ${metadata.userUnit}`

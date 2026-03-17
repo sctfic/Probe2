@@ -26,3 +26,4 @@ visits/analytics.json
 config/stations/VP2_Serramoune.lock
 config/stations/VP2_Serramoune.json
 public/mock/*
+.vscode/settings.json

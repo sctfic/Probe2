@@ -18,15 +18,16 @@ describe('API Integration Tests (GET routes)', () => {
         });
     });
 
-    test('GET /api/health - Health check', async () => {
-        const res = await request(app).get('/api/health');
+    test('GET /api/status - Status check', async () => {
+        const res = await request(app).get('/api/status');
         expect(res.statusCode).toBe(200);
         expect(res.body).toMatchObject({
             status: 'healthy',
             timestamp: expect.any(String),
             uptime: expect.any(Number),
             system: expect.any(Object),
-            stations: expect.any(Object)
+            stations: expect.any(Array),
+            influxdb: expect.any(Object)
         });
     });
 

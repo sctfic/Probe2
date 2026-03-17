@@ -4,7 +4,7 @@ module.exports = {
       name: 'Probe',
       version: '0.3.87',
       script: 'app.js',
-      watch: true,
+      watch: false,
       ignore_watch: [
         // pm2 delete 0;pm2 startOrReload ecosystem.config.js --update-env; pm2 logs --raw
         //     ou
