@@ -897,10 +897,11 @@ exports.getOpenMeteoForecast = async (req, res) => {
             ],
             models: model,
             timezone: 'auto',
-            forecast_days: 14 // Récupère 14 jours de prévisions
+            forecast_days: 7 // Récupère 7 jours de prévisions
         };
 
         // Appel à l'API de prévisions
+        params.hourly = params.hourly.join(',');
         const response = await axios.get(openMeteoUrl, { params });
         const openMeteoData = response.data;
         console.log(`${V.Parabol} Appel à Open-Meteo Forecast avec les paramètres:`, params, response.request.res.responseUrl);

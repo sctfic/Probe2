@@ -5,6 +5,41 @@
     <meta charset="UTF-8">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <script>
+        const DASH_REF_W = 2400;
+        const DASH_REF_H = 1080;
+
+        function applyMobileScale() {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const dashboard = document.querySelector('.dashboard');
+            if (!dashboard) return;
+
+            if (isMobile) {
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                const scale = Math.min(vw / DASH_REF_W, vh / DASH_REF_H);
+
+                dashboard.style.width = DASH_REF_W + 'px';
+                dashboard.style.height = DASH_REF_H + 'px';
+                dashboard.style.transform = `scale(${scale})`;
+                dashboard.style.transformOrigin = 'top left';
+                dashboard.style.position = 'fixed';
+                dashboard.style.top = '0';
+                dashboard.style.left = '0';
+            } else {
+                dashboard.style.width = '';
+                dashboard.style.height = '';
+                dashboard.style.transform = '';
+                dashboard.style.transformOrigin = '';
+                dashboard.style.position = '';
+                dashboard.style.top = '';
+                dashboard.style.left = '';
+            }
+        }
+
+        function updateViewportScale() { applyMobileScale(); }
+        document.addEventListener('DOMContentLoaded', applyMobileScale);
+    </script>
     <title>Dashboard</title>
     <script src="js/queryManager.js"></script>
     <script src="js/drawing/d3.min.js"></script>
@@ -14,7 +49,14 @@
     <script src="js/drawing/miniPlot.js"></script>
     <script src="js/drawing/Wind.js"></script>
     <script src="js/drawing/spiralPlot.js"></script>
-    <script src="js/drawing/earthSpaceModel.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./js/drawing/three.module.min.js"
+            }
+        }
+    </script>
+    <script type="module" src="js/drawing/earthSpaceModel.js"></script>
     <style>
         :root {
             --futuristic-cyan: #00ffff;
@@ -450,193 +492,6 @@
             grid-row: 6;
         }
 
-        /* MEDIA QUERY MOBILE - AJUSTÉ POUR PIXEL 1:1 */
-        @media (max-width: 1100px) {
-
-            html,
-            body {
-                overflow: hidden;
-                height: 100%;
-                width: 100%;
-            }
-
-            .dashboard {
-                height: 100vh;
-                min-height: 100vh;
-                grid-template-rows: 40px 1fr;
-                padding: 3px;
-                gap: 3px;
-            }
-
-            .main-grid {
-                grid-template-columns: repeat(14, 1fr);
-                grid-template-rows: repeat(6, 1fr);
-                gap: 3px;
-            }
-
-            /* Tous les panels conservent leur position desktop mais réduits */
-            .p-intemp {
-                grid-column: 1/3;
-                grid-row: 1;
-            }
-
-            .p-humid-in {
-                grid-column: 3/5;
-                grid-row: 1;
-            }
-
-            .p-baro {
-                grid-column: 5/11;
-                grid-row: 1;
-            }
-
-            .p-speed {
-                grid-column: 11/15;
-                grid-row: 1;
-            }
-
-            .p-outtemp {
-                grid-column: 1/5;
-                grid-row: 2/4;
-            }
-
-            .p-gps {
-                grid-column: 5/11;
-                grid-row: 2/5;
-            }
-
-            .p-rain {
-                grid-column: 1/3;
-                grid-row: 4;
-            }
-
-            .p-et {
-                grid-column: 3/5;
-                grid-row: 4;
-            }
-
-            .p-vec-wind {
-                grid-column: 11/15;
-                grid-row: 4;
-            }
-
-            .p-soilmois {
-                grid-column: 1/5;
-                grid-row: 5/7;
-            }
-
-            .p-solar {
-                grid-column: 5/8;
-                grid-row: 5;
-            }
-
-            .p-uv {
-                grid-column: 8/11;
-                grid-row: 5;
-            }
-
-            .p-moon {
-                grid-column: 11/13;
-                grid-row: 5;
-            }
-
-            .p-sun {
-                grid-column: 13/15;
-                grid-row: 5;
-            }
-
-            .p-soiltemp {
-                grid-column: 5/8;
-                grid-row: 6;
-            }
-
-            .p-humid-out {
-                grid-column: 8/11;
-                grid-row: 6;
-            }
-
-            .p-system {
-                grid-column: 11/15;
-                grid-row: 6;
-            }
-
-            /* Réduction des tailles de police pour mobile */
-            .panel-value,
-            .panel-unit {
-                font-size: 14px;
-            }
-
-            .panel-label {
-                font-size: 7px;
-                letter-spacing: 1.5px;
-            }
-
-            .panel-sub {
-                font-size: 10px;
-            }
-
-            .header-station {
-                font-size: 10px;
-                letter-spacing: 2px;
-            }
-
-            .header-time {
-                font-size: 14px;
-                letter-spacing: 1px;
-            }
-
-            .header-date {
-                font-size: 7px;
-            }
-
-            .header-location {
-                display: none;
-            }
-
-            .header-fs-hint {
-                display: none;
-            }
-
-            .header {
-                padding: 0 8px;
-            }
-
-            .header-right {
-                gap: 10px;
-            }
-
-            .status-label {
-                font-size: 8px;
-            }
-
-            .panel {
-                padding: 4px 5px;
-            }
-        }
-
-        /* Très petits écrans - mode ultra compact */
-        @media (max-height: 900px) {
-
-            .panel-value,
-            .panel-unit {
-                font-size: 12px;
-            }
-
-            .panel-label {
-                font-size: 6px;
-                letter-spacing: 1px;
-            }
-
-            .panel {
-                padding: 3px 4px;
-                gap: 2px;
-            }
-
-            .header-time {
-                font-size: 12px;
-            }
-        }
-
         /* Map specific styling */
         .p-gps {
             position: relative;
@@ -688,10 +543,47 @@
             position: absolute;
             display: flex;
             bottom: 10px;
-            right: 10px;
+            left: 50%;
+            transform: translateX(-50%);
             flex-direction: column;
-            align-items: flex-end;
-            text-align: right;
+            align-items: center;
+            text-align: center;
+        }
+
+        .p-gps .gps-controls {
+            position: absolute;
+            top: 7px;
+            right: 7px;
+            display: flex;
+            gap: 5px;
+            z-index: 100;
+        }
+
+        .gps-btn {
+            background: rgba(0, 0, 0, 0.4);
+            color: var(--futuristic-cyan-dim);
+            border: 1px solid var(--futuristic-cyan-dim);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 9px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(2px);
+        }
+
+        .gps-btn:hover {
+            color: var(--futuristic-cyan);
+            border-color: var(--futuristic-cyan);
+            background: rgba(0, 255, 255, 0.1);
+        }
+
+        .gps-btn.active {
+            color: var(--futuristic-dark);
+            background: var(--futuristic-cyan);
+            border-color: var(--futuristic-cyan);
+            box-shadow: 0 0 8px var(--futuristic-cyan-shadow);
         }
 
         .p-gps .gps-meta .panel-sub {
@@ -786,8 +678,8 @@
     <div class="dashboard">
         <header class="panel header" id="header" title="Cliquer pour plein écran">
             <div>
-                <div class="header-station" id="header-station">WX Station — ALPHA</div>
-                <div class="header-location" id="header-location">MOURENX · 43.378°N / 0.596°W · ALT 147m</div>
+                <div class="header-station" id="header-station">Probe</div>
+                <div class="header-location" id="header-location">Collecte météo</div>
             </div>
             <div class="header-center">
                 <div class="header-time" id="hdr-time">--:--:--</div>
@@ -796,12 +688,12 @@
             <div class="header-right">
                 <div class="status-indicator">
                     <div class="status-dot" id="status-dot"></div>
-                    <span class="status-label" id="status-label">ONLINE</span>
+                    <span class="status-label" id="status-label">Loading...</span>
                 </div>
-                <!-- <div class="header-signal">
-                    <span class="panel-label">Signal</span>
-                    <span class="panel-value">▮▮▮▮▯</span>
-                </div> -->
+                <div class="header-size">
+                    <span class="panel-label" id="header-size-label">HxL</span>
+                    <span class="panel-value" id="header-size-value">▮▮▮▮▯</span>
+                </div>
                 <span class="header-fs-hint" id="fs-hint">[ FULLSCREEN ]</span>
             </div>
         </header>
@@ -811,7 +703,7 @@
             <div class="panel p-intemp">
                 <div class="panel-label">Temp. Intérieure</div>
                 <div class="val-row">
-                    <span class="panel-value" id="intemp-val">22.1</span>
+                    <span class="panel-value" id="intemp-val">-</span>
                     <span class="panel-unit">°C</span>
                 </div>
                 <div class="viz intemp-container"></div>
@@ -820,7 +712,7 @@
             <div class="panel p-humid-in">
                 <div class="panel-label">Humidité Intérieure</div>
                 <div class="val-row">
-                    <span class="panel-value" id="humid-in-val">54</span>
+                    <span class="panel-value" id="humid-in-val">-</span>
                     <span class="panel-unit">%</span>
                 </div>
                 <div class="viz humidin-container"></div>
@@ -829,7 +721,7 @@
             <div class="panel p-baro">
                 <div class="panel-label">Pression · Baromètre</div>
                 <div class="val-row">
-                    <span class="panel-value" id="baro-val">1013</span>
+                    <span class="panel-value" id="baro-val">-</span>
                     <span class="panel-unit">hPa</span>
                 </div>
                 <div class="viz baro-container"></div>
@@ -838,7 +730,7 @@
             <div class="panel p-speed">
                 <div class="panel-label">Vitesse · Vent</div>
                 <div class="val-row">
-                    <span class="panel-value" id="speed-val">34</span>
+                    <span class="panel-value" id="speed-val">-</span>
                     <span class="panel-unit">km/h</span>
                 </div>
                 <div class="viz speed-container"></div>
@@ -847,7 +739,7 @@
             <div class="panel p-outtemp">
                 <div class="panel-label">Temp. Extérieure</div>
                 <div class="val-row">
-                    <span class="panel-value" id="outtemp-val">--</span>
+                    <span class="panel-value" id="outtemp-val">-</span>
                     <span class="panel-unit">°C</span>
                 </div>
                 <div class="viz outtemp-container"></div>
@@ -861,9 +753,9 @@
             <div class="panel p-windrose">
                 <div class="panel-label">Rose des Vents</div>
                 <div class="val-row">
-                    <span class="panel-value" id="windrose-val">204</span>
+                    <span class="panel-value" id="windrose-val">-</span>
                     <span class="panel-unit">° SSW</span>
-                    <span class="panel-value" id="windrose-val">22</span>
+                    <span class="panel-value" id="windrose-val">-</span>
                     <span class="panel-unit">km/h</span>
                 </div>
                 <div class="viz windrose-container"></div>
@@ -872,6 +764,11 @@
             <div class="panel p-gps">
                 <div class="viz gps-globe-container" id="gps-globe-svg"></div>
                 <div class="panel-label">Earth Space Model</div>
+                <div class="gps-controls">
+                    <button id="gps-btn-play" class="gps-btn active">Pause</button>
+                    <button id="gps-btn-speed" class="gps-btn">Fast</button>
+                    <button id="gps-btn-fullscreen" class="gps-btn">FS</button>
+                </div>
                 <!-- <div class="gps-meta"> -->
                 <div class="gps-coords">
                     <span class="panel-sub" id="gps-lat">LAT: --</span>
@@ -895,7 +792,7 @@
             <div class="panel p-et">
                 <div class="panel-label">Evapotransp. (ET)</div>
                 <div class="val-row">
-                    <span class="panel-value" id="et-val">1.8</span>
+                    <span class="panel-value" id="et-val">-</span>
                     <span class="panel-unit">mm/j</span>
                 </div>
                 <div class="viz et-container"></div>
@@ -904,7 +801,7 @@
             <div class="panel p-vec-wind">
                 <div class="panel-label">Vecteur Vent</div>
                 <div class="val-row">
-                    <span class="panel-value" id="vec-val">22</span>
+                    <span class="panel-value" id="vec-val">-</span>
                     <span class="panel-unit">km/h</span>
                 </div>
                 <div class="viz vec-container"></div>
@@ -913,7 +810,7 @@
             <div class="panel p-soilmois">
                 <div class="panel-label">Humidité Sol</div>
                 <div class="val-row">
-                    <span class="panel-value" id="soilmois-val">38</span>
+                    <span class="panel-value" id="soilmois-val">-</span>
                     <span class="panel-unit">%</span>
                 </div>
                 <div class="viz soilmois-container"></div>
@@ -922,7 +819,7 @@
             <div class="panel p-solar">
                 <div class="panel-label">Irradiance Solaire</div>
                 <div class="val-row">
-                    <span class="panel-value" id="solar-val">487</span>
+                    <span class="panel-value" id="solar-val">-</span>
                     <span class="panel-unit">W/m²</span>
                 </div>
                 <div class="viz solar-container"></div>
@@ -931,7 +828,7 @@
             <div class="panel p-uv">
                 <div class="panel-label">Indice UV</div>
                 <div class="val-row">
-                    <span class="panel-value" id="uv-val">4</span>
+                    <span class="panel-value" id="uv-val">-</span>
                     <span class="panel-unit" id="uv-label">MODÉRÉ</span>
                 </div>
                 <div class="viz uv-container"></div>
@@ -940,7 +837,7 @@
             <div class="panel p-moon">
                 <div class="panel-label">Lune</div>
                 <div class="val-row">
-                    <span class="panel-value" id="moon-val">23</span>
+                    <span class="panel-value" id="moon-val">-</span>
                     <span class="panel-unit">%</span>
                 </div>
                 <div class="viz moon-container"></div>
@@ -949,7 +846,7 @@
             <div class="panel p-sun">
                 <div class="panel-label">Soleil</div>
                 <div class="val-row">
-                    <span class="panel-value" id="sun-val">34</span>
+                    <span class="panel-value" id="sun-val">-</span>
                     <span class="panel-unit">°</span>
                 </div>
                 <div class="viz sun-container"></div>
@@ -959,7 +856,7 @@
             <div class="panel p-soiltemp">
                 <div class="panel-label">Temp. Sol</div>
                 <div class="val-row">
-                    <span class="panel-value" id="soiltemp-val">14.7</span>
+                    <span class="panel-value" id="soiltemp-val">-</span>
                     <span class="panel-unit">°C</span>
                 </div>
                 <div class="viz soiltemp-container"></div>
@@ -968,7 +865,7 @@
             <div class="panel p-humid-out">
                 <div class="panel-label">Humidité Extérieure</div>
                 <div class="val-row">
-                    <span class="panel-value" id="humid-out-val">72</span>
+                    <span class="panel-value" id="humid-out-val">-</span>
                     <span class="panel-unit">%</span>
                 </div>
                 <div class="viz humidout-container"></div>
@@ -1058,14 +955,14 @@
                         <div class="gauge">
                             <svg id="sys-cpu-arc"></svg>
                             <div class="gauge-label">
-                                <div class="gauge-val" id="sys-cpu-val">0%</div>
+                                <div class="gauge-val" id="sys-cpu-val">-%</div>
                                 <div class="gauge-title">CPU</div>
                             </div>
                         </div>
                         <div class="gauge">
                             <svg id="sys-mem-arc"></svg>
                             <div class="gauge-label">
-                                <div class="gauge-val" id="sys-mem-val">0%</div>
+                                <div class="gauge-val" id="sys-mem-val">-%</div>
                                 <div class="gauge-title">MEM</div>
                             </div>
                         </div>
@@ -1110,13 +1007,17 @@
             if (!document.fullscreenElement) {
                 document.getElementById('fs-hint').textContent = '[ FULLSCREEN ]';
             }
+            // Force la mise à jour du viewport pour empêcher les resets du navigateur
+            if (typeof updateViewportScale === 'function') {
+                updateViewportScale();
+            }
         });
 
         // ═══════════════════════════════════════════
         //  DASHBOARD INIT — API Data Integration
         // ═══════════════════════════════════════════
 
-        const STATION = new URLSearchParams(location.search).get('station') || 'VP2_Serramoune';
+        const STATION = new URLSearchParams(location.search).get('station');
 
         // --- Clock ---
         function updateClock() {
@@ -1197,19 +1098,64 @@
                 document.getElementById('gps-alt').textContent = `ALT: ${alt}m`;
 
                 // World Map
-                // if (window.loadEarthSpaceModel) {
-                loadEarthSpaceModel(
-                    document.getElementById('gps-globe-svg'),
-                    [
-                        { latitude: lat, longitude: lon, altitude: alt, name: STATION },
-                        { latitude: 23.37, longitude: 10.62, altitude: 150, name: 'Garmadon' },
-                        { latitude: 61.37, longitude: 162, altitude: 1500, name: 'Krux et Acronix' },
-                        { latitude: 23.37, longitude: 10.62, altitude: 6400, name: 'Base des Oni' },
-                        { latitude: 3.37, longitude: 100.62, altitude: 6100, name: 'Nadakhan' }
-                    ],
-                    new Date()
-                );
-                // }
+                const gpsGlobe = document.getElementById('gps-globe-svg');
+                if (gpsGlobe && window.loadEarthSpaceModel) {
+                    gpsGlobe.innerHTML = '';
+                    const model = window.loadEarthSpaceModel(
+                        gpsGlobe,
+                        [
+                            { latitude: lat, longitude: lon, altitude: alt, name: STATION },
+                            { latitude: 3.37, longitude: 100.62, altitude: 6100, name: 'Nadakhan' }
+                        ],
+                        new Date()
+                    );
+                    
+                    if (model && !gpsGlobe.dataset.controlsBound) {
+                        gpsGlobe.dataset.controlsBound = 'true';
+                        
+                        const btnPlay = document.getElementById('gps-btn-play');
+                        const btnSpeed = document.getElementById('gps-btn-speed');
+                        const btnFs = document.getElementById('gps-btn-fullscreen');
+                        
+                        model.onStateChange = ({ isPlaying, isFast }) => {
+                            if (btnPlay) {
+                                btnPlay.textContent = isPlaying ? 'Pause' : 'Play';
+                                btnPlay.classList.toggle('active', isPlaying);
+                            }
+                            if (btnSpeed) {
+                                btnSpeed.textContent = isFast ? 'Slow' : 'Fast';
+                                btnSpeed.classList.toggle('active', isFast);
+                            }
+                        };
+
+                        if (btnPlay) {
+                            btnPlay.addEventListener('click', () => {
+                                const playing = model.togglePlay();
+                                btnPlay.textContent = playing ? 'Pause' : 'Play';
+                                btnPlay.classList.toggle('active', playing);
+                            });
+                        }
+
+                        if (btnSpeed) {
+                            btnSpeed.addEventListener('click', () => {
+                                const fast = model.toggleSpeed();
+                                btnSpeed.textContent = fast ? 'Slow' : 'Fast';
+                                btnSpeed.classList.toggle('active', fast);
+                            });
+                        }
+                        
+                        if (btnFs) {
+                            btnFs.addEventListener('click', () => {
+                                const container = document.querySelector('.p-gps');
+                                if (!document.fullscreenElement) {
+                                    container.requestFullscreen().catch(err => console.error(err));
+                                } else {
+                                    document.exitFullscreen();
+                                }
+                            });
+                        }
+                    }
+                }
 
             } catch (e) {
                 console.error('[Dashboard] Station info error:', e);
@@ -1349,6 +1295,25 @@
             }
         }
 
+        function updateHeaderSize() {
+            const hVal = document.getElementById('header-size-value');
+            const hLab = document.getElementById('header-size-label');
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+
+            if (hVal) {
+                if (isMobile && typeof DASH_REF_W !== 'undefined') {
+                    hVal.textContent = `${DASH_REF_W}x${DASH_REF_H}`;
+                } else {
+                    hVal.textContent = `${window.innerWidth}x${window.innerHeight}`;
+                }
+            }
+            if (hLab) {
+                const type = isMobile ? 'SMARTPHONE' : 'PC';
+                const orient = window.innerWidth > window.innerHeight ? 'HORIZ' : 'VERT';
+                hLab.textContent = `${type} ${orient}`;
+            }
+        }
+
         // ─── 3. Current conditions polling (every 60s) ───
         async function pollConditions() {
             try {
@@ -1424,6 +1389,8 @@
 
         // ─── Boot ───
         window.addEventListener('load', async () => {
+            if (typeof applyMobileScale === 'function') applyMobileScale();
+            updateHeaderSize();
             await loadStationInfo();
             pollStatus();
             pollConditions();
@@ -1503,6 +1470,9 @@
             // --- Resize observer for redrawing ---
             let resizeTimer;
             window.addEventListener('resize', () => {
+                if (typeof applyMobileScale === 'function') applyMobileScale();
+                if (typeof updateViewportScale === 'function') updateViewportScale();
+                updateHeaderSize();
                 clearTimeout(resizeTimer);
                 resizeTimer = setTimeout(async () => {
                     if (typeof loadStationInfo === 'function') {

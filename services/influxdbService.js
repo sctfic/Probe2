@@ -249,7 +249,7 @@ async function executeQuery(fluxQuery, bucketKey = 'Stations') {
                 results.push(tableMeta.toObject(row));
             },
             error(error) {
-                console.error(`${V.error} Erreur lors de l'exécution de la requête Flux:`, error, '\n', fluxQuery);
+                console.error(`${V.error} Erreur lors de l'exécution de la requête Flux:`, fluxQuery);
                 if (error.body && error.body.message) {
                     error.body.message = 'Influxdb ' + error.body.message;
                 }
@@ -397,15 +397,32 @@ async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn, sensorRef =
         `;
 
         try {
+            stationsFirstDateStr = new Date().toISOString();
+            stationsLastDateStr = new Date().toISOString();
             const res = await executeQuery(query, 'Stations');
-            stationsFirstDateStr = stationsLastDateStr = new Date().toISOString();
-            if (res && res.length > 0 && fluxFilter && typeof res[0].first !== 'undefined' && !res[0].first.startsWith('1970-01-01T00:00')) {
-                stationsFirstDateStr = res[0].first;
-                stationsLastDateStr = res[0].last;
+            if (fluxFilter) {
+                if (res && res.length > 0 && typeof res[0].first !== 'undefined' && !res[0].first.startsWith('1970-01-01')) {
+                    stationsFirstDateStr = res[0].first;
+                    stationsLastDateStr = res[0].last;
+                    // } else {
+                    //     console.log(V.warning, `Aucune donnée trouvée pour ${stationId} '${sensorRef}' sur [Stations] -> Jonction Archives/Forecasts sur now()`);
+                    //     stationsFirstDateStr = new Date().toISOString();
+                    //     stationsLastDateStr = new Date().toISOString();
+                }
             } else {
-                console.log(V.warning, `Aucune donnée trouvée pour ${stationId} '${sensorRef}' sur le bucket [${influxInstances['Stations'].bucket}]`);
+                if (res && res.length > 0 && res[0]._time) {
+                    stationsLastDateStr = res[0]._time;
+                    // } else {
+                    //     stationsLastDateStr = new Date().toISOString();
+                }
             }
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+            console.log(V.warning, `Erreur lecture bornes Stations (${e.message}). Valeurs par défaut appliquées.`);
+            // if (fluxFilter) {
+            //     stationsFirstDateStr = new Date().toISOString();
+            //     stationsLastDateStr = new Date().toISOString();
+            // }
+        }
     }
 
     const plan = [];
@@ -453,7 +470,7 @@ async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn, sensorRef =
  * @returns {Promise<Object>} Un objet contenant la plage de dates.
  */
 async function queryDateRange(stationId, sensorRef, startDate, endDate, bucketKey = null) {
-    // console.log(V.database, `Récupération de la plage de dates pour `, { stationId, sensorRef, startDate, endDate, bucketKey }, V.Check);
+    console.log(V.database, `Récupération de la plage de dates pour `, { stationId, sensorRef, startDate, endDate, bucketKey }, V.Check);
     let filter = '';
     if (sensorRef) {
         if (sensorRef.endsWith('_calc') || sensorRef.endsWith('_trend')) {
@@ -515,6 +532,7 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, bucketKe
 
     // 2. Lancer des requêtes isolées pour trouver le last date pour chaque bucket
     const lastDates = await Promise.all(activeKeys.map(async (k) => {
+        console.log(V.database, `Requête Flux [${k}]`, '===============================', V.Check);
         const instance = influxInstances[k];
         const query = `
             from(bucket: "${instance.bucket}")
@@ -525,11 +543,13 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, bucketKe
                 |> keep(columns: ["_time"])
         `;
         try {
+            console.log(V.database, `Requête Flux [${k}]`, query, V.Check);
             const res = await executeQuery(query, k);
             if (res && res.length > 0 && res[0]._time) {
                 return new Date(res[0]._time).getTime();
             }
         } catch (e) {
+            console.log(V.database, `Erreur lors de l'exécution de la requête Flux [${k}]`, '!!!!!!!!!!!!!!!!!!!', V.Check);
             // fail silent if bucket has no matching data for this sensor
         }
         return 0;

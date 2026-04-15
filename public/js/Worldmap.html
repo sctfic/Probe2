@@ -49,25 +49,113 @@
       top: 0;
       left: 0;
     }
+
+    .control-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      gap: 15px;
+      z-index: 100;
+      background: var(--futuristic-panel);
+      padding: 10px 15px;
+      border: var(--futuristic-border);
+      border-radius: 8px;
+      box-shadow: 0 0 15px rgba(141, 255, 255, 0.1);
+    }
+
+    .btn {
+      background: transparent;
+      color: var(--futuristic-cyan);
+      border: 1px solid var(--futuristic-cyan);
+      padding: 8px 15px;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 4px;
+      text-transform: uppercase;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: var(--futuristic-cyan-dim);
+      box-shadow: 0 0 10px var(--futuristic-cyan);
+    }
+
+    .btn.active {
+      background: var(--futuristic-cyan);
+      color: var(--futuristic-dark);
+      box-shadow: 0 0 10px var(--futuristic-cyan);
+    }
   </style>
 </head>
 
 <body>
   <div id="globe"></div>
+
+  <div class="control-panel">
+    <button id="btn-play" class="btn active">Pause</button>
+    <button id="btn-speed" class="btn">Fast</button>
+    <button id="btn-fullscreen" class="btn">FullScreen</button>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./drawing/three.module.min.js"
+      }
+    }
+  </script>
   <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="https://d3js.org/d3-geo.v2.min.js"></script>
   <script src="https://unpkg.com/topojson-client@3"></script>
-  <script src="/drawing/earthSpaceModel.js"></script>
-  <script>
-    loadEarthSpaceModel(
+  <script type="module" src="./drawing/earthSpaceModel.js"></script>
+  <script type="module">
+    const model = window.loadEarthSpaceModel(
       document.getElementById('globe'),
       [
         { latitude: 43.37, longitude: -0.62, altitude: 150, name: 'VP2' },
-        { latitude: 23.37, longitude: 10.62, altitude: 150, name: 'VP3' },
-        { latitude: 3.37, longitude: 100.62, altitude: 150, name: 'VP4' }
+        { latitude: 23.37, longitude: 10.62, altitude: 150, name: 'Garmadon' }
       ],
       new Date()
     );
+
+    const btnPlay = document.getElementById('btn-play');
+    const btnSpeed = document.getElementById('btn-speed');
+    const btnFullscreen = document.getElementById('btn-fullscreen');
+
+    // Sync button states when drag triggers pause
+    model.onStateChange = ({ isPlaying, isFast }) => {
+      btnPlay.textContent = isPlaying ? 'Pause' : 'Play';
+      btnPlay.classList.toggle('active', isPlaying);
+      btnSpeed.textContent = isFast ? 'Slow' : 'Fast';
+      btnSpeed.classList.toggle('active', isFast);
+    };
+
+    btnPlay.addEventListener('click', () => {
+      const playing = model.togglePlay();
+      btnPlay.textContent = playing ? 'Pause' : 'Play';
+      btnPlay.classList.toggle('active', playing);
+    });
+
+    btnSpeed.addEventListener('click', () => {
+      const fast = model.toggleSpeed();
+      btnSpeed.textContent = fast ? 'Slow' : 'Fast';
+      btnSpeed.classList.toggle('active', fast);
+    });
+
+    btnFullscreen.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch((err) => {
+          console.error(`Error attempting to enable fullscreen: ${err.message}`);
+        });
+        btnFullscreen.classList.add('active');
+        btnFullscreen.textContent = 'Exit FullScreen';
+      } else {
+        document.exitFullscreen();
+        btnFullscreen.classList.remove('active');
+        btnFullscreen.textContent = 'FullScreen';
+      }
+    });
   </script>
 </body>
 
