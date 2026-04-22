@@ -141,6 +141,17 @@
             touch-action: none;
         }
 
+        @property --angle {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: false;
+        }
+
+        @keyframes rotate-laser {
+            0% { --angle: 0deg; }
+            100% { --angle: 360deg; }
+        }
+
         .panel {
             background: var(--futuristic-panel);
             border: var(--futuristic-border);
@@ -154,26 +165,37 @@
             gap: 4px;
         }
 
+        /* Laser Beam Effect */
         .panel::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 12px;
-            height: 12px;
-            border-top: 2px solid var(--futuristic-cyan);
-            border-left: 2px solid var(--futuristic-cyan);
+            inset: 0;
+            padding: 1px;
+            background: conic-gradient(from var(--angle), transparent, var(--futuristic-cyan) 10%, transparent 40%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            border-radius: 4px;
+            animation: rotate-laser 4s linear infinite;
+            pointer-events: none;
+            z-index: 5;
         }
 
+        /* Consolidated Corner Markers */
         .panel::after {
             content: '';
             position: absolute;
-            bottom: 0;
-            right: 0;
-            width: 12px;
-            height: 12px;
-            border-bottom: 2px solid var(--futuristic-cyan);
-            border-right: 2px solid var(--futuristic-cyan);
+            inset: 0;
+            background: 
+                /* Top-left corner */
+                linear-gradient(to right, var(--futuristic-cyan) 2px, transparent 2px) 0 0 / 12px 2px no-repeat,
+                linear-gradient(to bottom, var(--futuristic-cyan) 2px, transparent 2px) 0 0 / 2px 12px no-repeat,
+                /* Bottom-right corner */
+                linear-gradient(to left, var(--futuristic-cyan) 2px, transparent 2px) 100% 100% / 12px 2px no-repeat,
+                linear-gradient(to top, var(--futuristic-cyan) 2px, transparent 2px) 100% 100% / 2px 12px no-repeat;
+            pointer-events: none;
+            z-index: 6;
         }
 
         .panel-label {
