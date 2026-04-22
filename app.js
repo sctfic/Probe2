@@ -6,7 +6,9 @@ const cronService = require('./services/cronService');
 const { V, O } = require('./utils/icons');
 const session = require('express-session');
 const crypto = require('crypto');
-console.log(`${O.green} Starting !`);
+const probeVersion = require('./package.json').version;
+
+console.log(`${O.green} Starting !`, probeVersion);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
