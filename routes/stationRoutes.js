@@ -18,12 +18,6 @@ router.get('/:stationId/collect', talkStationWithLamp(stationController.getArchi
 // Collecte les données des extenders depuis la station
 router.get('/:stationId/extenders', extendersController.collectExtenders); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders
 
-// Supprime TOUTES les données InfluxDB des extendeurs
-router.delete('/:stationId/extenders/data', isAuthenticated, extendersController.deleteAllExtenderData);
-
-// Supprime les données InfluxDB d'un extendeur spécifique
-router.delete('/:stationId/extenders/:extenderId/data', isAuthenticated, extendersController.deleteExtenderData);
-
 // Vérifie le statut (avaiblité) des extenders par un appel api
 router.get('/:stationId/extenders/status', extendersController.checkExtendersStatus); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders/status
 

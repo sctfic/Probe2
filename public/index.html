@@ -657,20 +657,22 @@
                 'settings': 'settings-section'
             };
 
-            // --- Gestion du plein écran ---
+            // --- Gestion de l'ouverture du dashboard ---
             const logoDiv = document.querySelector('.navbar .logo');
             if (logoDiv) {
-                logoDiv.title = 'Passer en mode plein écran (F11)';
+                logoDiv.title = 'Ouvrir le dashboard en plein écran';
                 logoDiv.addEventListener('click', () => {
-                    if (!document.fullscreenElement) {
-                        document.documentElement.requestFullscreen().catch(err => {
-                            console.error(`Erreur lors du passage en plein écran: ${err.message}`, err);
-                        });
-                    } else {
-                        if (document.exitFullscreen) {
-                            document.exitFullscreen();
-                        }
+                    let stationParam = '';
+                    const globalStationSelect = document.getElementById('global-station-select');
+                    if (globalStationSelect && globalStationSelect.value) {
+                        stationParam = `?station=${encodeURIComponent(globalStationSelect.value)}`;
                     }
+
+                    // Ouvrir dans une nouvelle fenêtre/onglet (certains navigateurs supportent fullscreen=yes)
+                    const w = screen.width;
+                    const h = screen.height;
+                    const features = `fullScreen=yes,width=${w},height=${h},top=0,left=0,toolbar=no,menubar=no,scrollbars=no,resizable=no,location=no,status=no`;
+                    window.open(`dashboard.html${stationParam}`, '_blank', features);
                 });
             }
 

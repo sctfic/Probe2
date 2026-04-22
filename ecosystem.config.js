@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'Probe',
-      version: '0.3.87',
+      version: '0.5.02',
       script: 'app.js',
       watch: false,
       ignore_watch: [

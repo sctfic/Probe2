@@ -102,13 +102,13 @@ async function collectVentiConnect(extender, stationId, points) {
 
             extender.available = true;
             console.log(`${V.Check} [EXTENDERS] Données JSON récupérées pour ${extender.name}`);
-            return true;
+            return { id: extender.id, type: "Venti'Connect", data };
         }
     } catch (error) {
         extender.available = false;
         console.error(`${V.error} [EXTENDERS] Erreur Venti'Connect ${extender.name}:`, error.message);
     }
-    return false;
+    return null;
 }
 
 /**
@@ -116,13 +116,18 @@ async function collectVentiConnect(extender, stationId, points) {
  */
 async function collectWhisperEye(extender, stationId, points) {
     try {
-
-
+        console.log(`${V.package} [EXTENDERS] Collecte WhisperEye ${extender.name}`);
+        const data = await WhisperEyeService.fetchWhisperEyeCurrents(extender.host);
+        if (data) {
+            extender.available = true;
+            console.log(`${V.Check} [EXTENDERS] Données JSON récupérées pour ${extender.name}`);
+            return { id: extender.id, type: "WhisperEye", data };
+        }
     } catch (error) {
         extender.available = false;
         console.error(`${V.error} [EXTENDERS] Erreur WhisperEye ${extender.name}:`, error.message);
     }
-    return false;
+    return null;
 }
 
 /**
@@ -142,9 +147,10 @@ async function runExtenderCollection(stationConfig) {
         ...whisperEyes.map(extender => collectWhisperEye(extender, stationId, points))
     ];
 
-    if (promises.length === 0) return;
+    if (promises.length === 0) return [];
 
-    await Promise.all(promises);
+    const results = await Promise.all(promises);
+    const collectedData = results.filter(r => r !== null);
 
     if (points.length > 0) {
         try {
@@ -155,6 +161,8 @@ async function runExtenderCollection(stationConfig) {
             console.error(`${V.error} [EXTENDERS] Erreur lors de l'écriture InfluxDB:`, error);
         }
     }
+
+    return collectedData;
 }
 
 /**
