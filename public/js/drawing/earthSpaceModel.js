@@ -57,6 +57,10 @@ function createTextSprite(message) {
     let onStateChange = null;
     let rafId = null;
     let gpsPulses = [];
+    let gpsList = [];
+    if (gps) {
+      gpsList = Array.isArray(gps) ? gps : [gps];
+    }
 
     // --- Scene & Camera ---
     const scene = new THREE.Scene();
@@ -105,6 +109,97 @@ function createTextSprite(message) {
     dateUi.style.pointerEvents = 'none';
     container.appendChild(dateUi);
 
+    const gpsUi = document.createElement('div');
+    gpsUi.style.position = 'absolute';
+    gpsUi.style.bottom = '20px';
+    gpsUi.style.left = '20px';
+    gpsUi.style.color = '#ff6b6b';
+    gpsUi.style.fontFamily = "'Share Tech Mono', monospace";
+    gpsUi.style.fontSize = '14px';
+    gpsUi.style.fontWeight = 'bold';
+    gpsUi.style.pointerEvents = 'none';
+    container.appendChild(gpsUi);
+
+    // --- UI Controls ---
+    const controlsUi = document.createElement('div');
+    Object.assign(controlsUi.style, {
+      position: 'absolute',
+      top: '15px',
+      right: '15px',
+      display: 'flex',
+      gap: '8px',
+      zIndex: '1000'
+    });
+    container.appendChild(controlsUi);
+
+    const createButton = (title, svgContent) => {
+      const btn = document.createElement('button');
+      btn.title = title;
+      Object.assign(btn.style, {
+        background: 'rgba(0, 0, 0, 0.4)',
+        color: '#00ffff',
+        border: '1px solid #00ffff',
+        padding: '5px',
+        width: '28px',
+        height: '28px',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 0.2s ease',
+        backdropFilter: 'blur(2px)'
+      });
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgContent}</svg>`;
+      
+      const updateActive = (active) => {
+        btn.style.background = active ? '#00ffff' : 'rgba(0, 0, 0, 0.4)';
+        btn.style.color = active ? '#1a1a1a' : '#00ffff';
+      };
+      
+      return { btn, updateActive };
+    };
+
+    const btnPlay = createButton('Play/Pause', '<polygon points="5 3 19 12 5 21 5 3"></polygon>');
+    const btnSpeed = createButton('Fast/Slow', '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>');
+    const btnFs = createButton('FullScreen', '<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>');
+
+    controlsUi.appendChild(btnPlay.btn);
+    controlsUi.appendChild(btnSpeed.btn);
+    controlsUi.appendChild(btnFs.btn);
+
+    const syncUI = () => {
+      btnPlay.updateActive(isPlaying);
+      btnSpeed.updateActive(isFast);
+      btnFs.updateActive(document.fullscreenElement === container);
+    };
+    syncUI();
+
+    btnPlay.btn.onclick = () => {
+      isPlaying = !isPlaying;
+      syncUI();
+      if (onStateChange) onStateChange({ isPlaying, isFast });
+    };
+
+    btnSpeed.btn.onclick = () => {
+      isFast = !isFast;
+      syncUI();
+      if (onStateChange) onStateChange({ isPlaying, isFast });
+    };
+
+    btnFs.btn.onclick = () => {
+      if (!document.fullscreenElement) {
+        container.requestFullscreen().catch(err => console.error(err));
+      } else {
+        document.exitFullscreen();
+      }
+    };
+
+    document.addEventListener('fullscreenchange', () => {
+      syncUI();
+      setTimeout(onWindowResize, 100);
+    });
+
     function updateDateUI() {
       const d = virtualDate;
       const day = String(d.getUTCDate()).padStart(2, '0');
@@ -112,7 +207,103 @@ function createTextSprite(message) {
       const year = d.getUTCFullYear();
       const hour = String(d.getUTCHours()).padStart(2, '0');
       const min = String(d.getUTCMinutes()).padStart(2, '0');
-      dateUi.innerText = `${day}/${month}/${year} ${hour}:${min} UTC`;
+      
+      const msPerDay = 1000 * 60 * 60 * 24;
+      const J2000 = new Date(Date.UTC(2000, 0, 1, 12, 0, 0));
+      const daysSinceJ2000 = (d - J2000) / msPerDay;
+      let L_sun_deg = (280.460 + 0.9856474 * daysSinceJ2000) % 360;
+      if (L_sun_deg < 0) L_sun_deg += 360;
+      const L_sun_rad = L_sun_deg * Math.PI / 180;
+      const declination = Math.asin(Math.sin(23.44 * Math.PI / 180) * Math.sin(L_sun_rad));
+
+      let moonSvg = '';
+      if (window.SunCalc) {
+        try {
+          const moonInfo = window.SunCalc.getMoonIllumination(virtualDate);
+          const phaseValue = moonInfo.phaseValue;
+          const isWaxing = phaseValue <= 0.5;
+          let path = '';
+          if (isWaxing) {
+            const rx = Math.max(0.1, Math.abs(50 - (phaseValue * 200)));
+            const sweep = phaseValue <= 0.25 ? 0 : 1;
+            path = `M 50 0 A 50 50 0 0 1 50 100 A ${rx} 50 0 0 ${sweep} 50 0`;
+          } else {
+            const p2 = phaseValue - 0.5;
+            const rx = Math.max(0.1, Math.abs(50 - (p2 * 200)));
+            const sweep = p2 <= 0.25 ? 0 : 1;
+            path = `M 50 0 A 50 50 0 0 0 50 100 A ${rx} 50 0 0 ${sweep} 50 0`;
+          }
+          const fractionPercent = Math.round(moonInfo.fraction * 100);
+          moonSvg = `<span style="margin-right: 10px; color: #aaa; font-weight: normal; font-size: 14px;" title="${moonInfo.phase ? moonInfo.phase.name : ''}">
+            <svg class="moon-svg" width="28" height="28" viewBox="0 0 100 100" style="vertical-align: middle; margin-right: 4px; filter: none;">
+              <circle cx="50" cy="50" r="50" fill="#666" style="filter: none;" />
+              <path d="${path}" fill="#eeeeee" style="filter: none;" />
+            </svg>${fractionPercent}%
+          </span>`;
+        } catch (e) {
+          console.warn('Moon phase calculation failed', e);
+        }
+      }
+
+      let gpsHtml = '';
+      if (gpsList && gpsList.length > 0) {
+        gpsList.forEach(pt => {
+          if (pt.latitude != null && pt.longitude != null) {
+            const latRad = pt.latitude * Math.PI / 180;
+            const cosH = -Math.tan(latRad) * Math.tan(declination);
+            let sr = '--:--';
+            let ss = '--:--';
+            
+            if (cosH < -1) {
+              sr = 'Jour Polaire';
+              ss = 'Jour Polaire';
+            } else if (cosH > 1) {
+              sr = 'Nuit Polaire';
+              ss = 'Nuit Polaire';
+            } else {
+              const H_rad = Math.acos(cosH);
+              const H_hours = H_rad * 12 / Math.PI;
+              const noonUTC = 12 - (pt.longitude / 15);
+              
+              let timeZone = 'UTC';
+              if (window.tzlookup) {
+                try {
+                  timeZone = window.tzlookup(pt.latitude, pt.longitude);
+                } catch (e) {
+                  console.warn('tzlookup failed for', pt.latitude, pt.longitude);
+                }
+              }
+
+              if (window.moment) {
+                const srMoment = window.moment(virtualDate).utc().startOf('day').add(noonUTC - H_hours, 'hours');
+                const ssMoment = window.moment(virtualDate).utc().startOf('day').add(noonUTC + H_hours, 'hours');
+                sr = srMoment.tz(timeZone).format('HH:mm z');
+                ss = ssMoment.tz(timeZone).format('HH:mm z');
+              } else {
+                const formatTimeFallback = (hours) => {
+                  let h = Math.floor(hours) % 24;
+                  if (h < 0) h += 24;
+                  let m = Math.floor((hours % 1 + 1) % 1 * 60);
+                  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                };
+                const tzOffsetHours = Math.round(pt.longitude / 15);
+                const sign = tzOffsetHours > 0 ? '+' : '';
+                const tzStr = tzOffsetHours === 0 ? 'UTC' : `UTC${sign}${tzOffsetHours}`;
+                sr = formatTimeFallback(noonUTC - H_hours + tzOffsetHours) + ' ' + tzStr;
+                ss = formatTimeFallback(noonUTC + H_hours + tzOffsetHours) + ' ' + tzStr;
+              }
+            }
+            gpsHtml += `<div style="margin-bottom: 4px;">
+              <span style="color: #00ffff;">${pt.name || 'GPS'}:</span> 
+              <span style="color: #ffd700; margin-left: 5px;">☀ ↗ ${sr}</span> | 
+              <span style="color: #ff8c00;">↘ ${ss}</span>
+            </div>`;
+          }
+        });
+      }
+      gpsUi.innerHTML = gpsHtml;
+
+      dateUi.innerHTML = `${moonSvg}${day}/${month}/${year} ${hour}:${min} UTC`;
     }
     updateDateUI();
 
@@ -125,7 +316,7 @@ function createTextSprite(message) {
     const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
     sunLight.position.set(100, 0, 50);
     scene.add(sunLight);
-    scene.add(new THREE.AmbientLight(0x050505));
+    scene.add(new THREE.AmbientLight(0x222222));
 
     // --- Sun Mesh ---
     const sunGeo = new THREE.SphereGeometry(2, 32, 32);
@@ -150,6 +341,16 @@ function createTextSprite(message) {
     glowSprite.scale.set(15, 15, 1);
     sunMesh.add(glowSprite);
 
+    // Earth Trajectory (Ecliptic Border)
+    const earthTrajectoryGeo = new THREE.BufferGeometry().setFromPoints(
+      new THREE.Path().absarc(0, 0, 100, 0, Math.PI * 2).getPoints(128)
+    );
+    const earthTrajectoryMat = new THREE.LineDashedMaterial({ color: 0x00ffff, transparent: true, opacity: 0.4, dashSize: 2, gapSize: 2 });
+    const earthTrajectoryLine = new THREE.Line(earthTrajectoryGeo, earthTrajectoryMat);
+    earthTrajectoryLine.computeLineDistances();
+    earthTrajectoryLine.rotation.x = -Math.PI / 2;
+    sunMesh.add(earthTrajectoryLine);
+
     // --- Physics Parameters ---
     const EARTH_RADIUS = 2;
     const MOON_RADIUS = 0.54;
@@ -162,7 +363,7 @@ function createTextSprite(message) {
     scene.add(eclipticPlane);
 
     const earthTiltGroup = new THREE.Group();
-    earthTiltGroup.rotation.z = AXIAL_TILT;
+    earthTiltGroup.rotation.x = -AXIAL_TILT;
     eclipticPlane.add(earthTiltGroup);
 
     const moonOrbitPlane = new THREE.Group();
@@ -285,9 +486,8 @@ function createTextSprite(message) {
 
           earthTexture.needsUpdate = true;
 
-          if (gps) {
-            if (Array.isArray(gps)) gps.forEach(addGPSMarker);
-            else addGPSMarker(gps);
+          if (gpsList.length > 0) {
+            gpsList.forEach(addGPSMarker);
           }
         });
     }
@@ -368,18 +568,38 @@ function createTextSprite(message) {
 
       if (isPlaying) {
         const mult = isFast ? 10 : 1;
-        const speed = baseEarthSpeed * mult;
-        const mSpeed = speed / 27.322;
-
-        earthMesh.rotation.y += speed;
-        moonOrbitPlane.rotation.y += mSpeed;
-        moonMesh.rotation.y += mSpeed;
-
-        // Advance virtual date: (2 * PI / 1440) per frame represents 1 minute simulated run limit.
-        // 60000ms per frame matching speed logic
         virtualDate = new Date(virtualDate.getTime() + (60000 * mult));
         updateDateUI();
       }
+
+      // --- CALCUL ASTRONOMIQUE SELON virtualDate ---
+      const msPerDay = 1000 * 60 * 60 * 24;
+      // Référence: J2000.0 (1er Janvier 2000, 12:00 UTC)
+      const J2000 = new Date(Date.UTC(2000, 0, 1, 12, 0, 0));
+      const d = (virtualDate - J2000) / msPerDay;
+
+      // Longitude moyenne du Soleil
+      let L_sun_deg = (280.460 + 0.9856474 * d) % 360;
+      if (L_sun_deg < 0) L_sun_deg += 360;
+      const L_sun_rad = L_sun_deg * Math.PI / 180;
+
+      // Position du Soleil (distance 100)
+      sunLight.position.set(100 * Math.cos(L_sun_rad), 0, -100 * Math.sin(L_sun_rad));
+      sunMesh.position.copy(sunLight.position);
+
+      // Rotation de la Terre (alignement UTC)
+      const hoursUTC = virtualDate.getUTCHours() + virtualDate.getUTCMinutes() / 60 + virtualDate.getUTCSeconds() / 3600;
+      const RA_sun_rad = Math.atan2(Math.sin(L_sun_rad) * Math.cos(AXIAL_TILT), Math.cos(L_sun_rad));
+      const earthRotY = RA_sun_rad + (12 - hoursUTC) * (Math.PI / 12);
+      earthMesh.rotation.y = earthRotY;
+
+      // Longitude moyenne de la Lune
+      let L_moon_deg = (218.316 + 13.1763964 * d) % 360;
+      if (L_moon_deg < 0) L_moon_deg += 360;
+      const L_moon_rad = L_moon_deg * Math.PI / 180;
+
+      moonOrbitPlane.rotation.y = L_moon_rad;
+      moonMesh.rotation.y = L_moon_rad;
 
       const now = performance.now() * 0.0006;
       gpsPulses.forEach(m => {
@@ -407,14 +627,33 @@ function createTextSprite(message) {
     }
     window.addEventListener('resize', onWindowResize, false);
 
+    // Toggle play/pause on click, speed on dblclick
+    container.addEventListener('click', (e) => {
+      if (e.target === renderer.domElement) {
+        isPlaying = !isPlaying;
+        syncUI();
+        if (onStateChange) onStateChange({ isPlaying, isFast });
+      }
+    });
+
+    container.addEventListener('dblclick', (e) => {
+      if (e.target === renderer.domElement) {
+        isFast = !isFast;
+        syncUI();
+        if (onStateChange) onStateChange({ isPlaying, isFast });
+      }
+    });
+
     return {
       togglePlay: () => {
         isPlaying = !isPlaying;
+        syncUI();
         if (onStateChange) onStateChange({ isPlaying, isFast });
         return isPlaying;
       },
       toggleSpeed: () => {
         isFast = !isFast;
+        syncUI();
         if (onStateChange) onStateChange({ isPlaying, isFast });
         return isFast;
       },

@@ -93,12 +93,6 @@
 <body>
   <div id="globe"></div>
 
-  <div class="control-panel">
-    <button id="btn-play" class="btn active">Pause</button>
-    <button id="btn-speed" class="btn">Fast</button>
-    <button id="btn-fullscreen" class="btn">FullScreen</button>
-  </div>
-
   <script type="importmap">
     {
       "imports": {
@@ -106,56 +100,23 @@
       }
     }
   </script>
-  <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="https://unpkg.com/topojson-client@3"></script>
+  <script src="./drawing/d3.min.js"></script>
+  <script src="./drawing/topojson-client.v3.1.0.min.js"></script>
+  <script src="./lib/moment.min.js"></script>
+  <script src="./lib/moment-timezone-with-data.min.js"></script>
+  <script src="./lib/tz-lookup.js"></script>
+  <script src="./composite/sunCalc.js"></script>
   <script type="module" src="./drawing/earthSpaceModel.js"></script>
   <script type="module">
     const model = window.loadEarthSpaceModel(
       document.getElementById('globe'),
       [
-        { latitude: 43.37, longitude: -0.62, altitude: 150, name: 'VP2' },
-        { latitude: 23.37, longitude: 10.62, altitude: 150, name: 'Garmadon' }
+        { latitude: 43.20759, longitude: -0.479921, altitude: 150, name: 'VP2' },
+        { latitude: -33, longitude: 151, altitude: 20, name: 'Sydney' }
       ],
       new Date()
     );
-
-    const btnPlay = document.getElementById('btn-play');
-    const btnSpeed = document.getElementById('btn-speed');
-    const btnFullscreen = document.getElementById('btn-fullscreen');
-
-    // Sync button states when drag triggers pause
-    model.onStateChange = ({ isPlaying, isFast }) => {
-      btnPlay.textContent = isPlaying ? 'Pause' : 'Play';
-      btnPlay.classList.toggle('active', isPlaying);
-      btnSpeed.textContent = isFast ? 'Slow' : 'Fast';
-      btnSpeed.classList.toggle('active', isFast);
-    };
-
-    btnPlay.addEventListener('click', () => {
-      const playing = model.togglePlay();
-      btnPlay.textContent = playing ? 'Pause' : 'Play';
-      btnPlay.classList.toggle('active', playing);
-    });
-
-    btnSpeed.addEventListener('click', () => {
-      const fast = model.toggleSpeed();
-      btnSpeed.textContent = fast ? 'Slow' : 'Fast';
-      btnSpeed.classList.toggle('active', fast);
-    });
-
-    btnFullscreen.addEventListener('click', () => {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch((err) => {
-          console.error(`Error attempting to enable fullscreen: ${err.message}`);
-        });
-        btnFullscreen.classList.add('active');
-        btnFullscreen.textContent = 'Exit FullScreen';
-      } else {
-        document.exitFullscreen();
-        btnFullscreen.classList.remove('active');
-        btnFullscreen.textContent = 'FullScreen';
-      }
-    });
+  </script>
   </script>
 </body>
 
