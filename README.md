@@ -2,11 +2,11 @@
 
 ## Overview
 
-Probe is a professional-grade weather data collection and visualization application **compatible with VP2 stations only**. It is designed to operate **offline on a local network (LAN)**, ensuring total privacy and independence from external services like `www.wunderground.com`.
+Probe is a professional-grade weather data collection and visualization application **compatible with VP2 stations only**. It is designed to operate **offline on a local network (LAN)** or on full internet usage, ensuring total privacy and independence from external services (like davis VP2 `www.wunderground.com`).
 
 ## 📸 Screenshots
 
-| Dashboard | Main View | Long Time View |
+| Dashboard | Main View | Long Time View 2D/3D |
 | :---: | :---: | :---: |
 | <img src="./docs/DashboardView.png" alt="Dashboard View" width="100%"> | <img src="./docs/MainVeiw.png" alt="Main View" width="100%"> | <img src="./docs/LongTimeView.png" alt="Long Time View" width="100%"> |
 
@@ -15,7 +15,8 @@ Probe is a professional-grade weather data collection and visualization applicat
 ```mermaid
 graph LR
     subgraph Local Network
-        VP2[Davis VP2 Station] <-->|LAN| RPI[Collecteur Sonde<br/>Raspberry Pi 3]
+        VP2[Davis VP2 Station] <-->|LAN| RPI[Station & Sonde Collector<br/>Raspberry Pi 3]
+        WE[WhisperEye / Sensors] -.->|WIFI / LAN| RPI
     end
     
     subgraph Cloud
@@ -23,14 +24,16 @@ graph LR
     end
     
     subgraph Web Server
-        DB <-->|WWW| WEB[Collecteur Archives & Forecasts<br/>probe.lpz.ovh]
+        DB <-->|WWW| WEB[Archives & Forecasts Collector<br/>probe.lpz.ovh]
     end
 
     classDef hw fill:#f9d0c4,stroke:#333,stroke-width:2px,color:#000;
     classDef compute fill:#d4e157,stroke:#333,stroke-width:2px,color:#000;
     classDef db fill:#81d4fa,stroke:#333,stroke-width:2px,color:#000;
+    classDef sensor fill:#ffcc80,stroke:#333,stroke-width:2px,color:#000;
     
     class VP2 hw;
+    class WE sensor;
     class RPI,WEB compute;
     class DB db;
 ```
