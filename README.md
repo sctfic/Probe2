@@ -4,6 +4,21 @@
 
 Probe is a professional-grade weather data collection and visualization application **compatible with VP2 stations only**. It is designed to operate **offline on a local network (LAN)**, ensuring total privacy and independence from external services like `www.wunderground.com`.
 
+## 📸 Screenshots
+
+| Dashboard | Main View | Long Time View |
+| :---: | :---: | :---: |
+| <img src="./docs/DashboardView.png" alt="Dashboard View" width="100%"> | <img src="./docs/MainVeiw.png" alt="Main View" width="100%"> | <img src="./docs/LongTimeView.png" alt="Long Time View" width="100%"> |
+
+## 🏗 Architecture & Roles
+
+The system is organized into distinct roles, separating data collection, storage, and visualization:
+
+- **Collecteur Station et Sonde (+ Frontend)**: Real-time data acquisition directly from the VP2 hardware and secondary sensors. The frontend provides live monitoring and high-precision visualizations (need network access to the station and InfluxDB, lan).
+- **Collecteur Archives (+ Frontend)**: Manages historical data backfilling (e.g., from Open-Meteo) to ensure continuity. The frontend allows deep-dive analysis over long periods (need network access to InfluxDB and the internet for open-meteo.com).
+- **Collecteur Forecasts (+ Frontend)**: Gathers and manages weather predictions, aligning them with the station's coordinates for future visualizations. (need network access to InfluxDB and the internet for open-meteo.com).
+- **InfluxDB**: The central time-series database acting as the single source of truth for all collectors, ensuring high-performance querying and data retention.
+
 ## Key Features
 
 ### 📡 Data Collection

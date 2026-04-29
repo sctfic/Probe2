@@ -28,3 +28,4 @@ config/stations/VP2_Serramoune.json
 public/mock/*
 .vscode/settings.json
 public/D3/
+public/x.html
