@@ -16,7 +16,7 @@ Probe is a professional-grade weather data collection and visualization applicat
 graph LR
     subgraph Local Network
         VP2[Davis VP2 Station] <-->|LAN| RPI[Station & Sonde Collector<br/>Raspberry Pi 3]
-        WE[WhisperEye / Sensors] -.->|WIFI / LAN| RPI
+        WE[WhisperEye / Sensors on ESP32] -.->|WIFI / LAN| RPI
     end
     
     subgraph Cloud
