@@ -12,6 +12,29 @@ Probe is a professional-grade weather data collection and visualization applicat
 
 ## 🏗 Architecture & Roles
 
+```mermaid
+graph LR
+    subgraph Local Network
+        VP2[Davis VP2 Station] <-->|LAN| RPI[Collecteur Sonde<br/>Raspberry Pi 3]
+    end
+    
+    subgraph Cloud
+        RPI <-->|WWW| DB[(InfluxDB<br/>VPS)]
+    end
+    
+    subgraph Web Server
+        DB <-->|WWW| WEB[Collecteur Archives & Forecasts<br/>probe.lpz.ovh]
+    end
+
+    classDef hw fill:#f9d0c4,stroke:#333,stroke-width:2px,color:#000;
+    classDef compute fill:#d4e157,stroke:#333,stroke-width:2px,color:#000;
+    classDef db fill:#81d4fa,stroke:#333,stroke-width:2px,color:#000;
+    
+    class VP2 hw;
+    class RPI,WEB compute;
+    class DB db;
+```
+
 The system is organized into distinct roles, separating data collection, storage, and visualization:
 
 - **Collecteur Station et Sonde (+ Frontend)**: Real-time data acquisition directly from the VP2 hardware and secondary sensors. The frontend provides live monitoring and high-precision visualizations (need network access to the station and InfluxDB, lan).
