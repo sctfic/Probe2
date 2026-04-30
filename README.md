@@ -73,21 +73,21 @@ The application relies on scheduled tasks (Crons) to maintain up-to-date data. T
 
 ### 1. Station Collect (Every X minutes)
 The primary loop that pulls new archive records from the VP2.
-- **Trigger**: Depends on the `collect.value` setting (e.g., every 5 minutes).
+- **Trigger**: Depends on the VP2 station config `collect.value` setting (e.g., every 5 minutes).
 - **Action**: Connects to the station, downloads new records, and writes them to InfluxDB.
 
 ### 2. Extender Collect
-Pulls data from secondary sensors (e.g., WhisperEye, Venti'Connect).
+Pulls data from other sensors connected to the network (e.g., WhisperEye, Venti'Connect).
 - **Trigger**: Runs concurrently with the main collection loop.
 
 ### 3. Historical Backfill (Daily)
 Automated synchronization with historical archives.
-- **Trigger**: Every day at **23:50:02** (Europe/Paris).
+- **Trigger**: Every day
 - **Action**: Fills any gaps in the local database using Open-Meteo as a fallback.
 
 ### 4. Forecast Sync (Hourly)
-- **Trigger**: Every hour at **minute 1 and 02 seconds**.
-- **Action**: Updates the forecast database and removes outdated predictions.
+- **Trigger**: Every hour.
+- **Action**: Updates the forecast database for the next days.
 
 ---
 
@@ -105,10 +105,11 @@ Automated synchronization with historical archives.
 ## 🚀 Getting Started
 
 ### Installation
+require nginx, nodejs and influxdb 2.x
 1. Clone the repository.
 2. Install dependencies: `npm install`.
 3. Configure your InfluxDB connection in `config/influx.json` or use de web interface
-4. Add your station in `config/stations/YourStation.json` or use de web interface
+4. log in : admin and chose password
 
 ### Running the App
 - Start the server: `npm start`.

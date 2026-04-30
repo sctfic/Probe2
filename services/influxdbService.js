@@ -338,234 +338,336 @@ function getFilter(sensorRef) {
 }
 
 /**
- * Calcule les fenêtres temporelles optimales (et disjointes si besoin) pour interroger les buckets.
- * @param {string} reqStart - Date de début demandée (ex: timestamp ou ISO).
+ * Calcule les fenêtres temporelles optimales et fusionne les données avec une priorité haute précision (Phase 0) sur les historiques/prévisions (Phase 1).
+ * @param {string} reqStart - Date de début demandée (ex: timestamp, ISO ou relatif).
  * @param {string} reqEnd - Date de fin demandée.
  * @param {Function} buildFluxFn - Callback (bucketName, start, stop) => fluxQueryString.
- * @param {Function} mergeFn - Callback (resultsArray) => mergedResults.
+ * @param {string|null} sensorRef - Référence du capteur optionnelle.
+ * @param {string|null} stationId - ID de la station.
  */
 async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn, sensorRef = null, stationId = null) {
     const toISO = (val, defaultVal) => {
         if (!val) return defaultVal;
         const sVal = val.toString();
-        if (sVal.includes('T') || sVal.startsWith('-') || sVal === 'now()') return sVal;
+        if (sVal.includes('T') || sVal.startsWith('-') || sVal.startsWith('+') || sVal === 'now()') return sVal;
         if (!isNaN(sVal)) return new Date(parseInt(sVal) * 1000).toISOString();
         return sVal;
     };
 
+    const parseToMillis = (val) => {
+        if (!val) return 0;
+        const sVal = val.toString();
+        if (sVal === 'now()') return Date.now();
+        const match = sVal.match(/^([-+])(\d+)(d|h|m|s|y)$/);
+        if (match) {
+            const sign = match[1] === '-' ? -1 : 1;
+            const amount = parseInt(match[2], 10);
+            const unit = match[3];
+            let multiplier = 1000;
+            if (unit === 'm') multiplier *= 60;
+            if (unit === 'h') multiplier *= 3600;
+            if (unit === 'd') multiplier *= 3600 * 24;
+            if (unit === 'y') multiplier *= 3600 * 24 * 365;
+            return Date.now() + (sign * amount * multiplier);
+        }
+        if (sVal.includes('T')) return new Date(sVal).getTime();
+        if (!isNaN(sVal)) return parseInt(sVal) * 1000;
+        return 0;
+    };
+
     const start = toISO(reqStart, 0);
     const stop = toISO(reqEnd, 'now()');
+    const startMs = parseToMillis(reqStart) || 0;
+    const stopMs = parseToMillis(reqEnd) || Date.now();
 
-    // Mettre à jour lastDate pour Stations (pour savoir où commence Forecasts)
-    let stationsLastDateStr = new Date().toISOString();
-    let stationsFirstDateStr = influxInstances['Stations']?.firstDate || '2020-01-01T00:00:00Z';
-
-    if (influxInstances['Stations']) {
-        const filter = sensorRef ? getFilter(sensorRef) : null;
-        const fluxFilter = (filter && stationId) ? `r.station_id == "${stationId}" and (${filter})` : null;
-
-        const query = fluxFilter ? `
-            import "array"
-            first = from(bucket: "${influxInstances['Stations'].bucket}")
-                |> range(start: ${stationsFirstDateStr})
-                |> filter(fn: (r) => ${fluxFilter})
-                |> first()
-                |> findRecord(fn: (key) => true, idx: 0)
-
-            last = from(bucket: "${influxInstances['Stations'].bucket}")
-                |> range(start: ${stationsFirstDateStr})
-                |> filter(fn: (r) => ${fluxFilter})
-                |> last()
-                |> findRecord(fn: (key) => true, idx: 0)
-
-            if exists first._time then
-                array.from(rows: [{
-                    first: first._time,
-                    last: last._time
-                }])
-            else
-                array.from(rows: [{
-                    first: time(v: 0),
-                    last: time(v: 0)
-                }])
-        ` : `
-            from(bucket: "${influxInstances['Stations'].bucket}")
-                |> range(start: -7d)
-                ${stationId ? `|> filter(fn: (r) => r.station_id == "${stationId}")` : ''}
-                |> keep(columns: ["_time"])
-                |> last()
-        `;
-
-        try {
-            stationsFirstDateStr = new Date().toISOString();
-            stationsLastDateStr = new Date().toISOString();
-            const res = await executeQuery(query, 'Stations');
-            if (fluxFilter) {
-                if (res && res.length > 0 && typeof res[0].first !== 'undefined' && !res[0].first.startsWith('1970-01-01')) {
-                    stationsFirstDateStr = res[0].first;
-                    stationsLastDateStr = res[0].last;
-                    // } else {
-                    //     console.log(V.warning, `Aucune donnée trouvée pour ${stationId} '${sensorRef}' sur [Stations] -> Jonction Archives/Forecasts sur now()`);
-                    //     stationsFirstDateStr = new Date().toISOString();
-                    //     stationsLastDateStr = new Date().toISOString();
-                }
-            } else {
-                if (res && res.length > 0 && res[0]._time) {
-                    stationsLastDateStr = res[0]._time;
-                    // } else {
-                    //     stationsLastDateStr = new Date().toISOString();
-                }
-            }
-        } catch (e) {
-            console.log(V.warning, `Erreur lecture bornes Stations (${e.message}). Valeurs par défaut appliquées.`);
-            // if (fluxFilter) {
-            //     stationsFirstDateStr = new Date().toISOString();
-            //     stationsLastDateStr = new Date().toISOString();
-            // }
+    // Vérifie si un bucket contient le capteur demandé selon ses métadonnées
+    const hasSensor = (bucketKey) => {
+        if (!influxInstances[bucketKey]) return false;
+        if (!sensorRef) {
+            console.log(V.warning, ` Capteur non défini, on va interroger tous les buckets`);
+            return true;
         }
-    }
 
-    const plan = [];
-    // 1. Stations (priorité centrale)
-    if (influxInstances['Stations']) {
-        plan.push({ key: 'Stations', bucket: influxInstances['Stations'].bucket, start: start, stop: stop });
-    }
+        const [measurement, sensor] = sensorRef.split(':');
+        const meta = influxInstances[bucketKey].metadata;
+        if (!meta) return true; // Sécurité: on interroge si les métadonnées ne sont pas encore chargées
 
-    // 2. Archives (avant Stations.firstDate)
-    if (influxInstances['Archives']) {
-        // En Influx, range(stop) est exclusif. On peut s'arrêter au firstDate de Stations.
-        plan.push({ key: 'Archives', bucket: influxInstances['Archives'].bucket, start: start, stop: stationsFirstDateStr });
-    }
+        if (meta[measurement]) {
+            if (!sensor || sensor === '*' || meta[measurement].includes(sensor)) {
+                return true;
+            }
+        }
+        return false;
+    };
 
-    // 3. Forecasts (après Stations.lastDate)
-    if (influxInstances['Forecasts']) {
-        plan.push({ key: 'Forecasts', bucket: influxInstances['Forecasts'].bucket, start: stationsLastDateStr, stop: stop });
-    }
-
-    // 4 & 5. Extenders et Virtuals (pleine période demandée)
-    ['Extenders', 'Virtuals'].forEach(k => {
-        if (influxInstances[k]) {
-            plan.push({ key: k, bucket: influxInstances[k].bucket, start: start, stop: stop });
+    // -------------------------------------------------------------------------
+    // PHASE 0 : Données de haute précision (Stations, Virtuals, Extenders)
+    // -------------------------------------------------------------------------
+    const phase0Plan = [];
+    ['Stations', 'Virtuals', 'Extenders'].forEach(k => {
+        if (hasSensor(k)) {
+            console.log(V.info, `Données du bucket ${k} ajoutées à la phase 0`);
+            phase0Plan.push({ key: k, bucket: influxInstances[k].bucket, start, stop });
         }
     });
 
-    const results = await Promise.all(plan.map(async (p) => {
+    const phase0Results = await Promise.all(phase0Plan.map(async (p) => {
         const fluxQuery = buildFluxFn(p.bucket, p.start, p.stop);
         try {
-            return await executeQuery(fluxQuery, p.key);
+            console.log(`${V.info} Requête Flux [${(p.key + ' ').padEnd(12)}] - ${fluxQuery}`);
+            const rows = await executeQuery(fluxQuery, p.key);
+            return rows;
         } catch (e) {
-            return []; // Fail silent pour les buckets vides ou non concernés
+            return []; // Fail silent
         }
     }));
 
-    return results; // Retourne un tableau de tableaux de résultats (un par bucket)
+    // -------------------------------------------------------------------------
+    // PHASE 1 : Données de base (Archives, Forecasts)
+    // -------------------------------------------------------------------------
+    const phase1Plan = [];
+
+    // Archives (Toujours interroger sur la période complète car Phase 0 peut ne pas contenir tous les capteurs)
+    if (hasSensor('Archives')) {
+        phase1Plan.push({ key: 'Archives', bucket: influxInstances['Archives'].bucket, start, stop });
+    }
+
+    // Forecasts (Toujours interroger sur la période complète car Phase 0 peut ne pas contenir tous les capteurs)
+    if (hasSensor('Forecasts')) {
+        phase1Plan.push({ key: 'Forecasts', bucket: influxInstances['Forecasts'].bucket, start, stop });
+    }
+
+    const phase1Results = await Promise.all(phase1Plan.map(async (p) => {
+        const fluxQuery = buildFluxFn(p.bucket, p.start, p.stop);
+        try {
+            const rows = await executeQuery(fluxQuery, p.key);
+            return rows;
+        } catch (e) {
+            return []; // Fail silent
+        }
+    }));
+
+    // -------------------------------------------------------------------------
+    // FUSION (Overlay Phase 0 sur Phase 1)
+    // -------------------------------------------------------------------------
+    const dataMap = new Map();
+
+    // Génère une clé unique pour chaque point de donnée
+    const getRowKey = (row) => {
+        const parts = [row._time || 'notime'];
+        if (row._measurement) parts.push(row._measurement);
+        if (row.sensor) parts.push(row.sensor);
+        if (row._field) parts.push(row._field);
+        if (row.sensor_key) parts.push(row.sensor_key);
+        if (row.direction !== undefined) parts.push(row.direction);
+        return parts.join('|');
+    };
+
+    // 1. Appliquer la Phase 1 en fond
+    for (const rows of phase1Results) {
+        for (const row of rows) {
+            const key = getRowKey(row);
+            if (!dataMap.has(key)) {
+                dataMap.set(key, { ...row });
+            } else {
+                Object.assign(dataMap.get(key), row);
+            }
+        }
+    }
+
+    // 2. Appliquer la Phase 0 par-dessus (écrase les valeurs existantes au même temps)
+    for (const rows of phase0Results) {
+        for (const row of rows) {
+            const key = getRowKey(row);
+            if (!dataMap.has(key)) {
+                dataMap.set(key, { ...row });
+            } else {
+                Object.assign(dataMap.get(key), row);
+            }
+        }
+    }
+
+    const overlaidData = Array.from(dataMap.values());
+
+    // Renvoie un tableau de tableaux pour la compatibilité avec .flat().sort() des appelants
+    return [overlaidData];
 }
 /**
- * Récupère la plage de dates pour une station et un capteur spécifiques.
+ * Récupère la plage de dates réelle pour une station et un capteur spécifiques,
+ * en réduisant la fenêtre fournie à celle contenant réellement des données.
  * @param {string} stationId - Identifiant de la station.
  * @param {string} sensorRef - Référence du capteur.
  * @param {string} startDate - Date de début (optionnelle).
  * @param {string} endDate - Date de fin (optionnelle).
  * @param {string} bucketKey - Clé optionnelle du bucket à interroger.
- * @returns {Promise<Object>} Un objet contenant la plage de dates.
+ * @returns {Promise<Object>} Un objet contenant la plage de dates { firstUtc, lastUtc }.
  */
 async function queryDateRange(stationId, sensorRef, startDate, endDate, bucketKey = null) {
-    console.log(V.database, `Récupération de la plage de dates pour `, { stationId, sensorRef, startDate, endDate, bucketKey }, V.Check);
-    let filter = '';
+    const timeLabel = `queryDateRange ${stationId} [${sensorRef || 'ALL'}]`;
+    const fnStart = new Date().getTime();
+    console.log(`${V.info} Démarrage de queryDateRange pour ${stationId} [${sensorRef || 'ALL'}] à ${new Date(fnStart).toISOString()}`);
+    let fluxFilter = `r.station_id == "${stationId}"`;
+    let actualSensorRef = sensorRef;
+
     if (sensorRef) {
         if (sensorRef.endsWith('_calc') || sensorRef.endsWith('_trend')) {
-            sensorRef = 'pressure:barometer';
+            actualSensorRef = 'pressure:barometer';
         }
-        filter = getFilter(sensorRef);
+        fluxFilter += ` and (${getFilter(actualSensorRef)})`;
     }
 
-    const now = new Date(); // maintenant
-    const endStopDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // + 30 jours
-
-    const toISO = (val, defaultVal) => { // convertit en ISO, ex: 1710336000 -> 2024-03-13T12:00:00.000Z
+    const toISO = (val, defaultVal) => {
         if (!val) return defaultVal;
         const sVal = val.toString();
-        if (sVal.includes('T') || sVal.startsWith('-') || sVal === 'now()') return sVal;
+        if (sVal.includes('T') || sVal.startsWith('-') || sVal.startsWith('+') || sVal === 'now()') return sVal;
         if (!isNaN(sVal)) return new Date(parseInt(sVal) * 1000).toISOString();
         return sVal;
     };
 
-    const startRange = toISO(startDate, '1969-12-31T00:00:00.123Z');
-    const stopRange = toISO(endDate, endStopDate.toISOString());
+    const parseToMillis = (val) => {
+        if (!val) return null;
+        const sVal = val.toString();
+        if (sVal === 'now()') return Date.now();
+        const match = sVal.match(/^([-+])(\d+)(d|h|m|s|y)$/);
+        if (match) {
+            const sign = match[1] === '-' ? -1 : 1;
+            const amount = parseInt(match[2], 10);
+            const unit = match[3];
+            let multiplier = 1000;
+            if (unit === 'm') multiplier *= 60;
+            if (unit === 'h') multiplier *= 3600;
+            if (unit === 'd') multiplier *= 3600 * 24;
+            if (unit === 'y') multiplier *= 3600 * 24 * 365;
+            return Date.now() + (sign * amount * multiplier);
+        }
+        if (sVal.includes('T')) return new Date(sVal).getTime();
+        if (!isNaN(sVal)) return parseInt(sVal) * 1000;
+        return null;
+    };
 
-    // Déterminer les buckets à interroger
+    const now = new Date();
+    const endStopDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // + 30 jours (pour englober Forecasts)
+
+    const startRange = toISO(startDate, '1969-12-31T00:00:00.000Z');
+    const stopRange = toISO(endDate, endStopDate.toISOString());
+    const startMs = parseToMillis(startDate) ?? new Date('1969-12-31T00:00:00.000Z').getTime();
+    const stopMs = parseToMillis(endDate) ?? endStopDate.getTime();
+
+    // Déterminer les buckets à interroger en fonction des métadonnées
     let activeKeys = [];
     if (bucketKey && influxInstances[bucketKey]) {
         activeKeys = [bucketKey];
-    } else { // les bucket qui on ce sensor dans instance.metadata (const [measurement, sensor] = sensorRef.split(':');)
-        const [measurement, sensor] = sensorRef.split(':');
+    } else if (actualSensorRef) {
+        const [measurement, sensor] = actualSensorRef.split(':');
         for (const k of Object.keys(influxInstances)) {
             const meta = influxInstances[k].metadata;
-            if (meta && meta[measurement]) {
+            if (!meta) {
+                activeKeys.push(k); // Sécurité si les métadonnées ne sont pas encore chargées
+            } else if (meta[measurement]) {
                 if (!sensor || sensor === '*' || meta[measurement].includes(sensor)) {
                     activeKeys.push(k);
                 }
             }
         }
+    } else {
+        activeKeys = Object.keys(influxInstances);
     }
 
-    if (activeKeys.length === 0) return { firstUtc: null, lastUtc: null };
-
-    // 1. Récupérer le plus petit firstDate depuis le cache des instances
-    let minFirstDate = null;
-    let minFirstTime = Infinity;
-
-    // si startDate est plus grand que minFirstDate, on utilise startDate
-    for (const k of activeKeys) {
-        const bd = influxInstances[k].firstDate;
-        if (bd) {
-            const time = new Date(bd).getTime();
-            if (time < minFirstTime) {
-                minFirstTime = time;
-                minFirstDate = bd;
-            }
-        }
-    }
-    if (new Date(startDate).getTime() > minFirstTime) {
-        minFirstDate = startDate;
+    if (activeKeys.length === 0) {
+        console.log(`${V.error} Aucune donnée trouvée pour ${stationId} [${sensorRef || 'ALL'}]`);
+        return { firstUtc: null, lastUtc: null };
     }
 
-    // 2. Lancer des requêtes isolées pour trouver le last date pour chaque bucket
-    const lastDates = await Promise.all(activeKeys.map(async (k) => {
-        console.log(V.database, `Requête Flux [${k}]`, '===============================', V.Check);
+    const queryBucket = async (k) => {
         const instance = influxInstances[k];
         const query = `
-            from(bucket: "${instance.bucket}")
+            t1 = from(bucket: "${instance.bucket}")
                 |> range(start: ${startRange}, stop: ${stopRange})
-                |> filter(fn: (r) => r.station_id == "${stationId}" and ${filter})
+                |> filter(fn: (r) => ${fluxFilter})
+                |> group()
+                |> first()
+                |> keep(columns: ["_time"])
+
+            t2 = from(bucket: "${instance.bucket}")
+                |> range(start: ${startRange}, stop: ${stopRange})
+                |> filter(fn: (r) => ${fluxFilter})
                 |> group()
                 |> last()
                 |> keep(columns: ["_time"])
+
+            union(tables: [t1, t2])
         `;
         try {
-            console.log(V.database, `Requête Flux [${k}]`, query, V.Check);
-            const res = await executeQuery(query, k);
-            if (res && res.length > 0 && res[0]._time) {
-                return new Date(res[0]._time).getTime();
-            }
+            return await executeQuery(query, k);
         } catch (e) {
-            console.log(V.database, `Erreur lors de l'exécution de la requête Flux [${k}]`, '!!!!!!!!!!!!!!!!!!!', V.Check);
-            // fail silent if bucket has no matching data for this sensor
+            return []; // Fail silent pour les buckets vides ou non concernés
         }
-        return 0;
-    }));
+    };
 
-    // 3. Trouver la plus grande date de fin (lastUtc)
-    const validLastDates = lastDates.filter(t => t > 0);
-    const maxLastTime = validLastDates.length > 0 ? Math.max(...validLastDates) : null;
-    let lastUtc = null;
-    if (maxLastTime) {
-        lastUtc = new Date(maxLastTime).toISOString();
+    // -------------------------------------------------------------------------
+    // PHASE 0 : Buckets ciblés (Stations, Virtuals, Extenders, etc.)
+    // -------------------------------------------------------------------------
+    const phase0Keys = activeKeys.filter(k => k !== 'Archives' && k !== 'Forecasts');
+    const hasArchives = activeKeys.includes('Archives');
+    const hasForecasts = activeKeys.includes('Forecasts');
+
+    const phase0Results = await Promise.all(phase0Keys.map(k => queryBucket(k)));
+
+    let minStr = null;
+    let maxStr = null;
+
+    for (const rows of phase0Results) {
+        for (const row of rows) {
+            const t = row._time;
+            if (t) {
+                if (!minStr || t < minStr) minStr = t;
+                if (!maxStr || t > maxStr) maxStr = t;
+            }
+        }
     }
 
+    const minPhase0 = minStr ? new Date(minStr).getTime() : Infinity;
+    const maxPhase0 = maxStr ? new Date(maxStr).getTime() : -Infinity;
+
+    // -------------------------------------------------------------------------
+    // PHASE 1 : Archives & Forecasts (interrogés uniquement si nécessaire)
+    // -------------------------------------------------------------------------
+    const phase1Keys = [];
+    const TOLERANCE_MS = 3600000; // 1 heure de tolérance d'agrégation
+
+    if (hasArchives) {
+        // Interroger Archives seulement si les données Phase 0 ne couvrent pas le début demandé
+        if (minPhase0 === Infinity || startMs < minPhase0 - TOLERANCE_MS) {
+            phase1Keys.push('Archives');
+        }
+    }
+
+    if (hasForecasts) {
+        // Interroger Forecasts seulement si les données Phase 0 ne couvrent pas la fin demandée
+        if (minPhase0 === Infinity || stopMs > maxPhase0 + TOLERANCE_MS) {
+            phase1Keys.push('Forecasts');
+        }
+    }
+
+    if (phase1Keys.length > 0) {
+        const phase1Results = await Promise.all(phase1Keys.map(k => queryBucket(k)));
+        for (const rows of phase1Results) {
+            for (const row of rows) {
+                const t = row._time;
+                if (t) {
+                    if (!minStr || t < minStr) minStr = t;
+                    if (!maxStr || t > maxStr) maxStr = t;
+                }
+            }
+        }
+    }
+
+    console.log(`${V.info} Fin de queryDateRange pour ${stationId} [${sensorRef || 'ALL'}]`);
+    console.log(`${V.info} Durée : ${(new Date().getTime() - fnStart) / 1000} secondes`);
+
     return {
-        firstUtc: minFirstDate,
-        lastUtc: lastUtc
+        firstUtc: minStr, // Sera null si aucune donnée n'a été trouvée au global
+        lastUtc: maxStr
     };
 }
 
