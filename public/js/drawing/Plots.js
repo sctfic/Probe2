@@ -12,22 +12,21 @@ let APIURL = '';
  * @param {string} url - URL API initiale (longue période)
  */
 async function mainPlots(container, url, startDate = '', endDate = '', stepCount = 1000) {
-    console.log("=== DEBUT mainPlots ===");
-    console.log("Container:", container);
     console.log("URL:", url);
     console.log("startDate:", startDate);
     console.log("endDate:", endDate);
     console.log("stepCount:", stepCount);
     try {
         APIURL = url.split('?')[0];
+        console.log("APIURL:", APIURL);
         const apiResponse = await queryManager.query(APIURL + `?startDate=${startDate}&endDate=${endDate}&stepCount=${stepCount}`);
+        console.log(apiResponse)
 
         // Stocker métadonnées globalement pour les tooltips
         window.plotMetadata = apiResponse.metadata;
-
         // Traiter les données
         const plotData = processData(apiResponse.data, apiResponse.metadata);
-
+        console.log(plotData)
         // EXTRACTION : /query/{station}/Raws/{sensorList}
         const urlParts = APIURL.split('/');
         const stationName = urlParts[urlParts.length - 3];
