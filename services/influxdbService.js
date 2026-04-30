@@ -376,9 +376,9 @@ async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn, sensorRef =
     };
 
     const start = toISO(reqStart, 0);
-    const stop = toISO(reqEnd, 'now()');
+    const stop = toISO(reqEnd, new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString()); // Par défaut 14 jours
     const startMs = parseToMillis(reqStart) || 0;
-    const stopMs = parseToMillis(reqEnd) || Date.now();
+    const stopMs = parseToMillis(reqEnd) || (Date.now() + 14 * 24 * 3600 * 1000);
 
     // Vérifie si un bucket contient le capteur demandé selon ses métadonnées
     const hasSensor = (bucketKey) => {
@@ -454,7 +454,7 @@ async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn, sensorRef =
 
     // Génère une clé unique pour chaque point de donnée
     const getRowKey = (row) => {
-        const parts = [row._time || 'notime'];
+        const parts = [row._time || row.d || row.datetime || 'notime'];
         if (row._measurement) parts.push(row._measurement);
         if (row.sensor) parts.push(row.sensor);
         if (row._field) parts.push(row._field);
@@ -906,7 +906,7 @@ async function queryWindVectors(stationId, sensor, startDate, endDate, intervalS
     `;
 
     try {
-        const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn, sensor, stationId);
+        const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn, 'vector:' + sensor, stationId);
         const merged = resultsArray.flat().sort((a, b) => new Date(a.d) - new Date(b.d));
 
         return merged.map(item => {

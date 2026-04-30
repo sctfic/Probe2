@@ -1,0 +1,21 @@
+:root {
+    --futuristic-cyan: #4DC0E0;
+    --futuristic-magenta: #ff009d;
+    --futuristic-pink: #FF6B6B;
+    --futuristic-green: #39ff14;
+    --futuristic-amber: #ffb347;
+    --futuristic-white: #dddddd;
+    --futuristic-cyan-dim: rgba(0, 255, 255, 0.3);
+    --futuristic-dark: rgb(26, 26, 26);
+    --futuristic-gray: rgb(40, 40, 40, 0.9);
+    --futuristic-panel: rgba(26, 26, 26, 0.97);
+    --futuristic-border: 1px solid rgba(0, 255, 255, 0.18);
+    --primary-dark: rgb(26, 26, 26);
+    /* Anciennement #333333 */
+    --accent-blue: #4DC0E0;
+    --background-white: #FFFFFF;
+    --header-height: 50px;
+    /* Hauteur du navbar */
+    --footer-height: 40px;
+    /* Hauteur du footer en mode normal */
+}

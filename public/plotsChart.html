@@ -1,4 +1,4 @@
-// Probe\plotsChart.html
+<!-- Probe\plotsChart.html -->
 <!DOCTYPE html>
 <html lang="fr">
 
@@ -12,7 +12,8 @@
     <script src="js/drawing/Plots.js"></script>
     <!-- <script src="js/tracker.js"></script> -->
     <style>
-        @import url('css/main.css');
+        @import url('css/var.css');
+        /* @import url('css/main.css'); */
     </style>
     <style>
         body,
@@ -53,6 +54,29 @@
         #chart-container {
             padding-top: 8px;
             padding-right: 0px;
+        }
+
+        .legend {
+            font-size: 11px;
+            fill: #eeeeee;
+        }
+
+        .tooltip {
+            color: white;
+            fill: white;
+            text-align: center;
+            line-height: 16px;
+            cursor: help;
+        }
+
+        .focus text,
+        .legend text,
+        .axis-label,
+        .hover-date,
+        .hover-value,
+        .info-text {
+            font-weight: bold;
+            text-shadow: 1px 0px 1px #333, -1px 0px 1px #333, 0px 1px 1px #333, 0px -1px 1px #333, 1px 1px 1px #333, -1px -1px 1px #333, 1px -1px 1px #333, -1px 1px 1px #333, 2px 0px 2px #333, -2px 0px 2px #333, 0px 2px 2px #333, 0px -2px 2px #333, 2px 2px 2px #333, -2px -2px 2px #333, 2px -2px 2px #333, -2px 2px 2px #333;
         }
 
         /* Styles pour le bouton Fullscreen */
@@ -184,6 +208,63 @@
             opacity: 0.8;
             margin-right: 4px;
         }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 24px;
+            flex-shrink: 0
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--futuristic-cyan-dim);
+            transition: .4s;
+            border: 1px solid #fff;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: #fff;
+            transition: .4s
+        }
+
+        input:checked+.slider {
+            background-color: var(--accent-blue)
+        }
+
+        input:focus+.slider {
+            box-shadow: 0 0 1px var(--accent-blue)
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(18px)
+        }
+
+        .slider.round {
+            border-radius: 34px
+        }
+
+        .slider.round:before {
+            border-radius: 50%
+        }
     </style>
 </head>
 
@@ -193,6 +274,15 @@
             <select id="sensor-select">
                 <option value="" disabled selected>Add Sensor :</option>
             </select>
+        </div>
+        <div class="history-switch-container"
+            style="display: flex; align-items: center; margin-left: 20px; gap: 8px; color: #ccc; font-size: 0.9em; font-weight: bold;">
+            <span id="label-2y" style="color: var(--futuristic-cyan);margin-top:-4px;">2 Ans</span>
+            <label class="switch" title="Basculer entre 2 ans et l'historique complet">
+                <input type="checkbox" id="history-toggle">
+                <span class="slider round"></span>
+            </label>
+            <span id="label-full" style="margin-top:-4px;">Complet</span>
         </div>
     </div>
     <div id="chart-container">
@@ -258,6 +348,25 @@
             let currentSensors = sensorList.split(',').filter(s => s.trim() !== '');
             let allStationSensors = [];
             let selectedSensor = null; // Capteur "verrouillé" par clic
+            let currentStartDate = null;
+            let currentEndDate = null;
+
+            function set2YearsRange() {
+                const end = new Date(); // plus 14 jours, pour les prevision
+                end.setDate(end.getDate() + 14);
+                const start = new Date(); // moins 2 ans
+                start.setFullYear(end.getFullYear() - 2);
+                currentStartDate = start.toISOString().split('T')[0];
+                currentEndDate = end.toISOString().split('T')[0];
+            }
+
+            // Par défaut : 2 dernières années
+            set2YearsRange();
+
+            // Fonction utilitaire pour générer l'URL de données
+            function getQueryUrl(sensorListStr) {
+                return `/query/${station}/Raws/${sensorListStr}`;
+            }
 
             // Fonction pour mettre à jour l'URL sans recharger la page
             function updateUrl() {
@@ -543,11 +652,44 @@
                 if (selectedSensor && !currentSensors.includes(selectedSensor)) {
                     currentSensors.push(selectedSensor);
                     const newSensorStr = updateUrl();
-                    const dataUrl = `/query/${station}/Raws/${newSensorStr}`;
+                    const dataUrl = getQueryUrl(newSensorStr);
                     container.innerHTML = ''; // Clear pour le spinner ou re-draw
                     await drawChart(dataUrl);
                     renderSensorUI();
                 }
+            });
+
+            // Gestionnaire Bouton Historique Complet
+            const historyToggle = document.getElementById('history-toggle');
+            const label2y = document.getElementById('label-2y');
+            const labelFull = document.getElementById('label-full');
+
+            // Synchroniser l'état initial
+            historyToggle.checked = (currentStartDate === null);
+
+            const updateSwitchUI = () => {
+                if (!historyToggle.checked) {
+                    label2y.style.color = 'var(--futuristic-cyan)';
+                    labelFull.style.color = '#ccc';
+                } else {
+                    labelFull.style.color = 'var(--futuristic-cyan)';
+                    label2y.style.color = '#ccc';
+                }
+            };
+
+            historyToggle.addEventListener('change', async (e) => {
+                if (e.target.checked) {
+                    currentStartDate = null;
+                    currentEndDate = null;
+                } else {
+                    set2YearsRange();
+                }
+
+                updateSwitchUI();
+                container.innerHTML = '';
+                initialDataUrl = getQueryUrl(currentSensors.join(','));
+                await drawChart(initialDataUrl);
+                renderSensorUI();
             });
 
             // Récupérer la liste complète des capteurs pour la station
@@ -569,7 +711,7 @@
 
 
             // URL de l'API initiale
-            const initialDataUrl = `/query/${station}/Raws/${sensorList}`;
+            let initialDataUrl = getQueryUrl(sensorList);
             console.log(`Chargement Série Temporelle pour : Station=${station}, Sensors=${sensorList}`);
 
             // Fonction centrale pour (re)tracer le graphique
@@ -582,7 +724,7 @@
                 // Appel de mainPlots qui va vider le conteneur et recréer le SVG
                 // Plots.js définit par défaut height=300, ce qui corrige le problème de hauteur.
                 if (typeof mainPlots === 'function') {
-                    await mainPlots(container, targetUrl);
+                    await mainPlots(container, targetUrl, currentStartDate || '', currentEndDate || '');
 
                     const plotInstance = container.__current_plot_instance;
                     if (plotInstance) {
@@ -639,7 +781,7 @@
             window.addEventListener('resize', () => {
                 clearTimeout(resizeTimeout);
                 resizeTimeout = setTimeout(() => {
-                    const currentUrl = `/query/${station}/Raws/${currentSensors.join(',')}`;
+                    const currentUrl = getQueryUrl(currentSensors.join(','));
                     drawChart(currentUrl);
                 }, 200);
             });
@@ -650,7 +792,7 @@
                 updateFsButton(!!document.fullscreenElement);
                 // Petit délai pour s'assurer que le navigateur a fini la transition
                 setTimeout(() => {
-                    const currentUrl = `/query/${station}/Raws/${currentSensors.join(',')}`;
+                    const currentUrl = getQueryUrl(currentSensors.join(','));
                     drawChart(currentUrl);
                 }, 100);
             });

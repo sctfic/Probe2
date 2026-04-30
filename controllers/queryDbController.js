@@ -352,6 +352,7 @@ exports.getQueryRaw = async (req, res) => {
 exports.getQueryRaws = async (req, res) => {
     const { stationId, sensorRefs: sensorRefsStr } = req.params;
     const { startDate, endDate, stepCount: stepCountStr } = req.query;
+    console.log(`${V.info} getQueryRaws - stationId: ${stationId}, startDate: ${startDate}, endDate: ${endDate}`);
     const stepCount = stepCountStr ? parseInt(stepCountStr, 10) : 100000;
     let sensorRefs = sensorRefsStr.split(',');
     // Retirer les doublons et les valeurs vides
