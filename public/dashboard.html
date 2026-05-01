@@ -148,8 +148,13 @@
         }
 
         @keyframes rotate-laser {
-            0% { --angle: 0deg; }
-            100% { --angle: 360deg; }
+            0% {
+                --angle: 0deg;
+            }
+
+            100% {
+                --angle: 360deg;
+            }
         }
 
         .panel {
@@ -187,7 +192,7 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: 
+            background:
                 /* Top-left corner */
                 linear-gradient(var(--futuristic-cyan), var(--futuristic-cyan)) 0 0 / 12px 2px no-repeat,
                 linear-gradient(var(--futuristic-cyan), var(--futuristic-cyan)) 0 0 / 2px 12px no-repeat,
@@ -639,6 +644,15 @@
         }
     </style>
 </head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XG4EGKZK38"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-XG4EGKZK38');
+</script>
 
 <body>
 
