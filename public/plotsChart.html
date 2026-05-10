@@ -790,19 +790,30 @@
             window.addEventListener('resize', () => {
                 clearTimeout(resizeTimeout);
                 resizeTimeout = setTimeout(() => {
-                    const currentUrl = getQueryUrl(currentSensors.join(','));
-                    drawChart(currentUrl);
+                    const plotInstance = container.__current_plot_instance;
+                    if (plotInstance && typeof plotInstance.resize === 'function') {
+                        container.style.width = window.innerWidth + 'px';
+                        plotInstance.resize();
+                    } else {
+                        const currentUrl = getQueryUrl(currentSensors.join(','));
+                        drawChart(currentUrl);
+                    }
                 }, 200);
             });
 
             // 4. Gestionnaire spécifique pour le changement de plein écran
-            // On retrace mainPlots comme demandé explicitement
             document.addEventListener('fullscreenchange', () => {
                 updateFsButton(!!document.fullscreenElement);
                 // Petit délai pour s'assurer que le navigateur a fini la transition
                 setTimeout(() => {
-                    const currentUrl = getQueryUrl(currentSensors.join(','));
-                    drawChart(currentUrl);
+                    const plotInstance = container.__current_plot_instance;
+                    if (plotInstance && typeof plotInstance.resize === 'function') {
+                        container.style.width = window.innerWidth + 'px';
+                        plotInstance.resize();
+                    } else {
+                        const currentUrl = getQueryUrl(currentSensors.join(','));
+                        drawChart(currentUrl);
+                    }
                 }, 100);
             });
         });

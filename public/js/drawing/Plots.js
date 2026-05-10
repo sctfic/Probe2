@@ -972,6 +972,55 @@ class TimeSeriesPlot {
         }
     }
 
+    // Redimensionnement dynamique
+    resize() {
+        this.width = window.innerWidth;
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        this.height = isMobile ? 200 : 300;
+        this.innerWidth = this.width - this.margin.left - this.margin.right;
+        this.innerHeight = this.height - this.margin.top - this.margin.bottom;
+
+        this.svg.attr("width", this.width).attr("height", this.height);
+        this.svg.select("defs").select("rect")
+            .attr("width", this.innerWidth).attr("height", this.innerHeight);
+
+        this.xScale.range([0, this.innerWidth]);
+        
+        this.g.select(".axis-x")
+            .attr("transform", `translate(0,${this.innerHeight})`);
+
+        Object.entries(this.yScales).forEach(([groupName, scaleInfo]) => {
+            scaleInfo.scale.range([this.innerHeight, 0]);
+            
+            const isLeft = scaleInfo.position === 'left';
+            const transform = isLeft ? `translate(0,0)` : `translate(${this.innerWidth},0)`;
+            
+            this.g.select(`.axis-${groupName}`)
+                .attr("transform", transform);
+                
+            const labelX = (isLeft ? 0 : this.innerWidth) + (scaleInfo.orientation === 'left' ? -20 : 20);
+            this.g.select(`.axis-label-${groupName}`)
+                .attr("transform", `translate(${labelX},-2)`);
+        });
+
+        if (this.brush) {
+            this.brush.extent([[0, 0], [this.innerWidth, this.innerHeight]]);
+            this.g.select(".brush").call(this.brush);
+        }
+
+        this.updateAxes();
+        this.createNowLine();
+        this.updateLines(false);
+        this.updateGradients();
+        
+        this.g.select(".legend")
+            .attr("transform", `translate(${this.innerWidth - 150}, 20)`);
+            
+        const isFullscreenPage = !!document.getElementById('fs-btn');
+        d3.select(this.container).select(".plot-controls")
+            .style("right", isFullscreenPage ? "50px" : "5px");
+    }
+
     // Reset le zoom à la vue d'origine
     resetZoom() {
         this.data = [...this.originalData];

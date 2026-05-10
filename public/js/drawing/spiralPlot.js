@@ -219,12 +219,11 @@ class SpiralePlot {
     }
 
     updateDimensionsFromRect() {
-        this.rect = this.container.getBoundingClientRect();
-        this.width = this.rect.width || 800;
-        this.height = (this.rect.height > 50) ? this.rect.height : 350;
+        this.width = this.container.clientWidth || 800;
+        this.height = (this.container.clientHeight > 50) ? this.container.clientHeight : 350;
 
         // Calcul du positionnement basé sur le ratio
-        this.ratio = Math.round((this.rect.width / this.rect.height) * 100) / 100;
+        this.ratio = Math.round((this.width / this.height) * 100) / 100;
         this.positionment = this.ratio > 2 ? 'Horizontal' : 'Vertical';
         console.log("Layout:", this.positionment, "Ratio:", this.ratio, "Dim:", this.width, "x", this.height);
     }
@@ -424,10 +423,14 @@ class SpiralePlot {
         let mainPanelSize;
         if (isHorizontal) {
             mainPanelSize = this.height;
+            console.log('isHorizontal', this.height, this.width);
         } else {
             const targetHeight = this.height * 0.60;
             mainPanelSize = Math.min(targetHeight, this.width);
+            console.log('isVertical', this.height, this.width);
         }
+        console.log('mainPanelSize', mainPanelSize);
+
 
         // Création Main Panel
         this.wrapper = container.append("div")
