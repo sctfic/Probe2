@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'Probe',
-      version: '0.5.02',
+      version: '0.5.12',
       script: 'app.js',
       watch: false,
       ignore_watch: [
@@ -10,18 +10,17 @@ module.exports = {
         //     ou
         // pm2 restart 0
         'node_modules',
-        './node_modules',
-        './config/stations',
-        './config/compositeProbes.json',
-        './config/Units.json',
-        './config/credential.json',
-        './public',
-        './docs',
-        './.git',
-        './logs/*', // Ajout explicite pour ignorer tout le contenu du répertoire logs
+        'config/stations',
+        'config/compositeProbes.json',
+        'config/Units.json',
+        'config/credential.json',
+        'public',
+        'docs',
+        '.git',
+        'logs/*', // Ajout explicite pour ignorer tout le contenu du répertoire logs
         '*.log',    // Ignorer tous les fichiers .log à la racine
         '**/*.log',  // Ignorer tous les fichiers .log dans tous les sous-répertoires
-        './visits'  // Ignorer
+        'visits'  // Ignorer
       ],
       max_memory_restart: '300M',
       instances: 1,

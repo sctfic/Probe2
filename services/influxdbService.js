@@ -43,7 +43,6 @@ function initializeBucket(key, config) {
                 console.log(`${V.warning} Aucune donnée trouvée pour le bucket '${key}'.`);
             }
         }).catch(err => console.error(`${V.error} Erreur fetchFirstDate pour ${key}:`, err));
-
     } catch (error) {
         console.error(`${V.error} Erreur lors de l'initialisation du bucket InfluxDB '${key}':`, error);
     }
@@ -113,6 +112,7 @@ function loadAndInitialize() {
         };
         initializeBucket(key, config);
     });
+
 }
 
 loadAndInitialize(); // Initialisation au démarrage
@@ -283,10 +283,8 @@ async function getInfluxMetadata(stationId = null, daysBack = 100) {
                     |> keep(columns: ["_measurement", "sensor"])
                     |> distinct(column: "sensor")
             `;
-
             const allRows = await executeQuery(query, bucketKey);
             const bucketStructure = {};
-
             allRows.forEach(row => {
                 const measurement = row._measurement;
                 const sensor = row.sensor;
