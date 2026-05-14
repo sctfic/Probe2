@@ -19,22 +19,28 @@
         "measurement": "temperature"
     },
     "AirWater_calc": {
-        "label": "masse d'H2O dans l'air",
+        "label": "masse d'H2O dans l'air interieur",
         "comment": "masse d'eau par mettre cube d'air (ou g/l)",
-        "fnCalc": "(data) => waterInAir( data['temperature:outTemp'], data['humidity:outHumidity'], data['pressure:barometer']\n).g_per_m3",
+        "fnCalc": "(data) => waterInAir( data['temperature:outTemp'], data['humidity:inHumidity'], data['pressure:barometer']\n).g_per_m3",
         "dataNeeded": [
             "temperature:outTemp",
-            "humidity:outHumidity",
+            "humidity:inHumidity",
             "pressure:barometer"
         ],
         "scriptJS": [
             "/js/composite/AirWater.js"
         ],
         "period": 604800,
-        "groupUsage": "1/ Outdoor",
+        "groupUsage": "Composites",
         "groupCustom": "Composites",
         "sensorDb": "density:AirWater_calc",
-        "measurement": "density"
+        "measurement": "density",
+        "currentMap": {
+            "d": "timestamp",
+            "temperature:outTemp": "outTemp",
+            "humidity:inHumidity": "inHumidity",
+            "pressure:barometer": "barometer"
+        }
     },
     "PowerPannelByTemp_calc": {
         "label": "Power of Pannel",

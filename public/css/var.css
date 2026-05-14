@@ -18,4 +18,5 @@
     /* Hauteur du navbar */
     --footer-height: 40px;
     /* Hauteur du footer en mode normal */
+    --station-selector-height: 48px;
 }

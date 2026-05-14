@@ -475,6 +475,7 @@
             </div>
         </div>
     </div>
+    <div class="main-viewport">
     <main id="content-container" class="content-container">
         <section id="dashboard-section" class="content-section active">
             <!-- Contrôles de filtre réorganisés -->
@@ -542,6 +543,7 @@
 
 
     </main>
+    </div>
     <footer class="footer">
         <div id="d3-chart-container" class="chart-container"></div>
         <div class="footer-bottom" id="footer-bottom-info">
@@ -682,6 +684,30 @@
                     const h = screen.height;
                     const features = `fullScreen=yes,width=${w},height=${h},top=0,left=0,toolbar=no,menubar=no,scrollbars=no,resizable=no,location=no,status=no`;
                     window.open(`dashboard.html${stationParam}`, '_blank', features);
+                });
+            }
+
+            // --- Passage en plein écran au double clic sur le header ---
+            const headerElement = document.querySelector('header.navbar');
+            if (headerElement) {
+                headerElement.title = "Double-cliquez pour basculer le plein écran";
+                headerElement.addEventListener('dblclick', (e) => {
+                    // On vérifie qu'on n'a pas double-cliqué sur le logo (qui a déjà une action au clic)
+                    // ou sur un élément interactif comme le login-btn etc.
+                    if (e.target.closest('.logo') || e.target.closest('.nav-menu') || e.target.closest('#login-btn') || e.target.closest('#logout-btn')) {
+                        // On laisse passer si on veut, mais ici on veut probablement que ça marche partout sauf si ça gêne.
+                        // En fait, le dblclick est assez spécifique.
+                    }
+
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(err => {
+                            console.error(`Erreur lors du passage en plein écran : ${err.message}`);
+                        });
+                    } else {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        }
+                    }
                 });
             }
 
@@ -893,7 +919,12 @@
 
                 const isDashboard = activeSectionId === 'dashboard-section';
                 // seulement visible sur dashboard et stations
-                stationSelectorDiv.style.display = ['dashboard-section', 'stations-section'].includes(activeSectionId) ? 'flex' : 'none';
+                const showSelector = ['dashboard-section', 'stations-section'].includes(activeSectionId);
+                stationSelectorDiv.style.display = showSelector ? 'flex' : 'none';
+
+                // On utilise une classe sur le body pour laisser le CSS gérer la hauteur du viewport
+                document.body.classList.toggle('has-station-selector', showSelector);
+
 
                 // Gérer la visibilité du footer de détails
                 if (!isDashboard) {

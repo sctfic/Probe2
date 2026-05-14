@@ -822,6 +822,7 @@ async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url =
 
     // ── Fonctions de highlight/reset réutilisables ──
     function highlightArrow(arrowSel, d) {
+        // arrowSel.raise(); // Permet de mettre la flèche au-dessus des autres
         arrowSel.select(".hair")
             .attr("stroke", "#e74c3c")
             .attr("stroke-width", 2)

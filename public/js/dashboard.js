@@ -956,15 +956,15 @@ function showDetailsFooter(keys) {
     }
 
     const detailsFooter = document.querySelector('footer.footer');
-    const mainContent = document.getElementById('content-container');
+    const mainViewport = document.querySelector('.main-viewport');
     const contentContainer = document.getElementById('d3-chart-container');
-    if (!detailsFooter || !contentContainer || !mainContent) return;
+    if (!detailsFooter || !contentContainer || !mainViewport) return;
 
     const keysArray = Array.isArray(keys) ? keys : [keys];
     if (keysArray.length === 0) return;
 
     const footerOpenHeight = '40vh';
-    mainContent.style.marginBottom = footerOpenHeight;
+    mainViewport.style.bottom = footerOpenHeight;
 
     const items = keysArray.map(key => allConditions.find(c => c.key === key)).filter(Boolean);
     console.log(items)
@@ -1024,12 +1024,11 @@ function showDetailsFooter(keys) {
 
 function hideDetailsFooter() {
     const detailsFooter = document.querySelector('footer.footer');
-    const mainContent = document.getElementById('content-container');
+    const mainViewport = document.querySelector('.main-viewport');
     const contentContainer = document.getElementById('d3-chart-container');
-    if (!detailsFooter || !contentContainer || !mainContent) return;
+    if (!detailsFooter || !contentContainer || !mainViewport) return;
 
-    const footerClosedHeight = '40px';
-    mainContent.style.marginBottom = footerClosedHeight;
+    mainViewport.style.bottom = 'var(--footer-height)';
 
     // Fonction pour nettoyer le contenu
     const cleanup = (e) => {
