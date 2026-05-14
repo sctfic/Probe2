@@ -42,7 +42,7 @@ This document describes the API endpoints and the internal logic for data handli
 - `GET /query/:stationId/Raws/:sensorRefs`: Raw data for multiple sensors.
 - `GET /query/:stationId/Range/:sensorRef`: Start and end dates for a sensor.
 - `GET /query/:stationId/WindRose`: Wind rose data.
-- `GET /query/:stationId/WindVectors/:sensorRef`: Wind vector data.
+- `GET /query/:stationId/Vectors/:sensorRef`: Wind vector data.
 
 ### Historical & Forecast
 - `GET /query/:stationId/dbexpand`: Backfill missing historical data (Open-Meteo).
@@ -91,4 +91,4 @@ When requesting data for a plot (e.g., `Raw` or `Candle`), the system calculates
 ### 3. Visualization Formats
 - **Raw**: Linear data points.
 - **Candle**: OHLC (Open, High, Low, Close) plus Average and Count for candlestick charts.
-- **WindRose/WindVectors**: Specialized vector math for wind direction and speed visualization.
+- **WindRose/Vectors**: Specialized vector math for wind direction and speed visualization.

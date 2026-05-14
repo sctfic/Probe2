@@ -382,7 +382,7 @@ async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn, sensorRef =
     const hasSensor = (bucketKey) => {
         if (!influxInstances[bucketKey]) return false;
         if (!sensorRef) {
-            console.log(V.warning, ` Capteur non défini, on va interroger tous les buckets`);
+            console.log(V.warning, `Aucun capteur specifie, on interrogera tous les buckets`);
             return true;
         }
 
@@ -406,6 +406,8 @@ async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn, sensorRef =
         if (hasSensor(k)) {
             console.log(V.info, `Données du bucket ${k} ajoutées à la phase 0`);
             phase0Plan.push({ key: k, bucket: influxInstances[k].bucket, start, stop });
+        } else {
+            console.log(V.warning, `Données du bucket ${k} non ajoutées à la phase 0`);
         }
     });
 
@@ -882,7 +884,7 @@ function parserWindRose(data) {
  * @returns {Promise<Array>} Un tableau des données pour le graphique du vent.
  */
 
-async function queryWindVectors(stationId, sensor, startDate, endDate, intervalSeconds = 3600) {
+async function queryVectors(stationId, sensor, startDate, endDate, intervalSeconds = 3600) {
     const buildFluxFn = (bucket, start, stop) => `
     import "math"
     from(bucket: "${bucket}")
@@ -1009,7 +1011,7 @@ module.exports = {
     queryRaw,
     queryRaws,
     queryWindRose,
-    queryWindVectors,
+    queryVectors,
     queryCandle,
     executeQuery,
     queryLast,

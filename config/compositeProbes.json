@@ -15,7 +15,7 @@
         "period": 604800,
         "groupUsage": "1/ Outdoor",
         "groupCustom": "Composites",
-        "sensorDb": "THSW_calc",
+        "sensorDb": "temperature:THSW_calc",
         "measurement": "temperature"
     },
     "AirWater_calc": {
@@ -33,59 +33,91 @@
         "period": 604800,
         "groupUsage": "1/ Outdoor",
         "groupCustom": "Composites",
-        "sensorDb": "AirWater_calc",
+        "sensorDb": "density:AirWater_calc",
         "measurement": "density"
     },
-    "SUN_V_calc": {
-        "label": "Angle vertical du soleil",
-        "comment": "calcul de la phase du soleil",
-        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n    const V = SunCalc.getPosition(new Date(data.d), lat, lon).altitudeDegrees;\n        return V > 0 ? Math.round(V*10)/10 : 0;\n}",
+    "PowerPannelByTemp_calc": {
+        "label": "Power of Pannel",
+        "comment": "Puissance fournie par les panneaux, corrigée du facteur de température d'usure et salissure",
+        "fnCalc": "/**\n * ESTIME LA PUISSANCE PRODUITE PAR 1M2 DE PANNEAUX SOLAIRES\n * --------------------------------------------------------\n * Cette fonction modélise le comportement d'un panneau fixe incliné\n * en utilisant les données d'une station météo Davis Vantage Pro2.\n * * @param {Object} data - Données de la station (incluant l'irradiation et la température)\n * @param {number} lon - Longitude du site (définie par l'utilisateur)\n * @param {number} lat - Latitude du site (définie par l'utilisateur)\n * @param {number} alt - Altitude du site (définie par l'utilisateur)\n * @returns {string} - Puissance estimée en Watts (formatée à 2 décimales)\n */\n(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n    \n    // --- 1. CONFIGURATION DU MATÉRIEL ---\n    const PANEL_AZIMUTH = 157.5 * (Math.PI / 180); // Orientation Sud-Sud-Est (convertie en radians)\n    const PANEL_TILT = 30 * (Math.PI / 180);       // Inclinaison de 30° (optimale pour les latitudes moyennes)\n    const efficiency = 0.18;                       // Rendement nominal du panneau (18%)\n    const tempCoeff = -0.004;                      // Perte de 0.4% par degré au-dessus de 25°C\n    const installDate = \"2010-01-01\";              // Date de mise en service pour le calcul d'usure\n    const annualDegradation = 0.005;               // Perte de rendement annuelle (0.5%)\n    const lastCleaningDate = \"2024-04-15\";         // Date du dernier entretien\n    const dailySoilingRate = 0.0001;               // Accumulation quotidienne de poussière (0.01%/jour)\n\n    // SEUIL CRITIQUE : En dessous de 30 W/m2 reçus sur le panneau, l'onduleur ne démarre pas\n    const MIN_IRRADIANCE_THRESHOLD = 30.0; \n\n    // --- 2. RÉCUPÉRATION DES DONNÉES CAPTEURS ---\n    const G_horiz = data['irradiance:solar'];        // Irradiation globale horizontale (W/m2)\n    const T_ext = data['temperature:outTemp'] - 273.15; // Conversion Kelvin vers Celsius\n    const now = new Date(data.d);                    // Horodatage précis de la mesure\n\n    // --- 3. CALCUL DE LA POSITION DU SOLEIL ---\n    // Utilisation de SunCalc pour obtenir l'angle exact du soleil au moment de la mesure\n    const sunPos = SunCalc.getPosition(now, lat, lon);\n    const sunAlt = sunPos.altitude;    // Hauteur du soleil au-dessus de l'horizon (radians)\n    const sunAzimuth = sunPos.azimuth; // Direction du soleil (radians)\n\n    // --- 4. GESTION DES LIMITES (NUIT / HORIZON) ---\n    // Si le soleil est sous l'horizon ou trop bas (2°), l'épaisseur atmosphérique bloque tout rayonnement utile\n    if (sunAlt < (2 * Math.PI / 180)) return 0;\n\n    // --- 5. CALCUL DE L'ANGLE D'INCIDENCE (AOI) ---\n    // On calcule l'angle entre les rayons du soleil et la normale (perpendiculaire) du panneau.\n    // Formule trigonométrique de projection :\n    const cosAOI = Math.cos(sunAlt) * Math.sin(PANEL_TILT) * Math.cos(sunAzimuth - PANEL_AZIMUTH) \n                 + Math.sin(sunAlt) * Math.cos(PANEL_TILT);\n\n    // Si cosAOI <= 0, le soleil est derrière le panneau (ombre propre)\n    if (cosAOI <= 0) return 0;\n\n    // --- 6. PROJECTION DE L'IRRADIATION SUR LE PLAN INCLINÉ ---\n    // On convertit l'irradiation \"à plat\" du pyranomètre en irradiation \"reçue\" par le panneau incliné.\n    let G_inc = G_horiz * (cosAOI / Math.sin(sunAlt));\n    \n    // Limitation de sécurité : l'irradiation projetée ne peut pas dépasser physiquement un certain ratio\n    // Cela évite les pics mathématiques infinis au lever/coucher du soleil (quand sin(sunAlt) tend vers 0)\n    G_inc = Math.min(G_inc, G_horiz * 1.5); \n\n    // --- 7. APPLICATION DU SEUIL D'IRRADIATION ---\n    // Si l'énergie reçue est trop faible pour exciter les cellules ou réveiller l'onduleur\n    if (G_inc < MIN_IRRADIANCE_THRESHOLD) return 0;\n\n    // --- 8. CALCUL DES FACTEURS DE PERTES ENVIRONNEMENTALES ---\n    \n    // A. Salissure (Soiling) : Dépend du temps écoulé depuis le dernier nettoyage\n    const daysSinceCleaning = Math.max(0, (now - new Date(lastCleaningDate)) / (1000 * 3600 * 24));\n    const soilingFactor = Math.max(0.80, 1 - (daysSinceCleaning * dailySoilingRate)); // Plafonné à 20% de perte\n    \n    // B. Vieillissement (Age) : Dégradation chimique lente du silicium au fil des ans\n    const ageInYears = Math.max(0, (now - new Date(installDate)) / (1000 * 60 * 60 * 24 * 365.25));\n    const ageFactor = Math.max(0.7, 1 - (ageInYears * annualDegradation)); // Plafonné à 30% de perte (durée de vie standard)\n\n    // --- 9. CORRECTION THERMIQUE ---\n    // Les panneaux perdent de l'efficacité en chauffant.\n    // On estime la température de la cellule (T_cell) via le modèle NOCT (Nominal Operating Cell Temperature)\n    const T_cell = T_ext + (G_inc * (25 / 800)); // Le panneau est environ 25°C plus chaud que l'air à 800W/m2\n    const thermalCorrection = 1 + tempCoeff * (T_cell - 25); // Correction basée sur l'écart à la température de référence (25°C)\n\n    // --- 10. CALCUL FINAL DE LA PUISSANCE ---\n    // Puissance = Énergie incidente * Surface (1m2) * Rendement * Corrections\n    let power = G_inc * efficiency * thermalCorrection * ageFactor * soilingFactor;\n\n    // Retourne le résultat final (Watts par m2)\n    return Math.round(Math.max(0, power) * 100) / 100;\n}",
         "dataNeeded": [
-            "pressure:barometer"
-        ],
-        "scriptJS": [
-            "/js/composite/sunCalc.js"
-        ],
-        "period": 2592000,
-        "groupUsage": "2/ Sun",
-        "groupCustom": "Composites",
-        "sensorDb": "SUN_V_calc",
-        "measurement": "angle"
-    },
-    "MOON_calc": {
-        "label": "Phase de la lune",
-        "comment": "calcul de la phase de la lune",
-        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n    const P = SunCalc.getMoonPosition(\n    new Date(data.d), lat, lon).altitudeDegrees;\n    return Math.round(P*10)/10;\n}",
-        "dataNeeded": [
-            "pressure:barometer"
-        ],
-        "scriptJS": [
-            "/js/composite/sunCalc.js"
-        ],
-        "period": 2592000,
-        "groupUsage": "2/ Sun",
-        "groupCustom": "Composites",
-        "sensorDb": "MOON_calc",
-        "measurement": "angle"
-    },
-    "test_calc": {
-        "label": "Delta InOut",
-        "comment": "temp In - Out",
-        "fnCalc": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\nconst delta = data['temperature:ventiConnect_fan'] - data['temperature:inTemp'];\n      if ( delta > 1 ) {\n          // chauffage disponible\n          return delta * 100 ;\n      }\n}",
-        "dataNeeded": [
-            "temperature:ventiConnect_fan",
-            "temperature:inTemp"
+            "irradiance:solar",
+            "temperature:outTemp"
         ],
         "currentMap": {
             "d": "timestamp",
-            "temperature:ventiConnect_fan": "ventiConnect_fan",
-            "temperature:inTemp": "inTemp"
+            "irradiance:solar": "solar",
+            "temperature:outTemp": "outTemp"
         },
-        "scriptJS": [],
+        "scriptJS": [
+            "/js/composite/sunCalc.js"
+        ],
+        "period": 604799,
+        "sensorDb": "irradiance:PowerPannelByTemp_calc",
+        "measurement": "irradiance",
+        "groupCustom": "Composites",
+        "groupUsage": "0/ Solaire"
+    },
+    "PerfecPannel_calc": {
+        "label": "Perfect panel",
+        "comment": "Panneau neuf sans dégradation thermique",
+        "fnCalc": "/**\n * Estime la puissance produite en tenant compte de l'usure temporelle\n * @param {number} G_horiz - Irradiation pyranomètre (W/m2)\n * @param {number} T_ext - Température extérieure (°C)\n * @param {number} tilt - Inclinaison (degrés)\n * @param {number} efficiency - Rendement nominal (ex: 0.17)\n * @param {number} tempCoeff - Coeff de température (ex: -0.004)\n * @param {string} installDate - Date d'installation (Format \"YYYY-MM-DD\")\n * @param {number} annualDegradation - Perte annuelle (défaut 0.005 pour 0.5%)\n * @returns {Object}\n * Calcul de la puissance produite avec correction d'angle d'incidence (SunCalc)\n */\n(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n    // Import ou référence à SunCalc (assumé disponible dans l'environnement)\n    // Azimut panneau : Sud = 180°, SSE = 157.5°\n    const PANEL_AZIMUTH = 157.5 * (Math.PI / 180); \n    const PANEL_TILT = 30 * (Math.PI / 180);\n    \n    const G_horiz = data['irradiance:solar'];\n    const T_ext = data['temperature:outTemp'] - 273.15; // Kelvin to Celsius\n    \n    const efficiency = 0.18;\n    const tempCoeff = -0.000;\n    const installDate = \"2010-01-01\";\n    const annualDegradation = 0.000;\n\n    // 1. Position du soleil via SunCalc\n    const now = new Date(data.d);\n    const sunPos = SunCalc.getPosition(now, lat, lon);\n    const sunAzimuth = sunPos.azimuth; // Radian (Sud = 0, diverge de SunCalc standard selon version)\n    // Note: Dans suncalc3, l'azimut 0 est souvent le Sud ou le Nord selon la config.\n    // Ajustons pour que le calcul d'angle d'incidence soit robuste :\n    const sunAlt = sunPos.altitude;\n\n    // 2. Limite tangentielle et nuit\n    // Si le soleil est sous l'horizon (ou très proche), prod = 0\n    if (sunAlt < (2 * Math.PI / 180)) return 0;\n\n    // 3. Calcul de l'Angle d'Incidence (AOI)\n    // Formule : cos(AOI) = cos(alpha)*sin(beta)*cos(psi_s - psi_p) + sin(alpha)*cos(beta)\n    // alpha = altitude soleil, beta = inclinaison panneau, psi = azimut\n    const cosAOI = Math.cos(sunAlt) * Math.sin(PANEL_TILT) * Math.cos(sunAzimuth - PANEL_AZIMUTH) \n                 + Math.sin(sunAlt) * Math.cos(PANEL_TILT);\n\n    // Si cosAOI <= 0, le soleil est derrière le panneau\n    if (cosAOI <= 0) return 0;\n\n    // 4. Estimation de l'irradiation sur le plan incliné (G_inc)\n    // On utilise le ratio de projection : G_inc = G_horiz * (cosAOI / sin(sunAlt))\n    let G_inc = G_horiz * (cosAOI / Math.sin(sunAlt));\n    \n    // Limitation physique : G_inc ne peut pas être infinie au lever du soleil\n    G_inc = Math.min(G_inc, G_horiz * 1.5); \n\n    // 5. Vieillissement\n    const msPerYear = 1000 * 60 * 60 * 24 * 365.25;\n    const ageInYears = Math.max(0, (now - new Date(installDate)) / msPerYear);\n    const ageFactor = Math.max(0.7, 1 - (ageInYears * annualDegradation));\n\n    // 6. Correction thermique (NOCT)\n    const T_cell = T_ext + (G_inc * (25 / 800)); // (45-20)/800 = 25/800\n    const thermalCorrection = 1 + tempCoeff * (T_cell - 25);\n\n    // 7. Calcul Final\n    let power = G_inc * efficiency * thermalCorrection * ageFactor;\n\n    return Math.round(Math.max(0, power) * 100) / 100;\n}",
+        "dataNeeded": [
+            "irradiance:solar",
+            "temperature:outTemp"
+        ],
+        "currentMap": {
+            "d": "timestamp",
+            "irradiance:solar": "solar",
+            "temperature:outTemp": "outTemp"
+        },
+        "scriptJS": [
+            "/js/composite/sunCalc.js"
+        ],
         "period": 604800,
-        "sensorDb": "test_calc",
-        "measurement": "None",
-        "groupCustom": "CompositesNew",
+        "sensorDb": "irradiance:PerfecPannel_calc",
+        "measurement": "irradiance",
+        "groupCustom": "Composites",
+        "groupUsage": "0/ Solaire"
+    },
+    "MoonTrajectory_calc": {
+        "label": "Course de la Lune",
+        "comment": "Course de la Lune par rapport au sud",
+        "fnCalc": "/**\n * Calcule la projection de la lune sur un plan vertical face à l'utilisateur (Regard vers le Sud)\n * @param {Object} data - Objet contenant la date (data.d)\n * @param {number} lon - Longitude du lieu\n * @param {number} lat - Latitude du lieu\n * @param {number} alt - Altitude du lieu (en mètres, optionnel pour la réfraction)\n * @returns {Object} Coordonnées Ux, Vy et direction\n */\n(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n    // ── 1. Position solaire via SunCalc ──────────────────────────────\n    // azimuth  : radians, N=0, sens horaire (E=π/2, S=π, W=3π/2)\n    // altitude : radians, élévation au-dessus de l'horizon\n    const pos = SunCalc.getMoonPosition(new Date(data.d), lat, lon);\n\n    const az = pos.azimuth;   // [rad]\n    const el = pos.altitude;  // [rad]\n\n    // ── 2. Vecteur lune unitaire en repère ENU ────────────────────\n    //   S_E = cos(el) · sin(az)   — East\n    //   S_N = cos(el) · cos(az)   — North  (profondeur, non utilisée ici)\n    //   S_U = sin(el)             — Up\n\n    // ── 3. Projection sur le plan vertical (Est–Up) ──────────────────\n    //   Ux : composante horizontale sur le mur  (← W  /  E →)\n    //   Vy : composante verticale sur le mur    (↑ Up)\n    const Ux = Math.cos(el) * Math.sin(az);   // ∈ [-1, 1]\n    const Vy = -Math.sin(el);                  // ∈ [-1, 1]\n\n    // ── 4. Direction azimutale en degrés ─────────────────────────────\n    const dir = pos.azimuthDegrees;           // [°]  N=0, E=90, S=180, W=270\n\n    return {\n        \"d\":   data.d,\n        \"Ux\":  Ux,\n        \"Vy\":  Vy,\n        \"dir\": dir,\n        \"val\": pos.distance.toFixed(0) + 'km'\n    };\n}",
+        "dataNeeded": [
+            "pressure:barometer"
+        ],
+        "currentMap": {
+            "d": "timestamp",
+            "pressure:barometer": "barometer"
+        },
+        "scriptJS": [
+            "/js/composite/sunCalc.js"
+        ],
+        "period": 2419200,
+        "sensorDb": "vector:MoonTrajectory_calc",
+        "measurement": "vector",
+        "groupCustom": "Composites",
+        "groupUsage": "Composites"
+    },
+    "SunTrajectory_calc": {
+        "label": "courses du soleil",
+        "comment": "Course du soleil par rapport au sud",
+        "fnCalc": "/**\n * Calcule la projection du soleil sur un plan vertical face à l'utilisateur (Regard vers le Sud)\n * @param {Object} data - Objet contenant la date (data.d)\n * @param {number} lon - Longitude du lieu\n * @param {number} lat - Latitude du lieu\n * @param {number} alt - Altitude du lieu (en mètres, optionnel pour la réfraction)\n * @returns {Object} Coordonnées Ux, Vy et direction\n */\n(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n    // ── 1. Position solaire via SunCalc ──────────────────────────────\n    // azimuth  : radians, N=0, sens horaire (E=π/2, S=π, W=3π/2)\n    // altitude : radians, élévation au-dessus de l'horizon\n    const pos = SunCalc.getPosition(new Date(data.d), lat, lon);\n\n    const az = pos.azimuth;   // [rad]\n    const el = pos.altitude;  // [rad]\n\n    // ── 2. Vecteur solaire unitaire en repère ENU ────────────────────\n    //   S_E = cos(el) · sin(az)   — East\n    //   S_N = cos(el) · cos(az)   — North  (profondeur, non utilisée ici)\n    //   S_U = sin(el)             — Up\n\n    // ── 3. Projection sur le plan vertical (Est–Up) ──────────────────\n    //   Ux : composante horizontale sur le mur  (← W  /  E →)\n    //   Vy : composante verticale sur le mur    (↑ Up)\n    const Ux = Math.cos(el) * Math.sin(az);   // ∈ [-1, 1]\n    const Vy = -Math.sin(el);                  // ∈ [-1, 1]\n\n    // ── 4. Direction azimutale en degrés ─────────────────────────────\n    const dir = pos.azimuthDegrees;           // [°]  N=0, E=90, S=180, W=270\n\n    return {\n        \"d\":   data.d,\n        \"Ux\":  Ux,\n        \"Vy\":  Vy,\n        \"dir\": dir\n    };\n}",
+        "dataNeeded": [
+            "pressure:barometer"
+        ],
+        "currentMap": {
+            "d": "timestamp",
+            "pressure:barometer": "barometer"
+        },
+        "scriptJS": [
+            "/js/composite/sunCalc.js"
+        ],
+        "period": 172800,
+        "sensorDb": "vector:SunTrajectory_calc",
+        "measurement": "vector",
+        "groupCustom": "Composites",
         "groupUsage": "Composites"
     }
 }

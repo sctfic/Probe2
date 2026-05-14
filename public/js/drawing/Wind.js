@@ -15,13 +15,23 @@ function createRosePlot(data, metadata, id) {
     }
     container.innerHTML = '';
 
-    const speedSensorKey = metadata.measurement.speed?.[0];
-    const speedUnit = speedSensorKey && metadata.toUserUnit[speedSensorKey]?.userUnit
-        ? metadata.toUserUnit[speedSensorKey].userUnit
-        : 'm/s';
-    const speedConversionFn = speedSensorKey && metadata.toUserUnit[speedSensorKey]?.fnFromMetric
-        ? eval(metadata.toUserUnit[speedSensorKey].fnFromMetric)
-        : (v) => v;
+    let speedUnit = 'm/s';
+    let speedConversionFn = (v) => v;
+
+    if (typeof metadata.measurement === 'string' && metadata.measurement === 'vector') {
+        speedUnit = metadata.userUnit || metadata.unit || 'm/s';
+        if (typeof metadata.toUserUnit === 'string') {
+            speedConversionFn = eval(metadata.toUserUnit);
+        }
+    } else {
+        const speedSensorKey = metadata.measurement.speed?.[0];
+        speedUnit = speedSensorKey && metadata.toUserUnit[speedSensorKey]?.userUnit
+            ? metadata.toUserUnit[speedSensorKey].userUnit
+            : 'm/s';
+        speedConversionFn = speedSensorKey && metadata.toUserUnit[speedSensorKey]?.fnFromMetric
+            ? eval(metadata.toUserUnit[speedSensorKey].fnFromMetric)
+            : (v) => v;
+    }
 
     const speedToColorScale = d3.scaleLinear()
         .domain([2, 10, 25, 100])
@@ -446,9 +456,16 @@ async function loadRosePlot(id, url) {
 
 async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url = '') {
     const id = chartDiv.id;
-    const speedSensor = metadata.measurement.speed[0];
-    const unit = metadata.toUserUnit[speedSensor].userUnit;
-    const fn = eval(metadata.toUserUnit[speedSensor].fnFromMetric);
+    let unit, fn;
+
+    if (typeof metadata.measurement === 'string' && metadata.measurement === 'vector') {
+        unit = metadata.userUnit || metadata.unit || '';
+        fn = typeof metadata.toUserUnit === 'string' ? eval(metadata.toUserUnit) : (v) => v;
+    } else {
+        const speedSensor = metadata.measurement.speed[0];
+        unit = metadata.toUserUnit[speedSensor].userUnit;
+        fn = eval(metadata.toUserUnit[speedSensor].fnFromMetric);
+    }
 
     if (data.length === 0) {
         chartDiv.innerHTML = `<div class="error-message">No data!</div>`;
@@ -462,14 +479,26 @@ async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url =
 
 
     // Préparation des données
-    const processedData = data.map(d => ({
-        date: new Date(d.d),
-        Ux: -(d.Ux || 0),
-        Vy: -(d.Vy || 0),
-        spd: fn(d.spd || 0),
-        spdOriginal: d.spd || 0,
-        dir: d.dir || 0
-    }));
+    const processedData = data.map(d => {
+        let Ux = d.Ux || 0;
+        let Vy = d.Vy || 0;
+        let dir;
+
+        if (typeof metadata.measurement === 'string' && metadata.measurement === 'vector') {
+            dir = (Math.atan2(Ux, Vy) * 180 / Math.PI + 360) % 360;
+            dir = Math.round(dir * 10) / 10;
+        } else {
+            dir = d.dir || 0;
+        }
+
+        return {
+            date: new Date(d.d),
+            Ux: -Ux,
+            Vy: -Vy,
+            val: d.spd || d.val,
+            dir: dir
+        };
+    });
 
     // Dimensions
     const margin = { top: 16, right: 25, bottom: 17, left: 25 };
@@ -663,6 +692,7 @@ async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url =
         // Mettre à jour les variables globales
         WIND.Start = startDate.toISOString().split('.')[0] + 'Z';
         WIND.End = endDate.toISOString().split('.')[0] + 'Z';
+        WIND.Zoomed = true;
 
         // Filtrer les données pour le zoom visuel immédiat
         const filteredData = processedData.filter(d =>
@@ -701,9 +731,6 @@ async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url =
 
         // Recharger les données depuis l'API et reconstruire les visualisations
         try {
-            const sensor = metadata.measurement.speed[0];
-            const prefix = sensor.includes('_') ? sensor.split(':')[1].split('_')[0] + '_' : '';
-
             const vectorBaseUrl = url.split('?')[0];
             const vectorUrl = `${vectorBaseUrl}?stepCount=1000&startDate=${WIND.Start}&endDate=${WIND.End}`;
 
@@ -713,8 +740,8 @@ async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url =
             if (vectorData.success) {
                 await createVectorPlot(vectorData.data, vectorData.metadata, chartDiv, fullUse, url);
 
-                const roseBaseUrl = url.split('/WindVectors')[0];
-                const roseUrl = `${roseBaseUrl}/WindRose?prefix=${prefix}`; // prefix est obsolete
+                const roseBaseUrl = url.split('/Vectors')[0];
+                const roseUrl = `${roseBaseUrl}/WindRose?`;
                 loadRosePlot('windRoses-container', roseUrl);
             }
         } catch (error) {
@@ -727,6 +754,16 @@ async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url =
 
         // Recharger complètement les visualisations avec les paramètres d'origine
         if (WIND.Container && WIND.Url && WIND.Sensor && WIND.Period) {
+            if (!WIND.Zoomed) {
+                // Pas de zoom en cours → doubler la période
+                const match = WIND.Period.match(/^(\d+(?:\.\d+)?)(\w+)$/);
+                if (match) {
+                    const doubled = parseFloat(match[1]) * 2;
+                    WIND.Period = `${doubled}${match[2]}`;
+                    console.log(`resetZoom: période doublée → ${WIND.Period}`);
+                }
+            }
+            WIND.Zoomed = false;
             loadWindPlots(WIND.Container, WIND.Url, WIND.Sensor, WIND.Period);
         } else {
             // Fallback si les paramètres ne sont pas disponibles
@@ -734,9 +771,9 @@ async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url =
         }
     }
 
-    // Flèches (filtrées sur spdOriginal > 0.01)
+    // Flèches (filtrées sur la magnitude Ux/Vy > 0.01)
     const arrows = g.selectAll(".arrow")
-        .data(processedData.filter(d => d.spdOriginal > 0.01))
+        .data(processedData.filter(d => Math.sqrt(d.Ux * d.Ux + d.Vy * d.Vy) > 0.01))
         .enter().append("g")
         .attr("class", "arrow");
 
@@ -773,44 +810,140 @@ async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url =
         .on("mouseover", function (event, d) {
             if (isBrushing) return; // Seul le brush désactive les hovers
 
-            d3.select(this).select(".hair")
-                .attr("stroke", "#e74c3c")
-                .attr("stroke-width", 2)
-                .attr("marker-end", `url(#arrowheadHover-${id})`);
-
-            // Date sur 2 lignes
-            const dateStr = d.date.toLocaleString('fr-FR', {
-                dateStyle: "medium",
-                timeStyle: "short"
-            });
-            const dateParts = dateStr.split(', ');
-
-            dateText.selectAll('tspan').remove();
-            dateText.append('tspan').attr('x', 0).attr('dy', 0).text(dateParts[0]);
-            dateText.append('tspan').attr('x', 0).attr('dy', '1.2em').text(dateParts[1] || '');
-            dateText.transition().duration(100).style("opacity", 1);
-
-            // Valeurs sur 2 lignes
-            valueText.selectAll('tspan').remove();
-            valueText.append('tspan').attr('x', innerWidth).attr('dy', 0).attr('text-anchor', 'end').text(`${d.spd} ${unit}`);
-            valueText.append('tspan').attr('x', innerWidth).attr('dy', '1.2em').attr('text-anchor', 'end').text(`${d.dir}°`);
-            valueText.transition().duration(100).style("opacity", 1);
+            highlightArrow(d3.select(this), d);
         })
         .on("mouseout", function (event, d) {
             if (isBrushing) return;
 
-            // Rétablissement de la couleur selon l'historique ou le forecast
-            const isForecast = d.date > now;
-
-            d3.select(this).select(".hair")
-                .attr("stroke", isForecast ? "var(--futuristic-magenta)" : "var(--futuristic-cyan)")
-                .attr("stroke-width", 1)
-                .attr("marker-end", isForecast ? `url(#arrowheadForecast-${id})` : `url(#arrowhead-${id})`);
-
+            resetArrow(d3.select(this), d);
             dateText.transition().duration(1600).style("opacity", 0);
             valueText.transition().duration(1600).style("opacity", 0);
         });
+
+    // ── Fonctions de highlight/reset réutilisables ──
+    function highlightArrow(arrowSel, d) {
+        arrowSel.select(".hair")
+            .attr("stroke", "#e74c3c")
+            .attr("stroke-width", 2)
+            .attr("marker-end", `url(#arrowheadHover-${id})`);
+
+        const dateStr = d.date.toLocaleString('fr-FR', {
+            dateStyle: "medium",
+            timeStyle: "short"
+        });
+        const dateParts = dateStr.split(', ');
+
+        dateText.selectAll('tspan').remove();
+        dateText.append('tspan').attr('x', 0).attr('dy', 0).text(dateParts[0]);
+        dateText.append('tspan').attr('x', 0).attr('dy', '1.2em').text(dateParts[1] || '');
+        dateText.transition().duration(100).style("opacity", 1);
+
+        valueText.selectAll('tspan').remove();
+        valueText.append('tspan').attr('x', innerWidth).attr('dy', 0).attr('text-anchor', 'end').text(typeof d.val === 'number' ? `${d.val} ${unit}` : `${d.val}`);
+        valueText.append('tspan').attr('x', innerWidth).attr('dy', '1.2em').attr('text-anchor', 'end').text(`${d.dir}°`);
+        valueText.transition().duration(100).style("opacity", 1);
+    }
+
+    function resetArrow(arrowSel, d) {
+        const isForecast = d.date > now;
+        arrowSel.select(".hair")
+            .attr("stroke", isForecast ? "var(--futuristic-magenta)" : "var(--futuristic-cyan)")
+            .attr("stroke-width", 1)
+            .attr("marker-end", isForecast ? `url(#arrowheadForecast-${id})` : `url(#arrowhead-${id})`);
+    }
+
+    // ── Playback (Play/Pause) ── seulement en fullUse
+    let isPlaying = false;
+    let playbackIndex = 0;
+    let playbackTimer = null;
+    let previousArrow = null;
+
+    if (fullUse) {
+        const iconPlay = `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`;
+        const iconPause = `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>`;
+
+        const playBtn = d3.select(chartDiv).append("button")
+            .attr("class", "spiral-btn")
+            .attr("title", "Lecture / Pause")
+            .style("position", "absolute")
+            .style("top", "-20px")
+            .style("right", "0px")
+            .style("z-index", 100)
+            .style("padding", "3px 5px")
+            .style("background", "var(--futuristic-gray)")
+            .style("color", "#fff")
+            .style("border", "var(--futuristic-border)")
+            .style("cursor", "pointer")
+            .style("border-radius", "4px")
+            .style("display", "flex")
+            .style("align-items", "center")
+            .style("gap", "4px")
+            .html(iconPlay)
+            .on("click", (e) => {
+                e.stopPropagation();
+                togglePlayback();
+            });
+
+        // Pause au clic sur le SVG si la lecture est en cours
+        svg.on("click", (e) => {
+            if (isPlaying) {
+                togglePlayback();
+            }
+        });
+
+        function togglePlayback() {
+            isPlaying = !isPlaying;
+            if (isPlaying) {
+                stepPlayback();
+            } else {
+                clearTimeout(playbackTimer);
+                playbackTimer = null;
+                // Rétablir la flèche précédente
+                if (previousArrow) {
+                    resetArrow(previousArrow.sel, previousArrow.d);
+                    previousArrow = null;
+                }
+                dateText.transition().duration(800).style("opacity", 0);
+                valueText.transition().duration(800).style("opacity", 0);
+            }
+            // Sync l'icône du bouton
+            playBtn.html(isPlaying
+                ? iconPause
+                : iconPlay);
+        }
+
+        function stepPlayback() {
+            if (!isPlaying) return;
+
+            const allArrows = arrows.nodes();
+            const allData = arrows.data();
+            if (allArrows.length === 0) return;
+
+            // Rétablir la flèche précédente
+            if (previousArrow) {
+                resetArrow(previousArrow.sel, previousArrow.d);
+            }
+
+            // Boucler si on dépasse
+            if (playbackIndex >= allArrows.length) {
+                playbackIndex = 0;
+            }
+
+            const node = d3.select(allArrows[playbackIndex]);
+            const d = allData[playbackIndex];
+
+            highlightArrow(node, d);
+            previousArrow = { sel: node, d: d };
+
+            playbackIndex++;
+
+            // Vitesse adaptative : plus de données = plus rapide
+            const interval = Math.max(50, Math.min(400, 8000 / allArrows.length));
+            playbackTimer = setTimeout(stepPlayback, interval);
+        }
+    }
 }
+
 
 // Build seulement le diagramme de vecteurs dans le container spécifié
 async function loadVectorPlot(id, url, fullUse = false) {
@@ -840,11 +973,12 @@ const WIND = {
     Container: null,
     Url: null,
     Sensor: null,
-    Period: null
+    Period: null,
+    Zoomed: false
 };
 
 // build les diagrammes de vent (roses + vecteurs) dans le container spécifié
-async function loadWindPlots(windContainer, url, sensor, period = '3y') {
+async function loadWindPlots(windContainer, url, sensor, period = '14d') {
     // Stocker les paramètres pour rechargement ultérieur
     WIND.Container = windContainer;
     WIND.Url = url;
@@ -857,23 +991,78 @@ async function loadWindPlots(windContainer, url, sensor, period = '3y') {
     WIND.End = new Date(WIND.End).toISOString().split('.')[0] + 'Z'
     WIND.Start = getStartDate(period);
 
-
-    let prefix = '';
-    if (sensor.includes('_')) {
-        prefix = sensor.split(':')[1].split('_')[0] + '_';
-    }
-
     windContainer.innerHTML = `
         <div class="wind-details-grid">
             <div class="wind-top-row" id="windRoses-container">
             </div>
-            <div class="wind-bottom-row" id="vector-container"></div>
+            <div class="wind-bottom-row" id="vector-container" style="position: relative;"></div>
         </div>
     `;
+    windContainer.style.position = 'relative';
 
-    const roseUrl = `${url}/WindRose?prefix=${prefix}`; // prefix est obsolete
+    const isFullscreenPage = window.location.pathname.includes('wind.html');
+
+    const controlDiv = d3.select(windContainer).append("div")
+        .attr("class", "plot-controls")
+        .style("position", "absolute")
+        .style("top", "5px")
+        .style("right", "5px")
+        .style("z-index", 100);
+
+    const iconMaximize = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>`;
+    const iconMinimize = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path></svg>`;
+    const iconOriginal = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
+
+    const linkBtn = controlDiv.append("button")
+        .attr("class", "plot-btn")
+        .attr("title", isFullscreenPage ? "Plein écran" : "Ouvrir la vue Vent en plein écran")
+        .style("background", "rgba(0, 0, 0, 0.6)")
+        .style("border", "1px solid #444")
+        .style("color", "#ccc")
+        .style("padding", "3px 5px")
+        .style("cursor", "pointer")
+        .style("border-radius", "4px")
+        .style("font-size", "12px")
+        .style("transition", "background 0.2s, color 0.2s")
+        .style("display", "flex")
+        .style("align-items", "center")
+        .style("gap", "4px")
+        .html(isFullscreenPage ? iconMaximize + ' Plein écran' : iconOriginal)
+        .on("mouseover", function () { d3.select(this).style("background", "#333").style("color", "#fff"); })
+        .on("mouseout", function () { d3.select(this).style("background", "rgba(0, 0, 0, 0.6)").style("color", "#ccc"); });
+
+    linkBtn.on("click", (e) => {
+        e.stopPropagation();
+        if (isFullscreenPage) {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`Erreur pour le plein écran: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        } else {
+            const stationId = url.split('/').pop() || url.split('/')[2];
+            const targetUrl = `wind.html?station=${stationId}&sensor=${sensor}`;
+            window.open(targetUrl, '_blank');
+        }
+    });
+
+    if (isFullscreenPage) {
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                linkBtn.html(iconMinimize + ' Quitter').attr("title", "Quitter le mode plein écran");
+            } else {
+                linkBtn.html(iconMaximize + ' Plein écran').attr("title", "Passer en mode plein écran");
+            }
+        });
+    }
+
+    const roseUrl = `${url}/WindRose?`;
     loadRosePlot('windRoses-container', roseUrl);
 
-    const vectorUrl = `${url}/WindVectors/${sensor.split(':')[1]}?stepCount=1000&startDate=${WIND.Start}`;
+    const vectorUrl = `${url}/Vectors/${sensor.split(':')[1]}?stepCount=1000&startDate=${WIND.Start}`;
     loadVectorPlot('vector-container', vectorUrl, true); // fullUse = true en dur
 }

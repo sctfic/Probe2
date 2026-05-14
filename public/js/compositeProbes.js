@@ -423,7 +423,7 @@ async function handleProbesFormSubmit(event) {
         const { dataNeeded, currentMap } = parseFnCalc(probeData.fnCalc);
         probeData.dataNeeded = dataNeeded;
         probeData.currentMap = currentMap;
-        probeData.groupCustom = "CompositesNew";
+        probeData.groupCustom = "Composites";
         probeData.groupUsage = "Composites";
 
         currentProbesSettings[probeKey] = probeData;

@@ -68,7 +68,6 @@ function saveTileState() {
 function loadTileState() {
     if (!selectedStation) return {};
     const state = JSON.parse(localStorage.getItem(`${STORAGE_KEY_STATE}_${selectedStation.id}`) || '{}');
-    // console.log(`Loaded tile state for station ${selectedStation.id}:`, state);
     return state;
 }
 
@@ -131,6 +130,7 @@ async function fetchCurrentConditions() {
             mergeData(data);
             currentConditionsData = data.data;
             processAndDisplayConditions();
+            console.log('processAndDisplayConditions');
 
             // Check for stale data warning in header
             const barometerData = data.data['pressure:barometer'];
@@ -194,7 +194,6 @@ function processAndDisplayConditions() {
                 searchText: [sensorInfo.label, key, sensorInfo.comment, data.unit, sensorInfo.sensorDb, sensorInfo.measurement].join(' ').toLowerCase()
             };
         });
-    console.log(allConditions);
     // Assign order to new items and ensure uniqueness
     let usedOrders = new Set(allConditions.map(item => item.order).filter(o => o !== undefined));
     allConditions.forEach(item => {
@@ -367,10 +366,14 @@ function updateExistingTile(tileElement, item) {
         }
 
         // Mettre à jour le contenu
-        valueElement.innerHTML = `
-            <span id="tuile_${item.key}_value">${fn(currentValue)}</span>
-            ${unitDisplay}
-            <span id="tuile_${item.key}_more" class="smallText">${item.more ? item.more : ''}</span>`;
+        if (typeof currentValue === 'object' && currentValue !== null) {
+            valueElement.innerHTML = `<span class="smallText" style="float:none">${item.comment || ''}</span>`;
+        } else {
+            valueElement.innerHTML = `
+                <span id="tuile_${item.key}_value">${fn(currentValue)}</span>
+                ${unitDisplay}
+                <span id="tuile_${item.key}_more" class="smallText">${item.more ? item.more : ''}</span>`;
+        }
         // Appliquer l'animation si la valeur a changé
         if (hasChanged) {
             // Retirer les classes d'animation précédentes
@@ -668,9 +671,12 @@ function createConditionTileHTML(item) {
             <div class="condition-info">
                 <div class="condition-name">${item.name}</div>
                 <div class="condition-value">
-                    <span id="tuile_${item.key}_value">${fn(displayValue)}</span>
-                    ${unitDisplay}
-                    <span id="tuile_${item.key}_more" class="smallText">${item.more ? item.more : ''}</span>
+                    ${typeof displayValue === 'object' && displayValue !== null
+                        ? `<span class="smallText" style="float:none">${item.comment || ''}</span>`
+                        : `<span id="tuile_${item.key}_value">${fn(displayValue)}</span>
+                           ${unitDisplay}
+                           <span id="tuile_${item.key}_more" class="smallText">${item.more ? item.more : ''}</span>`
+                    }
                 </div>
                 ${metaInfo}
             </div>
@@ -708,7 +714,7 @@ function loadChartForItem(item) {
     if (document.getElementById(chartId)) {
         if (item.sensorDb.startsWith('vector:')) {
             const sensorRef = item.sensorDb.substring('vector:'.length);
-            loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindVectors/${sensorRef}?${count}&${start}`);
+            loadVectorPlot(chartId, `${API_BASE_URL}/${selectedStation.id}/Vectors/${sensorRef}?${count}&${start}`);
         } else if (item.sensorDb.startsWith('rose:')) {
             const sensorRef = item.sensorDb.substring('rose:'.length);
             // loadRosePlot(chartId, `${API_BASE_URL}/${selectedStation.id}/WindRose/${sensorRef}?${count}&${start}`);

@@ -19,26 +19,6 @@
         "sensorDb": "vector:Wind",
         "measurement": "vector"
     },
-    "vector:open-meteo_Gust": {
-        "label": "Vecteur Rafale (Open-Meteo)",
-        "comment": "Vecteur des rafales de vent (Open-Meteo)",
-        "currentMap": "windGust10Min",
-        "period": null,
-        "groupUsage": "db",
-        "groupCustom": "open-meteo",
-        "sensorDb": "vector:open-meteo_Gust",
-        "measurement": "vector"
-    },
-    "vector:open-meteo_Wind": {
-        "label": "Vecteur Vent (Open-Meteo)",
-        "comment": "Vecteur du vent moyen (Open-Meteo)",
-        "currentMap": "avgWindSpeed10Min",
-        "period": null,
-        "groupUsage": "db",
-        "groupCustom": "open-meteo",
-        "sensorDb": "vector:open-meteo_Wind",
-        "measurement": "vector"
-    },
     "direction:Gust": {
         "label": "Direction Rafale",
         "comment": "Direction des rafales de vent",
@@ -59,26 +39,6 @@
         "sensorDb": "direction:Wind",
         "measurement": "direction"
     },
-    "direction:open-meteo_Wind": {
-        "label": "Direction Vent (Open-Meteo)",
-        "comment": "Direction du vent moyen (Open-Meteo)",
-        "currentMap": "windDir",
-        "period": null,
-        "groupUsage": "db",
-        "groupCustom": "open-meteo",
-        "sensorDb": "direction:open-meteo_Wind",
-        "measurement": "direction"
-    },
-    "direction:open-meteo_Gust": {
-        "label": "Direction Rafale (Open-Meteo)",
-        "comment": "Direction des rafales (Open-Meteo)",
-        "currentMap": "windGustDir10Min",
-        "period": null,
-        "groupUsage": "db",
-        "groupCustom": "open-meteo",
-        "sensorDb": "direction:open-meteo_Wind",
-        "measurement": "direction"
-    },
     "humidity:inHumidity": {
         "label": "Humidité Intérieure",
         "comment": "Humidité relative intérieure",
@@ -87,26 +47,6 @@
         "groupUsage": "db",
         "groupCustom": " Station",
         "sensorDb": "humidity:inHumidity",
-        "measurement": "humidity"
-    },
-    "humidity:open-meteo_outHumidity": {
-        "label": "Humidité Extérieure (Open-Meteo)",
-        "comment": "Humidité relative extérieure (Open-Meteo)",
-        "currentMap": "outHumidity",
-        "period": null,
-        "groupUsage": "db",
-        "groupCustom": "open-meteo",
-        "sensorDb": "humidity:open-meteo_outHumidity",
-        "measurement": "humidity"
-    },
-    "soilMoisture:open-meteo_soilMoisture": {
-        "label": "Humidité Sol (Open-Meteo)",
-        "comment": "Humidité du sol -9cm à -27cm (Open-Meteo)",
-        "currentMap": null,
-        "period": null,
-        "groupUsage": "db",
-        "groupCustom": "open-meteo",
-        "sensorDb": "soilMoisture:open-meteo_soilMoisture",
         "measurement": "humidity"
     },
     "soilMoisture:soilMoisture": {
@@ -129,22 +69,12 @@
         "sensorDb": "humidity:outHumidity",
         "measurement": "humidity"
     },
-    "irradiance:open-meteo_solar": {
-        "label": "Irradiance (Open-Meteo)",
-        "comment": "Irradiance solaire (Open-Meteo)",
-        "currentMap": "solar",
-        "period": null,
-        "groupUsage": "db",
-        "groupCustom": "open-meteo",
-        "sensorDb": "irradiance:open-meteo_solar",
-        "measurement": "irradiance"
-    },
     "irradiance:solar": {
         "label": "Irradiance",
         "comment": "Irradiance solaire",
         "currentMap": "solar",
         "period": null,
-        "groupUsage": "db",
+        "groupUsage": "0/ Solaire",
         "groupCustom": " Station",
         "sensorDb": "irradiance:solar",
         "measurement": "irradiance"
@@ -154,20 +84,10 @@
         "comment": "Irradiance solaire maximale",
         "currentMap": "solar",
         "period": null,
-        "groupUsage": "db",
+        "groupUsage": "0/ Solaire",
         "groupCustom": " Station",
         "sensorDb": "irradiance:solarMax",
         "measurement": "irradiance"
-    },
-    "pressure:open-meteo_barometer": {
-        "label": "Baromètre (Open-Meteo)",
-        "comment": "Pression atmosphérique (Open-Meteo)",
-        "currentMap": "barometer",
-        "period": null,
-        "groupUsage": "db",
-        "groupCustom": "open-meteo",
-        "sensorDb": "pressure:open-meteo_barometer",
-        "measurement": "pressure"
     },
     "pressure:barometer": {
         "label": "Baromètre",
@@ -197,26 +117,6 @@
         "groupUsage": "db",
         "groupCustom": " Station",
         "sensorDb": "rain:ET",
-        "measurement": "rain"
-    },
-    "rain:open-meteo_ET": {
-        "label": "ET0 (Open-Meteo)",
-        "comment": "Evapotranspiration (Open-Meteo)",
-        "currentMap": "dayET",
-        "period": null,
-        "groupUsage": "db",
-        "groupCustom": "open-meteo",
-        "sensorDb": "rain:open-meteo_ET",
-        "measurement": "rain"
-    },
-    "rain:open-meteo_rainFall": {
-        "label": "Précipitations (Open-Meteo)",
-        "comment": "Précipitations (Open-Meteo)",
-        "currentMap": "dayRain",
-        "period": null,
-        "groupUsage": "db",
-        "groupCustom": "open-meteo",
-        "sensorDb": "rain:open-meteo_rainFall",
         "measurement": "rain"
     },
     "rain:rainFall": {
@@ -249,26 +149,6 @@
         "sensorDb": "speed:Wind",
         "measurement": "speed"
     },
-    "speed:open-meteo_Gust": {
-        "label": "Vitesse du vent max (Open-Meteo)",
-        "comment": "Vitesse de rafale de vent max (Open-Meteo)",
-        "currentMap": "windGust10Min",
-        "period": null,
-        "groupUsage": "db",
-        "groupCustom": "open-meteo",
-        "sensorDb": "speed:open-meteo_Gust",
-        "measurement": "speed"
-    },
-    "speed:open-meteo_Wind": {
-        "label": "Vitesse du vent (Open-Meteo)",
-        "comment": "Vitesse du vent (Open-Meteo)",
-        "currentMap": "windSpeed",
-        "period": null,
-        "groupUsage": "db",
-        "groupCustom": "open-meteo",
-        "sensorDb": "speed:open-meteo_Wind",
-        "measurement": "speed"
-    },
     "temperature:inTemp": {
         "label": "Température Intérieure",
         "comment": "Température intérieure",
@@ -277,26 +157,6 @@
         "groupUsage": "db",
         "groupCustom": " Station",
         "sensorDb": "temperature:inTemp",
-        "measurement": "temperature"
-    },
-    "temperature:open-meteo_outTemp": {
-        "label": "Température Extérieure (Open-Meteo)",
-        "comment": "Température extérieure (Open-Meteo)",
-        "currentMap": "outTemp",
-        "period": null,
-        "groupUsage": "db",
-        "groupCustom": "open-meteo",
-        "sensorDb": "temperature:open-meteo_outTemp",
-        "measurement": "temperature"
-    },
-    "temperature:open-meteo_soilTemp": {
-        "label": "Température Sol (Open-Meteo)",
-        "comment": "Température du sol a -18cm (Open-Meteo)",
-        "currentMap": "meteo_soilTemp",
-        "period": null,
-        "groupUsage": "db",
-        "groupCustom": "open-meteo",
-        "sensorDb": "temperature:open-meteo_soilTemp",
         "measurement": "temperature"
     },
     "temperature:soilTemp": {
@@ -604,7 +464,7 @@
         "comment": "Heure du lever du soleil",
         "measurement": "time",
         "period": null,
-        "groupUsage": "2/ Sun",
+        "groupUsage": "Spatial",
         "groupCustom": "Instantanee",
         "sensorDb": null
     },
@@ -613,7 +473,7 @@
         "comment": "Heure du coucher du soleil",
         "measurement": "time",
         "period": null,
-        "groupUsage": "2/ Sun",
+        "groupUsage": "Spatial",
         "groupCustom": "Instantanee",
         "sensorDb": null
     },

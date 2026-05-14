@@ -319,9 +319,6 @@ async function displaySettingsForm() {
         }
     };
 
-    // Fetch Open-Meteo data range asynchronously
-    fetchOpenMeteoRange(selectedStation.id);
-
     let formHTML = '<form id="station-settings-form" class="settings-form">';
 
     Object.entries(groups).forEach(([groupKey, group]) => { // parcoure les groupes de proprietees
@@ -371,6 +368,9 @@ async function displaySettingsForm() {
     renderExtendersManager();
     // Lancer un refresh asynchrone du status
     refreshExtendersStatus();
+
+    // Fetch Open-Meteo data range asynchronously (après que le DOM soit créé)
+    fetchOpenMeteoRange(selectedStation.id);
 
     const form = document.getElementById('station-settings-form');
     const resetBtn = document.getElementById('reset-settings');
@@ -1303,8 +1303,9 @@ async function fetchOpenMeteoRange(stationId) {
     const infoEl = document.getElementById('open-meteo-range-info');
     if (!infoEl) return;
     try {
-        const rangeData = await queryManager.query(`/query/${stationId}/Range/barometer`);
+        const rangeData = await queryManager.query(`/query/${stationId}/Range/pressure:barometer`);
         if (rangeData.success && rangeData.metadata.first && rangeData.metadata.last) {
+            console.log("rangeData", rangeData);
             const rangeText = `Archived since ${new Date(rangeData.metadata.first).toLocaleDateString()} to ${new Date(rangeData.metadata.last).toLocaleDateString()}`;
             infoEl.textContent = rangeText;
         } else {

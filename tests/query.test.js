@@ -62,8 +62,8 @@ describe('Query DB Integration Tests (GET routes)', () => {
         }
     }, 15000); // 15 secondes car InfluxDB peut être lent sur les jointures complexes
 
-    test(`GET /query/${testStationId}/WindVectors/Wind - Wind Vectors`, async () => {
-        const res = await request(app).get(`/query/${testStationId}/WindVectors/Wind${queryParams}`);
+    test(`GET /query/${testStationId}/Vectors/Wind - Wind Vectors`, async () => {
+        const res = await request(app).get(`/query/${testStationId}/Vectors/Wind${queryParams}`);
         if (res.statusCode === 200) {
             expect(res.body.success).toBe(true);
             expect(Array.isArray(res.body.data)).toBe(true);

@@ -31,7 +31,7 @@ router.get('/:stationId/Raws/:sensorRefs', queryDbController.getQueryRaws); // h
 router.get('/:stationId/WindRose', queryDbController.getQueryWindRose); // https://probe.lpz.ovh/query/VP2_Serramoune/WindRose?stepCount=5
 
 // Retourne les donnees de vecteurs de vents pour un capteur specifique (?startDate= &endDate= &stepCount= sont optionnels)
-router.get('/:stationId/WindVectors/:sensorRef', queryDbController.getQueryWindVectors); // https://probe.lpz.ovh/query/VP2_Serramoune/WindVectors/Gust?stepCount=500
+router.get('/:stationId/Vectors/:sensorRef', queryDbController.getQueryVectors); // https://probe.lpz.ovh/query/VP2_Serramoune/Vectors/Gust?stepCount=500
 
 // Retourne les donnees au format candlestick pour un capteur specifique (?startDate= &endDate= &stepCount= sont optionnels)
 router.get('/:stationId/Candle/:sensorRef', queryDbController.getQueryCandle); // https://probe.lpz.ovh/query/VP2_Serramoune/Candle/barometer?stepCount=500

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualisation Vent</title>
+
+    <script src="js/queryManager.js"></script>
+    <script src="js/drawing/d3.min.js"></script>
+    <script src="js/drawing/Wind.js"></script>
+    <style>
+        @import url('css/var.css');
+        @import url('css/main.css');
+    </style>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--primary-dark);
+            overflow: hidden;
+            font-family: sans-serif;
+            color: white;
+        }
+
+        #chart-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .wind-details-grid {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+        }
+
+        .wind-top-row {
+            display: flex;
+            justify-content: space-around;
+            flex: 0 0 50%;
+        }
+
+        .wind-bottom-row {
+            flex: 1;
+            position: relative;
+        }
+
+        /* Styles from original station page for roses */
+        .rose-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .wind-period-display {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 0 20px;
+            text-align: center;
+            color: #ccc;
+            font-size: 14px;
+        }
+
+        .axis line,
+        .axis path {
+            stroke: #444;
+        }
+
+        .axis text {
+            fill: #999;
+            font-size: 10px;
+        }
+
+        .hover-date,
+        .hover-value {
+            font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        .error-message {
+            color: red;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="chart-container">
+    </div>
+
+    <script>
+        // Implémentation locale de getStartDate si elle n'est pas dans Wind.js
+        if (typeof window.getStartDate !== 'function') {
+            window.getStartDate = function (period) {
+                if (typeof period === 'string') {
+                    const P = eval(period.replace('y', '*365*24*60*60').replace('M', '*30*24*60*60').replace('w', '*24*60*60*7').replace('d', '*24*60*60').replace('h', '*60*60').replace('m', '*60'));
+                    const date = new Date((Math.round((new Date()).getTime() / 1000) - P) * 1000);
+                    date.setHours(0, 0, 0, 0);
+                    return date.toISOString().split('.')[0] + 'Z';
+                }
+                const date = new Date((Math.round((new Date()).getTime() / 1000) - period) * 1000);
+                date.setHours(0, 0, 0, 0);
+                return date.toISOString().split('.')[0] + 'Z';
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const params = new URLSearchParams(window.location.search);
+            const station = params.get('station');
+            const sensor = params.get('sensor');
+            const period = params.get('period') || '14d';
+
+            const container = document.getElementById('chart-container');
+
+            if (!station || !sensor) {
+                container.innerHTML =
+                    `<div style="color:red; text-align:center; padding-top:20%;">
+                        Erreur: Paramètres 'station' ou 'sensor' manquants.
+                    </div>`;
+                return;
+            }
+
+            const baseUrl = `/query/${station}`;
+            loadWindPlots(container, baseUrl, sensor, period);
+        });
+    </script>
+</body>
+
+</html>

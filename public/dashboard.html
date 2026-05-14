@@ -1385,7 +1385,7 @@
                         const vecContainer = document.querySelector('.p-vec-wind .vec-container');
                         if (vecContainer) {
                             if (!vecContainer.id) vecContainer.id = "plot-vec-container";
-                            const fullUrl = `${API_BASE}/${STATION}/WindVectors/Gust?stepCount=1000&startDate=${startPlot}&endDate=${endPlot}`;
+                            const fullUrl = `${API_BASE}/${STATION}/Vectors/Gust?stepCount=1000&startDate=${startPlot}&endDate=${endPlot}`;
                             loadVectorPlot(vecContainer.id, fullUrl, true);
                         }
                     }

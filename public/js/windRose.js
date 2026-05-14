@@ -124,18 +124,18 @@ async function renderWindRose(containerId, stationId, startDate) {
             .style("stroke-width", "0.5px");
 
         const cw = svg.append("g").attr("class", "calmwind");
-        
+
         cw.append("text")
             .attr("transform", "translate(0,-2)")
             .text(Math.round(calmPercentage * 100) + "%");
-        
+
         cw.append("text")
             .attr("transform", "translate(0,12)")
             .text("calm");
     }
 
     function drawLevelGrid(svg, r) {
-        const directions = ['NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW','N'];
+        const directions = ['NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW', 'N'];
         const label = svg.append("g")
             .attr("class", "labels")
             .selectAll("g")
@@ -158,7 +158,7 @@ async function renderWindRose(containerId, stationId, startDate) {
 
         const existingSvg = d3.select(container).select("svg");
         let svg;
-        
+
         if (existingSvg.empty()) {
             svg = makeWindContainer(container, w, h, p);
         } else {
@@ -171,7 +171,7 @@ async function renderWindRose(containerId, stationId, startDate) {
             if (key === 'Calm' || key === 'null') {
                 calm = data[key].Spl;
             } else if (data[key].Dir !== null && data[key].Dir !== undefined) {
-                zero.push({d: data[key].Dir, p: 0, s: 0, m: 0});
+                zero.push({ d: data[key].Dir, p: 0, s: 0, m: 0 });
                 winds.push({
                     d: data[key].Dir,
                     p: t > 0 ? data[key].Spl / t : 0,
@@ -183,7 +183,7 @@ async function renderWindRose(containerId, stationId, startDate) {
 
         const SplScale = globalScales.maxProbability;
         let probabilityToRadiusScale, ticks, tickmarks;
-        
+
         if (SplScale > 0.14) {
             probabilityToRadiusScale = d3.scaleLinear().domain([0, SplScale]).range([ip, visWidth]).clamp(true);
             const tickStep = SplScale / 4;
@@ -216,13 +216,13 @@ async function renderWindRose(containerId, stationId, startDate) {
         probabilityArc.selectAll("path")
             .data(winds, d => d.d)
             .enter().append("path")
-            .attr("d", d => arcGen({...d, p: 0, s: 0, m: 0}))
+            .attr("d", d => arcGen({ ...d, p: 0, s: 0, m: 0 }))
             .attr("class", "arcs")
             .style("fill", speedToColor)
             .append("title");
 
         const allPaths = svg.select(".ProbabilityArc").selectAll("path");
-        
+
         if (animate) {
             allPaths.transition().duration(500).attr("d", arcGen).style("fill", speedToColor);
         } else {
@@ -242,7 +242,7 @@ async function renderWindRose(containerId, stationId, startDate) {
 
         const existingSvg = d3.select(container).select("svg");
         let svg;
-        
+
         if (existingSvg.empty()) {
             svg = makeWindContainer(container, w, h, p);
         } else {
@@ -256,7 +256,7 @@ async function renderWindRose(containerId, stationId, startDate) {
             if (key === 'Calm' || key === 'null') {
                 calm = data[key].Spl;
             } else if (data[key].Dir !== null && data[key].Dir !== undefined) {
-                zero.push({d: data[key].Dir, p: 0, s: 0, m: 0});
+                zero.push({ d: data[key].Dir, p: 0, s: 0, m: 0 });
                 winds.push({
                     d: data[key].Dir,
                     p: t > 0 ? data[key].Spl / t : 0,
@@ -268,7 +268,7 @@ async function renderWindRose(containerId, stationId, startDate) {
 
         const SpdScale = globalScales.maxSpeed;
         let speedToRadiusScale, ticks, tickmarks;
-        
+
         if (SpdScale > 6) {
             speedToRadiusScale = d3.scaleLinear().domain([0, SpdScale]).range([ip, visWidth]).clamp(true);
             const tickStep = SpdScale / 4;
@@ -303,14 +303,14 @@ async function renderWindRose(containerId, stationId, startDate) {
             const width = 8;
             const widthRad = width * Math.PI / 180;
             const chevronHeight = 5;
-            
+
             const x1 = r * Math.sin(angle - widthRad);
             const y1 = -r * Math.cos(angle - widthRad);
             const x2 = (r - chevronHeight) * Math.sin(angle);
             const y2 = -(r - chevronHeight) * Math.cos(angle);
             const x3 = r * Math.sin(angle + widthRad);
             const y3 = -r * Math.cos(angle + widthRad);
-            
+
             return `M ${x1},${y1} L ${x2},${y2} L ${x3},${y3}`;
         }
 
@@ -329,11 +329,11 @@ async function renderWindRose(containerId, stationId, startDate) {
             speedArcMax.selectAll("path")
                 .transition()
                 .duration(500)
-                .attrTween("d", function(d) {
-                    const previous = d3.select(this).datum() || {m: 0};
+                .attrTween("d", function (d) {
+                    const previous = d3.select(this).datum() || { m: 0 };
                     const interpolateM = d3.interpolate(previous.m, d.m);
-                    return function(t) {
-                        return createChevron({...d, m: interpolateM(t)});
+                    return function (t) {
+                        return createChevron({ ...d, m: interpolateM(t) });
                     };
                 });
         } else {
@@ -346,13 +346,13 @@ async function renderWindRose(containerId, stationId, startDate) {
         speedArc.selectAll("path")
             .data(winds, d => d.d)
             .enter().append("path")
-            .attr("d", d => speedArcGen({...d, s: 0}))
+            .attr("d", d => speedArcGen({ ...d, s: 0 }))
             .attr("class", "arcs")
             .style("fill", probabilityToColor)
             .append("title");
 
         const allPaths = svg.select(".speedArc").selectAll("path");
-        
+
         if (animate) {
             allPaths.transition().duration(500).attr("d", speedArcGen).style("fill", probabilityToColor);
         } else {
@@ -400,9 +400,9 @@ async function renderWindRose(containerId, stationId, startDate) {
 
         const current = allData[currentIndex];
         const isFirstRender = currentIndex === 0 && d3.select('#windrose').select("svg").empty();
-        
+
         document.getElementById('currentDate').textContent = `📅 ${new Date(current.date).toLocaleString('fr-FR')}`;
-        
+
         plotProbabilityRose(current.data, '#windrose', 120, !isFirstRender);
         plotSpeedRose(current.data, '#windspeed', 120, !isFirstRender);
 
@@ -434,7 +434,7 @@ async function renderWindRose(containerId, stationId, startDate) {
             intervalId = null;
         }
         const progressBar = document.getElementById('progressBar');
-        if(progressBar) progressBar.style.width = '0%';
+        if (progressBar) progressBar.style.width = '0%';
     }
 
     function togglePause() {
@@ -455,12 +455,12 @@ async function renderWindRose(containerId, stationId, startDate) {
         try {
             const response = await fetch(API_URL);
             const json = await response.json();
-            
+
             if (json.success && json.data) {
                 allData = convertApiData(json.data);
                 if (allData.length === 0) {
-                     container.innerHTML = '<div class="error-message">Aucune donnée de vent disponible pour cette période.</div>';
-                     return;
+                    container.innerHTML = '<div class="error-message">Aucune donnée de vent disponible pour cette période.</div>';
+                    return;
                 }
                 calculateGlobalScales(allData);
                 currentIndex = 0;
@@ -632,18 +632,18 @@ async function renderWindRose(containerId, stationId) {
             .style("stroke-width", "0.5px");
 
         const cw = svg.append("g").attr("class", "calmwind");
-        
+
         cw.append("text")
             .attr("transform", "translate(0,-2)")
             .text(Math.round(calmPercentage * 100) + "%");
-        
+
         cw.append("text")
             .attr("transform", "translate(0,12)")
             .text("calm");
     }
 
     function drawLevelGrid(svg, r) {
-        const directions = ['NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW','N'];
+        const directions = ['NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW', 'N'];
         const label = svg.append("g")
             .attr("class", "labels")
             .selectAll("g")
@@ -666,7 +666,7 @@ async function renderWindRose(containerId, stationId) {
 
         const existingSvg = d3.select(container).select("svg");
         let svg;
-        
+
         if (existingSvg.empty()) {
             svg = makeWindContainer(container, w, h, p);
         } else {
@@ -679,7 +679,7 @@ async function renderWindRose(containerId, stationId) {
             if (key === 'Calm' || key === 'null') {
                 calm = data[key].Spl;
             } else if (data[key].Dir !== null && data[key].Dir !== undefined) {
-                zero.push({d: data[key].Dir, p: 0, s: 0, m: 0});
+                zero.push({ d: data[key].Dir, p: 0, s: 0, m: 0 });
                 winds.push({
                     d: data[key].Dir,
                     p: t > 0 ? data[key].Spl / t : 0,
@@ -691,7 +691,7 @@ async function renderWindRose(containerId, stationId) {
 
         const SplScale = globalScales.maxProbability;
         let probabilityToRadiusScale, ticks, tickmarks;
-        
+
         if (SplScale > 0.14) {
             probabilityToRadiusScale = d3.scaleLinear().domain([0, SplScale]).range([ip, visWidth]).clamp(true);
             const tickStep = SplScale / 4;
@@ -724,13 +724,13 @@ async function renderWindRose(containerId, stationId) {
         probabilityArc.selectAll("path")
             .data(winds, d => d.d)
             .enter().append("path")
-            .attr("d", d => arcGen({...d, p: 0, s: 0, m: 0}))
+            .attr("d", d => arcGen({ ...d, p: 0, s: 0, m: 0 }))
             .attr("class", "arcs")
             .style("fill", speedToColor)
             .append("title");
 
         const allPaths = svg.select(".ProbabilityArc").selectAll("path");
-        
+
         if (animate) {
             allPaths.transition().duration(500).attr("d", arcGen).style("fill", speedToColor);
         } else {
@@ -750,7 +750,7 @@ async function renderWindRose(containerId, stationId) {
 
         const existingSvg = d3.select(container).select("svg");
         let svg;
-        
+
         if (existingSvg.empty()) {
             svg = makeWindContainer(container, w, h, p);
         } else {
@@ -764,7 +764,7 @@ async function renderWindRose(containerId, stationId) {
             if (key === 'Calm' || key === 'null') {
                 calm = data[key].Spl;
             } else if (data[key].Dir !== null && data[key].Dir !== undefined) {
-                zero.push({d: data[key].Dir, p: 0, s: 0, m: 0});
+                zero.push({ d: data[key].Dir, p: 0, s: 0, m: 0 });
                 winds.push({
                     d: data[key].Dir,
                     p: t > 0 ? data[key].Spl / t : 0,
@@ -776,7 +776,7 @@ async function renderWindRose(containerId, stationId) {
 
         const SpdScale = globalScales.maxSpeed;
         let speedToRadiusScale, ticks, tickmarks;
-        
+
         if (SpdScale > 6) {
             speedToRadiusScale = d3.scaleLinear().domain([0, SpdScale]).range([ip, visWidth]).clamp(true);
             const tickStep = SpdScale / 4;
@@ -811,14 +811,14 @@ async function renderWindRose(containerId, stationId) {
             const width = 8;
             const widthRad = width * Math.PI / 180;
             const chevronHeight = 5;
-            
+
             const x1 = r * Math.sin(angle - widthRad);
             const y1 = -r * Math.cos(angle - widthRad);
             const x2 = (r - chevronHeight) * Math.sin(angle);
             const y2 = -(r - chevronHeight) * Math.cos(angle);
             const x3 = r * Math.sin(angle + widthRad);
             const y3 = -r * Math.cos(angle + widthRad);
-            
+
             return `M ${x1},${y1} L ${x2},${y2} L ${x3},${y3}`;
         }
 
@@ -837,11 +837,11 @@ async function renderWindRose(containerId, stationId) {
             speedArcMax.selectAll("path")
                 .transition()
                 .duration(500)
-                .attrTween("d", function(d) {
-                    const previous = d3.select(this).datum() || {m: 0};
+                .attrTween("d", function (d) {
+                    const previous = d3.select(this).datum() || { m: 0 };
                     const interpolateM = d3.interpolate(previous.m, d.m);
-                    return function(t) {
-                        return createChevron({...d, m: interpolateM(t)});
+                    return function (t) {
+                        return createChevron({ ...d, m: interpolateM(t) });
                     };
                 });
         } else {
@@ -854,13 +854,13 @@ async function renderWindRose(containerId, stationId) {
         speedArc.selectAll("path")
             .data(winds, d => d.d)
             .enter().append("path")
-            .attr("d", d => speedArcGen({...d, s: 0}))
+            .attr("d", d => speedArcGen({ ...d, s: 0 }))
             .attr("class", "arcs")
             .style("fill", probabilityToColor)
             .append("title");
 
         const allPaths = svg.select(".speedArc").selectAll("path");
-        
+
         if (animate) {
             allPaths.transition().duration(500).attr("d", speedArcGen).style("fill", probabilityToColor);
         } else {
@@ -908,9 +908,9 @@ async function renderWindRose(containerId, stationId) {
 
         const current = allData[currentIndex];
         const isFirstRender = currentIndex === 0 && d3.select('#windrose').select("svg").empty();
-        
+
         document.getElementById('currentDate').textContent = `📅 ${new Date(current.date).toLocaleString('fr-FR')}`;
-        
+
         plotProbabilityRose(current.data, '#windrose', 120, !isFirstRender);
         plotSpeedRose(current.data, '#windspeed', 120, !isFirstRender);
 
@@ -942,7 +942,7 @@ async function renderWindRose(containerId, stationId) {
             intervalId = null;
         }
         const progressBar = document.getElementById('progressBar');
-        if(progressBar) progressBar.style.width = '0%';
+        if (progressBar) progressBar.style.width = '0%';
     }
 
     function togglePause() {
@@ -963,12 +963,12 @@ async function renderWindRose(containerId, stationId) {
         try {
             const response = await fetch(API_URL);
             const json = await response.json();
-            
+
             if (json.success && json.data) {
                 allData = convertApiData(json.data);
                 if (allData.length === 0) {
-                     container.innerHTML = '<div class="error-message">Aucune donnée de vent disponible pour cette période.</div>';
-                     return;
+                    container.innerHTML = '<div class="error-message">Aucune donnée de vent disponible pour cette période.</div>';
+                    return;
                 }
                 calculateGlobalScales(allData);
                 currentIndex = 0;
@@ -991,7 +991,7 @@ async function renderWindRose(containerId, stationId) {
                         </div>
                         <div class="rose-container" id="vectorContainer">
                             <div class="rose-title">Vecteurs du vent</div>
-                            <div id="windvectors" class="plot-container"></div>
+                            <div id="Vectors" class="plot-container"></div>
                         </div>
                         <div class="rose-container" id="speedContainer">
                             <div class="rose-title">Rose de Vitesse</div>
@@ -1012,8 +1012,8 @@ async function renderWindRose(containerId, stationId) {
                 startAutoScroll();
 
                 // Load the vector plot
-                const vectorUrl = `/query/${stationId}/WindVectors?stepCount=100`;
-                loadVectorPlot('windvectors', vectorUrl);
+                const vectorUrl = `/query/${stationId}/Vectors?stepCount=100`;
+                loadVectorPlot('Vectors', vectorUrl);
             } else {
                 container.innerHTML = `<div class="error-message">❌ Erreur: ${json.error || 'données invalides'}</div>`;
             }

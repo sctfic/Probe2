@@ -114,6 +114,8 @@ async function getCompositeProbes(weatherData, stationConfig) {
                 .replace("%altitude%", stationConfig.altitude.desired || stationConfig.altitude.lastReadValue);
             // console.log(fnCalcStr);
             const calculate = vm.runInNewContext(`(${fnCalcStr})`, scriptContext);
+            console.log(`${V.info} Calculating ${probeKey}`);
+            console.log(calculate.toString());
             const calculatedValue = calculate(calcInput);
             const type = unitsProvider.getSensorTypeMap()[probeKey];
             const units = unitsProvider.getUnits();

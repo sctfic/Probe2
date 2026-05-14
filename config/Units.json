@@ -37,9 +37,7 @@
                 "fnFromMetric": "(k) => k"
             }
         },
-        "sensors": [
-            "test_calc"
-        ]
+        "sensors": []
     },
     "temperature": {
         "title": "Temperature",
@@ -184,10 +182,7 @@
                 "fnFromMetric": "(deg) => (deg * Math.PI / 180).toFixed(2)"
             }
         },
-        "sensors": [
-            "SUN_V_calc",
-            "MOON_calc"
-        ]
+        "sensors": []
     },
     "rain": {
         "title": "Précipitations",
@@ -280,7 +275,9 @@
         },
         "sensors": [
             "solar",
-            "solarMax"
+            "solarMax",
+            "PowerPannelByTemp_calc",
+            "PerfecPannel_calc"
         ]
     },
     "humidity": {
@@ -443,7 +440,9 @@
         },
         "sensors": [
             "Gust",
-            "Wind"
+            "Wind",
+            "MoonTrajectory_calc",
+            "SunTrajectory_calc"
         ]
     }
 }

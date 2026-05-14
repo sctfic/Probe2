@@ -722,6 +722,19 @@ exports.updatecompositeProbesSettings = (req, res) => {
             });
         }
 
+        // S'assurer que sensorDb contient le fullname (measurement:sensorKey)
+        for (const probeKey of Object.keys(newSettings)) {
+            const probeData = newSettings[probeKey];
+            if (probeData.measurement && probeData.sensorDb) {
+                // Si sensorDb ne contient pas déjà le préfixe measurement:
+                if (!probeData.sensorDb.includes(':')) {
+                    probeData.sensorDb = `${probeData.measurement}:${probeData.sensorDb}`;
+                }
+            } else if (probeData.measurement && !probeData.sensorDb) {
+                probeData.sensorDb = `${probeData.measurement}:${probeKey}`;
+            }
+        }
+
         const success = probesProvider.setProbes(newSettings);
         if (!success) {
             throw new Error('Erreur lors de la sauvegarde de la configuration des sondes additionnelles.');

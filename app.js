@@ -69,7 +69,7 @@ console.log(`${V.loading} Répertoire de configuration: ${configDir}`);
 
 // Lance le serveur
 if (require.main === module) {
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
         console.log(`${V.StartFlag} Serveur Probe démarré sur le port ${PORT}`);
         console.log(`${V.info} Environnement: ${process.env.NODE_ENV || 'development'}`);
         console.log(`${V.satellite} Stations: http://localhost:${PORT}/api/stations`);
@@ -83,6 +83,17 @@ if (require.main === module) {
 
         // Initialise toutes les tâches cron planifiées au démarrage
         cronService.initializeAllJobs();
+    });
+
+    server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+            console.error(`${V.error} Erreur critique : Le port ${PORT} est déjà utilisé par un autre processus.`);
+            console.error(`${V.error} Veuillez arrêter le processus utilisant ce port ou changer le port. (actuellement ${PORT}).`);
+            process.exit(1);
+        } else {
+            console.error(`${V.error} Erreur lors du démarrage du serveur :`, err);
+            process.exit(1);
+        }
     });
 }
 
