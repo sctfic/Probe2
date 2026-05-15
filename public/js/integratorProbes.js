@@ -5,38 +5,77 @@
 let currentIntegratorProbesSettings = {};
 let integratorUnitCategories = {};
 
+const PERIOD_OPTIONS = [
+    { label: '5 minutes', value: 300 },
+    { label: '30 minutes', value: 1800 },
+    { label: '1 heure', value: 3600 },
+    { label: '6 heures', value: 21600 },
+    { label: '12 heures', value: 43200 },
+    { label: '1 jour', value: 86400 },
+    { label: '1 semaine', value: 604800 },
+    { label: '2 semaines', value: 1209600 },
+    { label: '1 mois', value: 2592000 }
+];
+
 let integratorJsCompletions = [
-    'function () {\n|\n}', '(x)=>{|}', 'const  = ;', 'let  = ;', 'var  = ;',
-    'if (|) {}', 'else if (|) {}', 'else {|}', 'for (i = 0; i < 10; i++) {|}', 'while (i < 10) {|}', 'do {|}', 'switch (i) {\ncase 1: break;\ndefault: \n}', 'case :', 'break;', 'continue;', 'return;',
-    'return', 'try {|}\ncatch {}\nfinally {}', 'try {|}', 'catch {|}', 'finally {|}', 'throw', 'class', 'extends', 'import', 'export', 'default', 'async', 'await',
+    'function () {\\n|\\n}', '(x)=>{|}', 'const  = ;', 'let  = ;', 'var  = ;',
+    'if (|) {}', 'else if (|) {}', 'else {|}', 'for (i = 0; i < 10; i++) {|}', 'while (i < 10) {|}', 'do {|}', 'switch (i) {\\ncase 1: break;\\ndefault: \\n}', 'case :', 'break;', 'continue;', 'return;',
+    'return', 'try {|}\\ncatch {}\\nfinally {}', 'try {|}', 'catch {|}', 'finally {|}', 'throw', 'class', 'extends', 'import', 'export', 'default', 'async', 'await',
     'console.log();', 'console.error();', 'console.warn();', 'console.info();', 'console.table();',
     'document.getElementById();', 'document.querySelector();', 'document.querySelectorAll();', 'document.createElement();',
     'addEventListener();', 'removeEventListener();', 'preventDefault();', 'stopPropagation();',
     'setTimeout();', 'setInterval();', 'clearTimeout();', 'clearInterval();',
     'JSON.stringify();', 'JSON.parse();', 'Object.keys();', 'Object.values();', 'Object.entries();', 'Array.isArray();',
-    'fetch();', 'Promise();', 'try {}\ncatch {}\nfinally {}', 'resolve () {}', 'reject () {}',
+    'fetch();', 'Promise();', 'try {}\\ncatch {}\\nfinally {}', 'resolve () {}', 'reject () {}',
     'alert();', 'prompt();', 'confirm();',
     'localStorage();', 'sessionStorage();', 'getItem();', 'setItem();', 'removeItem();',
-    'Math.random();', 'Math.floor();', 'Math.ceil();', 'Math.round();', 'Math.max();', 'Math.min();'
+    'Math.random();', 'Math.floor();', 'Math.ceil();', 'Math.round();', 'Math.max();', 'Math.min();',
+    'Stats.current(data, field)', 'Stats.mean(data, field, scope)', 'Stats.min(data, field, scope)', 'Stats.max(data, field, scope)',
+    'Stats.sum(data, field, scope)', 'Stats.first(data, field, scope)', 'Stats.last(data, field, scope)',
+    'Stats.trend(data, field, scope)', 'Stats.movingAverage(data, field, window, scope)',
+    'Stats.linearSlope(data, field, scope)', 'Stats.cagr(data, field, scope)', 'Stats.mannKendall(data, field, scope)',
+    'Stats.split(data)',
+    "'past'", "'future'", "'all'"
 ];
 
 const INTEGRATOR_HELP_CONTENT_HTML = `
-    <p>La fonction doit retourner la valeur calculée. Vous avez accès à l'objet <code>data</code> qui contient les valeurs des capteurs nécessaires.</p>
-    <h4>Paramètres disponibles</h4>
+<div style="font-size: 0.85em; line-height: 1.3;">
+    <p>La fonction reçoit l'ensemble du dataset en une seule fois et doit retourner une valeur numérique ou un objet structuré.</p>
+    
+    <h4>Formats de retour supportés</h4>
     <ul>
-        <li><code>data['measurement:sensor']</code> : valeur d'un capteur</li>
-        <li><code>data.d</code> : Timestamp de la donnée au format ISO 8601.</li>
-        <li><code>%longitude%</code>, <code>%latitude%</code>, <code>%altitude%</code> : Seront remplacés à l'exécution par les coordonnées de la station.</li>
+        <li><strong>Numérique</strong> : Retourne un simple nombre (arrondi à 1 décimale).</li>
+        <li><strong>Vecteur</strong> : Si type <code>vector</code>, objet <code>{ Ux, Vy, Value? }</code>.</li>
+        <li><strong>Multi-mesures</strong> : Si type <code>None</code>, objet avec clés <code>Meas:sensor</code>.</li>
     </ul>
-    <h4>Raccourcis de l'éditeur</h4>
+
+    <h4>Détails des paramètres Stats</h4>
     <ul>
-        <li><code>Tab</code> : Indenter ou valider l'autocomplétion.</li>
-        <li><code>Shift + Tab</code> : Désindenter.</li>
-        <li><code>Ctrl + /</code> : Commenter/décommenter la ligne.</li>
-        <li><code>↑ / ↓</code> : Naviguer dans les suggestions d'autocomplétion.</li>
-        <li><code>Enter</code> : Valider la suggestion sélectionnée.</li>
-        <li><code>Escape</code> : Fermer la liste de suggestions.</li>
+        <li><code>field</code> : Chaîne identifiant le capteur (ex: <code>'temperature:outTemp'</code>).</li>
+        <li><code>window</code> : Nombre de points pour la moyenne mobile (défaut: 5).</li>
+        <li><code>scope</code> : <code>'past'</code> (passé), <code>'future'</code> (prévisions), <code>'all'</code> (total).</li>
     </ul>
+
+    <h4>Outils statistiques (Stats)</h4>
+    <ul>
+        <li><code>Stats.current(data, field)</code> : Valeur au point "now".</li>
+        <li><code>Stats.mean(data, field, scope)</code>, <code>Stats.min()</code>, <code>Stats.max()</code>, <code>Stats.sum()</code></li>
+        <li><code>Stats.first(data, field, scope)</code>, <code>Stats.last(data, field, scope)</code></li>
+        <li><code>Stats.trend(data, field, scope)</code> : Différence last - first sur le scope.</li>
+        <li><code>Stats.movingAverage(data, field, window, scope)</code> : Moyenne mobile.</li>
+        <li><code>Stats.linearSlope(data, field, scope)</code> : Pente de régression linéaire.</li>
+        <li><code>Stats.cagr(data, field, scope)</code> : Taux de croissance composé annuel.</li>
+        <li><code>Stats.mannKendall(data, field, scope)</code> : Test de tendance monotone.</li>
+        <li><code>Stats.split(data)</code> : Retourne <code>{ past: [], future: [] }</code>.</li>
+    </ul>
+
+    <h4>Exemple</h4>
+    <pre style="margin: 5px 0;"><code>// Moyenne passée
+Stats.mean(data, 'temperature:outTemp', 'past')</code></pre>
+
+    <h4>Raccourcis</h4>
+    <p style="margin: 0;"><code>Ctrl+S</code>: Enregistrer, <code>Tab</code>: Auto-complétion, <code>Ctrl+/</code>: Commenter, <code>Esc</code>: Fermer.</p>
+</div>
 `;
 
 function hideIntegratorHelpModal() {
@@ -181,11 +220,27 @@ function displayIntegratorProbesList(settings) {
 }
 
 /**
+ * Generates a period select dropdown (contextPeriod or drawingPeriod).
+ */
+function generatePeriodSelect(probeKey, fieldKey, selectedValue, label) {
+    const inputId = `integrator-probe-${probeKey}-${fieldKey}`;
+    const numValue = Number(selectedValue);
+    let optionsHTML = '';
+    PERIOD_OPTIONS.forEach(opt => {
+        optionsHTML += `<option value="${opt.value}" ${opt.value === numValue ? 'selected' : ''}>${opt.label}</option>`;
+    });
+    return `
+        <div class="settings-field">
+            <label for="${inputId}">${label}</label>
+            <select id="${inputId}" name="${probeKey}.${fieldKey}">
+                ${optionsHTML}
+            </select>
+        </div>
+    `;
+}
+
+/**
  * Creates the HTML for a single probe item in the list.
- * @param {string} probeKey - The unique key for the probe.
- * @param {object} probeData - The data for the probe.
- * @param {boolean} [isOpen=false] - Whether the item should be open by default.
- * @returns {string} The HTML string for the probe item.
  */
 function createIntegratorProbeItemHTML(probeKey, probeData, isOpen = false) {
     const fnModelValue = probeData.fnModel || '';
@@ -196,7 +251,7 @@ function createIntegratorProbeItemHTML(probeKey, probeData, isOpen = false) {
                 <h3>
                     <span class="toggle-icon">▶</span>
                     Sonde : ${probeKey} <em class="probe-label-preview">(${probeData.label || 'N/A'})</em> 
-                    <em class="probe-measurement-preview">(${probeData.measurement || 'N/A'})</em>
+                    <em class="probe-measurement-preview">(${probeData.measurement || 'None'})</em>
                 </h3>
                 <img src="svg/delete.svg" class="nav-icon btn-delete-integrator-probe" data-probe-key="${probeKey}" alt="Supprimer" title="Supprimer cet Intégrateur">
             </div>
@@ -219,7 +274,10 @@ function createIntegratorProbeItemHTML(probeKey, probeData, isOpen = false) {
                         </div>
                         <div class="form-row">
                             ${generateIntegratorProbeField(probeKey, 'scriptJS', (probeData.scriptJS || []).join(','), 'text', 'Scripts JS (séparés par une virgule)')}
-                            ${generateIntegratorProbeField(probeKey, 'period', probeData.period, 'number', 'Période (secondes)')}
+                        </div>
+                        <div class="form-row">
+                            ${generatePeriodSelect(probeKey, 'contextPeriod', probeData.contextPeriod || 86400, 'Période de contexte de calcul')}
+                            ${generatePeriodSelect(probeKey, 'drawingPeriod', probeData.drawingPeriod || 604800, 'Période d\'affichage')}
                         </div>
                         <input type="hidden" name="${probeKey}.sensorDb" value="${probeData.sensorDb || probeKey}">
                     </div>
@@ -236,7 +294,6 @@ function createIntegratorProbeItemHTML(probeKey, probeData, isOpen = false) {
 
 function generateIntegratorMeasurementSelect(probeKey, selectedMeasurement) {
     if (Object.keys(integratorUnitCategories).length === 0) {
-        console.error("integratorUnitCategories is not populated. Make sure unit settings are fetched.");
         return `
             <div class="settings-field">
                 <label>Type de mesure</label>
@@ -245,9 +302,9 @@ function generateIntegratorMeasurementSelect(probeKey, selectedMeasurement) {
         `;
     }
 
-    let optionsHTML = `<option value="">-- Non défini --</option>`;
+    let optionsHTML = `<option value="None" ${(!selectedMeasurement || selectedMeasurement === 'None') ? 'selected' : ''}>None</option>`;
     for (const key in integratorUnitCategories) {
-        if (integratorUnitCategories[key].title) { // N'afficher que les catégories avec un titre
+        if (integratorUnitCategories[key].title) {
             optionsHTML += `<option value="${key}" ${key === selectedMeasurement ? 'selected' : ''}>${integratorUnitCategories[key].title}</option>`;
         }
     }
@@ -335,7 +392,9 @@ function handleAddIntegratorProbe(event) {
     const newProbeData = {
         label: "", comment: "", fnModel: "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  return null;\n}",
         dataNeeded: [], currentMap: {}, scriptJS: [],
-        period: 604800, sensorDb: probeKey
+        contextPeriod: 86400, drawingPeriod: 604800, 
+        measurement: "None",
+        sensorDb: `None:${probeKey}`
     };
     currentIntegratorProbesSettings[probeKey] = newProbeData;
 
@@ -413,18 +472,25 @@ async function handleIntegratorProbesFormSubmit(event) {
             const [probeKey, fieldKey] = key.split('.');
             if (fieldKey === 'scriptJS') {
                 probeData[fieldKey] = value.split(',').map(s => s.trim()).filter(s => s);
-            } else if (fieldKey === 'period') {
+            } else if (fieldKey === 'contextPeriod' || fieldKey === 'drawingPeriod') {
                 probeData[fieldKey] = Number(value);
             } else {
                 probeData[fieldKey] = value;
             }
         }
 
+        // Set measurement default if empty
+        if (!probeData.measurement) {
+            probeData.measurement = 'None';
+        }
+
         const { dataNeeded, currentMap } = parseFnModel(probeData.fnModel);
         probeData.dataNeeded = dataNeeded;
         probeData.currentMap = currentMap;
+        // Force sensorDb format: measurement:probeKey
+        probeData.sensorDb = `${probeData.measurement}:${probeKey}`;
         probeData.groupCustom = "IntegratorNew";
-        probeData.groupUsage = "Integrator";
+        probeData.groupUsage = "Composites";
 
         currentIntegratorProbesSettings[probeKey] = probeData;
 
@@ -433,7 +499,7 @@ async function handleIntegratorProbesFormSubmit(event) {
         const item = document.querySelector(`.settings-group[data-probe-key="${probeKey}"]`);
         if (item) {
             item.querySelector('.probe-label-preview').textContent = `(${probeData.label || 'N/A'})`;
-            item.querySelector('.probe-measurement-preview').textContent = `(${probeData.measurement || 'N/A'})`;
+            item.querySelector('.probe-measurement-preview').textContent = `(${probeData.measurement || 'None'})`;
         }
     } catch (error) {
         console.error('Erreur:', error);
@@ -457,9 +523,6 @@ async function saveAllIntegratorProbesSettings(settings) {
         if (result.success === true) {
             currentIntegratorProbesSettings = settings;
             showGlobalStatus('Modeles Intégrateur enregistrées avec succès !', 'success');
-            // if (typeof fetchCurrentConditions === 'function') {
-            //     fetchCurrentConditions();
-            // }
         } else {
             throw new Error(result.message || 'Erreur lors de la sauvegarde');
         }

@@ -91,7 +91,6 @@ function renderPlot(id) {
                 grid: true,
                 nice: true,
                 tickSize: 2,
-                fontSize: 7,
                 domain: metadata.measurement === 'rain'
                     ? [0, d3.max(data, d => d.Value)]
                     : extent
@@ -153,7 +152,7 @@ function renderPlot(id) {
 
         chartDiv.innerHTML = '';
         chartDiv.appendChild(plot);
-        
+
         // S'assurer que le SVG remplit le conteneur
         const svgElement = chartDiv.querySelector('svg');
         if (svgElement) {

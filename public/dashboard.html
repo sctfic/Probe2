@@ -6,15 +6,20 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <script>
+        // Définition globale de isMobile pour tous les scripts
+        window.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        window.addEventListener('resize', () => {
+            window.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        });
+
         const DASH_REF_W = 2400;
         const DASH_REF_H = 1080;
 
         function applyMobileScale() {
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             const dashboard = document.querySelector('.dashboard');
             if (!dashboard) return;
 
-            if (isMobile) {
+            if (window.isMobile) {
                 const vw = window.innerWidth;
                 const vh = window.innerHeight;
                 const scale = Math.min(vw / DASH_REF_W, vh / DASH_REF_H);

@@ -70,7 +70,7 @@ class TimeSeriesPlot {
 
         this.margin = { top: 10, right: 40, bottom: 20, left: 40 };
         this.width = window.innerWidth;
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
         this.height = isMobile ? 200 : 300;
         this.innerWidth = this.width - this.margin.left - this.margin.right;
         this.innerHeight = this.height - this.margin.top - this.margin.bottom;
@@ -975,7 +975,7 @@ class TimeSeriesPlot {
     // Redimensionnement dynamique
     resize() {
         this.width = window.innerWidth;
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
         this.height = isMobile ? 200 : 300;
         this.innerWidth = this.width - this.margin.left - this.margin.right;
         this.innerHeight = this.height - this.margin.top - this.margin.bottom;

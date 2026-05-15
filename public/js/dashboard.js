@@ -672,11 +672,11 @@ function createConditionTileHTML(item) {
                 <div class="condition-name">${item.name}</div>
                 <div class="condition-value">
                     ${typeof displayValue === 'object' && displayValue !== null
-                        ? `<span class="smallText" style="float:none">${item.comment || ''}</span>`
-                        : `<span id="tuile_${item.key}_value">${fn(displayValue)}</span>
+            ? `<span class="smallText" style="float:none">${item.comment || ''}</span>`
+            : `<span id="tuile_${item.key}_value">${fn(displayValue)}</span>
                            ${unitDisplay}
                            <span id="tuile_${item.key}_more" class="smallText">${item.more ? item.more : ''}</span>`
-                    }
+        }
                 </div>
                 ${metaInfo}
             </div>
@@ -813,7 +813,7 @@ function handleTouchStart(e) {
         hasTriggeredLongPress = true;
 
         // Long press on mobile: Clear others and select only this one
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
         if (isMobile) {
             document.querySelectorAll('.condition-tile.selected').forEach(t => t.classList.remove('selected'));
             selectedTiles.clear();
@@ -947,7 +947,7 @@ function deinitDragAndDrop() {
 
 function showDetailsFooter(keys) {
     // Vérification smartphone et plein écran (déplacé ici car déclenché par user interaction)
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
 
     if (isMobile && !document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch((err) => {
@@ -963,8 +963,8 @@ function showDetailsFooter(keys) {
     const keysArray = Array.isArray(keys) ? keys : [keys];
     if (keysArray.length === 0) return;
 
-    const footerOpenHeight = '40vh';
-    mainViewport.style.bottom = footerOpenHeight;
+    // mainViewport.style.bottom sera mis à jour dans loadCharts() selon la taille réelle du footer
+    // mainViewport.style.bottom = '40vh'; // Supprimé au profit de la synchro dynamique
 
     const items = keysArray.map(key => allConditions.find(c => c.key === key)).filter(Boolean);
     console.log(items)
@@ -990,7 +990,12 @@ function showDetailsFooter(keys) {
                 contentContainer.parentElement.style.maxHeight = '36vh';
                 loadWindPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}`, items[0].sensorDb);
             } else {
-                contentContainer.parentElement.style.maxHeight = '65vh';
+                // contentContainer.parentElement.style.maxHeight = '40vh'; // sur PC et 65vh sur smartphone
+                if (isMobile) {
+                    contentContainer.parentElement.style.maxHeight = '65vh';
+                } else {
+                    contentContainer.parentElement.style.maxHeight = '40vh';
+                }
                 loadSpiralePlot(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raw/${items[0].sensorDb}`);
             }
         } else if (items.length > 1) {
@@ -1003,6 +1008,7 @@ function showDetailsFooter(keys) {
             contentContainer.parentElement.style.maxHeight = '36vh';
             mainPlots(contentContainer, `${API_BASE_URL}/${selectedStation.id}/Raws/${sensorsQuery}`, getStartDate('1y'));
         }
+        mainViewport.style.bottom = contentContainer.parentElement.style.maxHeight;
     };
 
     // Affiche le footer avec animation
@@ -1085,7 +1091,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
 
         if (event.ctrlKey || (isMobile && selectedTiles.size > 0)) {
             event.preventDefault(); // Prevent link navigation on Ctrl+click

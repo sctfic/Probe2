@@ -8,6 +8,7 @@ const scheduledTasks = new Map();
 const scheduledExtenderTasks = new Map();
 const scheduledOpenMeteoTasks = new Map();
 const scheduledOpenMeteoForecastTasks = new Map(); // Nouvelle Map pour les prévisions
+const scheduledIntegratorTasks = new Map();
 
 /**
  * Planifie une tâche de collecte pour une station donnée.
@@ -226,6 +227,63 @@ function removeOpenMeteoForecastJob(stationId) {
 }
 
 /**
+ * Planifie une tâche de calcul des modèles intégrateurs pour une station.
+ * Même intervalle que les extenders avec 10 secondes de décalage.
+ * @param {string} stationId - L'ID de la station.
+ * @param {object} stationConfig - La configuration de la station.
+ */
+function scheduleIntegratorJob(stationId, stationConfig) {
+    // S'assurer qu'il n'y a pas déjà une tâche pour cette station
+    if (scheduledIntegratorTasks.has(stationId)) {
+        console.log(`${V.Warn} [CRON] Une tâche Intégrateur existe déjà pour ${stationId}. Suppression avant de replanifier.`);
+        removeIntegratorJob(stationId);
+    }
+
+    if (!stationConfig.collect || !stationConfig.collect.enabled) {
+        console.log(`${V.info} [CRON] La collecte (intégrateur) n'est pas activée pour ${stationId}.`);
+        return;
+    }
+
+    const cronInterval = stationConfig.collect.value;
+    if (!cronInterval || typeof cronInterval !== 'number' || cronInterval <= 0) {
+        return;
+    }
+
+    // Même pattern que extenders mais avec 13 secondes (10 sec de retard par rapport aux 03 sec des extenders)
+    const cronPattern = cronInterval < 60
+        ? `13 */${cronInterval} * * * *`
+        : `13 * */${Math.round(cronInterval / 60)} * * *`;
+
+    const task = cron.schedule(cronPattern, async () => {
+        const port = process.env.PORT || 3000;
+        const integratorUrl = `http://localhost:${port}/api/station/${stationId}/integrator/build`;
+        console.log(`${V.info} [CRON] Exécution du calcul intégrateur pour la station ${stationId}`);
+        try {
+            const response = await axios.get(integratorUrl);
+            console.log(`${V.Check} [CRON] Calcul intégrateur pour ${stationId} réussi. Status: ${response.status}`);
+        } catch (error) {
+            const errorMessage = error.response ? `Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data)}` : error.message;
+            console.error(`${V.error} [CRON] Erreur lors du calcul intégrateur pour ${stationId}:`, errorMessage);
+        }
+    });
+
+    scheduledIntegratorTasks.set(stationId, task);
+    console.log(`${V.Check} [CRON] Tâche Intégrateur planifiée pour ${stationId} avec le pattern: "${cronPattern}".`);
+}
+
+/**
+ * Supprime la tâche Intégrateur planifiée pour une station.
+ * @param {string} stationId - L'ID de la station.
+ */
+function removeIntegratorJob(stationId) {
+    if (scheduledIntegratorTasks.has(stationId)) {
+        scheduledIntegratorTasks.get(stationId).stop();
+        scheduledIntegratorTasks.delete(stationId);
+        console.log(`${V.trash} [CRON] Tâche Intégrateur supprimée pour la station ${stationId}.`);
+    }
+}
+
+/**
  * Initialise les tâches pour toutes les stations configurées.
  */
 function initializeAllJobs() {
@@ -237,6 +295,7 @@ function initializeAllJobs() {
         scheduleExtenderJob(stationId, stationConfig);
         scheduleOpenMeteoJob(stationId, stationConfig);
         scheduleOpenMeteoForecastJob(stationId, stationConfig);
+        scheduleIntegratorJob(stationId, stationConfig);
     });
 }
 
@@ -249,5 +308,7 @@ module.exports = {
     scheduleOpenMeteoJob,
     removeOpenMeteoJob,
     scheduleOpenMeteoForecastJob,
-    removeOpenMeteoForecastJob
+    removeOpenMeteoForecastJob,
+    scheduleIntegratorJob,
+    removeIntegratorJob
 };

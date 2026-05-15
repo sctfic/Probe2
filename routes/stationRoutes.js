@@ -5,6 +5,7 @@ const { loadStationConfig, talkStationWithLamp, talkStationQuickly } = require('
 const { isAuthenticated } = require('../middleware/authMiddleware');
 const stationController = require('../controllers/stationController');
 const extendersController = require('../controllers/extendersController');
+const integratorController = require('../controllers/integratorController');
 
 // Middleware pour toutes les routes de stations
 router.use('/:stationId', loadStationConfig); //http://Probe.lpz.ovh/api/station/VP2_Serramoune
@@ -17,6 +18,9 @@ router.get('/:stationId/collect', talkStationWithLamp(stationController.getArchi
 
 // Collecte les données des extenders depuis la station
 router.get('/:stationId/extenders', extendersController.collectExtenders); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders
+
+// Calcule les modèles intégrateurs pour la station
+router.get('/:stationId/integrator/build', integratorController.runIntegrator); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/integrator/build
 
 // Vérifie le statut (avaiblité) des extenders par un appel api
 router.get('/:stationId/extenders/status', extendersController.checkExtendersStatus); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders/status

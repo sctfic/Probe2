@@ -30,6 +30,7 @@ const HELP_CONTENT_HTML = `
     </ul>
     <h4>Raccourcis de l'éditeur</h4>
     <ul>
+        <li><code>Ctrl + S</code> : Enregistrer les modifications.</li>
         <li><code>Tab</code> : Indenter ou valider l'autocomplétion.</li>
         <li><code>Shift + Tab</code> : Désindenter.</li>
         <li><code>Ctrl + /</code> : Commenter/décommenter la ligne.</li>

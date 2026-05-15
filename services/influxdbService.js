@@ -12,7 +12,7 @@ let influxInstances = {}; // Stocke les instances (client, writeApi, queryApi, e
 
 /**
  * Initialise les clients InfluxDB pour un bucket donné.
- * @param {string} key - La clé du bucket (ex: 'Stations', 'Archives', 'Forecasts', 'Extenders', 'Virtuals').
+ * @param {string} key - La clé du bucket (ex: 'Stations', 'Archives', 'Forecasts', 'Extenders', 'Integrators').
  * @param {object} config - L'objet de configuration { url, token, org, bucket }.
  */
 function initializeBucket(key, config) {
@@ -399,10 +399,10 @@ async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn, sensorRef =
     };
 
     // -------------------------------------------------------------------------
-    // PHASE 0 : Données de haute précision (Stations, Virtuals, Extenders)
+    // PHASE 0 : Données de haute précision (Stations, Integrators, Extenders)
     // -------------------------------------------------------------------------
     const phase0Plan = [];
-    ['Stations', 'Virtuals', 'Extenders'].forEach(k => {
+    ['Stations', 'Integrators', 'Extenders'].forEach(k => {
         if (hasSensor(k)) {
             console.log(V.info, `Données du bucket ${k} ajoutées à la phase 0`);
             phase0Plan.push({ key: k, bucket: influxInstances[k].bucket, start, stop });
@@ -605,7 +605,7 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, bucketKe
     };
 
     // -------------------------------------------------------------------------
-    // PHASE 0 : Buckets ciblés (Stations, Virtuals, Extenders, etc.)
+    // PHASE 0 : Buckets ciblés (Stations, Integrators, Extenders, etc.)
     // -------------------------------------------------------------------------
     const phase0Keys = activeKeys.filter(k => k !== 'Archives' && k !== 'Forecasts');
     const hasArchives = activeKeys.includes('Archives');

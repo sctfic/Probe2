@@ -37,7 +37,11 @@
                 "fnFromMetric": "(k) => k"
             }
         },
-        "sensors": []
+        "sensors": [
+            "Irrigation_trend",
+            "agro_trend",
+            "XXXXX_trend"
+        ]
     },
     "temperature": {
         "title": "Temperature",
@@ -70,7 +74,8 @@
             "windChill",
             "heatIndex",
             "THSW",
-            "THSW_calc"
+            "THSW_calc",
+            "agro_trend"
         ]
     },
     "speed": {

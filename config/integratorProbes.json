@@ -2,26 +2,39 @@
     "agro_trend": {
         "label": "modele Agronomique",
         "comment": "modele Agronomique multi cultural",
-        "fnModel": "",
+        "fnModel": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n\n  return Stats.current(data, 'temperature:outTemp');\n}",
         "dataNeeded": [
-            "temperature:outTemp",
-            "humidity:outHumidity",
-            "irradiance:solar",
-            "speed:Wind"
+            "pressure:barometer"
         ],
         "currentMap": {
             "d": "timestamp",
-            "temperature:outTemp": "outTemp",
-            "humidity:outHumidity": "outHumidity",
-            "irradiance:solar": "solar",
-            "speed:Wind": "Wind"
+            "pressure:barometer": "barometer"
         },
-        "scriptJS": [
-            "/js/composite/THSW.js"
-        ],
-        "period": 604800,
+        "scriptJS": [],
+        "contextPeriod": 86400,
+        "drawingPeriod": 604800,
         "groupUsage": "Composites",
-        "sensorDb": "THSW_calc",
-        "measurement": "temperature"
+        "sensorDb": "None:agro_trend",
+        "measurement": "None",
+        "groupCustom": "IntegratorNew"
+    },
+    "Irrigation_trend": {
+        "label": "Pilotage électrovanne",
+        "comment": "Pilotage en fonction de l'humidité du sol et des prévisions de pluvométrie",
+        "fnModel": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n\n  return Math.random();\n}",
+        "dataNeeded": [
+            "pressure:barometer"
+        ],
+        "currentMap": {
+            "d": "timestamp",
+            "pressure:barometer": "barometer"
+        },
+        "scriptJS": [],
+        "contextPeriod": 86400,
+        "drawingPeriod": 604800,
+        "sensorDb": "None:Irrigation_trend",
+        "measurement": "None",
+        "groupCustom": "IntegratorNew",
+        "groupUsage": "Composites"
     }
 }

@@ -481,6 +481,22 @@ function createCodeEditor(textareaId, autoCompletions = []) {
         }
     }
 
+    // Fonction de gestion de la sauvegarde
+    function handleSave(e) {
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            const form = newTextarea.closest('form');
+            if (form) {
+                // Déclencher l'événement de soumission du formulaire (compatible avec requestSubmit si dispo)
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                }
+            }
+        }
+    }
+
     // Event listeners
     newTextarea.addEventListener('input', () => {
         updateHighlight();
@@ -488,6 +504,7 @@ function createCodeEditor(textareaId, autoCompletions = []) {
     });
 
     newTextarea.addEventListener('keydown', (e) => {
+        handleSave(e);
         toggleComment(e);
         handleIndentation(e);
         if (autocompleteDiv.style.display === 'block') {

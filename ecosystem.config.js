@@ -12,6 +12,7 @@ module.exports = {
         'node_modules',
         'config/stations',
         'config/compositeProbes.json',
+        'config/integratorProbes.json',
         'config/Units.json',
         'config/credential.json',
         'public',
