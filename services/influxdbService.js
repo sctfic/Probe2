@@ -375,24 +375,28 @@ async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn, sensorRef =
 
     const start = toISO(reqStart, 0);
     const stop = toISO(reqEnd, new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString()); // Par défaut 14 jours
+
     const startMs = parseToMillis(reqStart) || 0;
     const stopMs = parseToMillis(reqEnd) || (Date.now() + 14 * 24 * 3600 * 1000);
 
     // Vérifie si un bucket contient le capteur demandé selon ses métadonnées
     const hasSensor = (bucketKey) => {
         if (!influxInstances[bucketKey]) return false;
-        if (!sensorRef) {
+        if (!sensorRef || (Array.isArray(sensorRef) && sensorRef.length === 0)) {
             console.log(V.warning, `Aucun capteur specifie, on interrogera tous les buckets`);
             return true;
         }
 
-        const [measurement, sensor] = sensorRef.split(':');
         const meta = influxInstances[bucketKey].metadata;
         if (!meta) return true; // Sécurité: on interroge si les métadonnées ne sont pas encore chargées
 
-        if (meta[measurement]) {
-            if (!sensor || sensor === '*' || meta[measurement].includes(sensor)) {
-                return true;
+        const refs = Array.isArray(sensorRef) ? sensorRef : [sensorRef];
+        for (const ref of refs) {
+            const [measurement, sensor] = ref.split(':');
+            if (meta[measurement]) {
+                if (!sensor || sensor === '*' || meta[measurement].includes(sensor)) {
+                    return true;
+                }
             }
         }
         return false;
@@ -404,17 +408,15 @@ async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn, sensorRef =
     const phase0Plan = [];
     ['Stations', 'Integrators', 'Extenders'].forEach(k => {
         if (hasSensor(k)) {
-            console.log(V.info, `Données du bucket ${k} ajoutées à la phase 0`);
             phase0Plan.push({ key: k, bucket: influxInstances[k].bucket, start, stop });
-        } else {
-            console.log(V.warning, `Données du bucket ${k} non ajoutées à la phase 0`);
         }
     });
 
     const phase0Results = await Promise.all(phase0Plan.map(async (p) => {
-        const fluxQuery = buildFluxFn(p.bucket, p.start, p.stop);
+        const fluxQuery = buildFluxFn(p.bucket, p.start, p.stop, p.key);
+        if (!fluxQuery) return [];
         try {
-            console.log(`${V.info} Requête Flux [${(p.key + ' ').padEnd(12)}] - ${fluxQuery}`);
+            console.log(`${V.info} Requête Flux [${(p.key + ' ').padEnd(12)}] -\n${fluxQuery.trim()}`);
             const rows = await executeQuery(fluxQuery, p.key);
             return rows;
         } catch (e) {
@@ -434,12 +436,20 @@ async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn, sensorRef =
 
     // Forecasts (Toujours interroger sur la période complète car Phase 0 peut ne pas contenir tous les capteurs)
     if (hasSensor('Forecasts')) {
-        phase1Plan.push({ key: 'Forecasts', bucket: influxInstances['Forecasts'].bucket, start, stop });
+        const forecastStart = new Date();
+        forecastStart.setMinutes(1, 0, 0); // Arrondi à l'heure précédente + 1 min
+        const forecastStartISO = forecastStart.toISOString();
+        
+        if (forecastStart.getTime() < new Date(stop).getTime()) {
+            phase1Plan.push({ key: 'Forecasts', bucket: influxInstances['Forecasts'].bucket, start: forecastStartISO, stop });
+        }
     }
 
     const phase1Results = await Promise.all(phase1Plan.map(async (p) => {
-        const fluxQuery = buildFluxFn(p.bucket, p.start, p.stop);
+        const fluxQuery = buildFluxFn(p.bucket, p.start, p.stop, p.key);
+        if (!fluxQuery) return [];
         try {
+            console.log(`${V.info} Requête Flux [${(p.key + ' ').padEnd(12)}] -\n${fluxQuery.trim()}`);
             const rows = await executeQuery(fluxQuery, p.key);
             return rows;
         } catch (e) {
@@ -580,9 +590,21 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, bucketKe
 
     const queryBucket = async (k) => {
         const instance = influxInstances[k];
+        let bucketStart = startRange;
+        
+        if (k === 'Forecasts') {
+            const forecastStart = new Date();
+            forecastStart.setMinutes(1, 0, 0); // Arrondi à l'heure précédente + 1 min
+            bucketStart = forecastStart.toISOString();
+            
+            if (forecastStart.getTime() >= new Date(stopRange).getTime()) {
+                return []; // InfluxDB requiert start < stop
+            }
+        }
+
         const query = `
             t1 = from(bucket: "${instance.bucket}")
-                |> range(start: ${startRange}, stop: ${stopRange})
+                |> range(start: ${bucketStart}, stop: ${stopRange})
                 |> filter(fn: (r) => ${fluxFilter})
                 |> group()
                 |> first()
@@ -720,13 +742,29 @@ async function queryLast(stationId, startDate = '-7d', endDate = 'now()') {
 }
 
 async function queryRaws(stationId, sensorRefs, startDate, endDate, intervalSeconds = 3600) {
-    const cumulativeSensors = sensorRefs.filter(ref => ref.startsWith('rain:'));
-    const meanSensors = sensorRefs.filter(ref => !ref.startsWith('rain:'));
+    const buildFluxFn = (bucket, start, stop, bucketKey) => {
+        let bucketCumSensors = sensorRefs.filter(ref => ref.startsWith('rain:'));
+        let bucketMeanSensors = sensorRefs.filter(ref => !ref.startsWith('rain:'));
 
-    const sumFilter = cumulativeSensors.length > 0 ? cumulativeSensors.map(ref => getFilter(ref)).join(' or ') : null;
-    const meanFilter = meanSensors.length > 0 ? meanSensors.map(ref => getFilter(ref)).join(' or ') : null;
+        if (bucketKey && influxInstances[bucketKey] && influxInstances[bucketKey].metadata) {
+            const meta = influxInstances[bucketKey].metadata;
+            bucketCumSensors = bucketCumSensors.filter(ref => {
+                const [m, s] = ref.split(':');
+                return meta[m] && (s === '*' || meta[m].includes(s));
+            });
+            bucketMeanSensors = bucketMeanSensors.filter(ref => {
+                const [m, s] = ref.split(':');
+                return meta[m] && (s === '*' || meta[m].includes(s));
+            });
+        }
 
-    const buildFluxFn = (bucket, start, stop) => {
+        if (bucketCumSensors.length === 0 && bucketMeanSensors.length === 0) {
+            return null;
+        }
+
+        const sumFilter = bucketCumSensors.length > 0 ? bucketCumSensors.map(ref => getFilter(ref)).join(' or ') : null;
+        const meanFilter = bucketMeanSensors.length > 0 ? bucketMeanSensors.map(ref => getFilter(ref)).join(' or ') : null;
+
         let fluxQuery = '';
 
         if (sumFilter) {
@@ -768,8 +806,7 @@ union(tables: [sumData, meanData])
 
         return fluxQuery;
     };
-
-    const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn, null, stationId);
+    const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn, sensorRefs, stationId);
     const merged = resultsArray.flat().sort((a, b) => new Date(a._time) - new Date(b._time));
     return merged;
 }
