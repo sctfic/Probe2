@@ -116,8 +116,8 @@ function scheduleOpenMeteoJob(stationId, stationConfig) {
         return;
     }
 
-    // Tous les jours à 23h 50m 02s
-    const cronPattern = '02 30 */12 * * *';
+    // Toute les 6h
+    const cronPattern = '02 30 */6 * * *';
 
     const task = cron.schedule(cronPattern, async () => {
         const port = process.env.PORT || 3000;

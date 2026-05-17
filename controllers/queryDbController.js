@@ -700,8 +700,8 @@ function getHistoricalMapping() {
         'wind_speed_10m': { type: 'speed', sensor: ['Wind'], convert: (v) => v / 3.6 }, // km/h -> m/s
         'wind_gusts_10m': { type: 'speed', sensor: ['Gust'], convert: (v) => v / 3.6 }, // km/h -> m/s
         'wind_direction_10m': { type: 'direction', sensor: ['Wind', 'Gust'] },
-        'soil_temperature_7_to_28cm': { type: 'temperature', sensor: ['soilTemp'], convert: (v) => v + 273.15 }, // °C -> K
-        'soil_moisture_7_to_28cm': { type: 'soilMoisture', sensor: ['soilMoisture'], convert: (v) => v * 100 },
+        'soil_temperature_7_to_28cm': { type: 'temperature', sensor: ['soilTemp'], convert: (v) => v + 273.15, model: 'ERA5-Seamless' }, // °C -> K
+        'soil_moisture_7_to_28cm': { type: 'soilMoisture', sensor: ['soilMoisture'], convert: (v) => v * 100, model: 'ERA5-Seamless' },
         'pressure_msl': { type: 'pressure', sensor: ['barometer'] },
         'shortwave_radiation': { type: 'irradiance', sensor: ['solar'] }
     };
@@ -738,7 +738,9 @@ async function determineDateRange(stationId, moreYearsParam) {
             startDate.setFullYear(startDate.getFullYear() - moreYearsValue);
         } else {
             // 3. Complétion vers le présent (cron)
+            // on reprend les 90 dernier jours avant lastUtc pour integre les consolidations
             startDate = new Date(lastUtc);
+            startDate.setDate(startDate.getDate() - 90);
             endDate = new Date();
             isForward = true;
         }
@@ -816,34 +818,38 @@ async function processAndWriteHistoricalData(openMeteoData, stationId, stationCo
         }
 
         // Ajout des vecteurs de vent
-        const Wind = metrics.wind_speed_10m[i];
-        const WindDir = metrics.wind_direction_10m[i];
-        if (Wind !== null && WindDir !== null) {
-            const WindMs = Wind / 3.6;
-            const UxWind = Math.round(WindMs * Math.sin(Math.PI * WindDir / 180.0) * 1000) / 1000;
-            const VyWind = Math.round(WindMs * Math.cos(Math.PI * WindDir / 180.0) * 1000) / 1000;
-            pointsChunk.push(new influxdbService.Point('vector')
-                .tag('station_id', stationId)
-                .floatField('Ux', UxWind)
-                .floatField('Vy', VyWind)
-                .tag('sensor', 'Wind')
-                .tag('source', 'rebuildedHistoricalData')
-                .timestamp(timestamp));
+        if (metrics.wind_speed_10m && metrics.wind_direction_10m) {
+            const Wind = metrics.wind_speed_10m[i];
+            const WindDir = metrics.wind_direction_10m[i];
+            if (Wind !== null && WindDir !== null) {
+                const WindMs = Wind / 3.6;
+                const UxWind = Math.round(WindMs * Math.sin(Math.PI * WindDir / 180.0) * 1000) / 1000;
+                const VyWind = Math.round(WindMs * Math.cos(Math.PI * WindDir / 180.0) * 1000) / 1000;
+                pointsChunk.push(new influxdbService.Point('vector')
+                    .tag('station_id', stationId)
+                    .floatField('Ux', UxWind)
+                    .floatField('Vy', VyWind)
+                    .tag('sensor', 'Wind')
+                    .tag('source', 'rebuildedHistoricalData')
+                    .timestamp(timestamp));
+            }
         }
 
-        const Gust = metrics.wind_gusts_10m[i];
-        const GustDir = metrics.wind_direction_10m[i];
-        if (Gust !== null && GustDir !== null) {
-            const GustMs = Gust / 3.6;
-            const UxGust = Math.round(GustMs * Math.sin(Math.PI * GustDir / 180.0) * 1000) / 1000;
-            const VyGust = Math.round(GustMs * Math.cos(Math.PI * GustDir / 180.0) * 1000) / 1000;
-            pointsChunk.push(new influxdbService.Point('vector')
-                .tag('station_id', stationId)
-                .floatField('Ux', UxGust)
-                .floatField('Vy', VyGust)
-                .tag('sensor', 'Gust')
-                .tag('source', 'rebuildedHistoricalData')
-                .timestamp(timestamp));
+        if (metrics.wind_gusts_10m && metrics.wind_direction_10m) {
+            const Gust = metrics.wind_gusts_10m[i];
+            const GustDir = metrics.wind_direction_10m[i];
+            if (Gust !== null && GustDir !== null) {
+                const GustMs = Gust / 3.6;
+                const UxGust = Math.round(GustMs * Math.sin(Math.PI * GustDir / 180.0) * 1000) / 1000;
+                const VyGust = Math.round(GustMs * Math.cos(Math.PI * GustDir / 180.0) * 1000) / 1000;
+                pointsChunk.push(new influxdbService.Point('vector')
+                    .tag('station_id', stationId)
+                    .floatField('Ux', UxGust)
+                    .floatField('Vy', VyGust)
+                    .tag('sensor', 'Gust')
+                    .tag('source', 'rebuildedHistoricalData')
+                    .timestamp(timestamp));
+            }
         }
 
         const daysDiff = currentChunkEndDate ? (currentChunkEndDate - timestamp) / (1000 * 60 * 60 * 24) : 0;
@@ -891,21 +897,35 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
         }
 
         const { startDate, endDate, isForward } = await determineDateRange(stationId, req.params.moreYears);
-        const { hourly } = getHistoricalMapping();
+        const { mapping } = getHistoricalMapping();
 
-        const params = {
-            latitude: latitude.toFixed(2),
-            longitude: longitude.toFixed(2),
-            elevation: elevation.toFixed(0),
-            start_date: startDate.toISOString().split('T')[0],
-            end_date: endDate.toISOString().split('T')[0],
-            hourly: hourly,
-            timeformat: 'unixtime'
-        };
+        const modelsMap = {};
+        for (const [key, config] of Object.entries(mapping)) {
+            const modelStr = config.model ? config.model.toLowerCase().replace(/-/g, '_') : 'default';
+            if (!modelsMap[modelStr]) modelsMap[modelStr] = [];
+            modelsMap[modelStr].push(key);
+        }
 
-        const openMeteoData = await fetchOpenMeteoArchiveStream(params);
+        let totalPointsWritten = 0;
 
-        const totalPointsWritten = await processAndWriteHistoricalData(openMeteoData, stationId, stationConfig, isForward);
+        for (const [model, hourlyKeys] of Object.entries(modelsMap)) {
+            const params = {
+                latitude: latitude.toFixed(2),
+                longitude: longitude.toFixed(2),
+                elevation: elevation.toFixed(0),
+                start_date: startDate.toISOString().split('T')[0],
+                end_date: endDate.toISOString().split('T')[0],
+                hourly: hourlyKeys.join(','),
+                timeformat: 'unixtime'
+            };
+
+            if (model !== 'default') {
+                params.models = model;
+            }
+
+            const openMeteoData = await fetchOpenMeteoArchiveStream(params);
+            totalPointsWritten += await processAndWriteHistoricalData(openMeteoData, stationId, stationConfig, isForward);
+        }
 
         if (totalPointsWritten === 0) {
             console.log(`${V.info} Aucune nouvelle donnée à importer. La base de données est peut-être déjà à jour pour cette période.`);
