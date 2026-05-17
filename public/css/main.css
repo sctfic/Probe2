@@ -996,7 +996,7 @@ input:checked+.slider:before {
 }
 
 .plot-container svg [aria-label*="axis"] text {
-    font-size: 7px;
+    font-size: 8px;
 }
 
 .conditions-stats {

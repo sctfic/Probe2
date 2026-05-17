@@ -693,7 +693,6 @@ function getStartDate(period) {
     if (period === 'dateStormRain') {
         const str = currentConditionsData.stormRain?.more;
         date = new Date((new Date(`${str}T00:00:00.000Z`)).getTime());
-        console.log(str, date);
     } else {
         if (typeof period === 'string') {
             const P = eval(period.replace('y', '*365*24*60*60').replace('M', '*30*24*60*60').replace('w', '*24*60*60*7').replace('d', '*24*60*60').replace('h', '*60*60').replace('m', '*60'));
@@ -710,7 +709,7 @@ function loadChartForItem(item) {
     if (!item.sensorDb) return;
     const chartId = `chart_${item.key}`;
     const start = `startDate=${getStartDate(item.period)}`;
-    const count = `stepCount=${item.measurement === 'rain' ? 24 : 246}`;
+    const count = `stepCount=240`; // ${item.measurement === 'rain' ? 160 : 480}`;
     if (document.getElementById(chartId)) {
         if (item.sensorDb.startsWith('vector:')) {
             const sensorRef = item.sensorDb.substring('vector:'.length);

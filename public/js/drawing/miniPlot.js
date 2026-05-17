@@ -18,6 +18,35 @@ function transformDataForPlot(apiData, metadata) {
     })).filter(item => !isNaN(item.Value) && item.Value !== null);
 }
 
+function calculateYLabelSize(extent, id, height = 100) {
+    if (extent[0] === undefined || extent[1] === undefined) return 15;
+
+    // D3 / Plot.js "nice" l'axe Y et génère des ticks en fonction de la hauteur
+    // Plot vise environ 1 tick tous les 35-40 pixels
+    const approxTicks = Math.max(2, Math.round(height / 40));
+
+    // On crée une échelle linéaire "nice" pour simuler l'axe réel de Plot
+    const scale = d3.scaleLinear().domain(extent).nice(approxTicks);
+    const niceDomain = scale.domain();
+    const tickFormat = scale.tickFormat(approxTicks);
+
+    // On a seulement besoin de vérifier les 2 valeurs extrêmes "nice"
+    const lengthMin = tickFormat(niceDomain[0]).length;
+    const lengthMax = tickFormat(niceDomain[1]).length;
+    const maxLabelLength = Math.max(lengthMin, lengthMax);
+
+    const yLabelSize = maxLabelLength * 4 + 14;
+
+    console.log(`[miniPlot] yLabelSize calcul pour ${id}:`);
+    console.log(`  - Hauteur: ${height}px -> ~${approxTicks} ticks visés`);
+    console.log(`  - Extent brut:`, extent);
+    console.log(`  - Extent "Nice":`, niceDomain);
+    console.log(`  - Labels extrêmes: '${tickFormat(niceDomain[0])}' (${lengthMin} chars), '${tickFormat(niceDomain[1])}' (${lengthMax} chars)`);
+    console.log(`  - Max length: ${maxLabelLength} -> Size = ${yLabelSize}px`);
+
+    return yLabelSize;
+}
+
 function renderPlot(id) {
     const state = plotStates[id];
     if (!state) return;
@@ -26,14 +55,11 @@ function renderPlot(id) {
     const chartDiv = document.getElementById(id);
     if (!chartDiv) return;
 
-    // Calcul de la taille des labels Y pour ajuster la marge
-    const extent = d3.extent(data, d => d.Value);
-    const yLabelSize = (Math.abs(extent[0]) > 1 && Math.abs(extent[1]) > 1) ?
-        d3.max(extent, d => Math.round(d).toString().length + 1) * 7 + 8 :
-        d3.max(extent, d => Math.round(d, 1).toString().length + 1) * 7 + 8;
-
     const width = chartDiv.clientWidth || 240;
     const height = chartDiv.clientHeight || 100;
+
+    const extent = d3.extent(data, d => d.Value);
+    const yLabelSize = calculateYLabelSize(extent, id, height);
 
     const now = new Date();
     const forecastColor = "var(--futuristic-magenta)";
@@ -73,7 +99,7 @@ function renderPlot(id) {
     try {
         const plot = Plot.plot({
             width: width - yLabelSize - 2,
-            height: height - 17 - 16,
+            height: height - 16,
             marginLeft: 2,
             marginRight: yLabelSize,
             marginTop: 16,
@@ -100,18 +126,20 @@ function renderPlot(id) {
                     x: "Date",
                     y: "Value",
                     stroke: "var(--futuristic-cyan)",
-                    positiveFill: "var(--futuristic-magenta-shadow)",
-                    negativeFill: "var(--futuristic-cyan-shadow)",
-                    fillOpacity: 0.4,
+                    strokeWidth: 1.5,
+                    positiveFill: "var(--futuristic-amber)",
+                    negativeFill: "var(--futuristic-green)",
+                    fillOpacity: 0.7,
                     curve: metadata.measurement === 'rain' ? "step" : "monotone-x",
                 })),
                 Plot.differenceY(futureData, Plot.shiftX(`+${period}`, {
                     x: "Date",
                     y: "Value",
                     stroke: futureData.length > 1 ? `url(#${gradientId})` : forecastColor,
-                    positiveFill: "var(--futuristic-magenta-shadow)",
-                    negativeFill: "var(--futuristic-cyan-shadow)",
-                    fillOpacity: 0.2,
+                    strokeWidth: 1,
+                    positiveFill: "var(--futuristic-amber)",
+                    negativeFill: "var(--futuristic-green)",
+                    fillOpacity: 0.7,
                     fill: futureData.length > 1 ? `url(#${gradientId})` : forecastColor,
                     curve: metadata.measurement === 'rain' ? "step" : "monotone-x",
                 })),
@@ -120,14 +148,14 @@ function renderPlot(id) {
                     px: "Date", py: "Value", dy: -16, dx: (yLabelSize - 4),
                     frameAnchor: "top-right",
                     fontVariant: "tabular-nums",
-                    fontSize: 9,
+                    fontSize: 12,
                     text: (d) => ` ${d.Value} ${metadata.userUnit}`
                 })),
                 Plot.text(data, Plot.pointerX({
                     px: "Date", py: "Value", dy: -16,
                     frameAnchor: "top-left",
                     fontVariant: "tabular-nums",
-                    fontSize: 9,
+                    fontSize: 12,
                     text: (d) => `${d.Date.toLocaleString('fr-FR', { 'dateStyle': "medium", 'timeStyle': "short" })} `
                 }))
             ]
@@ -169,7 +197,8 @@ function renderPlot(id) {
 
 function createPlot(data, metadata, id, period) {
     if (typeof period !== 'number') {
-        period = '0 day';
+        console.log("period is a String: ", period);
+        period = '1 day';
     } else if (period < 86400) {
         period = '1 hour';
     } else {
