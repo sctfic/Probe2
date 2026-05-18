@@ -18,18 +18,18 @@ function scheduleJobForStation(stationId, stationConfig) {
     // console.log(V.Warn, stationConfig);
     // S'assurer qu'il n'y a pas déjà une tâche pour cette station
     if (scheduledTasks.has(stationId)) {
-        console.log(`${V.Warn} [CRON] Une tâche existe déjà pour ${stationId}. Suppression avant de replanifier.`);
+        console.log(V.Warn, ` [CRON] Une tâche existe déjà pour ${stationId}. Suppression avant de replanifier.`);
         removeJobForStation(stationId);
     }
 
     if (!stationConfig.collect || !stationConfig.collect.enabled) {
-        console.log(`${V.info} [CRON] La collecte n'est pas activée pour ${stationId}.`);
+        console.log(V.Warn, `[CRON] La collecte locale n'est pas activée pour ${stationId}.`);
         return;
     }
 
     const cronInterval = stationConfig.collect.value;
     if (!cronInterval || typeof cronInterval !== 'number' || cronInterval <= 0) {
-        console.log(`${V.Warn} [CRON] Intervalle invalide pour ${stationId}. Tâche non planifiée.`);
+        console.log(V.Warn, `[CRON] Intervalle invalide pour ${stationId}. Tâche non planifiée.`);
         return;
     }
 
@@ -41,18 +41,18 @@ function scheduleJobForStation(stationId, stationConfig) {
         const port = process.env.PORT || 3000;
         // collecte des données de la station
         const url = `http://localhost:${port}/api/station/${stationId}/collect`;
-        console.log(`${V.info} [CRON] Exécution de la collecte pour la station ${stationId}`);
+        console.log(V.info, ` [CRON] Exécution de la collecte pour la station ${stationId}`);
         try {
             const response = await axios.get(url);
-            console.log(`${V.Check} [CRON] Collecte pour ${stationId} réussie. Status: ${response.status}`);
+            console.log(V.Check, ` [CRON] Collecte pour ${stationId} réussie. Status: ${response.status}`);
         } catch (error) {
             const errorMessage = error.response ? `Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data)}` : error.message;
-            console.error(`${V.error} [CRON] Erreur lors de la collecte pour ${stationId}:`, errorMessage);
+            console.error(V.error, ` [CRON] Erreur lors de la collecte pour ${stationId}:`, errorMessage);
         }
     });
 
     scheduledTasks.set(stationId, task);
-    console.log(`${V.Check} [CRON] Tâche planifiée pour ${stationId} avec le pattern: "${cronPattern}".`);
+    console.log(V.Check, ` [CRON] Tâche planifiée pour ${stationId} avec le pattern: "${cronPattern}".`);
 }
 
 /**
@@ -68,7 +68,7 @@ function scheduleExtenderJob(stationId, stationConfig) {
 
     if (!stationConfig.collect || !stationConfig.collect.enabled) {
         // En lien avec la demande : utilise le meme cronPattern (donc si collect pas activé, pas d'extender non plus)
-        console.log(`${V.info} [CRON] La collecte (extenders) n'est pas activée pour ${stationId}.`);
+        console.log(V.Warn, `[CRON] La collecte des extenders n'est pas activée pour ${stationId}.`);
         return;
     }
 
@@ -112,7 +112,7 @@ function scheduleOpenMeteoJob(stationId, stationConfig) {
     }
 
     if (!stationConfig.historical || !stationConfig.historical.enabled) {
-        console.log(`${V.info} [CRON] La collecte historique n'est pas activée pour ${stationId}.`);
+        console.log(V.Warn, `[CRON] La collecte historique n'est pas activée pour ${stationId}.`);
         return;
     }
 
@@ -135,7 +135,7 @@ function scheduleOpenMeteoJob(stationId, stationConfig) {
     });
 
     scheduledOpenMeteoTasks.set(stationId, task);
-    console.log(`${V.Check} [CRON] Tâche Open-Meteo planifiée pour ${stationId} avec le pattern: "${cronPattern}".`);
+    console.log(V.Check, ` [CRON] Tâche Open-Meteo planifiée pour ${stationId} avec le pattern: "${cronPattern}".`);
 }
 
 /**
@@ -146,13 +146,13 @@ function scheduleOpenMeteoJob(stationId, stationConfig) {
 function scheduleOpenMeteoForecastJob(stationId, stationConfig) {
     // S'assurer qu'il n'y a pas déjà une tâche pour cette station
     if (scheduledOpenMeteoForecastTasks.has(stationId)) {
-        console.log(`${V.Warn} [CRON] Une tâche de prévision Open-Meteo existe déjà pour ${stationId}. Suppression avant de replanifier.`);
+        console.log(V.Warn, `[CRON] Une tâche de prévision Open-Meteo existe déjà pour ${stationId}. Suppression avant de replanifier.`);
         removeOpenMeteoForecastJob(stationId);
     }
 
     // Vérifie si la fonctionnalité forecast est activée spécifiquement
     if (!stationConfig.forecast || !stationConfig.forecast.enabled) {
-        console.log(`${V.info} [CRON] La tâche de prévision n'est pas activée pour ${stationId}.`);
+        console.log(V.Warn, `[CRON] La collecte des prévisions n'est pas activée pour ${stationId}.`);
         return;
     }
 
@@ -240,7 +240,7 @@ function scheduleIntegratorJob(stationId, stationConfig) {
     }
 
     if (!stationConfig.collect || !stationConfig.collect.enabled) {
-        console.log(`${V.info} [CRON] La collecte (intégrateur) n'est pas activée pour ${stationId}.`);
+        console.log(V.Warn, `[CRON] La collecte des intégrateurs n'est pas activée pour ${stationId}.`);
         return;
     }
 

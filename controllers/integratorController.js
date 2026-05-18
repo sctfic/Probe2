@@ -447,7 +447,7 @@ exports.runIntegrator = async (req, res) => {
                             }
                         }
                     }
-                    results.push({ probe: probeKey, status: 'ok', type: 'multi', count, value: calculatedValue, logs: probeLogs });
+                    results.push({ probe: probeKey, status: 'ok', type: 'multi', value: calculatedValue, logs: probeLogs });
                 } else {
                     // Cas standard (nombre)
                     const val = Number(calculatedValue);
