@@ -2,13 +2,13 @@
     "agro_trend": {
         "label": "modele Agronomique",
         "comment": "modele Agronomique multi cultural",
-        "fnModel": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n\n  return Stats.current(data, 'temperature:outTemp');\n}",
+        "fnModel": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  // Affiche un log de debug (visible dans l'API et la console serveur)\n  // console.log(\"Nombre de lignes reçues:\", data.length);\n  // console.log(\"Exemple de lignes reçues:\", data[0]);\n  // const x = Stats.split(data);\n  // console.log(\"Stats past et future\", x);\n\n  // Exemple 2 : Isoler les données passées\n  // const maxHumidity = Stats.max(data, 'humidity:outHumidity', 'past');\n  return  {\n      'last:outHumidity': Stats.last(data, \"humidity:outHumidity\"),\n      'max:outHumidity':Stats.max(data, 'humidity:outHumidity', 'past'),\n      'mean:outHumidity-':Stats.mean(data, 'humidity:outHumidity', 'past'),\n      'current:outHumidity':Stats.current(data, 'humidity:outHumidity'),\n      'mean:-outHumidity':Stats.mean(data, 'humidity:outHumidity', 'future'),\n      'linearSlope:outHumidity-':Stats.linearSlope(data, 'humidity:outHumidity', 'past'),\n      'linearSlope:-outHumidity':Stats.linearSlope(data, 'humidity:outHumidity', 'future'),\n  };\n}\n",
         "dataNeeded": [
-            "pressure:barometer"
+            "humidity:outHumidity"
         ],
         "currentMap": {
             "d": "timestamp",
-            "pressure:barometer": "barometer"
+            "humidity:outHumidity": "outHumidity"
         },
         "scriptJS": [],
         "contextPeriod": 86400,
@@ -17,24 +17,5 @@
         "sensorDb": "None:agro_trend",
         "measurement": "None",
         "groupCustom": "IntegratorNew"
-    },
-    "Irrigation_trend": {
-        "label": "Pilotage électrovanne",
-        "comment": "Pilotage en fonction de l'humidité du sol et des prévisions de pluvométrie",
-        "fnModel": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n\n  return Math.random();\n}",
-        "dataNeeded": [
-            "pressure:barometer"
-        ],
-        "currentMap": {
-            "d": "timestamp",
-            "pressure:barometer": "barometer"
-        },
-        "scriptJS": [],
-        "contextPeriod": 86400,
-        "drawingPeriod": 604800,
-        "sensorDb": "None:Irrigation_trend",
-        "measurement": "None",
-        "groupCustom": "IntegratorNew",
-        "groupUsage": "Composites"
     }
 }

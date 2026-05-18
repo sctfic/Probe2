@@ -132,6 +132,29 @@
                 return;
             }
 
+            // 3. Récupération des infos du capteur via current-conditions
+            try {
+                const ccResponse = await queryManager.query(`/api/station/${station}/current-conditions`);
+                if (ccResponse && ccResponse.data) {
+                    const sensorInfo = ccResponse.data[sensor];
+                    if (sensorInfo) {
+                        const titleEl = document.createElement('div');
+                        titleEl.style.position = 'absolute';
+                        titleEl.style.top = '10px';
+                        titleEl.style.left = '50%';
+                        titleEl.style.transform = 'translateX(-50%)';
+                        titleEl.style.color = 'var(--futuristic-white, #fff)';
+                        titleEl.style.zIndex = '10';
+                        titleEl.style.textShadow = '1px 1px 2px black';
+                        titleEl.style.textAlign = 'center';
+                        titleEl.innerHTML = `<h3 style="margin:0; font-family:sans-serif; font-size:1.2rem;">${sensorInfo.label || sensor}</h3><div style="font-size:0.85em; opacity:0.8;">${sensorInfo.comment || ''}</div>`;
+                        document.body.appendChild(titleEl);
+                    }
+                }
+            } catch(e) {
+                console.error("Erreur chargement infos capteur", e);
+            }
+
             const baseUrl = `/query/${station}`;
             loadWindPlots(container, baseUrl, sensor, period);
         });

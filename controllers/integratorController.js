@@ -8,6 +8,7 @@ const { V } = require('../utils/icons');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const util = require('util');
 
 const integratorProbesPath = path.join(__dirname, '..', 'config', 'integratorProbes.json');
 
@@ -41,15 +42,26 @@ const Stats = {
     _filterByScope(data, scope = 'all') {
         if (!Array.isArray(data) || data.length === 0) return [];
         if (scope === 'all') return data;
-        // "now" = datetime de la dernière valeur enregistrée juste avant maintenant
-        const realNow = Date.now();
-        const pastRows = data.filter(row => row._time && new Date(row._time).getTime() <= realNow);
-        const now = pastRows.length > 0
-            ? new Date(pastRows[pastRows.length - 1]._time).getTime()
-            : realNow;
-        if (scope === 'past') return data.filter(row => row._time && new Date(row._time).getTime() < now);
-        if (scope === 'future') return data.filter(row => row._time && new Date(row._time).getTime() > now);
-        return data.filter(row => row._time && new Date(row._time).getTime() === now);
+
+        // Utiliser le cache si la référence 'data' est la même
+        if (this._lastData !== data) {
+            this._lastData = data;
+            const ms5Min = 5 * 60 * 1000;
+            const realNow = Math.floor(Date.now() / ms5Min) * ms5Min; // Arrondi au précédent multiple de 5 min
+            const pastRows = data.filter(row => row._time && new Date(row._time).getTime() == realNow);
+            const now = pastRows.length > 0
+                ? new Date(pastRows[pastRows.length - 1]._time).getTime()
+                : realNow;
+
+            this._current = data.filter(row => row._time && new Date(row._time).getTime() === now)[0];
+            this._past = data.filter(row => row._time && new Date(row._time).getTime() <= now);
+            this._future = data.filter(row => row._time && new Date(row._time).getTime() > now);
+        }
+
+        if (scope === 'past') return this._past;
+        else if (scope === 'current') return this._current;
+        else if (scope === 'future') return this._future;
+        else return data;
     },
 
     /**
@@ -61,6 +73,7 @@ const Stats = {
      */
     _extractValues(data, field, scope = 'all') {
         const filtered = this._filterByScope(data, scope);
+        console.log(`[INTEGRATOR VM DEBUG - _extractValues] field: ${field}, scope: ${scope}, filtered: ${filtered.length}`);
         return filtered
             .map(row => row[field])
             .filter(v => v !== null && v !== undefined && !isNaN(v))
@@ -84,24 +97,17 @@ const Stats = {
             }));
     },
 
-    /**
-     * Sépare les données en passé et futur par rapport à maintenant.
-     * @param {Array} data - Tableau de lignes
-     * @returns {{ past: Array, future: Array }}
-     */
     split(data) {
-        const now = Date.now();
-        const past = data.filter(row => row._time && new Date(row._time).getTime() <= now);
-        const future = data.filter(row => row._time && new Date(row._time).getTime() > now);
-        return { past, future };
+        return {
+            past: this._filterByScope(data, 'past'),
+            current: this._filterByScope(data, 'current'),
+            future: this._filterByScope(data, 'future')
+        };
     },
 
     /** Valeur actuelle (valeur au point "now" calculé par _filterByScope) */
     current(data, field) {
-        const current = this._filterByScope(data, 'current');
-        if (current.length === 0) return null;
-        const val = current[field];
-        return (val !== null && val !== undefined && !isNaN(val)) ? Number(val) : null;
+        return this._filterByScope(data, 'current')[field];
     },
 
     /** Première valeur */
@@ -324,9 +330,10 @@ exports.runIntegrator = async (req, res) => {
 
             try {
                 // Calcul de la période : start = now - contextPeriod
-                const contextPeriod = probeConfig.contextPeriod || 86400; // défaut 1 jour
-                const endDate = new Date();
-                const startDate = new Date(endDate.getTime() - contextPeriod * 1000);
+                const contextPeriod = probeConfig.contextPeriod || 86400; // défaut 1 jour (86400s)
+                const now = (new Date().getTime()); // maintnenant
+                const startDate = new Date(now - contextPeriod * 1000); // maintenant - contextPeriod pour les données de base
+                const endDate = new Date(now + (contextPeriod * 1000)); // maintenant + contextPeriod pour les prévisions
 
                 const start = startDate.toISOString();
                 const end = endDate.toISOString();
@@ -335,10 +342,30 @@ exports.runIntegrator = async (req, res) => {
                 // Pour 1 jour de données, on prend un intervalle de 5 minutes (300s)
                 const intervalSeconds = Math.max(300, Math.round(contextPeriod / 1000));
 
-                console.log(`${V.info} [INTEGRATOR] Traitement de ${probeKey}: ${start} → ${end} (interval: ${intervalSeconds}s)`);
+                console.log(V.Ampoule, `[INTEGRATOR] Traitement de ${probeKey}: ${start} → ${end} (interval: ${intervalSeconds}s)`);
 
                 // Récupérer les données brutes
-                const { dataNeeded } = probeConfig;
+                let { dataNeeded } = probeConfig;
+
+                // Filtrer dataNeeded pour exclure les capteurs du bucket Integrators
+                const integratorsMeta = influxdbService.getBucketMetadata('Integrators') || {};
+                dataNeeded = dataNeeded.filter(ref => {
+                    const [m, s] = ref.split(':');
+                    // Si le capteur est présent dans Integrators, on l'exclut
+                    if (integratorsMeta[m] && (s === '*' || integratorsMeta[m].includes(s))) {
+                        return false;
+                    }
+                    return true;
+                });
+
+                console.log(V.Ampoule, V.Ampoule, V.Ampoule, `[INTEGRATOR] Données nécessaires pour ${probeKey}:`, dataNeeded);
+
+                if (dataNeeded.length === 0) {
+                    console.log(`${V.Warn} [INTEGRATOR] Aucun capteur valide (hors Integrators) pour ${probeKey}, ignoré.`);
+                    results.push({ probe: probeKey, status: 'no valid dataNeeded' });
+                    continue;
+                }
+
                 const rawData = await influxdbService.queryRaws(stationId, dataNeeded, start, end, intervalSeconds);
 
                 if (!rawData || rawData.length === 0) {
@@ -347,21 +374,39 @@ exports.runIntegrator = async (req, res) => {
                     continue;
                 }
 
+                // Épurer rawData pour la lisibilité (retirer result et table)
+                const cleanData = rawData.map(row => {
+                    const { result, table, ...rest } = row;
+                    return rest;
+                });
+
                 // Préparer la fonction fnModel
                 const fnModelStr = probeConfig.fnModel
                     .replace(/%longitude%/g, stationConfig.longitude.desired || stationConfig.longitude.lastReadValue || 0)
                     .replace(/%latitude%/g, stationConfig.latitude.desired || stationConfig.latitude.lastReadValue || 0)
                     .replace(/%altitude%/g, stationConfig.altitude.desired || stationConfig.altitude.lastReadValue || 0);
 
-                const fnModel = vm.runInNewContext(`(${fnModelStr})`, { ...scriptContext });
+                const probeLogs = [];
+                const customConsole = {
+                    log: (...args) => {
+                        console.log(`[INTEGRATOR VM DEBUG - ${probeKey}]`, ...args);
+                        probeLogs.push({ level: 'log', timestamp: new Date().toISOString(), args: args.length === 1 ? args[0] : args });
+                    },
+                    error: (...args) => {
+                        console.error(`[INTEGRATOR VM ERROR - ${probeKey}]`, ...args);
+                        probeLogs.push({ level: 'error', timestamp: new Date().toISOString(), args: args.length === 1 ? args[0] : args });
+                    }
+                };
 
-                // Appel UNIQUE de la fonction avec l'ensemble du dataset
-                const calculatedValue = fnModel(rawData);
+                const fnModel = vm.runInNewContext(`(${fnModelStr})`, { ...scriptContext, console: customConsole });
+
+                // Appel UNIQUE de la fonction avec l'ensemble du dataset épuré
+                const calculatedValue = fnModel(cleanData);
                 console.log("calculatedValue:", calculatedValue);
 
                 if (calculatedValue === null || calculatedValue === undefined) {
                     console.log(`${V.Warn} [INTEGRATOR] Résultat null pour ${probeKey}, ignoré.`);
-                    results.push({ probe: probeKey, status: 'null result', value: calculatedValue });
+                    results.push({ probe: probeKey, status: 'null result', value: calculatedValue, logs: probeLogs });
                     continue;
                 }
 
@@ -382,7 +427,7 @@ exports.runIntegrator = async (req, res) => {
                     if (calculatedValue.Value !== undefined) point.floatField('Value', Math.round(calculatedValue.Value * 10) / 10);
 
                     points.push(point);
-                    results.push({ probe: probeKey, status: 'ok', type: 'vector', value: calculatedValue });
+                    results.push({ probe: probeKey, status: 'ok', type: 'vector', value: calculatedValue, logs: probeLogs });
                 } else if (measurementType === 'None' && typeof calculatedValue === 'object' && !Array.isArray(calculatedValue)) {
                     // Cas multi-mesures : { "Meas:sensor": value, ... }
                     let count = 0;
@@ -402,13 +447,13 @@ exports.runIntegrator = async (req, res) => {
                             }
                         }
                     }
-                    results.push({ probe: probeKey, status: 'ok', type: 'multi', count, value: calculatedValue });
+                    results.push({ probe: probeKey, status: 'ok', type: 'multi', count, value: calculatedValue, logs: probeLogs });
                 } else {
                     // Cas standard (nombre)
                     const val = Number(calculatedValue);
                     if (isNaN(val)) {
                         console.log(`${V.Warn} [INTEGRATOR] Résultat non numérique pour ${probeKey}, ignoré.`);
-                        results.push({ probe: probeKey, status: 'NaN result', value: calculatedValue });
+                        results.push({ probe: probeKey, status: 'NaN result', value: calculatedValue, logs: probeLogs });
                         continue;
                     }
                     const roundedValue = Math.round(val * 10) / 10;
@@ -420,11 +465,12 @@ exports.runIntegrator = async (req, res) => {
                         .timestamp(new Date());
 
                     points.push(point);
-                    results.push({ probe: probeKey, status: 'ok', value: roundedValue });
+                    results.push({ probe: probeKey, status: 'ok', value: roundedValue, logs: probeLogs });
                 }
 
             } catch (probeError) {
                 console.error(`${V.error} [INTEGRATOR] Erreur pour ${probeKey}:`, probeError.message);
+                // try to extract logs if probeLogs is defined in the current block, wait probeLogs might not be defined if error occurs before it's declared
                 results.push({ probe: probeKey, status: 'error', error: probeError.message });
             }
         }

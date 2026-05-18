@@ -1025,7 +1025,7 @@ class SpiralePlot {
             this.highlightPeriod(periodKey);
         }
 
-        const dateFmt = d3.timeFormat("%d %B %Y");
+        const dateFmt = this.grouping === 'year' ? d3.timeFormat("%Y") : d3.timeFormat("%d %B %Y");
         const unit = this.options.unit;
 
         const tDate = new Date(dataPoint.date);

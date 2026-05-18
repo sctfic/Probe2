@@ -119,14 +119,14 @@ function getMetadata(req, sensorRefs, { start, end, intervalSeconds }, data) {
 exports.getQueryMetadata = async (req, res) => {
     const stationId = req.params.stationId;
     try {
-        const buckets = Object.keys(influxdbService.getSettings()).filter(k => k !== 'url' && k !== 'org' && k !== 'token');
+        const buckets = influxdbService.getBucketsInfo().filter(b => b.key !== 'Integrators').map(b => b.bucket);
+        console.log(buckets);
 
         // Fetch metadata and date range from all buckets
         const [metadata, dateRangeResults] = await Promise.all([
             influxdbService.getInfluxMetadata(stationId, 100),
             Promise.all(buckets.map(b => influxdbService.queryDateRange(stationId, 'pressure:barometer', null, null, b)))
         ]);
-
         // Merge date range
         const firstUtc = dateRangeResults.filter(r => r.firstUtc).map(r => r.firstUtc).sort()[0] || null;
         const lastUtc = dateRangeResults.filter(r => r.lastUtc).map(r => r.lastUtc).sort().reverse()[0] || null;

@@ -30,10 +30,10 @@ let integratorJsCompletions = [
     'alert();', 'prompt();', 'confirm();',
     'localStorage();', 'sessionStorage();', 'getItem();', 'setItem();', 'removeItem();',
     'Math.random();', 'Math.floor();', 'Math.ceil();', 'Math.round();', 'Math.max();', 'Math.min();',
-    'Stats.current(data, field)', 'Stats.mean(data, field, scope)', 'Stats.min(data, field, scope)', 'Stats.max(data, field, scope)',
-    'Stats.sum(data, field, scope)', 'Stats.first(data, field, scope)', 'Stats.last(data, field, scope)',
-    'Stats.trend(data, field, scope)', 'Stats.movingAverage(data, field, window, scope)',
-    'Stats.linearSlope(data, field, scope)', 'Stats.cagr(data, field, scope)', 'Stats.mannKendall(data, field, scope)',
+    'Stats.current(data, "measurement:sensor")', 'Stats.mean(data, "measurement:sensor", scope)', 'Stats.min(data, "measurement:sensor", scope)', 'Stats.max(data, "measurement:sensor", scope)',
+    'Stats.sum(data, "measurement:sensor", scope)', 'Stats.first(data, "measurement:sensor", scope)', 'Stats.last(data, "measurement:sensor", scope)',
+    'Stats.trend(data, "measurement:sensor", scope)', 'Stats.movingAverage(data, "measurement:sensor", window, scope)',
+    'Stats.linearSlope(data, "measurement:sensor", scope)', 'Stats.cagr(data, "measurement:sensor", scope)', 'Stats.mannKendall(data, "measurement:sensor", scope)',
     'Stats.split(data)',
     "'past'", "'future'", "'all'"
 ];
@@ -138,7 +138,8 @@ async function fetchIntegratorProbes() {
             try {
                 const metadataPayload = await queryManager.query(`/query/${selectedStation.id}`);
                 if (metadataPayload.success && metadataPayload.metadata.sensor) {
-                    const sensorCompletions = metadataPayload.metadata.sensor.map(s => `data['${s}']`);
+                    window.integratorAvailableSensors = metadataPayload.metadata.sensor;
+                    const sensorCompletions = metadataPayload.metadata.sensor.map(s => `'${s}'`);
                     const newCompletions = [...sensorCompletions, 'data.d'];
                     integratorJsCompletions.push(...newCompletions.filter(c => !integratorJsCompletions.includes(c)));
                 }
@@ -392,7 +393,7 @@ function handleAddIntegratorProbe(event) {
     const newProbeData = {
         label: "", comment: "", fnModel: "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  return null;\n}",
         dataNeeded: [], currentMap: {}, scriptJS: [],
-        contextPeriod: 86400, drawingPeriod: 604800, 
+        contextPeriod: 86400, drawingPeriod: 604800,
         measurement: "None",
         sensorDb: `None:${probeKey}`
     };
@@ -438,19 +439,26 @@ async function handleDeleteIntegratorProbe(event) {
 }
 
 function parseFnModel(fnModelStr) {
-    const regex = /data\['([^']+)'\]/g;
+    // commance par ' contient alphaNumerique _  puis : puis alphaNumerique _  et se termine par '
+    const regex = /(\'([a-zA-Z0-9_.-]+:[a-zA-Z0-9_.-]+)\'|\"([a-zA-Z0-9_.-]+:[a-zA-Z0-9_.-]+)\"|\`([a-zA-Z0-9_.-]+:[a-zA-Z0-9_.-]+)\`)/g;
+
     const matches = [...fnModelStr.matchAll(regex)];
-    const dataNeeded = [...new Set(matches.map(m => m[1]))];
+    const dataNeededRaw = [...new Set(matches.map(m => m[1].slice(1, -1)))]; //on retire le 1er et dernier caractere des strings
+    
+    // les dataNeeded doivent etre exister dans metadataPayload.metadata.sensor
+    let dataNeeded = dataNeededRaw;
+    if (window.integratorAvailableSensors) {
+        dataNeeded = dataNeededRaw.filter(s => window.integratorAvailableSensors.includes(s));
+    }
+
     if (dataNeeded.length === 0) {
         dataNeeded.push('pressure:barometer');
     }
     const currentMap = { d: "timestamp" };
-
     dataNeeded.forEach(key => {
         const parts = key.split(':');
         currentMap[key] = parts.length > 1 ? parts[1] : parts[0];
     });
-
     return { dataNeeded, currentMap };
 }
 
@@ -467,7 +475,6 @@ async function handleIntegratorProbesFormSubmit(event) {
     try {
         const formData = new FormData(form);
         const probeData = { ...currentIntegratorProbesSettings[probeKey] };
-
         for (const [key, value] of formData.entries()) {
             const [probeKey, fieldKey] = key.split('.');
             if (fieldKey === 'scriptJS') {
@@ -491,7 +498,7 @@ async function handleIntegratorProbesFormSubmit(event) {
         probeData.sensorDb = `${probeData.measurement}:${probeKey}`;
         probeData.groupCustom = "IntegratorNew";
         probeData.groupUsage = "Composites";
-
+        console.log('probeData', probeData);
         currentIntegratorProbesSettings[probeKey] = probeData;
 
         await saveAllIntegratorProbesSettings(currentIntegratorProbesSettings);

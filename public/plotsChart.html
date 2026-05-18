@@ -483,6 +483,13 @@
                             <span title="Maximum"><span class="stats-label">Max.</span><b class="stats-value" style="color: ${color};">${max} ${unit}</b></span>
                             <span title="Moyenne"><span class="stats-label">Moy.</span><b class="stats-value" style="color: ${color};">${avg.toFixed(2)} ${unit}</b></span>
                             <span title="Minimum"><span class="stats-label">Min.</span><b class="stats-value" style="color: ${color};">${min} ${unit}</b></span>
+                        </div>
+                        <div class="stats-column" style="font-size: 0.9em;">
+                            <span title="95ème percentile"><span class="stats-label">P.95</span><b class="stats-value" style="color: ${color};">${p95.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8679;</span></span>
+                            <span title="80ème percentile"><span class="stats-label">P.80</span><b class="stats-value" style="color: ${color};">${p80.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8673;</span></span>
+                            <span title="50ème percentile"><span class="stats-label">Méd.</span><b class="stats-value" style="color: ${color};">${median.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8596;</span></span>
+                            <span title="20ème percentile"><span class="stats-label">P.20</span><b class="stats-value" style="color: ${color};">${p20.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8675;</span></span>
+                            <span title="5ème percentile"><span class="stats-label">P.05</span><b class="stats-value" style="color: ${color};">${p5.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8681;</span></span>
                         </div>` +
                     (sensor.startsWith('rain:') ?
                         `<div class="stats-column">
@@ -492,14 +499,7 @@
                             <span title="Écart-type, racine carrée de la variance"><span style='font-size:1.4em'>&sigma;</span> <span class="stats-label">(stdDev)</span><b class="stats-value" style="color: ${color};">${stdDev.toFixed(2)} ${unit}</b></span>
                             <span title="Variance, moyenne des carrés des écarts à la moyenne (2ème moment central)"><span class="stats-label">Variance</span><b class="stats-value" style="color: ${color};">${variance.toFixed(2)} (${unit})²</b></span>
                         </div>`) +
-                    `<div class="stats-column" style="font-size: 0.9em;">
-                            <span title="95ème percentile"><span class="stats-label">P.95</span><b class="stats-value" style="color: ${color};">${p95.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8679;</span></span>
-                            <span title="80ème percentile"><span class="stats-label">P.80</span><b class="stats-value" style="color: ${color};">${p80.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8673;</span></span>
-                            <span title="50ème percentile"><span class="stats-label">Méd.</span><b class="stats-value" style="color: ${color};">${median.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8596;</span></span>
-                            <span title="20ème percentile"><span class="stats-label">P.20</span><b class="stats-value" style="color: ${color};">${p20.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8675;</span></span>
-                            <span title="5ème percentile"><span class="stats-label">P.05</span><b class="stats-value" style="color: ${color};">${p5.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8681;</span></span>
-                        </div>
-                    </div>
+                    `</div>
                 `;
                 currentStatsPanel.style.display = 'block';
             }

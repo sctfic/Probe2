@@ -439,7 +439,7 @@ async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn, sensorRef =
         const forecastStart = new Date();
         forecastStart.setMinutes(1, 0, 0); // Arrondi à l'heure précédente + 1 min
         const forecastStartISO = forecastStart.toISOString();
-        
+
         if (forecastStart.getTime() < new Date(stop).getTime()) {
             phase1Plan.push({ key: 'Forecasts', bucket: influxInstances['Forecasts'].bucket, start: forecastStartISO, stop });
         }
@@ -515,7 +515,7 @@ async function fetchDataAcrossBuckets(reqStart, reqEnd, buildFluxFn, sensorRef =
 async function queryDateRange(stationId, sensorRef, startDate, endDate, bucketKey = null) {
     const timeLabel = `queryDateRange ${stationId} [${sensorRef || 'ALL'}]`;
     const fnStart = new Date().getTime();
-    console.log(`${V.info} Démarrage de queryDateRange pour ${stationId} [${sensorRef || 'ALL'}] à ${new Date(fnStart).toISOString()}`);
+    console.log(`${V.info} Démarrage de queryDateRange pour [${bucketKey}] => ${stationId} [${sensorRef || 'ALL'}] à ${new Date(fnStart).toISOString()}`);
     let fluxFilter = `r.station_id == "${stationId}"`;
     let actualSensorRef = sensorRef;
 
@@ -591,12 +591,12 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, bucketKe
     const queryBucket = async (k) => {
         const instance = influxInstances[k];
         let bucketStart = startRange;
-        
+
         if (k === 'Forecasts') {
             const forecastStart = new Date();
             forecastStart.setMinutes(1, 0, 0); // Arrondi à l'heure précédente + 1 min
             bucketStart = forecastStart.toISOString();
-            
+
             if (forecastStart.getTime() >= new Date(stopRange).getTime()) {
                 return []; // InfluxDB requiert start < stop
             }
@@ -1036,6 +1036,15 @@ function getBucketsInfo() {
     });
 }
 
+/**
+ * Retourne les métadonnées d'un bucket spécifique.
+ * @param {string} bucketKey - Clé du bucket (ex: 'Integrators')
+ * @returns {Object|null}
+ */
+function getBucketMetadata(bucketKey) {
+    return influxInstances[bucketKey] ? influxInstances[bucketKey].metadata : null;
+}
+
 
 module.exports = {
     getSettings,
@@ -1052,5 +1061,6 @@ module.exports = {
     queryCandle,
     executeQuery,
     queryLast,
-    getBucketsInfo
+    getBucketsInfo,
+    getBucketMetadata
 };
