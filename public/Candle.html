@@ -1,0 +1,840 @@
+<!-- Probe\plotsChart.html -->
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        // Définition globale de isMobile pour tous les scripts
+        window.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        window.addEventListener('resize', () => {
+            window.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        });
+    </script>
+    <title>Visualisation Bougies (Candles)</title>
+
+    <script src="js/queryManager.js"></script>
+    <script src="js/drawing/d3.min.js"></script>
+    <script src="js/drawing/Candles.js"></script>
+    <!-- <script src="js/tracker.js"></script> -->
+    <style>
+        @import url('css/var.css');
+        /* @import url('css/main.css'); */
+    </style>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--primary-dark);
+            overflow: hidden;
+            /* Empêche le scroll global */
+            font-family: sans-serif;
+        }
+
+        #chart-container {
+            width: 100%;
+            height: 100%;
+            top: 0;
+            position: relative;
+        }
+
+        /* Styles de base pour le graphique TimeSeriesPlot */
+        .axis line,
+        .axis path {
+            stroke: #444;
+        }
+
+        .axis text {
+            fill: #999;
+            font-size: 10px;
+        }
+
+        .line {
+            fill: none;
+            stroke-width: 1.5px;
+        }
+
+        #chart-container {
+            padding-top: 8px;
+            padding-right: 0px;
+        }
+
+        .legend {
+            font-size: 11px;
+            fill: #eeeeee;
+        }
+
+        .tooltip {
+            color: white;
+            fill: white;
+            text-align: center;
+            line-height: 16px;
+            cursor: help;
+        }
+
+        .focus text,
+        .legend text,
+        .axis-label,
+        .hover-date,
+        .hover-value,
+        .info-text {
+            font-weight: bold;
+            text-shadow: 1px 0px 1px #333, -1px 0px 1px #333, 0px 1px 1px #333, 0px -1px 1px #333, 1px 1px 1px #333, -1px -1px 1px #333, 1px -1px 1px #333, -1px 1px 1px #333, 2px 0px 2px #333, -2px 0px 2px #333, 0px 2px 2px #333, 0px -2px 2px #333, 2px 2px 2px #333, -2px -2px 2px #333, 2px -2px 2px #333, -2px 2px 2px #333;
+        }
+
+        /* Styles pour le bouton Fullscreen */
+        #fs-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 3px 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: background 0.2s, color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        #fs-btn:hover {
+            background: #333;
+            color: #fff;
+        }
+
+        /* Styles pour les contrôles UI (Add Sensor) */
+        #plot-ui-container {
+            /* position: absolute; */
+            top: 5px;
+            left: 5px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px;
+            max-width: calc(100% - 100px);
+            padding-right: 10px;
+        }
+
+        #sensor-select {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 3px 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+            outline: none;
+            width: auto;
+        }
+
+        #sensor-select:hover {
+            background: #333;
+            color: #fff;
+        }
+
+        #active-sensors {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .active-sensor-btn {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 3px 6px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: background 0.2s, color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .active-sensor-btn:hover,
+        .active-sensor-btn.selected {
+            background: #333;
+            color: #fff;
+            border-color: #777;
+        }
+
+        .active-sensor-btn .remove-cross {
+            /* font-weight: bold; */
+            font-size: 26px;
+            line-height: 1;
+            padding: 0px;
+            margin: -6px -3px;
+        }
+
+        #sensor-stats-panel {
+            position: relative;
+            margin-top: -5px;
+            z-index: 10;
+            padding: 4px 15px;
+            font-size: 13px;
+            color: #fff;
+            display: none;
+            white-space: nowrap;
+            text-align: center;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .stats-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            pointer-events: auto;
+        }
+
+        .stats-column {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            line-height: 1.2;
+        }
+
+        .stats-value {
+            font-weight: bold;
+        }
+
+        .stats-label {
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-right: 4px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 24px;
+            flex-shrink: 0
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--futuristic-cyan-dim);
+            transition: .4s;
+            border: 1px solid #fff;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: #fff;
+            transition: .4s
+        }
+
+        input:checked+.slider {
+            background-color: var(--accent-blue)
+        }
+
+        input:focus+.slider {
+            box-shadow: 0 0 1px var(--accent-blue)
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(18px)
+        }
+
+        .slider.round {
+            border-radius: 34px
+        }
+
+        .slider.round:before {
+            border-radius: 50%
+        }
+    </style>
+</head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XG4EGKZK38"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-XG4EGKZK38');
+</script>
+
+<body>
+    <div id="plot-ui-container">
+        <div id="active-sensors">
+            <select id="sensor-select">
+                <option value="" disabled selected>Add Sensor :</option>
+            </select>
+        </div>
+        <div class="history-switch-container"
+            style="display: flex; align-items: center; margin-left: 20px; gap: 8px; color: #ccc; font-size: 0.9em; font-weight: bold;">
+            <span id="label-1y" style="color: var(--futuristic-cyan);margin-top:-4px;">1 An</span>
+            <label class="switch" title="Basculer entre 1 an et l'historique complet">
+                <input type="checkbox" id="history-toggle">
+                <span class="slider round"></span>
+            </label>
+            <span id="label-full" style="margin-top:-4px;">Complet</span>
+        </div>
+    </div>
+    <div id="chart-container">
+        <div id="sensor-stats-panel"></div>
+    </div>
+
+    <button id="fs-btn"></button>
+    <script>
+        // Icônes SVG pour le bouton Fullscreen
+        const iconMaximize = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>`;
+        const iconMinimize = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path></svg>`;
+
+        // Fonction pour mettre à jour l'icône du bouton
+        function updateFsButton(isFullscreen) {
+            const btn = document.getElementById('fs-btn');
+            if (isFullscreen) {
+                btn.innerHTML = iconMinimize + ' Quitter';
+                btn.title = 'Quitter le mode plein écran';
+            } else {
+                btn.innerHTML = iconMaximize + ' Plein écran';
+                btn.title = 'Passer en mode plein écran';
+            }
+        }
+
+        // Fonction pour basculer le plein écran
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`Erreur pour le plein écran: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        document.getElementById('fs-btn').addEventListener('click', toggleFullscreen);
+
+        let resizeTimeout;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+
+            updateFsButton(!!document.fullscreenElement);
+
+            // 1. Récupération des paramètres URL
+            const params = new URLSearchParams(window.location.search);
+            const station = params.get('station');
+            const sensorList = params.get('sensorList');
+
+            const container = document.getElementById('chart-container');
+            const sensorSelect = document.getElementById('sensor-select');
+            const activeSensorsDiv = document.getElementById('active-sensors');
+
+            if (!station || !sensorList) {
+                container.innerHTML =
+                    `<div style="color:red; text-align:center; padding-top:20%;">
+                        Erreur: Paramètres 'station' ou 'sensorList' manquants.
+                    </div>`;
+                return;
+            }
+
+            let currentSensors = sensorList.split(',').filter(s => s.trim() !== '');
+            let allStationSensors = [];
+            let selectedSensor = null; // Capteur "verrouillé" par clic
+            let currentStartDate = null;
+            let currentEndDate = null;
+
+            function set1YearRange() {
+                const end = new Date(); // plus 14 jours, pour les prevision
+                end.setDate(end.getDate() + 14);
+                const start = new Date(); // moins 1 an
+                start.setFullYear(end.getFullYear() - 1);
+                currentStartDate = start.toISOString().split('T')[0];
+                currentEndDate = end.toISOString().split('T')[0];
+            }
+
+            // Par défaut : 1 dernière année
+            set1YearRange();
+
+            // Fonction utilitaire pour générer l'URL de données
+            function getQueryUrl(sensorListStr) {
+                return `/query/${station}/Raws/${sensorListStr}`;
+            }
+
+            // Fonction pour mettre à jour l'URL sans recharger la page
+            function updateUrl() {
+                // Mettre le capteur sélectionné en premier si présent
+                let orderedSensors = [...currentSensors];
+                if (selectedSensor && orderedSensors.includes(selectedSensor)) {
+                    orderedSensors = [selectedSensor, ...orderedSensors.filter(s => s !== selectedSensor)];
+                }
+
+                const newSensorList = orderedSensors.join(',');
+                const newUrl = `${window.location.pathname}?station=${station}&sensorList=${newSensorList}`;
+                window.history.replaceState({}, '', newUrl);
+                console.log('currentSensors ordered', newSensorList);
+
+                // Synchronisation centralisée des métadonnées et de l'état du graphique
+                const plotInstance = container.__current_plot_instance;
+                if (plotInstance) {
+                    plotInstance.sensorList = newSensorList;
+
+                    // Synchronisation avec metadata.measurement
+                    [plotInstance.metadata, window.plotMetadata].forEach(meta => {
+                        if (meta && meta.measurement) {
+                            Object.keys(meta.measurement).forEach(group => {
+                                meta.measurement[group] = meta.measurement[group].filter(s => currentSensors.includes(s));
+                            });
+                        }
+                    });
+                }
+
+                return newSensorList;
+            }
+
+            // Calculer et afficher les statistiques
+            function showStats(sensor, color, plotInstance) {
+                const currentStatsPanel = document.getElementById('sensor-stats-panel');
+                if (!currentStatsPanel || !plotInstance || !plotInstance.data) return;
+
+                // Extraire les valeurs valides pour ce capteur
+                const values = plotInstance.data
+                    .map(d => d[sensor]?.Mean)
+                    .filter(v => v !== null && v !== undefined && !isNaN(v));
+
+                if (values.length === 0) return;
+
+                const min = d3.min(values); // Minimum
+                const max = d3.max(values); // Maximum
+                const avg = d3.mean(values); // Moyenne
+                const sum = d3.sum(values); // Somme
+                const variance = d3.variance(values); // 2ème moment central, moyenne des carrés des écarts à la moyenne
+                const stdDev = d3.deviation(values) || 0; // Écart-type, racine carrée de la variance
+                const p5 = d3.quantile(values, 0.05); // 5ème percentile
+                const p20 = d3.quantile(values, 0.20); // 20ème percentile
+                const median = d3.median(values); // d3.quantile(values, 0.50); // 50ème percentile
+                const p80 = d3.quantile(values, 0.80); // 80ème percentile
+                const p95 = d3.quantile(values, 0.95); // 95ème percentile
+
+                // Trouver l'unité
+                let unit = '';
+                if (window.plotMetadata && window.plotMetadata.toUserUnit && window.plotMetadata.toUserUnit[sensor]) {
+                    unit = window.plotMetadata.toUserUnit[sensor].userUnit;
+                    intervalSeconds = window.plotMetadata.intervalSeconds;
+                }
+
+                // Intervalle
+                const dates = plotInstance.data.map(d => d.datetime).filter(d => d instanceof Date && !isNaN(d));
+                let durationStr = '';
+                let intervalStr = '';
+                if (dates.length > 1) {
+                    const firstDate = dates[0];
+                    const lastDate = dates[dates.length - 1];
+                    const durationMs = lastDate - firstDate;
+                    const days = Math.floor(durationMs / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((durationMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    durationStr = `${days}j ${hours}h`;
+
+                    // Calcul de l'intervalle moyen
+                    const avgIntervalMs = intervalSeconds ? intervalSeconds * 1000 : durationMs / (dates.length - 1);
+                    const totalMin = Math.round(avgIntervalMs / 60000);
+                    const iDays = Math.floor(totalMin / (24 * 60));
+                    const iHours = Math.floor((totalMin % (24 * 60)) / 60);
+                    const iMin = totalMin % 60;
+
+                    if (iDays > 0) intervalStr = `${iDays}j ${iHours}h:${iMin.toString().padStart(2, '0')}`;
+                    else if (iHours > 0) intervalStr = `${iHours}h:${iMin.toString().padStart(2, '0')}`;
+                    else intervalStr = `${totalMin}m`;
+                }
+
+                currentStatsPanel.innerHTML = `
+                    <div class="stats-container">
+                        <div class="stats-column" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                            <span style="font-size: 1.5em; line-height: 1;">
+                                <span style="font-size: 1.6em;">&larrb;</span> <b style="color: ${color};">${durationStr}</b> <span style="font-size: 1.6em;"> &rarrb;</span>
+                            </span>
+                            <span style="font-size: 0.9em; opacity: 0.8; margin-top: 5px;" title="Intervalle moyen entre 2 points">Step: <b style="color: ${color};">${intervalStr}</b></span>
+                        </div>
+
+                        <div class="stats-column">
+                            <span title="Maximum"><span class="stats-label">Max.</span><b class="stats-value" style="color: ${color};">${max} ${unit}</b></span>
+                            <span title="Moyenne"><span class="stats-label">Moy.</span><b class="stats-value" style="color: ${color};">${avg.toFixed(2)} ${unit}</b></span>
+                            <span title="Minimum"><span class="stats-label">Min.</span><b class="stats-value" style="color: ${color};">${min} ${unit}</b></span>
+                        </div>
+                        <div class="stats-column" style="font-size: 0.9em;">
+                            <span title="95ème percentile"><span class="stats-label">P.95</span><b class="stats-value" style="color: ${color};">${p95.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8679;</span></span>
+                            <span title="80ème percentile"><span class="stats-label">P.80</span><b class="stats-value" style="color: ${color};">${p80.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8673;</span></span>
+                            <span title="50ème percentile"><span class="stats-label">Méd.</span><b class="stats-value" style="color: ${color};">${median.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8596;</span></span>
+                            <span title="20ème percentile"><span class="stats-label">P.20</span><b class="stats-value" style="color: ${color};">${p20.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8675;</span></span>
+                            <span title="5ème percentile"><span class="stats-label">P.05</span><b class="stats-value" style="color: ${color};">${p5.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8681;</span></span>
+                        </div>` +
+                    (sensor.startsWith('rain:') ?
+                        `<div class="stats-column">
+                            <span title="Cumul"><span style='font-size:1.2em'>&sum;</span> <b class="stats-value" style="color: ${color};">${sum.toFixed(1)} ${unit}</b></span>
+                        </div>` :
+                        `<div class="stats-column">
+                            <span title="Écart-type, racine carrée de la variance"><span style='font-size:1.4em'>&sigma;</span> <span class="stats-label">(stdDev)</span><b class="stats-value" style="color: ${color};">${stdDev.toFixed(2)} ${unit}</b></span>
+                            <span title="Variance, moyenne des carrés des écarts à la moyenne (2ème moment central)"><span class="stats-label">Variance</span><b class="stats-value" style="color: ${color};">${variance.toFixed(2)} (${unit})²</b></span>
+                        </div>`) +
+                    `</div>
+                `;
+                currentStatsPanel.style.display = 'block';
+            }
+
+            function hideStats() {
+                // Si un capteur est sélectionné, on restaure ses stats au lieu de cacher
+                if (selectedSensor) {
+                    const sensorId = selectedSensor.replace(":", "_");
+                    const plotInstance = container.__current_plot_instance;
+                    if (plotInstance) {
+                        const color = plotInstance.colorScale(sensorId);
+                        showStats(selectedSensor, color, plotInstance);
+                        return;
+                    }
+                }
+                const currentStatsPanel = document.getElementById('sensor-stats-panel');
+                if (currentStatsPanel) currentStatsPanel.style.display = 'none';
+            }
+
+            // Rendre l'interface des capteurs (dropdown et boutons)
+            function renderSensorUI() {
+                // Remplir le dropdown (trié par ordre alphabétique)
+                sensorSelect.innerHTML = '<option value="" disabled selected>Add Sensor :</option>';
+                [...allStationSensors].sort((a, b) => a.localeCompare(b)).forEach(sensor => {
+                    if (!currentSensors.includes(sensor)) {
+                        const option = document.createElement('option');
+                        option.value = sensor;
+                        option.textContent = sensor;
+                        sensorSelect.appendChild(option);
+                    }
+                });
+
+                // Remplir les boutons actifs
+                // On conserve uniquement le sensor-select et on ajoute les boutons avant
+                const existingBtns = activeSensorsDiv.querySelectorAll('.active-sensor-btn');
+                existingBtns.forEach(btn => btn.remove());
+
+                currentSensors.forEach(sensor => {
+                    const btn = document.createElement('div');
+                    btn.className = 'active-sensor-btn';
+                    if (sensor === selectedSensor) btn.classList.add('selected');
+                    btn.textContent = sensor;
+
+                    // Couleur du capteur (depuis l'instance courante si dispo)
+                    const sensorId = sensor.replace(":", "_");
+                    let color = '#ccc'; // default
+                    const plotInstance = container.__current_plot_instance;
+                    if (plotInstance && plotInstance.colorScale) {
+                        color = plotInstance.colorScale(sensorId);
+                    }
+
+                    const cross = document.createElement('span');
+                    cross.className = 'remove-cross';
+                    cross.innerHTML = '&times;';
+                    cross.style.color = color;
+                    cross.title = `Retirer ${sensor}`;
+
+                    btn.appendChild(cross);
+
+                    // Sélection du capteur au clic
+                    btn.addEventListener('click', () => {
+                        if (selectedSensor === sensor) {
+                            selectedSensor = null; // Déselection
+                        } else {
+                            selectedSensor = sensor;
+                        }
+                        updateUrl(); // Mettre à jour l'ordre dans l'URL
+                        renderSensorUI();
+                        // Forcer la mise en évidence
+                        if (plotInstance && plotInstance.g) {
+                            if (selectedSensor) {
+                                plotInstance.g.selectAll('.candle-group')
+                                    .style("opacity", 1)
+                                    .transition()
+                                    .duration(750)
+                                    .style('opacity', 0.1);
+
+                                plotInstance.g.selectAll(`.candle-group-${selectedSensor.replace(":", "_")}`)
+                                    .transition()
+                                    .duration(750)
+                                    .style('opacity', 1);
+                                plotInstance.g.selectAll(`.candle-group-${selectedSensor.replace(":", "_")} .mean-line`).style('display', 'block');
+
+                                showStats(selectedSensor, color, plotInstance);
+                            } else {
+                                plotInstance.g.selectAll('.candle-group')
+                                    .transition()
+                                    .duration(750)
+                                    .style('opacity', 1);
+                                plotInstance.g.selectAll('.mean-line').style('display', 'none');
+                                hideStats();
+                            }
+                        }
+                    });
+
+                    // Supprimer le capteur
+                    cross.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        if (selectedSensor === sensor) selectedSensor = null;
+                        currentSensors = currentSensors.filter(s => s !== sensor);
+
+                        // Retirer les lignes correspondantes du DOM
+                        const plotInstance = container.__current_plot_instance;
+                        if (plotInstance && plotInstance.g) {
+                            plotInstance.g.selectAll(`.candle-group-${sensorId}`).remove();
+                            // Restaurer l'opacité des lignes restantes
+                            plotInstance.g.selectAll('.candle-group').style('opacity', selectedSensor ? 0.1 : 1);
+                            plotInstance.g.selectAll('.mean-line').style('display', 'none');
+                            if (selectedSensor) {
+                                plotInstance.g.selectAll(`.candle-group-${selectedSensor.replace(":", "_")}`).style('opacity', 1);
+                                plotInstance.g.selectAll(`.candle-group-${selectedSensor.replace(":", "_")} .mean-line`).style('display', 'block');
+                            }
+                        }
+
+                        updateUrl(); // Centralise maintenant la sync metadata
+
+                        // Si c'est le dernier capteur, on peut afficher un message
+                        if (currentSensors.length === 0) {
+                            container.innerHTML = `<div id="sensor-stats-panel"></div><div style="color:white; text-align:center; padding-top:20%;">Aucun capteur sélectionné.</div>`;
+                        }
+
+                        hideStats();
+                        renderSensorUI();
+                    });
+
+                    // Hover handler pour la surbrillance
+                    btn.addEventListener('mouseenter', () => {
+                        const plotInstance = container.__current_plot_instance;
+                        if (plotInstance && plotInstance.g) {
+                            // Griser les autres lignes
+                            plotInstance.g.selectAll('.candle-group')
+                                .style('opacity', 0.1);
+                            // Mettre en évidence cette ligne (y compris segments before/after)
+                            plotInstance.g.selectAll(`.candle-group-${sensorId}`)
+                                .style('opacity', 1);
+                            plotInstance.g.selectAll(`.candle-group-${sensorId} .mean-line`).style('display', 'block');
+
+                            showStats(sensor, color, plotInstance);
+                        }
+                    });
+
+                    btn.addEventListener('mouseleave', () => {
+                        const plotInstance = container.__current_plot_instance;
+                        if (plotInstance && plotInstance.g) {
+                            // Si un autre capteur est sélectionné, on restaure SA surbrillance
+                            if (selectedSensor && selectedSensor !== sensor) {
+                                const selId = selectedSensor.replace(":", "_");
+                                plotInstance.g.selectAll('.candle-group').style('opacity', 0.1);
+                                plotInstance.g.selectAll('.mean-line').style('display', 'none');
+                                plotInstance.g.selectAll(`.candle-group-${selId}`).style('opacity', 1);
+                                plotInstance.g.selectAll(`.candle-group-${selId} .mean-line`).style('display', 'block');
+                                showStats(selectedSensor, plotInstance.colorScale(selId), plotInstance);
+                            } else if (selectedSensor === sensor) {
+                                // On reste surbrillant si c'est celui sélectionné
+                                plotInstance.g.selectAll('.candle-group').style('opacity', 0.1);
+                                plotInstance.g.selectAll('.mean-line').style('display', 'none');
+                                plotInstance.g.selectAll(`.candle-group-${sensorId}`).style('opacity', 1);
+                                plotInstance.g.selectAll(`.candle-group-${sensorId} .mean-line`).style('display', 'block');
+                                showStats(sensor, color, plotInstance);
+                            } else {
+                                // Restaurer tout
+                                plotInstance.g.selectAll('.candle-group').style('opacity', 1);
+                                plotInstance.g.selectAll('.mean-line').style('display', 'none');
+                                hideStats();
+                            }
+                        }
+                    });
+
+                    activeSensorsDiv.insertBefore(btn, sensorSelect);
+                });
+            }
+
+            // Gestionnaire dropdown d'ajout
+            sensorSelect.addEventListener('change', async (e) => {
+                const selectedSensor = e.target.value;
+                if (selectedSensor && !currentSensors.includes(selectedSensor)) {
+                    currentSensors.push(selectedSensor);
+                    const newSensorStr = updateUrl();
+                    const dataUrl = getQueryUrl(newSensorStr);
+                    container.innerHTML = ''; // Clear pour le spinner ou re-draw
+                    await drawChart(dataUrl);
+                    renderSensorUI();
+                }
+            });
+
+            // Gestionnaire Bouton Historique Complet
+            const historyToggle = document.getElementById('history-toggle');
+            const label1y = document.getElementById('label-1y');
+            const labelFull = document.getElementById('label-full');
+
+            // Synchroniser l'état initial
+            historyToggle.checked = (currentStartDate === null);
+
+            const updateSwitchUI = () => {
+                if (!historyToggle.checked) {
+                    label1y.style.color = 'var(--futuristic-cyan)';
+                    labelFull.style.color = '#ccc';
+                } else {
+                    labelFull.style.color = 'var(--futuristic-cyan)';
+                    label1y.style.color = '#ccc';
+                }
+            };
+
+            historyToggle.addEventListener('change', async (e) => {
+                if (e.target.checked) {
+                    currentStartDate = null;
+                    currentEndDate = null;
+                } else {
+                    set1YearRange();
+                }
+
+                updateSwitchUI();
+                container.innerHTML = '';
+                initialDataUrl = getQueryUrl(currentSensors.join(','));
+                await drawChart(initialDataUrl);
+                renderSensorUI();
+            });
+
+            // Récupérer la liste complète des capteurs pour la station
+            async function loadAllSensors() {
+                try {
+                    // API query base pour récupérer metadata, sur une très courte durée ou pas de donnée
+                    // On peut appeler Raws avec * ou juste la racine pour l'instant
+                    // On utilise queryManager
+                    const metaUrl = `/query/${station}`;
+                    const res = await queryManager.query(metaUrl, { cacheDuration: 10 * 60 * 1000 });
+                    if (res && res.metadata && res.metadata.sensor) {
+                        allStationSensors = res.metadata.sensor;
+                        renderSensorUI(); // Nouveau: Rafraîchir l'UI une fois les capteurs chargés
+                    }
+                } catch (err) {
+                    console.error("Erreur lors du chargement des capteurs:", err);
+                }
+            }
+
+
+            // URL de l'API initiale
+            let initialDataUrl = getQueryUrl(sensorList);
+            console.log(`Chargement Série Temporelle pour : Station=${station}, Sensors=${sensorList}`);
+
+            // Fonction centrale pour (re)tracer le graphique
+            async function drawChart(url = null) {
+                // Ajuster la largeur du conteneur à la fenêtre (le height reste géré par CSS/Plots.js)
+                container.style.width = window.innerWidth + 'px';
+
+                const targetUrl = url || initialDataUrl;
+
+                // Appel de mainCandlePlots qui va vider le conteneur et recréer le SVG
+                if (typeof mainCandlePlots === 'function') {
+                    await mainCandlePlots(container, station, currentSensors, currentStartDate || '', currentEndDate || '');
+
+                    const plotInstance = container.__current_plot_instance;
+                    if (plotInstance) {
+                        const restoreSelection = () => {
+                            if (selectedSensor) {
+                                const sensorId = selectedSensor.replace(":", "_");
+                                const color = plotInstance.colorScale(sensorId);
+
+                                // Restaurer la surbrillance avec transition (un peu plus rapide pour le redraw)
+                                plotInstance.g.selectAll('.candle-group')
+                                    .transition()
+                                    .duration(300)
+                                    .style('opacity', 0.1);
+
+                                plotInstance.g.selectAll(`.candle-group-${sensorId}`)
+                                    .transition()
+                                    .duration(300)
+                                    .style('opacity', 1);
+                                plotInstance.g.selectAll(`.candle-group-${sensorId} .mean-line`).style('display', 'block');
+
+                                showStats(selectedSensor, color, plotInstance);
+                            }
+                        };
+
+                        plotInstance.onUpdate = restoreSelection;
+
+                        // Restaurer immédiatement si un capteur est déjà sélectionné
+                        if (selectedSensor) {
+                            // On attend un tout petit peu que les lignes initiales soient rendues
+                            setTimeout(restoreSelection, 50);
+                        }
+                    }
+
+                    // S'assurer que le stats-panel est bien présent après le clear de mainPlots
+                    if (!document.getElementById('sensor-stats-panel')) {
+                        const newStatsPanel = document.createElement('div');
+                        newStatsPanel.id = 'sensor-stats-panel';
+                        container.appendChild(newStatsPanel);
+                    }
+
+                    // Mettre à jour l'UI après le chargement pour avoir les bonnes couleurs
+                    renderSensorUI();
+                } else {
+                    container.innerHTML = `<div style="color:red; text-align:center; padding-top:20%;">
+                        Erreur: mainCandlePlots introuvable.
+                    </div>`;
+                }
+            }
+
+            // 2. Initialisation : Charger les capteurs et le graphe
+            loadAllSensors();
+            drawChart(initialDataUrl);
+
+            // 3. Gestionnaire de redimensionnement (avec debounce pour éviter les appels multiples)
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    const plotInstance = container.__current_plot_instance;
+                    if (plotInstance && typeof plotInstance.resize === 'function') {
+                        container.style.width = window.innerWidth + 'px';
+                        plotInstance.resize();
+                    } else {
+                        const currentUrl = getQueryUrl(currentSensors.join(','));
+                        drawChart(currentUrl);
+                    }
+                }, 200);
+            });
+
+            // 4. Gestionnaire spécifique pour le changement de plein écran
+            document.addEventListener('fullscreenchange', () => {
+                updateFsButton(!!document.fullscreenElement);
+                // Petit délai pour s'assurer que le navigateur a fini la transition
+                setTimeout(() => {
+                    const plotInstance = container.__current_plot_instance;
+                    if (plotInstance && typeof plotInstance.resize === 'function') {
+                        container.style.width = window.innerWidth + 'px';
+                        plotInstance.resize();
+                    } else {
+                        const currentUrl = getQueryUrl(currentSensors.join(','));
+                        drawChart(currentUrl);
+                    }
+                }, 100);
+            });
+        });
+    </script>
+</body>
+
+</html>

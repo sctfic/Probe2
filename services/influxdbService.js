@@ -974,48 +974,78 @@ async function queryVectors(stationId, sensor, startDate, endDate, intervalSecon
 async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSeconds = 3600) {
     console.log(`Demande de données candle pour ${stationId} - ${sensorRef} `, startDate, endDate, intervalSeconds);
 
+    const parts = sensorRef.split(':');
+    const measurement = parts.length === 2 ? parts[0] : null;
+    const sensor = parts.length === 2 ? parts[1] : sensorRef;
+
+    const filterStr = measurement 
+        ? `r._measurement == "${measurement}" and r.sensor == "${sensor}"`
+        : `r.sensor == "${sensor}"`;
+
     const buildFluxFn = (bucket, start, stop) => `
-import "math"
 from(bucket: "${bucket}")
     |> range(start: ${start}, stop: ${stop})
-    |> filter(fn: (r) => r.station_id == "${stationId}" and r.sensor == "${sensorRef}")
-    |> window(every: ${intervalSeconds}s)
-    |> reduce(
-        identity: {
-        first_value: 0.0,
-        last_value: 0.0,
-        min_value: 999999.0,
-        max_value: -999999.0,
-        sum_value: 0.0,
-        count: 0,
-        first_time: time(v: "1970-01-01T00:00:00Z")
-    },
-        fn: (r, accumulator) => ({
-            first_value: if accumulator.count == 0 then r._value else accumulator.first_value,
-            last_value: r._value,
-            min_value: if r._value < accumulator.min_value then r._value else accumulator.min_value,
-            max_value: if r._value > accumulator.max_value then r._value else accumulator.max_value,
-            sum_value: accumulator.sum_value + r._value,
-            count: accumulator.count + 1,
-            first_time: if accumulator.count == 0 then r._time else accumulator.first_time
-        })
-    )
-    |> map(fn: (r) => ({
-        datetime: r.first_time,
-        first: r.first_value,
-        min: r.min_value,
-        avg: math.round(x: r.sum_value / float(v: r.count) * 1000.0) / 1000.0,
-        max: r.max_value,
-        last: r.last_value,
-        count: r.count,
-        unit: r.unit
-    }))
-    |> keep(columns: ["datetime", "first", "min", "avg", "max", "last", "count"])
+    |> filter(fn: (r) => r.station_id == "${stationId}" and ${filterStr})
+    |> keep(columns: ["_time", "_value", "unit"])
     `;
 
+    // 1. Collect all data at maximum resolution
     const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn, sensorRef, stationId);
-    const merged = resultsArray.flat().sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
-    return merged;
+    const rawData = resultsArray.flat().sort((a, b) => new Date(a._time) - new Date(b._time));
+    
+    if (rawData.length === 0) return [];
+
+    // 2. Group the values to compute first, last, min, max, avg, count
+    const grouped = [];
+    let currentIntervalStart = null;
+    let currentCandle = null;
+    const intervalMs = intervalSeconds * 1000;
+
+    for (const point of rawData) {
+        if (point._value === null || isNaN(point._value)) continue;
+
+        const timeMs = new Date(point._time).getTime();
+        // Start of the interval for this point
+        const intervalStart = timeMs - (timeMs % intervalMs);
+        
+        if (currentIntervalStart !== intervalStart) {
+            // Push previous candle if exists
+            if (currentCandle) {
+                currentCandle.avg = Math.round((currentCandle.sum / currentCandle.count) * 1000) / 1000;
+                delete currentCandle.sum;
+                grouped.push(currentCandle);
+            }
+            
+            // Start new candle
+            currentIntervalStart = intervalStart;
+            currentCandle = {
+                datetime: new Date(intervalStart).toISOString(),
+                first: point._value,
+                last: point._value,
+                min: point._value,
+                max: point._value,
+                sum: point._value,
+                count: 1,
+                unit: point.unit
+            };
+        } else {
+            // Update current candle
+            currentCandle.last = point._value;
+            if (point._value < currentCandle.min) currentCandle.min = point._value;
+            if (point._value > currentCandle.max) currentCandle.max = point._value;
+            currentCandle.sum += point._value;
+            currentCandle.count += 1;
+        }
+    }
+    
+    // Push the very last candle
+    if (currentCandle) {
+        currentCandle.avg = Math.round((currentCandle.sum / currentCandle.count) * 1000) / 1000;
+        delete currentCandle.sum;
+        grouped.push(currentCandle);
+    }
+
+    return grouped;
 }
 
 

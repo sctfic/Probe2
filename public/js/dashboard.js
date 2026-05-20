@@ -44,6 +44,19 @@ function plotsChart() {
     }
 }
 
+function candleChart() {
+    if (!selectedStation) return;
+    const sensorsToCompare = [...selectedTiles]
+        .map(key => allConditions.find(c => c.key === key)?.sensorDb)
+        .filter(sensorDb => sensorDb && !sensorDb.startsWith('vector:'))
+        .filter((value, index, self) => self.indexOf(value) === index);
+
+    if (sensorsToCompare.length > 0) {
+        const url = `Candle.html?station=${selectedStation.id}&sensorList=${sensorsToCompare.join(',')}`;
+        window.open(url, '_blank');
+    }
+}
+
 function spirale3DChart() {
     if (!selectedStation) return;
     if (selectedTiles.size === 1) {
@@ -1222,7 +1235,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (action) {
             try {
                 // Execute the action (e.g., "plotsChart()")
-                new Function('plotsChart', 'spirale3DChart', action)(plotsChart, spirale3DChart);
+                new Function('plotsChart', 'spirale3DChart', 'candleChart', action)(plotsChart, spirale3DChart, candleChart);
             } catch (err) {
                 console.error("Error executing menu action:", err);
             }

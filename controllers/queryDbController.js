@@ -229,7 +229,6 @@ exports.getQueryRange = async (req, res) => {
 };
 
 async function getCompositeData(stationConfig, probeConfig, start, end, intervalSeconds) {
-    console.log(V.info, stationConfig, probeConfig, start, end, intervalSeconds);
     // Prepare script context for calculations
     const scriptContext = {};
     const loadedScripts = new Set();
@@ -242,8 +241,7 @@ async function getCompositeData(stationConfig, probeConfig, start, end, interval
                 if (!loadedScripts.has(scriptPath)) { // evite de charger plusieurs fois le même script
                     const fullPath = path.join(__dirname, '..', 'public', scriptPath);
                     try {
-                        console.log('require ', fullPath);
-
+                        console.log(V.Gyro, 'require ', fullPath);
                         const requiredModule = require(fullPath); // charge le script
                         Object.assign(scriptContext, requiredModule); // ajoute les fonctions exportees au contexte
                         loadedScripts.add(scriptPath); // marque le script comme charge
@@ -262,7 +260,6 @@ async function getCompositeData(stationConfig, probeConfig, start, end, interval
         .replace("%altitude%", stationConfig.altitude.desired || stationConfig.altitude.lastReadValue);
 
     const fnCalc = vm.runInNewContext(`(${fnCalcStr})`, scriptContext);
-    console.log('fnCalc()', fnCalcStr, fnCalc(0.5, 43.2, 242.01, 45));
 
     // Fetch needed data from InfluxDB
     const { dataNeeded } = probeConfig;
@@ -294,7 +291,6 @@ exports.getQueryRaw = async (req, res) => {
 
         let Data;
         let msg;
-
         // --- Data Fetching and Processing ---
         if (sensor.endsWith('_calc')) {
             const compositeProbes = probesProvider.getProbes();
@@ -304,18 +300,20 @@ exports.getQueryRaw = async (req, res) => {
                 err.statusCode = 404;
                 throw err;
             }
+
             Data = await getCompositeData(req.stationConfig, probeConfig, start, end, intervalSeconds);
+
             msg = 'Calculated data loaded!';
-        } else if (sensor.endsWith('_trend')) {
-            const integratorProbes = probesProvider.getProbes();
-            const probeConfig = integratorProbes[sensor];
-            if (!probeConfig) {
-                const err = new Error(`Trend sensor configuration not found for ${sensorRef}`);
-                err.statusCode = 404;
-                throw err;
-            }
-            Data = await getTrendData(req.stationConfig, probeConfig, start, end, intervalSeconds);
-            msg = 'Trend data loaded!';
+            // } else if (sensor.endsWith('_trend')) {
+            //     const integratorProbes = probesProvider.getProbes();
+            //     const probeConfig = integratorProbes[sensor];
+            //     if (!probeConfig) {
+            //         const err = new Error(`Trend sensor configuration not found for ${sensorRef}`);
+            //         err.statusCode = 404;
+            //         throw err;
+            //     }
+            //     Data = await getTrendData(req.stationConfig, probeConfig, start, end, intervalSeconds);
+            //     msg = 'Trend data loaded!';
         } else {
             // Handle regular sensor
             const rawData = await influxdbService.queryRaw(stationId, type + ':' + sensor, start, end, intervalSeconds);
@@ -331,6 +329,7 @@ exports.getQueryRaw = async (req, res) => {
                 msg = '<!> Data missing suspected !';
             }
         }
+
         // Prepare metadata for the response
         const units = unitsProvider.getUnits();
         const measurement = units[type];
@@ -511,18 +510,51 @@ exports.getQueryRaws = async (req, res) => {
 
 exports.getQueryCandle = async (req, res) => {
     const { stationId, sensorRef } = req.params;
-    const { startDate, endDate, stepCount = 100 } = req.query;
+    const { startDate, endDate, stepCount: stepCountStr } = req.query;
+    const stepCount = stepCountStr ? parseInt(stepCountStr, 10) : 100;
 
-    const { type, sensor } = getTypeAndSensor(sensorRef);
+    if (!stationId) {
+        return res.status(400).json({ success: false, error: 'Les paramètres stationId et sensorRef sont requis.' });
+    }
 
     try {
-        // console.log(`${V.info} Demande de données candle pour ${stationId} - ${sensorRef} avec ${stepCount} intervalles`);
-        const { start, end, intervalSeconds } = await getIntervalSeconds(stationId, sensor, startDate, endDate, stepCount);
-        // console.log(`${V.info} Intervalle choisi: ${intervalSeconds} secondes`, { start, end });
-        const data = await influxdbService.queryCandle(stationId, sensor, start, end, intervalSeconds);
-        // formatage des données
-        const Data = data.map(row => {
-            return {
+        const { type, sensor } = getTypeAndSensor(sensorRef);
+        const timeInfo = await getIntervalSeconds(stationId, type + ':' + sensor, startDate, endDate, stepCount);
+        console.log(`${V.info} Demande de données candle pour ${stationId} - ${sensorRef}`, timeInfo);
+        const { start, end, intervalSeconds } = timeInfo;
+
+        let Data;
+        let msg;
+
+        if (sensor.endsWith('_calc')) {
+            const compositeProbes = probesProvider.getProbes();
+            const probeConfig = compositeProbes[sensor];
+            if (!probeConfig) {
+                const err = new Error(`Calculated sensor configuration not found for ${sensorRef}`);
+                err.statusCode = 404;
+                throw err;
+            }
+
+            const rawData = await getCompositeData(req.stationConfig, probeConfig, start, end, intervalSeconds);
+            // Format single points as pseudo-candles for compatibility
+            Data = rawData.map(row => {
+                const v = Math.round(row.v * 100) / 100;
+                return {
+                    d: row.d,
+                    Open: v,
+                    High: v,
+                    Low: v,
+                    Close: v,
+                    Mean: v,
+                    Count: 1
+                };
+            });
+            console.log(`${V.info} Calculated candle data loaded!`, Data);
+            msg = 'Calculated candle data loaded!';
+        } else {
+            const rawData = await influxdbService.queryCandle(stationId, type + ':' + sensor, start, end, intervalSeconds);
+            console.log(`${V.info} Raw candle data loaded!`, rawData);
+            Data = rawData.map(row => ({
                 d: row.datetime,
                 Open: row.first,
                 High: row.max,
@@ -530,38 +562,42 @@ exports.getQueryCandle = async (req, res) => {
                 Close: row.last,
                 Mean: row.avg,
                 Count: row.count
-            };
-        });
-
-        let msg = 'Full data loadded !';
-        if (Data.length == stepCount + 1 && new Date(Data[Data.length - 1].d).getTime() == end) {
-            // Data.pop(); // supprimer la derniere valeur, qui est la derniere valeur de la plage avant agregation
-            msg = '(!) Last value is current !';
-        } else if (Data.length < stepCount) {
-            msg = '<!> Data missing suspected !';
+            }));
+            console.log(`${V.info} Standard candle data loaded!`, Data);
+            msg = 'Full data loaded !';
+            if (Data.length === stepCount + 1 && new Date(Data[Data.length - 1].d).getTime() === new Date(end).getTime()) {
+                msg = '(!) Last value is current !';
+            } else if (Data.length < stepCount) {
+                msg = '<!> Data missing suspected !';
+            }
         }
+
+        const units = unitsProvider.getUnits();
+        const measurement = units[type];
+        const metadata = {
+            stationId: stationId,
+            gps: {
+                latitude: req.stationConfig.latitude.desired || req.stationConfig.latitude.lastReadValue,
+                longitude: req.stationConfig.longitude.desired || req.stationConfig.longitude.lastReadValue,
+                altitude: req.stationConfig.altitude.desired || req.stationConfig.altitude.lastReadValue,
+            },
+            measurement: type,
+            sensor: sensor,
+            queryTime: new Date().toISOString(),
+            first: start,
+            last: end,
+            intervalSeconds: intervalSeconds,
+            count: Data.length,
+            unit: measurement?.metric || null,
+            userUnit: measurement?.user || null,
+            toUserUnit: measurement?.available_units?.[measurement.user]?.fnFromMetric || null
+        };
+
         res.json({
             success: true,
             message: msg,
             version: probeVersion,
-            metadata: {
-                stationId: stationId,
-                gps: {
-                    latitude: req.stationConfig.latitude.desired || req.stationConfig.latitude.lastReadValue,
-                    longitude: req.stationConfig.longitude.desired || req.stationConfig.longitude.lastReadValue,
-                    altitude: req.stationConfig.altitude.desired || req.stationConfig.altitude.lastReadValue,
-                },
-                measurement: type,
-                sensor: sensor,
-                queryTime: new Date().toISOString(),
-                first: new Date(start).toISOString(),
-                last: new Date(end).toISOString(),
-                intervalSeconds: intervalSeconds,
-                count: Data.length,
-                unit: data[0]?.unit || '',
-                userUnit: unitsProvider.getUnits()?.[type]?.user || '',
-                toUserUnit: unitsProvider.getUnits()?.[type]?.available_units?.[unitsProvider.getUnits()?.[type]?.user]?.fnFromMetric || null
-            },
+            metadata,
             data: Data
         });
     } catch (error) {
