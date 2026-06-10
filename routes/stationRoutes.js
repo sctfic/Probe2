@@ -19,6 +19,12 @@ router.get('/:stationId/collect', talkStationWithLamp(stationController.getArchi
 // Collecte les données des extenders depuis la station
 router.get('/:stationId/extenders', extendersController.collectExtenders); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/extenders
 
+// Ajoute un nouvel extender à la station
+router.post('/:stationId/extenders', isAuthenticated, extendersController.addExtender);
+
+// Met à jour les propriétés (nom, description) d'un extender
+router.put('/:stationId/extenders', isAuthenticated, extendersController.updateExtender);
+
 // Calcule les modèles intégrateurs pour la station
 router.get('/:stationId/integrator/build', integratorController.runIntegrator); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/integrator/build
 

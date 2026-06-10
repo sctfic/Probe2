@@ -46,16 +46,7 @@ jest.mock('../services/WhisperEyeService', () => ({
     }),
     parseWhisperEyeJSON: jest.fn(data => data)
 }));
-
-jest.mock('../services/VentiConnectService', () => ({
-    fetchVentiConnectInfoAPI: jest.fn().mockResolvedValue({
-        dateTime: new Date(),
-        temperature: { indoor: 21, fan: 22, collector: 23 },
-        humidity: { indoor: 50, fan: 55 },
-        fan: { instructions: 40, real: 38, rpm: 1200 }
-    }),
-    parseVentiConnectJSON: jest.fn(data => data)
-}));
+// VentiConnectService is deprecated and removed
 
 jest.mock('../services/cronService', () => ({
     initializeAllJobs: jest.fn(),

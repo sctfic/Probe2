@@ -1,5 +1,5 @@
 /**
- * World Map Drawing Module for Probe2
+ * World Map Drawing Module for Probe
  * Renders a 3D Earth projection with back face transparency.
  */
 //   .call(zoom(projection)

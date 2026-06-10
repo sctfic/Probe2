@@ -98,6 +98,18 @@ class CandlePlot {
         this.initializeScales();
     }
 
+    get sensorList() {
+        return this._sensorList;
+    }
+
+    set sensorList(value) {
+        this._sensorList = Array.isArray(value)
+            ? value
+            : (typeof value === 'string'
+                ? value.split(',').filter(s => s.trim() !== '')
+                : []);
+    }
+
     initializeScales() {
         this.xScale = d3.scaleTime()
             .domain(d3.extent(this.data, d => d.datetime))
@@ -340,7 +352,7 @@ class CandlePlot {
                 candles.append("line")
                     .attr("class", "tick-open")
                     .attr("x1", d => this.xScale(d.datetime) - tickWidth)
-                    .attr("x2", d => this.xScale(d.datetime))
+                    .attr("x2", d => this.xScale(d.datetime) + 1.5)
                     .attr("y1", d => scaleInfo.scale(d[sensor].Open))
                     .attr("y2", d => scaleInfo.scale(d[sensor].Open))
                     .style("stroke", d => d[sensor].Close >= d[sensor].Open ? "#26a69a" : "#ef5350")
@@ -349,7 +361,7 @@ class CandlePlot {
                 // Right stick (Close) - Green if Close >= Open, Red if Close < Open
                 candles.append("line")
                     .attr("class", "tick-close")
-                    .attr("x1", d => this.xScale(d.datetime))
+                    .attr("x1", d => this.xScale(d.datetime) - 1.5)
                     .attr("x2", d => this.xScale(d.datetime) + tickWidth)
                     .attr("y1", d => scaleInfo.scale(d[sensor].Close))
                     .attr("y2", d => scaleInfo.scale(d[sensor].Close))

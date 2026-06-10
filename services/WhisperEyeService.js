@@ -60,7 +60,7 @@ async function fetchWhisperEyeCapacity(host) {
     //         ]
     // }
     try {
-        const url = `http://${host}/Capacity`;
+        const url = `http://${host}/api/capacity`;
         const response = await axios.get(url, { timeout: 2000 });
         if (response.data) {
             return response.data;

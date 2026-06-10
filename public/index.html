@@ -397,14 +397,7 @@
                     <label for="new-ext-type">Type</label>
                     <select id="new-ext-type">
                         <option value="WhisperEye">WhisperEye</option>
-                        <option value="Venti'Connect">Venti'Connect</option>
                     </select>
-                </div>
-                <div class="form-group">
-                    <label for="new-ext-name">Nom (Unique pour ce type)</label>
-                    <input type="text" id="new-ext-name" placeholder="Ex: Salon, Jardin...">
-                    <div id="new-ext-name-error" class="error-msg" style="display:none; color:#ff6b6b;">Ce nom est
-                        requis et doit être unique.</div>
                 </div>
                 <div class="form-group">
                     <label for="new-ext-host">Host (IP)</label>
@@ -414,8 +407,11 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeExtenderModal()">Annuler</button>
-                <button type="button" class="btn btn-primary" onclick="submitNewExtender()">Enregistrer</button>
+                <button type="button" class="btn btn-secondary" onclick="closeExtenderModal()" id="cancel-extender-btn">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="submitNewExtender()" id="submit-extender-btn" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                    <div class="spinner" id="ext-spinner" style="display: none; width: 14px; height: 14px; border-width: 2px; margin: 0;"></div>
+                    <span id="submit-extender-btn-text">Détection automatique</span>
+                </button>
             </div>
         </div>
     </div>

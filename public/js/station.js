@@ -5,10 +5,9 @@
 
 let currentStationSettings = null;
 // Variable globale pour stocker l'état des extendeurs pendant l'édition
-// Structure: { "WhisperEye": [ {name, host...} ], "Venti'Connect": [] }
+// Structure: { "WhisperEye": [ {name, host...} ] }
 let localExtendersState = {
-    "WhisperEye": [],
-    "Venti'Connect": []
+    "WhisperEye": []
 };
 const localFormat = {
     weekday: 'short',
@@ -72,7 +71,7 @@ async function fetchStationSettings(data = null) {
             if (currentStationSettings.extenders) {
                 localExtendersState = JSON.parse(JSON.stringify(currentStationSettings.extenders));
             } else {
-                localExtendersState = { "WhisperEye": [], "Venti'Connect": [] };
+                localExtendersState = { "WhisperEye": [] };
             }
 
             displaySettingsForm();
@@ -613,10 +612,14 @@ function renderExtenderDetails() {
 
     let apiKeyField = '';
     if (currentType === 'WhisperEye') {
+        let maskedApiKey = '';
+        if (currentExtender.apiKey) {
+            maskedApiKey = currentExtender.apiKey.slice(0, 6) + '......' + currentExtender.apiKey.slice(-6);
+        }
         apiKeyField = `
             <div class="extender-form-row">
                 <label>API Key:</label>
-                <input type="text" value="${currentExtender.apiKey || ''}" readonly style="background:#222; color:#888; cursor:not-allowed;" title="Généré automatiquement">
+                <input type="text" value="${maskedApiKey}" readonly style="background:#222; color:#888; cursor:not-allowed;" title="Clé API masquée">
             </div>
         `;
     }
@@ -659,10 +662,6 @@ function renderExtenderDetails() {
                 </div>
             </div>
 
-            <!-- ID masqué selon demande utilisateur -->
-            <input type="hidden" value="${currentExtender.id || ''}">
-
-
             ${apiKeyField}
         </div>
     `;
@@ -677,15 +676,47 @@ window.openExtenderModal = function () {
     if (!modal) return;
 
     // Reset champs
-    document.getElementById('new-ext-name').value = '';
-    document.getElementById('new-ext-host').value = '';
-    document.getElementById('new-ext-type').selectedIndex = 0;
+    const hostInput = document.getElementById('new-ext-host');
+    if (hostInput) {
+        hostInput.value = '';
+        hostInput.disabled = false;
+    }
+    const typeSelect = document.getElementById('new-ext-type');
+    if (typeSelect) {
+        typeSelect.selectedIndex = 0;
+        typeSelect.disabled = false;
+    }
 
     // Reset erreurs
     document.querySelectorAll('#add-extender-modal .error-msg').forEach(el => el.style.display = 'none');
 
+    // Reset spinner & button text
+    const btnText = document.getElementById('submit-extender-btn-text');
+    if (btnText) {
+        btnText.textContent = 'Détection automatique';
+    } else {
+        const submitBtn = document.getElementById('submit-extender-btn');
+        if (submitBtn) {
+            submitBtn.textContent = 'Détection automatique';
+        }
+    }
+
+    const spinner = document.getElementById('ext-spinner');
+    if (spinner) {
+        spinner.style.display = 'none';
+    }
+
+    const submitBtn = document.getElementById('submit-extender-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+    }
+    const cancelBtn = document.getElementById('cancel-extender-btn');
+    if (cancelBtn) {
+        cancelBtn.disabled = false;
+    }
+
     modal.classList.add('show');
-    document.getElementById('new-ext-name').focus();
+    if (hostInput) hostInput.focus();
 };
 
 window.closeExtenderModal = function () {
@@ -695,114 +726,66 @@ window.closeExtenderModal = function () {
 
 window.submitNewExtender = async function () {
     const typeSelect = document.getElementById('new-ext-type');
-    const nameInput = document.getElementById('new-ext-name');
     const hostInput = document.getElementById('new-ext-host');
+    const submitBtn = document.getElementById('submit-extender-btn');
+    const cancelBtn = document.getElementById('cancel-extender-btn');
+    const spinner = document.getElementById('ext-spinner');
 
-    const type = typeSelect.value;
-    const name = nameInput.value.trim();
-    const host = hostInput.value.trim();
+    const type = typeSelect ? typeSelect.value : 'WhisperEye';
+    const host = hostInput ? hostInput.value.trim() : '';
 
-    let isValid = true;
+    // If host is empty, it's auto-discovery. If not, it's manual save.
+    const isAutoDiscover = (host === '');
 
-    // Validation Name
-    const nameError = document.getElementById('new-ext-name-error');
-    const existingNames = (localExtendersState[type] || []).map(e => e.name);
+    showGlobalStatus(isAutoDiscover ? 'Lancement de la détection automatique...' : 'Sauvegarde du nouveau périphérique...', 'loading');
 
-    if (!name) {
-        nameError.textContent = "Le nom est obligatoire.";
-        nameError.style.display = 'block';
-        isValid = false;
-    } else if (existingNames.includes(name)) {
-        nameError.textContent = `Le nom "${name}" existe déjà pour le type ${type}.`;
-        nameError.style.display = 'block';
-        isValid = false;
-    } else {
-        nameError.style.display = 'none';
-    }
-
-    // Validation Host
-    const hostError = document.getElementById('new-ext-host-error');
-    if (!host) {
-        hostError.style.display = 'block';
-        isValid = false;
-    } else {
-        hostError.style.display = 'none';
-    }
-
-    if (!isValid) return;
-
-    // Création de l'identifiant (2 lettres type + 3 digits incremental)
-    const prefixMap = {
-        "WhisperEye": "WE",
-        "Venti'Connect": "VC"
-    };
-    const prefix = prefixMap[type] || "EX";
-
-    // Trouver le numéro maximum utilisé pour ce préfixe de type
-    let maxNum = 0;
-    Object.keys(localExtendersState).forEach(t => {
-        localExtendersState[t].forEach(ext => {
-            if (ext.id && ext.id.startsWith(prefix)) {
-                const numPart = ext.id.substring(prefix.length);
-                const num = parseInt(numPart, 10);
-                if (!isNaN(num) && num > maxNum) {
-                    maxNum = num;
-                }
-            }
-        });
-    });
-    const nextId = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
-
-    // Création de l'objet
-    const newExtender = {
-        id: nextId,
-        name: name,
-        host: host,
-        description: '',
-        available: false
-    };
-
-    if (type === 'WhisperEye') {
-        newExtender.apiKey = generateApiKey();
-    }
-
-    if (!localExtendersState[type]) localExtendersState[type] = [];
-    localExtendersState[type].push(newExtender);
-
-    // Sauvegarde Immédiate
-    showGlobalStatus('Sauvegarde du nouveau périphérique...', 'loading');
-    closeExtenderModal();
-
-    const settingsToSave = {
-        extenders: localExtendersState
-    };
+    // Disable inputs & buttons, show spinner
+    if (hostInput) hostInput.disabled = true;
+    if (typeSelect) typeSelect.disabled = true;
+    if (submitBtn) submitBtn.disabled = true;
+    if (cancelBtn) cancelBtn.disabled = true;
+    if (spinner) spinner.style.display = 'inline-block';
 
     try {
-        const response = await fetch(`/api/station/${selectedStation.id}`, {
-            method: 'PUT',
+        const response = await fetch(`/api/station/${selectedStation.id}/extenders`, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(settingsToSave)
+            body: JSON.stringify({
+                type: type,
+                host: host
+            })
         });
 
         const result = await response.json();
 
         if (result.success) {
-            showGlobalStatus('Périphérique ajouté et configuration rechargée', 'success');
-            const newIndex = localExtendersState[type].length - 1;
-            activeExtenderTab = `${type}-${newIndex}`;
+            showGlobalStatus(isAutoDiscover ? 'Détection automatique terminée et extenders enregistrés' : 'Périphérique ajouté et configuration rechargée', 'success');
+            
+            if (result.settings && result.settings.extenders && result.settings.extenders[type]) {
+                const newIndex = result.settings.extenders[type].length - 1;
+                activeExtenderTab = `${type}-${newIndex}`;
+            }
+
+            // Close the modal only on success
+            closeExtenderModal();
 
             // Recharger tout le formulaire
             setTimeout(() => {
                 fetchStationSettings(result);
             }, 500);
         } else {
-            throw new Error(result.error || "Erreur sauvegarde");
+            throw new Error(result.error || "Erreur sauvegarde/détection");
         }
     } catch (e) {
         console.error(e);
-        showGlobalStatus("Erreur lors de l'ajout: " + e.message, 'error');
-        localExtendersState[type].pop();
-        renderExtendersManager();
+        showGlobalStatus("Erreur : " + e.message, 'error');
+
+        // Re-enable inputs & buttons, hide spinner
+        if (hostInput) hostInput.disabled = false;
+        if (typeSelect) typeSelect.disabled = false;
+        if (submitBtn) submitBtn.disabled = false;
+        if (cancelBtn) cancelBtn.disabled = false;
+        if (spinner) spinner.style.display = 'none';
     }
 };
 
@@ -859,7 +842,8 @@ window.removeExtender = async function (type, index) {
 
                 // 3. Suppression des données InfluxDB associées
                 try {
-                    const dataResponse = await fetch(`/api/station/${selectedStation.id}/extenders/${item.id}/data`, {
+                    const extenderIdOrMac = item.id || item.mac;
+                    const dataResponse = await fetch(`/api/station/${selectedStation.id}/extenders/${extenderIdOrMac}/data`, {
                         method: 'DELETE'
                     });
                     const dataResult = await dataResponse.json();
@@ -887,9 +871,72 @@ window.removeExtender = async function (type, index) {
     }
 };
 
-window.updateExtenderField = function (type, index, field, value) {
-    if (localExtendersState[type] && localExtendersState[type][index]) {
-        localExtendersState[type][index][field] = value;
+window.updateExtenderField = async function (type, index, field, value) {
+    if (!localExtendersState[type] || !localExtendersState[type][index]) return;
+
+    const extender = localExtendersState[type][index];
+    const originalValue = extender[field];
+
+    if (field === 'name') {
+        const cleanName = value.trim();
+        if (!cleanName) {
+            showGlobalStatus("Le nom ne peut pas être vide.", "error");
+            fetchStationSettings(); // Reverts UI state
+            return;
+        }
+        if (cleanName.length > 16) {
+            showGlobalStatus("Le nom ne doit pas dépasser 16 caractères.", "error");
+            fetchStationSettings();
+            return;
+        }
+        // Check uniqueness across other WhisperEyes in localExtendersState
+        const otherNames = localExtendersState[type]
+            .filter((_, idx) => idx !== index)
+            .map(ext => ext.name.toLowerCase());
+        if (otherNames.includes(cleanName.toLowerCase())) {
+            showGlobalStatus(`Le nom "${cleanName}" est déjà utilisé.`, "error");
+            fetchStationSettings();
+            return;
+        }
+    }
+
+    // Update local state temporarily
+    extender[field] = value;
+
+    if (field === 'name' || field === 'description') {
+        showGlobalStatus('Mise à jour de l\'extendeur...', 'loading');
+        try {
+            const response = await fetch(`/api/station/${selectedStation.id}/extenders`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mac: extender.mac,
+                    name: field === 'name' ? value : extender.name,
+                    description: field === 'description' ? value : extender.description
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showGlobalStatus('Configuration mise à jour avec succès', 'success');
+                // update local state from result
+                if (result.settings && result.settings.extenders) {
+                    localExtendersState = JSON.parse(JSON.stringify(result.settings.extenders));
+                }
+                renderExtendersManager();
+            } else {
+                throw new Error(result.error || "Erreur de mise à jour");
+            }
+        } catch (error) {
+            console.error(error);
+            showGlobalStatus("Échec de la mise à jour : " + error.message, 'error');
+            // Revert state
+            extender[field] = originalValue;
+            renderExtendersManager();
+        }
+    } else {
+        // For other fields like host, just update local state (it will be saved when clicking Enregistrer at the bottom)
         if (field === 'name') {
             renderExtendersManager();
         }
@@ -1368,3 +1415,23 @@ window.runHistoricalExpand = async function (btn, stationId, years) {
         btn.innerHTML = originalContent;
     }
 };
+
+(function() {
+    document.addEventListener('DOMContentLoaded', () => {
+        const hostInput = document.getElementById('new-ext-host');
+        if (hostInput) {
+            hostInput.addEventListener('input', (e) => {
+                const submitBtn = document.getElementById('submit-extender-btn');
+                const btnText = document.getElementById('submit-extender-btn-text');
+                if (submitBtn) {
+                    const text = e.target.value.trim() === '' ? 'Détection automatique' : 'Enregistrer';
+                    if (btnText) {
+                        btnText.textContent = text;
+                    } else {
+                        submitBtn.textContent = text;
+                    }
+                }
+            });
+        }
+    });
+})();

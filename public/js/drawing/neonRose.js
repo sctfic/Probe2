@@ -1,5 +1,5 @@
 /**
- * Neon Wind Rose Drawing Module for Probe2
+ * Neon Wind Rose Drawing Module for Probe
  * Renders a holographic-style wind speedometer & direction compass with update support.
  */
 
