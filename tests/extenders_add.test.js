@@ -126,7 +126,7 @@ describe('POST /api/station/:stationId/extenders', () => {
 
         expect(res.statusCode).toBe(500);
         expect(res.body.success).toBe(false);
-        expect(res.body.error).toContain("Impossible de joindre l'extendeur WhisperEye");
+        expect(res.body.error).toContain("Échec de la négociation TOTP");
     });
 });
 
@@ -179,20 +179,10 @@ describe('DELETE /api/station/:stationId/extenders/:mac', () => {
         const found = updatedConfig.extenders.WhisperEye.find(ext => ext.mac === testMac);
         expect(found).toBeUndefined();
 
-        // Calculer le token TOTP attendu
-        const crypto = require('crypto');
-        const epoch = 1700000000;
-        const buf = Buffer.alloc(8);
-        buf.writeUInt32BE(0, 0);
-        buf.writeUInt32BE(epoch, 4);
-        const hmac = crypto.createHmac('sha256', testApiKey);
-        hmac.update(buf);
-        const expectedToken = hmac.digest('hex');
-
         // Vérifier l'appel axios
         expect(axios.post).toHaveBeenCalledWith(
             'http://192.168.1.150/api/clear-totp',
-            { token: expectedToken },
+            { token: testApiKey },
             expect.any(Object)
         );
     });

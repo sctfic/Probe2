@@ -860,7 +860,43 @@ window.submitNewExtender = async function () {
         const result = await response.json();
 
         if (result.success) {
-            showGlobalStatus(isAutoDiscover ? 'Détection automatique terminée et extenders enregistrés' : 'Périphérique ajouté et configuration rechargée', 'success');
+            // Build a human-readable summary from the report
+            const report = result.report;
+            let statusMsg = '';
+            if (report) {
+                const parts = [];
+                if (report.discovered && report.discovered.length > 0) {
+                    parts.push(`${report.discovered.length} détecté(s)`);
+                }
+                if (report.added && report.added.length > 0) {
+                    parts.push(`${report.added.length} enregistré(s)`);
+                }
+                if (report.rejected && report.rejected.length > 0) {
+                    parts.push(`${report.rejected.length} rejeté(s)`);
+                }
+                if (parts.length > 0) {
+                    statusMsg = parts.join(', ');
+                } else {
+                    statusMsg = 'Aucun extendeur détecté sur le réseau';
+                }
+
+                // Log details to console
+                if (report.discovered && report.discovered.length > 0) {
+                    console.log('[EXTENDERS] Rapport de détection :', JSON.stringify(report, null, 2));
+                }
+            } else {
+                statusMsg = isAutoDiscover ? 'Détection terminée' : 'Périphérique ajouté';
+            }
+
+            showGlobalStatus(statusMsg, 'success');
+
+            // Display rejected extenders as a detailed notification if any
+            if (report && report.rejected && report.rejected.length > 0) {
+                const rejectedDetails = report.rejected.map(r =>
+                    `• ${r.name || r.mac || r.host} — ${r.reason}`
+                ).join('\n');
+                console.warn('[EXTENDERS] Extendeurs rejetés :\n' + rejectedDetails);
+            }
 
             if (result.settings && result.settings.extenders && result.settings.extenders[type]) {
                 const newIndex = result.settings.extenders[type].length - 1;

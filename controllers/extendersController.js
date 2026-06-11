@@ -21,18 +21,18 @@ exports.addExtender = async (req, res) => {
     }
 
     try {
-        let updatedConfig;
+        let result;
         if (type === 'WhisperEye' && !host) {
             // Détection automatique
-            updatedConfig = await autoDiscoverAndRegisterExtenders(req.stationConfig, req.headers.host);
+            result = await autoDiscoverAndRegisterExtenders(req.stationConfig, req.headers.host);
         } else {
             // Ajout manuel
             if (!host) {
                 return res.status(400).json({ success: false, error: 'L\'adresse IP/host est requise.' });
             }
-            updatedConfig = await addExtenderToStation(req.stationConfig, { type, host }, req.headers.host);
+            result = await addExtenderToStation(req.stationConfig, { type, host }, req.headers.host);
         }
-        res.json({ success: true, settings: updatedConfig });
+        res.json({ success: true, settings: result.stationConfig, report: result.report });
     } catch (error) {
         console.error(`${V.error} [EXTENDERS] Erreur lors de l'ajout/détection :`, error.message);
         res.status(500).json({ success: false, error: error.message });
@@ -163,18 +163,9 @@ exports.deleteExtenderData = async (req, res) => {
 
         // 1. Envoyer la demande d'effacement TOTP et metricsUrl si possible
         if (ext.apiKey && ext.host) {
-            const crypto = require('crypto');
             const axios = require('axios');
-            const epoch = Math.floor(Date.now() / 1000);
-            const buf = Buffer.alloc(8);
-            buf.writeUInt32BE(0, 0);
-            buf.writeUInt32BE(epoch, 4);
-
-            const hmac = crypto.createHmac('sha256', ext.apiKey);
-            hmac.update(buf);
-            const token = hmac.digest('hex');
-
-            console.log(`[EXTENDERS] Extendeur ${ext.name} (MAC: ${ext.mac}) en cours de suppression. Envoi de l'effacement TOTP à http://${ext.host}/api/clear-totp`);
+            const token = ext.apiKey;
+            console.log(`[EXTENDERS] Extendeur ${ext.name} (MAC: ${ext.mac}) en cours de suppression. Envoi du token de validation TOTP (apiKey) à http://${ext.host}/api/clear-totp`);
 
             // On fait l'appel en asynchrone sans bloquer complètement la suppression si l'appareil est hors ligne
             axios.post(`http://${ext.host}/api/clear-totp`, { token }, { timeout: 2000 })
