@@ -4,7 +4,8 @@ const {
     pingAllExtenders, 
     addExtenderToStation, 
     autoDiscoverAndRegisterExtenders, 
-    updateExtenderInStation 
+    updateExtenderInStation,
+    updateExtenderPeripheralInStation
 } = require('../services/extenderService');
 
 /**
@@ -51,6 +52,26 @@ exports.updateExtender = async (req, res) => {
         res.json({ success: true, settings: updatedConfig });
     } catch (error) {
         console.error(`${V.error} [EXTENDERS] Erreur lors de la mise à jour de l'extendeur :`, error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+/**
+ * Route API pour mettre à jour la description d'un capteur ou actionneur d'un extendeur.
+ */
+exports.updateExtenderPeripheral = async (req, res) => {
+    const { mac } = req.params;
+    const { id, description } = req.body;
+
+    if (!mac || !id) {
+        return res.status(400).json({ success: false, error: 'La MAC de l\'extendeur et l\'identifiant du périphérique sont requis.' });
+    }
+
+    try {
+        const updatedConfig = await updateExtenderPeripheralInStation(req.stationConfig, mac, id, description);
+        res.json({ success: true, settings: updatedConfig });
+    } catch (error) {
+        console.error(`${V.error} [EXTENDERS] Erreur lors de la mise à jour du périphérique :`, error.message);
         res.status(500).json({ success: false, error: error.message });
     }
 };

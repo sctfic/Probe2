@@ -193,10 +193,16 @@ async function displaySettingsForm() {
                 min-width: 250px;
             }
 
-            .extender-form-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
-            .extender-form-row label { width: 120px; font-size: 0.9em }
-            .extender-form-row input { flex: 1; background: #111; border: 1px solid #555; color: white; padding: 6px; border-radius: 4px; }
+            .extender-form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; align-items: stretch; }
+            .extender-form-row label { font-size: 0.9em; margin-bottom: 2px; }
+            .extender-form-row input { background: #111; border: 1px solid #555; color: white; padding: 6px; border-radius: 4px; box-sizing: border-box; }
             .extender-form-row input:focus { border-color: #007bff; outline: none; }
+            
+            .extender-config-row { display: flex; flex-direction: row; align-items: center; gap: 10px; margin-bottom: 10px; width: 100%; }
+            .extender-config-row label { width: 90px; flex-shrink: 0; font-size: 0.9em; margin-bottom: 0; }
+            .extender-config-row .edit-container { flex: 1; display: flex; align-items: center; gap: 8px; min-height: 32px; width: 100%; }
+            .extender-config-row input { background: #111; border: 1px solid #555; color: white; padding: 6px; border-radius: 4px; box-sizing: border-box; width: 100%; }
+            .extender-config-row input:focus { border-color: #007bff; outline: none; }
             
             .ping-indicator {
                 display: inline-block; width: 10px; height: 10px; border-radius: 50%; 
@@ -610,59 +616,147 @@ function renderExtenderDetails() {
     const pingStatus = currentExtender.available ? 'ping-success' : 'ping-fail';
     const pingTitle = currentExtender.available ? 'En ligne' : 'Hors ligne';
 
-    let apiKeyField = '';
-    if (currentType === 'WhisperEye') {
-        let maskedApiKey = '';
-        if (currentExtender.apiKey) {
-            maskedApiKey = currentExtender.apiKey.slice(0, 6) + '......' + currentExtender.apiKey.slice(-6);
-        }
-        apiKeyField = `
-            <div class="extender-form-row">
-                <label>API Key:</label>
-                <input type="text" value="${maskedApiKey}" readonly style="background:#222; color:#888; cursor:not-allowed;" title="Clé API masquée">
-            </div>
-        `;
+    let maskedApiKey = '';
+    if (currentExtender.apiKey) {
+        maskedApiKey = currentExtender.apiKey.slice(0, 6) + '......' + currentExtender.apiKey.slice(-6);
+    }
+
+    let sensorsHtml = '';
+    if (currentExtender.sensors && currentExtender.sensors.length > 0) {
+        currentExtender.sensors.forEach(sensor => {
+            const displayName = sensor.Name;
+            const unitStr = sensor.Unit ? ` (${sensor.Unit})` : '';
+            const safePeripheralId = sensor.Name.replace(/:/g, '-');
+            sensorsHtml += `
+                <div class="extender-form-row">
+                    <div style="display: flex; align-items: center; gap: 8px; width: 100%; min-height: 24px;">
+                        <span id="display-peripheral-${safePeripheralId}" style="font-weight: 600; cursor: pointer; color: #fff;" onclick="window.startEditingPeripheralField('${safePeripheralId}')">
+                            ${sensor.description || 'Aucune description'}
+                        </span>
+                        <span id="container-peripheral-${safePeripheralId}" style="display: none; width: 100%;">
+                            <input type="text" id="input-peripheral-${safePeripheralId}" value="${sensor.description || ''}" maxlength="24"
+                                onblur="window.handleBlurPeripheralField('${safePeripheralId}', '${safeType}', ${currentIndex}, '${sensor.Name}')"
+                                onkeydown="window.handleKeyDownPeripheralField(event, '${safePeripheralId}', '${safeType}', ${currentIndex}, '${sensor.Name}')">
+                        </span>
+                        <button id="btn-peripheral-${safePeripheralId}" onclick="window.startEditingPeripheralField('${safePeripheralId}')" style="background: none; border: none; color: #888; cursor: pointer; display: flex; align-items: center; padding: 4px;" title="Renommer">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        </button>
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); font-family: monospace; margin-top: -.5em;" title="${displayName}">${displayName}${unitStr}</div>
+                </div>
+            `;
+        });
+    } else {
+        sensorsHtml = '<p style="color: #888; font-size: 0.9em; padding-left: 10px; margin-top: 5px;">Aucun capteur détecté.</p>';
+    }
+
+    let actuatorsHtml = '';
+    if (currentExtender.actuators && currentExtender.actuators.length > 0) {
+        currentExtender.actuators.forEach(actuator => {
+            const displayName = actuator.Name;
+            const rangeStr = actuator.range ? ` [${actuator.range}]` : '';
+            const safePeripheralId = actuator.Name.replace(/:/g, '-');
+            actuatorsHtml += `
+                <div class="extender-form-row">
+                    <div style="display: flex; align-items: center; gap: 8px; width: 100%; min-height: 24px;">
+                        <span id="display-peripheral-${safePeripheralId}" style="font-weight: 600; cursor: pointer; color: #fff;" onclick="window.startEditingPeripheralField('${safePeripheralId}')">
+                            ${actuator.description || 'Aucune description'}
+                        </span>
+                        <span id="container-peripheral-${safePeripheralId}" style="display: none; width: 100%;">
+                            <input type="text" id="input-peripheral-${safePeripheralId}" value="${actuator.description || ''}" maxlength="24"
+                                onblur="window.handleBlurPeripheralField('${safePeripheralId}', '${safeType}', ${currentIndex}, '${actuator.Name}')"
+                                onkeydown="window.handleKeyDownPeripheralField(event, '${safePeripheralId}', '${safeType}', ${currentIndex}, '${actuator.Name}')">
+                        </span>
+                        <button id="btn-peripheral-${safePeripheralId}" onclick="window.startEditingPeripheralField('${safePeripheralId}')" style="background: none; border: none; color: #888; cursor: pointer; display: flex; align-items: center; padding: 4px;" title="Renommer">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        </button>
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); font-family: monospace; margin-top: -.5em;" title="${displayName}">${displayName}${rangeStr}</div>
+                </div>
+            `;
+        });
+    } else {
+        actuatorsHtml = '<p style="color: #888; font-size: 0.9em; padding-left: 10px; margin-top: 5px;">Aucun actionneur détecté.</p>';
     }
 
     contentDiv.innerHTML = `
         <div class="extender-details">
-            <div class="extender-header">
-                <div class="extender-input-container">
-                    <div class="extender-form-row">
+            <div class="extender-header" style="display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start;">
+                <div class="extender-input-container" style="display: flex; flex-direction: column; gap: 10px; flex: 1.5; min-width: 250px;">
+                    <h4 style="margin-bottom: 10px; font-size: 0.95em; border-bottom: 1px solid #444; padding-bottom: 5px; font-weight: bold;">Configuration</h4>
+                    <div class="extender-config-row" style="margin-bottom: 0;">
                         <label>Nom:</label>
-                        <input type="text" value="${currentExtender.name || ''}" 
-                            onchange="updateExtenderField('${safeType}', ${currentIndex}, 'name', this.value)">
+                        <div class="edit-container">
+                            <span id="display-extender-name" style="font-weight: 600; cursor: pointer; color: #fff;" onclick="window.startEditingExtenderField('name')">
+                                ${currentExtender.name || 'Sans nom'}
+                            </span>
+                            <span id="container-extender-name" style="display: none; width: 100%;">
+                                <input type="text" id="input-extender-name" value="${currentExtender.name || ''}" maxlength="16"
+                                    onblur="window.handleBlurExtenderField('name', '${safeType}', ${currentIndex})"
+                                    onkeydown="window.handleKeyDownExtenderField(event, 'name', '${safeType}', ${currentIndex})">
+                            </span>
+                            <button id="btn-extender-name" onclick="window.startEditingExtenderField('name')" style="background: none; border: none; color: #888; cursor: pointer; display: flex; align-items: center; padding: 4px;" title="Renommer">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            </button>
+                        </div>
                     </div>
-                    
-                    <div class="extender-form-row">
-                        <label>Host / IP:</label>
-                        <input type="text" value="${currentExtender.host || ''}" 
-                            onchange="updateExtenderField('${safeType}', ${currentIndex}, 'host', this.value)">
-                    </div>
-
-                    <div class="extender-form-row">
+                    <div class="extender-config-row" style="margin-bottom: 0;">
                         <label>Description:</label>
-                        <input type="text" value="${currentExtender.description || ''}" 
-                            onchange="updateExtenderField('${safeType}', ${currentIndex}, 'description', this.value)">
+                        <div class="edit-container">
+                            <span id="display-extender-description" style="font-weight: 600; cursor: pointer; color: #fff;" onclick="window.startEditingExtenderField('description')">
+                                ${currentExtender.description || 'Aucune description'}
+                            </span>
+                            <span id="container-extender-description" style="display: none; width: 100%;">
+                                <input type="text" id="input-extender-description" value="${currentExtender.description || ''}" maxlength="64"
+                                    onblur="window.handleBlurExtenderField('description', '${safeType}', ${currentIndex})"
+                                    onkeydown="window.handleKeyDownExtenderField(event, 'description', '${safeType}', ${currentIndex})">
+                            </span>
+                            <button id="btn-extender-description" onclick="window.startEditingExtenderField('description')" style="background: none; border: none; color: #888; cursor: pointer; display: flex; align-items: center; padding: 4px;" title="Renommer">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="extender-config-row" style="margin-bottom: 0;">
+                        <label>Host / IP:</label>
+                        <div class="edit-container">
+                            <span id="display-extender-host" style="font-weight: 600; cursor: pointer; color: #fff;" onclick="window.startEditingExtenderField('host')">
+                                ${currentExtender.host || 'Aucun Host/IP'}
+                            </span>
+                            <span id="container-extender-host" style="display: none; width: 100%;">
+                                <input type="text" id="input-extender-host" value="${currentExtender.host || ''}" 
+                                    onblur="window.handleBlurExtenderField('host', '${safeType}', ${currentIndex})"
+                                    onkeydown="window.handleKeyDownExtenderField(event, 'host', '${safeType}', ${currentIndex})">
+                            </span>
+                            <button id="btn-extender-host" onclick="window.startEditingExtenderField('host')" style="background: none; border: none; color: #888; cursor: pointer; display: flex; align-items: center; padding: 4px;" title="Renommer">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            </button>
+                            <a href="http://${currentExtender.host}" target="_blank" style="font-size: 0.8em; text-decoration: underline; margin-top: 4px; display: inline-block;">
+                                http://${currentExtender.host}
+                            </a>
+                        </div>
+                    </div>
+                    <div class="extender-config-row" style="margin-bottom: 0;">
+                        <label>API Key:</label>
+                        <div class="edit-container" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                            <input type="text" value="${maskedApiKey}" readonly style="background:#222; color:#888; cursor:not-allowed; width: 100%;" title="Clé API masquée">
+                            
+                        </div>
                     </div>
                 </div>
-                <div class="extender-sensors">
-                    <div class="extender-form-row">
-                        
-                    </div>
+                <div class="extender-sensors" style="flex: 1.5; min-width: 250px;">
+                    <h4 style="margin-bottom: 10px; font-size: 0.95em; border-bottom: 1px solid #444; padding-bottom: 5px; font-weight: bold;">Capteurs</h4>
+                    ${sensorsHtml}
                 </div>
-                <div class="extender-actionners">
-                    <div class="extender-form-row">
-                    </div>
+                <div class="extender-actionners" style="flex: 1.5; min-width: 250px;">
+                    <h4 style="margin-bottom: 10px; font-size: 0.95em; border-bottom: 1px solid #444; padding-bottom: 5px; font-weight: bold;">Actionneurs</h4>
+                    ${actuatorsHtml}
                 </div>
-                <div class="extender-header-actions">
+                <div class="extender-header-actions" style="flex-shrink: 0;">
                     <img src="svg/delete.svg" class="nav-icon btn-delete-extender" 
                         onclick="removeExtender('${safeType}', ${currentIndex})"
                         alt="Supprimer" title="Supprimer ce périphérique">
                 </div>
             </div>
-
-            ${apiKeyField}
         </div>
     `;
 }
@@ -760,7 +854,7 @@ window.submitNewExtender = async function () {
 
         if (result.success) {
             showGlobalStatus(isAutoDiscover ? 'Détection automatique terminée et extenders enregistrés' : 'Périphérique ajouté et configuration rechargée', 'success');
-            
+
             if (result.settings && result.settings.extenders && result.settings.extenders[type]) {
                 const newIndex = result.settings.extenders[type].length - 1;
                 activeExtenderTab = `${type}-${newIndex}`;
@@ -877,8 +971,11 @@ window.updateExtenderField = async function (type, index, field, value) {
     const extender = localExtendersState[type][index];
     const originalValue = extender[field];
 
+    const trimmedValue = typeof value === 'string' ? value.trim() : value;
+    if (originalValue === trimmedValue) return;
+
     if (field === 'name') {
-        const cleanName = value.trim();
+        const cleanName = trimmedValue;
         if (!cleanName) {
             showGlobalStatus("Le nom ne peut pas être vide.", "error");
             fetchStationSettings(); // Reverts UI state
@@ -901,22 +998,21 @@ window.updateExtenderField = async function (type, index, field, value) {
     }
 
     // Update local state temporarily
-    extender[field] = value;
+    extender[field] = trimmedValue;
 
     if (field === 'name' || field === 'description') {
         showGlobalStatus('Mise à jour de l\'extendeur...', 'loading');
         try {
-            const response = await fetch(`/api/station/${selectedStation.id}/extenders`, {
+            const result = await queryManager.mutate(`/api/station/${selectedStation.id}/extenders`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     mac: extender.mac,
-                    name: field === 'name' ? value : extender.name,
-                    description: field === 'description' ? value : extender.description
-                })
+                    name: field === 'name' ? trimmedValue : extender.name,
+                    description: field === 'description' ? trimmedValue : extender.description
+                }),
+                invalidatePatterns: [`/api/station/${selectedStation.id}`]
             });
-
-            const result = await response.json();
 
             if (result.success) {
                 showGlobalStatus('Configuration mise à jour avec succès', 'success');
@@ -935,11 +1031,210 @@ window.updateExtenderField = async function (type, index, field, value) {
             extender[field] = originalValue;
             renderExtendersManager();
         }
+    } else if (field === 'host') {
+        if (!trimmedValue) {
+            showGlobalStatus("L'adresse IP/Host ne peut pas être vide.", "error");
+            fetchStationSettings(); // Reverts UI state
+            return;
+        }
+        showGlobalStatus('Mise à jour de l\'adresse de l\'extendeur...', 'loading');
+        const success = await updatePartialSettings({ extenders: localExtendersState });
+        if (success) {
+            showGlobalStatus('Adresse IP mise à jour avec succès', 'success');
+            renderExtendersManager();
+        } else {
+            // Revert state
+            extender[field] = originalValue;
+            renderExtendersManager();
+        }
     } else {
-        // For other fields like host, just update local state (it will be saved when clicking Enregistrer at the bottom)
         if (field === 'name') {
             renderExtendersManager();
         }
+    }
+};
+
+window.updateExtenderPeripheralField = async function (type, index, peripheralId, value) {
+    if (!localExtendersState[type] || !localExtendersState[type][index]) return;
+
+    const extender = localExtendersState[type][index];
+
+    // Find the peripheral in local state to check if changed
+    let originalValue = '';
+    let foundDev = null;
+    if (extender.sensors) {
+        foundDev = extender.sensors.find(s => s.Name === peripheralId);
+    }
+    if (!foundDev && extender.actuators) {
+        foundDev = extender.actuators.find(a => a.Name === peripheralId);
+    }
+    if (foundDev) {
+        originalValue = foundDev.description || '';
+    }
+
+    const trimmedValue = value.trim();
+    if (originalValue === trimmedValue) return;
+
+    if (trimmedValue.length > 24) {
+        showGlobalStatus("La description ne doit pas dépasser 24 caractères.", "error");
+        renderExtendersManager();
+        return;
+    }
+
+    showGlobalStatus('Mise à jour du périphérique...', 'loading');
+
+    try {
+        const result = await queryManager.mutate(`/api/station/${selectedStation.id}/extenders/${extender.mac}/peripherals`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: peripheralId,
+                description: trimmedValue
+            }),
+            invalidatePatterns: [`/api/station/${selectedStation.id}`]
+        });
+
+        if (result.success) {
+            showGlobalStatus('Description du périphérique mise à jour avec succès', 'success');
+            // update local state from result
+            if (result.settings && result.settings.extenders) {
+                localExtendersState = JSON.parse(JSON.stringify(result.settings.extenders));
+            }
+            renderExtendersManager();
+        } else {
+            throw new Error(result.error || "Erreur de mise à jour");
+        }
+    } catch (error) {
+        console.error(error);
+        showGlobalStatus("Échec de la mise à jour : " + error.message, 'error');
+        // Revert local value and re-render
+        if (foundDev) {
+            foundDev.description = originalValue;
+        }
+        renderExtendersManager();
+    }
+};
+
+window.activeEditingField = null;
+window.activeEditingOriginalValue = null;
+
+window.startEditingExtenderField = function (field) {
+    const displayEl = document.getElementById(`display-extender-${field}`);
+    const containerEl = document.getElementById(`container-extender-${field}`);
+    const btnEl = document.getElementById(`btn-extender-${field}`);
+    const inputEl = document.getElementById(`input-extender-${field}`);
+    if (!displayEl || !containerEl || !inputEl) return;
+
+    window.activeEditingField = `extender-${field}`;
+    window.activeEditingOriginalValue = inputEl.value;
+
+    displayEl.style.display = 'none';
+    if (btnEl) btnEl.style.display = 'none';
+    containerEl.style.display = 'inline';
+    inputEl.focus();
+    inputEl.select();
+};
+
+window.cancelEditingExtenderField = function (field) {
+    const displayEl = document.getElementById(`display-extender-${field}`);
+    const containerEl = document.getElementById(`container-extender-${field}`);
+    const btnEl = document.getElementById(`btn-extender-${field}`);
+    const inputEl = document.getElementById(`input-extender-${field}`);
+    if (!displayEl || !containerEl || !inputEl) return;
+
+    if (window.activeEditingField === `extender-${field}`) {
+        inputEl.value = window.activeEditingOriginalValue;
+    }
+    window.activeEditingField = null;
+    window.activeEditingOriginalValue = null;
+
+    displayEl.style.display = 'inline';
+    if (btnEl) btnEl.style.display = 'flex';
+    containerEl.style.display = 'none';
+};
+
+window.handleBlurExtenderField = function (field, type, index) {
+    if (window.activeEditingField !== `extender-${field}`) return;
+    const inputEl = document.getElementById(`input-extender-${field}`);
+    if (!inputEl) return;
+
+    const newValue = inputEl.value.trim();
+    if (newValue === window.activeEditingOriginalValue) {
+        window.cancelEditingExtenderField(field);
+    } else {
+        // Enregistrer et quitter
+        window.activeEditingField = null;
+        window.activeEditingOriginalValue = null;
+        window.updateExtenderField(type, index, field, newValue);
+    }
+};
+
+window.handleKeyDownExtenderField = function (event, field, type, index) {
+    if (event.key === 'Enter') {
+        const inputEl = document.getElementById(`input-extender-${field}`);
+        if (inputEl) inputEl.blur();
+    } else if (event.key === 'Escape') {
+        window.cancelEditingExtenderField(field);
+    }
+};
+
+window.startEditingPeripheralField = function (id) {
+    const displayEl = document.getElementById(`display-peripheral-${id}`);
+    const containerEl = document.getElementById(`container-peripheral-${id}`);
+    const btnEl = document.getElementById(`btn-peripheral-${id}`);
+    const inputEl = document.getElementById(`input-peripheral-${id}`);
+    if (!displayEl || !containerEl || !inputEl) return;
+
+    window.activeEditingField = `peripheral-${id}`;
+    window.activeEditingOriginalValue = inputEl.value;
+
+    displayEl.style.display = 'none';
+    if (btnEl) btnEl.style.display = 'none';
+    containerEl.style.display = 'inline';
+    inputEl.focus();
+    inputEl.select();
+};
+
+window.cancelEditingPeripheralField = function (id) {
+    const displayEl = document.getElementById(`display-peripheral-${id}`);
+    const containerEl = document.getElementById(`container-peripheral-${id}`);
+    const btnEl = document.getElementById(`btn-peripheral-${id}`);
+    const inputEl = document.getElementById(`input-peripheral-${id}`);
+    if (!displayEl || !containerEl || !inputEl) return;
+
+    if (window.activeEditingField === `peripheral-${id}`) {
+        inputEl.value = window.activeEditingOriginalValue;
+    }
+    window.activeEditingField = null;
+    window.activeEditingOriginalValue = null;
+
+    displayEl.style.display = 'inline';
+    if (btnEl) btnEl.style.display = 'flex';
+    containerEl.style.display = 'none';
+};
+
+window.handleBlurPeripheralField = function (id, type, index, peripheralId) {
+    if (window.activeEditingField !== `peripheral-${id}`) return;
+    const inputEl = document.getElementById(`input-peripheral-${id}`);
+    if (!inputEl) return;
+
+    const newValue = inputEl.value.trim();
+    if (newValue === window.activeEditingOriginalValue) {
+        window.cancelEditingPeripheralField(id);
+    } else {
+        // Enregistrer et quitter
+        window.activeEditingField = null;
+        window.activeEditingOriginalValue = null;
+        window.updateExtenderPeripheralField(type, index, peripheralId, newValue);
+    }
+};
+
+window.handleKeyDownPeripheralField = function (event, id, type, index, peripheralId) {
+    if (event.key === 'Enter') {
+        const inputEl = document.getElementById(`input-peripheral-${id}`);
+        if (inputEl) inputEl.blur();
+    } else if (event.key === 'Escape') {
+        window.cancelEditingPeripheralField(id);
     }
 };
 
@@ -1416,7 +1711,7 @@ window.runHistoricalExpand = async function (btn, stationId, years) {
     }
 };
 
-(function() {
+(function () {
     document.addEventListener('DOMContentLoaded', () => {
         const hostInput = document.getElementById('new-ext-host');
         if (hostInput) {

@@ -25,6 +25,9 @@ router.post('/:stationId/extenders', isAuthenticated, extendersController.addExt
 // Met à jour les propriétés (nom, description) d'un extender
 router.put('/:stationId/extenders', isAuthenticated, extendersController.updateExtender);
 
+// Met à jour la description d'un périphérique (capteur/actionneur) d'un extender
+router.put('/:stationId/extenders/:mac/peripherals', isAuthenticated, extendersController.updateExtenderPeripheral);
+
 // Calcule les modèles intégrateurs pour la station
 router.get('/:stationId/integrator/build', integratorController.runIntegrator); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/integrator/build
 

@@ -273,7 +273,7 @@ async function addExtenderToStation(stationConfig, { type, host }) {
     const whisperEyes = (stationConfig.extenders && stationConfig.extenders.WhisperEye) || [];
     const exists = whisperEyes.some(ext => ext.mac.toLowerCase() === mac.toLowerCase());
     if (exists) {
-        throw new Error(`L'extendeur WhisperEye avec la MAC ${mac} est déjà présent.`);
+        throw new Error(`Cet extendeur est déjà présent sous le nom "${capacity.name}"`);
     }
 
     const uniqueName = getUniqueExtenderName(capacity.name || 'WE', mac);
@@ -371,10 +371,58 @@ async function updateExtenderInStation(stationConfig, { mac, name, description }
     return stationConfig;
 }
 
+/**
+ * Update individual sensor or actuator description in local config and ESP32 NVS
+ */
+async function updateExtenderPeripheralInStation(stationConfig, mac, peripheralId, description) {
+    if (!stationConfig.extenders || !stationConfig.extenders.WhisperEye) {
+        throw new Error(`Aucun extendeur configuré pour cette station.`);
+    }
+
+    const extender = stationConfig.extenders.WhisperEye.find(ext => ext.mac === mac);
+    if (!extender) {
+        throw new Error(`Extendeur avec la MAC ${mac} non trouvé.`);
+    }
+
+    let foundDev = null;
+    if (extender.sensors) {
+        foundDev = extender.sensors.find(s => s.Name === peripheralId);
+    }
+    if (!foundDev && extender.actuators) {
+        foundDev = extender.actuators.find(a => a.Name === peripheralId);
+    }
+
+    if (!foundDev) {
+        throw new Error(`Périphérique ${peripheralId} non trouvé.`);
+    }
+
+    const cleanDesc = description.trim();
+    if (cleanDesc.length > 24) {
+        throw new Error("La description du périphérique ne doit pas dépasser 24 caractères.");
+    }
+
+    try {
+        console.log(`[EXTENDERS] Envoi du renommage NVS pour ${peripheralId} à http://${extender.host}/api/peripherals`);
+        await axios.post(`http://${extender.host}/api/peripherals`, {
+            id: peripheralId,
+            name: cleanDesc
+        }, { timeout: 3000 });
+    } catch (error) {
+        console.error(`[EXTENDERS] Échec du renommage du périphérique ${peripheralId} sur ${extender.host}:`, error.message);
+        throw new Error(`Impossible de joindre l'extendeur WhisperEye à l'adresse ${extender.host} pour enregistrer la description.`);
+    }
+
+    foundDev.description = cleanDesc;
+
+    configManager.saveConfig(stationConfig.id, stationConfig);
+    return stationConfig;
+}
+
 module.exports = {
     runExtenderCollection,
     pingAllExtenders,
     addExtenderToStation,
     autoDiscoverAndRegisterExtenders,
-    updateExtenderInStation
+    updateExtenderInStation,
+    updateExtenderPeripheralInStation
 };
