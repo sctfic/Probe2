@@ -5,6 +5,7 @@ const appController = require('../controllers/appController');
 const authController = require('../controllers/authController');
 const updateController = require('../controllers/updateController');
 const analyticsController = require('../controllers/analyticsController'); // Nouveau contrôleur
+const extendersController = require('../controllers/extendersController');
 const { isAuthenticated } = require('../middleware/authMiddleware');
 
 // Route pour les informations générales de l'application
@@ -60,5 +61,8 @@ router.post('/update', isAuthenticated, updateController.applyUpdate);
 router.get('/export/:bucketKey', appController.exportBucketData);
 
 router.post('/import/:bucketKey', isAuthenticated, express.raw({ type: ['application/gzip', 'application/octet-stream'], limit: '100mb' }), appController.importBucketData);
+
+// Route pour recevoir la télémétrie de l'extendeur WhisperEye
+router.put('/whispereye/metrics', extendersController.receiveWhisperEyeMetrics);
 
 module.exports = router;

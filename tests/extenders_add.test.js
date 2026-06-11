@@ -72,7 +72,7 @@ describe('POST /api/station/:stationId/extenders', () => {
         const updatedConfig = JSON.parse(fs.readFileSync(originalConfigPath, 'utf8'));
         expect(updatedConfig.extenders).toBeDefined();
         expect(updatedConfig.extenders.WhisperEye).toBeDefined();
-        
+
         const addedExt = updatedConfig.extenders.WhisperEye.find(ext => ext.mac === '11:22:33:44:55:66');
         expect(addedExt).toBeDefined();
         expect(addedExt.name.startsWith('Test WhisperEye')).toBe(true);
@@ -113,7 +113,7 @@ describe('POST /api/station/:stationId/extenders', () => {
             name: 'Unreachable Extender',
             description: 'Unreachable'
         });
-        
+
         // Mock POST config to fail (unreachable)
         axios.post.mockRejectedValue(new Error('Network Error / Timeout'));
 
@@ -127,5 +127,109 @@ describe('POST /api/station/:stationId/extenders', () => {
         expect(res.statusCode).toBe(500);
         expect(res.body.success).toBe(false);
         expect(res.body.error).toContain("Impossible de joindre l'extendeur WhisperEye");
+    });
+});
+
+describe('DELETE /api/station/:stationId/extenders/:mac', () => {
+    let mockDateNow;
+
+    beforeEach(() => {
+        mockDateNow = jest.spyOn(Date, 'now').mockImplementation(() => 1700000000 * 1000);
+    });
+
+    afterEach(() => {
+        if (mockDateNow) {
+            mockDateNow.mockRestore();
+        }
+    });
+
+    test('supprime avec succès un extendeur de la configuration et envoie la commande clear-totp au WhisperEye', async () => {
+        // Préparer une configuration avec un extendeur existant
+        const config = JSON.parse(fs.readFileSync(originalConfigPath, 'utf8'));
+        const testMac = '22:33:44:55:66:77';
+        const testApiKey = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
+        config.extenders = {
+            WhisperEye: [
+                {
+                    mac: testMac,
+                    name: 'Extender A Supprimer',
+                    description: 'A supprimer',
+                    host: '192.168.1.150',
+                    apiKey: testApiKey,
+                    available: true,
+                    sensors: [],
+                    actuators: []
+                }
+            ]
+        };
+        fs.writeFileSync(originalConfigPath, JSON.stringify(config, null, 4), 'utf8');
+
+        // Mock axios POST /api/clear-totp
+        axios.post.mockResolvedValue({ status: 200, data: 'OK' });
+
+        const res = await request(app)
+            .delete(`/api/station/${testStationId}/extenders/${testMac}`);
+
+        expect(res.statusCode).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.settings).toBeDefined();
+
+        // Vérifier qu'il est retiré de la configuration
+        const updatedConfig = JSON.parse(fs.readFileSync(originalConfigPath, 'utf8'));
+        const found = updatedConfig.extenders.WhisperEye.find(ext => ext.mac === testMac);
+        expect(found).toBeUndefined();
+
+        // Calculer le token TOTP attendu
+        const crypto = require('crypto');
+        const epoch = 1700000000;
+        const buf = Buffer.alloc(8);
+        buf.writeUInt32BE(0, 0);
+        buf.writeUInt32BE(epoch, 4);
+        const hmac = crypto.createHmac('sha256', testApiKey);
+        hmac.update(buf);
+        const expectedToken = hmac.digest('hex');
+
+        // Vérifier l'appel axios
+        expect(axios.post).toHaveBeenCalledWith(
+            'http://192.168.1.150/api/clear-totp',
+            { token: expectedToken },
+            expect.any(Object)
+        );
+    });
+
+    test('supprime quand même de la configuration locale si le WhisperEye est hors ligne', async () => {
+        // Préparer une configuration avec un extendeur existant
+        const config = JSON.parse(fs.readFileSync(originalConfigPath, 'utf8'));
+        const testMac = '22:33:44:55:66:77';
+        const testApiKey = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
+        config.extenders = {
+            WhisperEye: [
+                {
+                    mac: testMac,
+                    name: 'Extender Hors Ligne',
+                    description: 'Hors ligne',
+                    host: '192.168.1.150',
+                    apiKey: testApiKey,
+                    available: true,
+                    sensors: [],
+                    actuators: []
+                }
+            ]
+        };
+        fs.writeFileSync(originalConfigPath, JSON.stringify(config, null, 4), 'utf8');
+
+        // Mock axios POST /api/clear-totp pour échouer (hors ligne)
+        axios.post.mockRejectedValue(new Error('Network Error / Timeout'));
+
+        const res = await request(app)
+            .delete(`/api/station/${testStationId}/extenders/${testMac}`);
+
+        expect(res.statusCode).toBe(200);
+        expect(res.body.success).toBe(true);
+
+        // Vérifier qu'il est bien retiré malgré l'erreur réseau
+        const updatedConfig = JSON.parse(fs.readFileSync(originalConfigPath, 'utf8'));
+        const found = updatedConfig.extenders.WhisperEye.find(ext => ext.mac === testMac);
+        expect(found).toBeUndefined();
     });
 });

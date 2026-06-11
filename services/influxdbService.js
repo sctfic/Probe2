@@ -978,7 +978,7 @@ async function queryCandle(stationId, sensorRef, startDate, endDate, intervalSec
     const measurement = parts.length === 2 ? parts[0] : null;
     const sensor = parts.length === 2 ? parts[1] : sensorRef;
 
-    const filterStr = measurement 
+    const filterStr = measurement
         ? `r._measurement == "${measurement}" and r.sensor == "${sensor}"`
         : `r.sensor == "${sensor}"`;
 
@@ -992,7 +992,7 @@ from(bucket: "${bucket}")
     // 1. Collect all data at maximum resolution
     const resultsArray = await fetchDataAcrossBuckets(startDate, endDate, buildFluxFn, sensorRef, stationId);
     const rawData = resultsArray.flat().sort((a, b) => new Date(a._time) - new Date(b._time));
-    
+
     if (rawData.length === 0) return [];
 
     // 2. Group the values to compute first, last, min, max, avg, count
@@ -1007,7 +1007,7 @@ from(bucket: "${bucket}")
         const timeMs = new Date(point._time).getTime();
         // Start of the interval for this point
         const intervalStart = timeMs - (timeMs % intervalMs);
-        
+
         if (currentIntervalStart !== intervalStart) {
             // Push previous candle if exists
             if (currentCandle) {
@@ -1015,7 +1015,7 @@ from(bucket: "${bucket}")
                 delete currentCandle.sum;
                 grouped.push(currentCandle);
             }
-            
+
             // Start new candle
             currentIntervalStart = intervalStart;
             currentCandle = {
@@ -1037,7 +1037,7 @@ from(bucket: "${bucket}")
             currentCandle.count += 1;
         }
     }
-    
+
     // Push the very last candle
     if (currentCandle) {
         currentCandle.avg = Math.round((currentCandle.sum / currentCandle.count) * 1000) / 1000;

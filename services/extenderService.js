@@ -87,6 +87,7 @@ async function scanSubnet(prefix, knownIps) {
                         mac: res.data.mac,
                         name: res.data.name || '',
                         description: res.data.description || '',
+                        version: res.data.version || '',
                         sensors: res.data.sensors || [],
                         actuators: res.data.actuators || []
                     };
@@ -106,7 +107,7 @@ async function scanSubnet(prefix, knownIps) {
 /**
  * Scan all subnets and register discovered WhisperEyes not already registered.
  */
-async function autoDiscoverAndRegisterExtenders(stationConfig) {
+async function autoDiscoverAndRegisterExtenders(stationConfig, reqHost) {
     const knownIps = new Set();
     const existingMacs = new Set();
 
@@ -132,8 +133,9 @@ async function autoDiscoverAndRegisterExtenders(stationConfig) {
             continue;
         }
 
-        const apiKey = crypto.randomBytes(32).toString('hex');
+        const apiKey = crypto.randomBytes(48).toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
         const uniqueName = getUniqueExtenderName(dev.name || 'WE', dev.mac);
+        const metricsUrl = reqHost ? `http://${reqHost}/api/whispereye/metrics` : 'http://probe.lan/v1/metrics';
 
         try {
             console.log(`[EXTENDERS] Envoi de la clé TOTP à l'extendeur à l'adresse http://${dev.host}`);
@@ -146,8 +148,10 @@ async function autoDiscoverAndRegisterExtenders(stationConfig) {
                 auto_update: null,
                 totp_secret: apiKey,
                 ext_name: uniqueName,
-                ext_desc: dev.description
-            }, { timeout: 3000 });
+                ext_desc: dev.description,
+                ntp_server: stationConfig.ntpServer || stationConfig.host || 'pool.ntp.org',
+                metrics_url: metricsUrl
+            }, { timeout: 500 });
         } catch (error) {
             console.error(`[EXTENDERS] Échec de la négociation TOTP avec l'extendeur ${dev.host}:`, error.message);
             continue;
@@ -160,6 +164,7 @@ async function autoDiscoverAndRegisterExtenders(stationConfig) {
             description: dev.description || 'WhisperEye Extender',
             apiKey: apiKey,
             available: true,
+            version: dev.version || '',
             sensors: dev.sensors || [],
             actuators: dev.actuators || []
         };
@@ -234,6 +239,7 @@ async function pingAllExtenders(stationConfig) {
                 if (data.mac) extender.mac = data.mac;
                 if (data.name) extender.name = data.name;
                 if (data.description) extender.description = data.description;
+                if (data.version) extender.version = data.version;
             } else {
                 extender.available = false;
             }
@@ -251,7 +257,7 @@ async function pingAllExtenders(stationConfig) {
 /**
  * Manually add an extender by targeting its host IP
  */
-async function addExtenderToStation(stationConfig, { type, host }) {
+async function addExtenderToStation(stationConfig, { type, host }, reqHost) {
     if (type !== 'WhisperEye') {
         throw new Error(`Le type ${type} n'est pas supporté (Venti'Connect est déprécié).`);
     }
@@ -277,7 +283,8 @@ async function addExtenderToStation(stationConfig, { type, host }) {
     }
 
     const uniqueName = getUniqueExtenderName(capacity.name || 'WE', mac);
-    const apiKey = crypto.randomBytes(32).toString('hex');
+    const apiKey = crypto.randomBytes(48).toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
+    const metricsUrl = reqHost ? `http://${reqHost}/api/whispereye/metrics` : 'http://probe.lan/v1/metrics';
 
     try {
         console.log(`[EXTENDERS] Envoi de la clé TOTP à l'extendeur à l'adresse http://${host}`);
@@ -290,7 +297,9 @@ async function addExtenderToStation(stationConfig, { type, host }) {
             auto_update: null,
             totp_secret: apiKey,
             ext_name: uniqueName,
-            ext_desc: capacity.description || ''
+            ext_desc: capacity.description || '',
+            ntp_server: stationConfig.ntpServer || stationConfig.host || 'pool.ntp.org',
+            metrics_url: metricsUrl
         }, { timeout: 3000 });
     } catch (error) {
         console.error(`[EXTENDERS] Échec de la négociation TOTP avec l'extendeur à l'adresse ${host}:`, error.message);
@@ -310,6 +319,7 @@ async function addExtenderToStation(stationConfig, { type, host }) {
         description: capacity.description || 'WhisperEye Extender',
         apiKey: apiKey,
         available: true,
+        version: capacity.version || '',
         sensors: capacity.sensors || [],
         actuators: capacity.actuators || []
     };
@@ -329,7 +339,7 @@ async function addExtenderToStation(stationConfig, { type, host }) {
 /**
  * Update extender name and description on both local config and ESP32 NVS
  */
-async function updateExtenderInStation(stationConfig, { mac, name, description }) {
+async function updateExtenderInStation(stationConfig, { mac, name, description }, reqHost) {
     if (!stationConfig.extenders || !stationConfig.extenders.WhisperEye) {
         throw new Error(`Aucun extendeur configuré pour cette station.`);
     }
@@ -345,6 +355,8 @@ async function updateExtenderInStation(stationConfig, { mac, name, description }
         throw new Error(`Le nom "${name}" n'est pas unique ou valide.`);
     }
 
+    const metricsUrl = reqHost ? `http://${reqHost}/api/whispereye/metrics` : 'http://probe.lan/v1/metrics';
+
     try {
         console.log(`[EXTENDERS] Mise à jour de la configuration NVS sur le WhisperEye à l'adresse http://${extender.host}`);
         await axios.post(`http://${extender.host}/api/config`, {
@@ -357,7 +369,9 @@ async function updateExtenderInStation(stationConfig, { mac, name, description }
             totp_secret: extender.apiKey,
             current_totp_secret: extender.apiKey,
             ext_name: uniqueName,
-            ext_desc: description || ''
+            ext_desc: description || '',
+            ntp_server: stationConfig.ntpServer || stationConfig.host || 'pool.ntp.org',
+            metrics_url: metricsUrl
         }, { timeout: 3000 });
     } catch (error) {
         console.error(`[EXTENDERS] Échec de la mise à jour de la config NVS sur le WhisperEye à l'adresse ${extender.host}:`, error.message);

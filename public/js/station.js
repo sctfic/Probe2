@@ -736,10 +736,17 @@ function renderExtenderDetails() {
                         </div>
                     </div>
                     <div class="extender-config-row" style="margin-bottom: 0;">
+                        <label>FW Version:</label>
+                        <div class="edit-container">
+                            <span style="font-weight: 600; color: #fff;">
+                                ${currentExtender.version || 'Inconnue'}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="extender-config-row" style="margin-bottom: 0;">
                         <label>API Key:</label>
                         <div class="edit-container" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-                            <input type="text" value="${maskedApiKey}" readonly style="background:#222; color:#888; cursor:not-allowed; width: 100%;" title="Clé API masquée">
-                            
+                            <input type="text" value="${maskedApiKey}" readonly style="cursor:not-allowed;" title="Clé API masquée">
                         </div>
                     </div>
                 </div>
@@ -910,57 +917,28 @@ window.deleteAllExtenderData = async function () {
 window.removeExtender = async function (type, index) {
     const item = localExtendersState[type][index];
     if (confirm(`Voulez-vous vraiment supprimer "${item.name}" ?`)) {
-        // 1. Suppression locale
-        localExtendersState[type].splice(index, 1);
         activeExtenderTab = null;
 
-        // 2. Sauvegarde immédiate (comme pour l'ajout)
+        // Sauvegarde immédiate
         showGlobalStatus('Suppression du périphérique...', 'loading');
 
         try {
-            // On réutilise la logique d'update partiel
-            const settingsToSave = {
-                extenders: localExtendersState
-            };
-
-            const response = await fetch(`/api/station/${selectedStation.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(settingsToSave)
+            const response = await fetch(`/api/station/${selectedStation.id}/extenders/${item.mac}/`, {
+                method: 'DELETE'
             });
 
             const result = await response.json();
 
             if (result.success) {
-                showGlobalStatus('Périphérique supprimé, suppression des données...', 'loading');
-
-                // 3. Suppression des données InfluxDB associées
-                try {
-                    const extenderIdOrMac = item.id || item.mac;
-                    const dataResponse = await fetch(`/api/station/${selectedStation.id}/extenders/${extenderIdOrMac}/data`, {
-                        method: 'DELETE'
-                    });
-                    const dataResult = await dataResponse.json();
-                    if (dataResult.success) {
-                        showGlobalStatus(`Périphérique et ${dataResult.count || 0} points supprimés`, 'success');
-                    } else {
-                        showGlobalStatus('Périphérique supprimé (échec suppression données InfluxDB)', 'warning');
-                    }
-                } catch (dataError) {
-                    console.error('Erreur suppression données InfluxDB:', dataError);
-                    showGlobalStatus('Périphérique supprimé (erreur InfluxDB)', 'warning');
-                }
-
+                showGlobalStatus('Périphérique supprimé avec succès', 'success');
                 // Rechargement pour être sûr de la synchro
                 fetchStationSettings(result);
             } else {
                 throw new Error(result.error || "Erreur lors de la suppression");
             }
-        } catch (e) {
-            console.error(e);
-            showGlobalStatus("Erreur: " + e.message, 'error');
-            // En cas d'erreur, on rechargerait idéalement les settings pour annuler la suppression locale
-            fetchStationSettings();
+        } catch (error) {
+            console.error('Erreur:', error);
+            showGlobalStatus(`Erreur: ${error.message}`, 'error');
         }
     }
 };

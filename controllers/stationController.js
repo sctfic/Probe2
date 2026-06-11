@@ -400,6 +400,38 @@ exports.updateStationConfig = (req, res) => {
         const stationConfig = req.stationConfig;
         const updates = req.body;
 
+        // Détection de suppression d'extendeurs pour réinitialiser leur clé TOTP
+        if (updates && updates.extenders && updates.extenders.WhisperEye) {
+            const oldExtenders = (stationConfig.extenders && stationConfig.extenders.WhisperEye) || [];
+            const newExtenders = updates.extenders.WhisperEye || [];
+            const deleted = oldExtenders.filter(oldExt => 
+                !newExtenders.some(newExt => newExt.mac.toLowerCase() === oldExt.mac.toLowerCase())
+            );
+            for (const ext of deleted) {
+                if (ext.apiKey && ext.host) {
+                    const crypto = require('crypto');
+                    const axios = require('axios');
+                    const epoch = Math.floor(Date.now() / 1000);
+                    const buf = Buffer.alloc(8);
+                    buf.writeUInt32BE(0, 0);
+                    buf.writeUInt32BE(epoch, 4);
+                    
+                    const hmac = crypto.createHmac('sha256', ext.apiKey);
+                    hmac.update(buf);
+                    const token = hmac.digest('hex');
+                    
+                    console.log(`[EXTENDERS] Extendeur ${ext.name} (MAC: ${ext.mac}) supprimé de la config. Envoi de l'effacement TOTP à http://${ext.host}/api/clear-totp`);
+                    axios.post(`http://${ext.host}/api/clear-totp`, { token }, { timeout: 2000 })
+                        .then(() => {
+                            console.log(`[EXTENDERS] Clé TOTP effacée sur l'extendeur ${ext.name}`);
+                        })
+                        .catch(err => {
+                            console.warn(`[EXTENDERS] Impossible d'effacer la clé TOTP sur ${ext.name} (l'extendeur est peut-être hors ligne) : ${err.message}`);
+                        });
+                }
+            }
+        }
+
         // Sécurisation : on vérifie si updates existe avant de lire ses propriétés
         const updatesCollect = updates.collect;
         const updatesForecast = updates.forecast;
