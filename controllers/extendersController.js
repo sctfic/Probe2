@@ -43,14 +43,14 @@ exports.addExtender = async (req, res) => {
  * Route API pour mettre à jour le nom et la description d'un extendeur.
  */
 exports.updateExtender = async (req, res) => {
-    const { mac, name, description } = req.body;
+    const { mac, name, description, renameEnabled } = req.body;
 
     if (!mac || !name) {
         return res.status(400).json({ success: false, error: 'L\'identifiant MAC et le nom sont requis.' });
     }
 
     try {
-        const updatedConfig = await updateExtenderInStation(req.stationConfig, { mac, name, description }, req.headers.host);
+        const updatedConfig = await updateExtenderInStation(req.stationConfig, { mac, name, description, renameEnabled }, req.headers.host);
         res.json({ success: true, settings: updatedConfig });
     } catch (error) {
         console.error(`${V.error} [EXTENDERS] Erreur lors de la mise à jour de l'extendeur :`, error.message);

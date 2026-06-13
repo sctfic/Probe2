@@ -100,6 +100,7 @@ async function displaySettingsForm() {
             .extender-tabs-container {
                 display: flex;
                 align-items: center;
+                gap: 10px;
             }
             .extender-tabs-list {
                 display: flex;
@@ -108,30 +109,39 @@ async function displaySettingsForm() {
                 overflow-x: auto;
             }
             .extender-tab { 
-                background: #333; 
-                border: none; 
-                color: #aaa; 
-                padding: 6px 10px; 
+                background: #f8f9fa; 
+                border: 1px solid #e0e0e0; 
+                color: #666; 
+                padding: 8px 14px; 
                 cursor: pointer; 
-                font-weight: bold;
-                border-top-left-radius: 5px;
-                border-top-right-radius: 5px;
-                transition: all 0.2s;
+                font-weight: 600;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+                transition: all 0.2s ease-in-out;
                 white-space: nowrap;
                 display: flex;
                 align-items: center;
                 gap: 8px;
+                border-bottom: 1px solid #e0e0e0;
             }
-            .extender-tab:hover { background: #444; color: #fff; }
-            .extender-tab.active { background: #555; color: #fff; border-bottom: 2px solid #007bff; }
+            .extender-tab:hover { 
+                background: #e9ecef; 
+                color: var(--primary-dark); 
+            }
+            .extender-tab.active { 
+                background: #fff; 
+                color: var(--accent-blue); 
+                border-bottom: 2px solid var(--accent-blue);
+                z-index: 1;
+            }
             
-            /* Badge de type caché par défaut, visible au survol */
+            /* Badge de type */
             .extender-type-badge {
                 font-size: 0.7em;
-                background: #222;
-                padding: 2px 5px;
+                background: #e9ecef;
+                padding: 2px 6px;
                 border-radius: 4px;
-                color: #888;
+                color: #666;
                 display: none; 
             }
             .extender-tab:hover .extender-type-badge, 
@@ -164,10 +174,11 @@ async function displaySettingsForm() {
 
             /* Contenu de l'extendeur */
             .extender-details { 
-                background: var(--accent-blue); 
-                padding: 15px; 
-                border-radius: 6px; 
-                border: 1px solid #444; 
+                background: #ffffff; 
+                padding: 20px; 
+                border-radius: 8px; 
+                border: 1px solid #e0e0e0; 
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
             }
             
             /* Header de l'extendeur */
@@ -178,7 +189,7 @@ async function displaySettingsForm() {
                 position: relative; /* Pour l'ancrage des actions */
                 padding-right: 40px; /* Espace pour le bouton delete */
                 margin-bottom: 15px;
-                border-bottom: 1px solid #444;
+                border-bottom: 1px solid #eee;
                 padding-bottom: 15px;
             }
 
@@ -193,20 +204,75 @@ async function displaySettingsForm() {
                 min-width: 250px;
             }
 
-            .extender-form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; align-items: stretch; }
-            .extender-form-row label { font-size: 0.9em; margin-bottom: 2px; }
-            .extender-form-row input { background: #111; border: 1px solid #555; color: white; padding: 6px; border-radius: 4px; box-sizing: border-box; }
-            .extender-form-row input:focus { border-color: #007bff; outline: none; }
+            .extender-form-row { 
+                display: flex; 
+                flex-direction: column; 
+                gap: 4px; 
+                margin-bottom: 12px; 
+                align-items: stretch; 
+            }
+            .extender-form-row label { 
+                font-size: 0.9em; 
+                margin-bottom: 2px; 
+                color: var(--primary-dark);
+                font-weight: 600;
+            }
+            .extender-form-row input { 
+                background: #fff; 
+                border: 1px solid #ccc; 
+                color: var(--primary-dark); 
+                padding: 6px; 
+                border-radius: 4px; 
+                box-sizing: border-box; 
+            }
+            .extender-form-row input:focus { 
+                border-color: var(--accent-blue); 
+                box-shadow: 0 0 0 2px rgba(77, 192, 224, 0.2);
+                outline: none; 
+            }
             
-            .extender-config-row { display: flex; flex-direction: row; align-items: center; gap: 10px; margin-bottom: 10px; width: 100%; }
-            .extender-config-row label { width: 90px; flex-shrink: 0; font-size: 0.9em; margin-bottom: 0; }
-            .extender-config-row .edit-container { flex: 1; display: flex; align-items: center; gap: 8px; min-height: 32px; width: 100%; }
-            .extender-config-row input { background: #111; border: 1px solid #555; color: white; padding: 6px; border-radius: 4px; box-sizing: border-box; width: 100%; }
-            .extender-config-row input:focus { border-color: #007bff; outline: none; }
+            .extender-config-row { 
+                display: flex; 
+                flex-direction: row; 
+                align-items: center; 
+                gap: 10px; 
+                margin-bottom: 10px; 
+                width: 100%; 
+            }
+            .extender-config-row label { 
+                width: 120px; 
+                flex-shrink: 0; 
+                font-size: 0.9em; 
+                margin-bottom: 0; 
+                color: var(--primary-dark);
+                font-weight: 600;
+            }
+            .extender-config-row .edit-container { 
+                flex: 1; 
+                display: flex; 
+                align-items: center; 
+                gap: 8px; 
+                min-height: 32px; 
+                width: 100%; 
+            }
+            .extender-config-row input { 
+                background: #fff; 
+                border: 1px solid #ccc; 
+                color: var(--primary-dark); 
+                padding: 6px; 
+                border-radius: 4px; 
+                box-sizing: border-box; 
+                width: 100%; 
+            }
+            .extender-config-row input:focus { 
+                border-color: var(--accent-blue); 
+                box-shadow: 0 0 0 2px rgba(77, 192, 224, 0.2);
+                outline: none; 
+            }
             
             .ping-indicator {
                 display: inline-block; width: 10px; height: 10px; border-radius: 50%; 
-                background-color: #555; margin-right: 5px;
+                background-color: #aaa; margin-right: 5px;
             }
             .ping-success { background-color: #28a745; box-shadow: 0 0 5px #28a745; }
             .ping-fail { background-color: #dc3545; }
@@ -220,77 +286,75 @@ async function displaySettingsForm() {
                 opacity: 1;
             }
 
-        /* Styles pour les tuiles avec bouton d'action */
-        .condition-tile {
-            position: relative;
-        }
-        .tile-action-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 24px;
-            height: 24px;
-            border-radius: 4px;
-            transition: all 0.2s;
-            cursor: pointer;
-            text-decoration: none;
-        }
-        .tile-action-btn:hover {
-        }
-        .tile-action-btn svg {
-            width: 16px;
-            height: 16px;
-            fill: #aaa;
-        }
-        .tile-action-btn:hover svg {
-            fill: var(--accent-blue);
-            transform: scale(1.2);
-        }
-        .tile-action-btn-secondary {
-            position: absolute;
-            top: 8px;
-            right: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 24px;
-            padding: 0 6px;
-            border-radius: 4px;
-            transition: all 0.2s;
-            cursor: pointer;
-            text-decoration: none;
-            background: rgba(255, 255, 255, 0.1);
-            color: #aaa;
-            font-size: 0.75em;
-            font-weight: bold;
-            border: 1px solid transparent;
-        }
-        .tile-action-btn-secondary:hover {
-            color: var(--accent-blue);
-            background: rgba(255, 255, 255, 0.2);
-            border-color: var(--accent-blue);
-        }
-        .spinner {
-            width: 12px;
-            height: 12px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: var(--accent-blue);
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .field-msg {
-            font-size: 0.8em;
-            color: #888;
-            margin-top: 4px;
-            font-style: italic;
-            word-break: break-all;
-        }
+            /* Styles pour les tuiles avec bouton d'action */
+            .condition-tile {
+                position: relative;
+            }
+            .tile-action-btn {
+                position: absolute;
+                top: 8px;
+                right: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 24px;
+                height: 24px;
+                border-radius: 4px;
+                transition: all 0.2s;
+                cursor: pointer;
+                text-decoration: none;
+            }
+            .tile-action-btn svg {
+                width: 16px;
+                height: 16px;
+                fill: #666;
+            }
+            .tile-action-btn:hover svg {
+                fill: var(--accent-blue);
+                transform: scale(1.2);
+            }
+            .tile-action-btn-secondary {
+                position: absolute;
+                top: 8px;
+                right: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 24px;
+                padding: 0 6px;
+                border-radius: 4px;
+                transition: all 0.2s;
+                cursor: pointer;
+                text-decoration: none;
+                background: rgba(0, 0, 0, 0.05);
+                color: #666;
+                font-size: 0.75em;
+                font-weight: bold;
+                border: 1px solid transparent;
+            }
+            .tile-action-btn-secondary:hover {
+                color: var(--accent-blue);
+                background: rgba(0, 0, 0, 0.1);
+                border-color: var(--accent-blue);
+            }
+            .spinner {
+                width: 12px;
+                height: 12px;
+                border: 2px solid rgba(0,0,0,0.1);
+                border-radius: 50%;
+                border-top-color: var(--accent-blue);
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+            .field-msg {
+                font-size: 0.8em;
+                color: #666;
+                margin-top: 4px;
+                font-style: italic;
+                word-break: break-all;
+            }
         `;
         document.head.appendChild(style);
     }
@@ -622,6 +686,7 @@ function renderExtenderDetails() {
     }
 
     let sensorsHtml = '';
+    const canRename = currentExtender.renameEnabled !== false;
     if (currentExtender.sensors && currentExtender.sensors.length > 0) {
         currentExtender.sensors.forEach(sensor => {
             const displayName = sensor.Name;
@@ -630,7 +695,7 @@ function renderExtenderDetails() {
             sensorsHtml += `
                 <div class="extender-form-row">
                     <div style="display: flex; align-items: center; gap: 8px; width: 100%; min-height: 24px;">
-                        <span id="display-peripheral-${safePeripheralId}" style="font-weight: 600; cursor: pointer; color: #fff;" onclick="window.startEditingPeripheralField('${safePeripheralId}')">
+                        <span id="display-peripheral-${safePeripheralId}" style="font-weight: 600; cursor: ${canRename ? 'pointer' : 'default'}; color: var(--primary-dark);" ${canRename ? `onclick="window.startEditingPeripheralField('${safePeripheralId}')"` : ''}>
                             ${sensor.description || 'Aucune description'}
                         </span>
                         <span id="container-peripheral-${safePeripheralId}" style="display: none; width: 100%;">
@@ -638,11 +703,13 @@ function renderExtenderDetails() {
                                 onblur="window.handleBlurPeripheralField('${safePeripheralId}', '${safeType}', ${currentIndex}, '${sensor.Name}')"
                                 onkeydown="window.handleKeyDownPeripheralField(event, '${safePeripheralId}', '${safeType}', ${currentIndex}, '${sensor.Name}')">
                         </span>
+                        ${canRename ? `
                         <button id="btn-peripheral-${safePeripheralId}" onclick="window.startEditingPeripheralField('${safePeripheralId}')" style="background: none; border: none; color: #888; cursor: pointer; display: flex; align-items: center; padding: 4px;" title="Renommer">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                         </button>
+                        ` : ''}
                     </div>
-                    <div style="font-size: 0.75rem; color: var(--text-secondary); font-family: monospace; margin-top: -.5em;" title="${displayName}">${displayName}${unitStr}</div>
+                    <div style="font-size: 0.75rem; color: #666; font-family: monospace; margin-top: -.5em;" title="${displayName}">${displayName}${unitStr}</div>
                 </div>
             `;
         });
@@ -659,7 +726,7 @@ function renderExtenderDetails() {
             actuatorsHtml += `
                 <div class="extender-form-row">
                     <div style="display: flex; align-items: center; gap: 8px; width: 100%; min-height: 24px;">
-                        <span id="display-peripheral-${safePeripheralId}" style="font-weight: 600; cursor: pointer; color: #fff;" onclick="window.startEditingPeripheralField('${safePeripheralId}')">
+                        <span id="display-peripheral-${safePeripheralId}" style="font-weight: 600; cursor: ${canRename ? 'pointer' : 'default'}; color: var(--primary-dark);" ${canRename ? `onclick="window.startEditingPeripheralField('${safePeripheralId}')"` : ''}>
                             ${actuator.description || 'Aucune description'}
                         </span>
                         <span id="container-peripheral-${safePeripheralId}" style="display: none; width: 100%;">
@@ -667,11 +734,13 @@ function renderExtenderDetails() {
                                 onblur="window.handleBlurPeripheralField('${safePeripheralId}', '${safeType}', ${currentIndex}, '${actuator.Name}')"
                                 onkeydown="window.handleKeyDownPeripheralField(event, '${safePeripheralId}', '${safeType}', ${currentIndex}, '${actuator.Name}')">
                         </span>
+                        ${canRename ? `
                         <button id="btn-peripheral-${safePeripheralId}" onclick="window.startEditingPeripheralField('${safePeripheralId}')" style="background: none; border: none; color: #888; cursor: pointer; display: flex; align-items: center; padding: 4px;" title="Renommer">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                         </button>
+                        ` : ''}
                     </div>
-                    <div style="font-size: 0.75rem; color: var(--text-secondary); font-family: monospace; margin-top: -.5em;" title="${displayName}">${displayName}${rangeStr}</div>
+                    <div style="font-size: 0.75rem; color: #666; font-family: monospace; margin-top: -.5em;" title="${displayName}">${displayName}${rangeStr}</div>
                 </div>
             `;
         });
@@ -683,11 +752,11 @@ function renderExtenderDetails() {
         <div class="extender-details">
             <div class="extender-header" style="display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start;">
                 <div class="extender-input-container" style="display: flex; flex-direction: column; gap: 10px; flex: 1.5; min-width: 250px;">
-                    <h4 style="margin-bottom: 10px; font-size: 0.95em; border-bottom: 1px solid #444; padding-bottom: 5px; font-weight: bold;">Configuration</h4>
+                    <h4 style="margin-top: 0; margin-bottom: 10px; font-size: 0.95em; border-bottom: 1px solid #eee; padding-bottom: 5px; font-weight: bold; color: var(--accent-blue);">Configuration</h4>
                     <div class="extender-config-row" style="margin-bottom: 0;">
                         <label>Nom:</label>
                         <div class="edit-container">
-                            <span id="display-extender-name" style="font-weight: 600; cursor: pointer; color: #fff;" onclick="window.startEditingExtenderField('name')">
+                            <span id="display-extender-name" style="font-weight: 600; cursor: ${canRename ? 'pointer' : 'default'}; color: var(--primary-dark);" ${canRename ? `onclick="window.startEditingExtenderField('name')"` : ''}>
                                 ${currentExtender.name || 'Sans nom'}
                             </span>
                             <span id="container-extender-name" style="display: none; width: 100%;">
@@ -695,15 +764,17 @@ function renderExtenderDetails() {
                                     onblur="window.handleBlurExtenderField('name', '${safeType}', ${currentIndex})"
                                     onkeydown="window.handleKeyDownExtenderField(event, 'name', '${safeType}', ${currentIndex})">
                             </span>
+                            ${canRename ? `
                             <button id="btn-extender-name" onclick="window.startEditingExtenderField('name')" style="background: none; border: none; color: #888; cursor: pointer; display: flex; align-items: center; padding: 4px;" title="Renommer">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                             </button>
+                            ` : ''}
                         </div>
                     </div>
                     <div class="extender-config-row" style="margin-bottom: 0;">
                         <label>Description:</label>
                         <div class="edit-container">
-                            <span id="display-extender-description" style="font-weight: 600; cursor: pointer; color: #fff;" onclick="window.startEditingExtenderField('description')">
+                            <span id="display-extender-description" style="font-weight: 600; cursor: pointer; color: var(--primary-dark);" onclick="window.startEditingExtenderField('description')">
                                 ${currentExtender.description || 'Aucune description'}
                             </span>
                             <span id="container-extender-description" style="display: none; width: 100%;">
@@ -719,7 +790,7 @@ function renderExtenderDetails() {
                     <div class="extender-config-row" style="margin-bottom: 0;">
                         <label>Host / IP:</label>
                         <div class="edit-container">
-                            <span id="display-extender-host" style="font-weight: 600; cursor: pointer; color: #fff;" onclick="window.startEditingExtenderField('host')">
+                            <span id="display-extender-host" style="font-weight: 600; cursor: pointer; color: var(--primary-dark);" onclick="window.startEditingExtenderField('host')">
                                 ${currentExtender.host || 'Aucun Host/IP'}
                             </span>
                             <span id="container-extender-host" style="display: none; width: 100%;">
@@ -730,32 +801,45 @@ function renderExtenderDetails() {
                             <button id="btn-extender-host" onclick="window.startEditingExtenderField('host')" style="background: none; border: none; color: #888; cursor: pointer; display: flex; align-items: center; padding: 4px;" title="Renommer">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                             </button>
-                            <a href="http://${currentExtender.host}" target="_blank" style="font-size: 0.8em; text-decoration: underline; margin-top: 4px; display: inline-block;">
+                            <a href="http://${currentExtender.host}" target="_blank" style="font-size: 0.8em; text-decoration: underline; margin-top: 4px; display: inline-block; color: var(--accent-blue);">
                                 http://${currentExtender.host}
                             </a>
                         </div>
                     </div>
                     <div class="extender-config-row" style="margin-bottom: 0;">
+                        <label>Rename devices:</label>
+                        <div class="edit-container" style="justify-content: flex-start;">
+                            <label class="switch">
+                                <input type="checkbox" id="extender_rename_enabled_toggle" ${currentExtender.renameEnabled !== false ? 'checked' : ''} 
+                                    onchange="window.handleExtenderRenameEnabledToggle('${safeType}', ${currentIndex}, this)">
+                                <span class="slider round"></span>
+                            </label>
+                            <span style="font-size: 0.75rem; color: #666; font-family: monospace; margin-top: -.5em;"><!> Rupture de la cohesion des data!</span>
+                        </div>
+                    </div>
+                    <div class="extender-config-row" style="margin-bottom: 0;">
                         <label>FW Version:</label>
                         <div class="edit-container">
-                            <span style="font-weight: 600; color: #fff;">
+                            <span style="font-weight: 600; color: var(--primary-dark);">
                                 ${currentExtender.version || 'Inconnue'}
                             </span>
                         </div>
                     </div>
                     <div class="extender-config-row" style="margin-bottom: 0;">
                         <label>API Key:</label>
-                        <div class="edit-container" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-                            <input type="text" value="${maskedApiKey}" readonly style="cursor:not-allowed;" title="Clé API masquée">
+                        <div class="edit-container">
+                            <span style="font-weight: 600; color: var(--primary-dark);">
+                                ${maskedApiKey}
+                            </span>
                         </div>
                     </div>
                 </div>
                 <div class="extender-sensors" style="flex: 1.5; min-width: 250px;">
-                    <h4 style="margin-bottom: 10px; font-size: 0.95em; border-bottom: 1px solid #444; padding-bottom: 5px; font-weight: bold;">Capteurs</h4>
+                    <h4 style="margin-top: 0; margin-bottom: 10px; font-size: 0.95em; border-bottom: 1px solid #eee; padding-bottom: 5px; font-weight: bold; color: var(--accent-blue);">Capteurs</h4>
                     ${sensorsHtml}
                 </div>
                 <div class="extender-actionners" style="flex: 1.5; min-width: 250px;">
-                    <h4 style="margin-bottom: 10px; font-size: 0.95em; border-bottom: 1px solid #444; padding-bottom: 5px; font-weight: bold;">Actionneurs</h4>
+                    <h4 style="margin-top: 0; margin-bottom: 10px; font-size: 0.95em; border-bottom: 1px solid #eee; padding-bottom: 5px; font-weight: bold; color: var(--accent-blue);">Actionneurs</h4>
                     ${actuatorsHtml}
                 </div>
                 <div class="extender-header-actions" style="flex-shrink: 0;">
@@ -1722,6 +1806,46 @@ window.runHistoricalExpand = async function (btn, stationId, years) {
         btn.style.opacity = '1';
         btn.style.pointerEvents = 'auto';
         btn.innerHTML = originalContent;
+    }
+};
+
+window.handleExtenderRenameEnabledToggle = async function (type, index, checkbox) {
+    const isChecked = checkbox.checked;
+    if (isChecked) {
+        const warningText = "Les noms sont utilisés pour les identifiant dans la base de données. Une modification entraînerait un désalignement des data\n\nConfirmer l'activation du renommage ?";
+        if (!confirm(warningText)) {
+            checkbox.checked = false;
+            return;
+        }
+    }
+
+    showGlobalStatus('Mise à jour de l\'autorisation de renommage...', 'loading');
+    try {
+        const extender = localExtendersState[type][index];
+        const response = await fetch(`/api/station/${selectedStation.id}/extenders`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                mac: extender.mac,
+                name: extender.name,
+                description: extender.description,
+                renameEnabled: isChecked
+            })
+        });
+        const result = await response.json();
+        if (result.success) {
+            showGlobalStatus('Configuration mise à jour avec succès', 'success');
+            if (result.settings && result.settings.extenders) {
+                localExtendersState = JSON.parse(JSON.stringify(result.settings.extenders));
+            }
+            renderExtendersManager();
+        } else {
+            throw new Error(result.error || "Erreur de mise à jour");
+        }
+    } catch (error) {
+        console.error(error);
+        showGlobalStatus("Échec de la mise à jour : " + error.message, 'error');
+        checkbox.checked = !isChecked;
     }
 };
 

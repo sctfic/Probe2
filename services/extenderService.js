@@ -134,6 +134,7 @@ async function scanSubnet(prefix, knownIps) {
                         name: res.data.name || '',
                         description: res.data.description || '',
                         version: res.data.version || '',
+                        renameEnabled: res.data.rename_enabled !== undefined ? !!res.data.rename_enabled : true,
                         sensors: res.data.sensors || [],
                         actuators: res.data.actuators || []
                     };
@@ -225,6 +226,7 @@ async function autoDiscoverAndRegisterExtenders(stationConfig, reqHost) {
             apiKey: apiKey,
             available: true,
             version: dev.version || '',
+            renameEnabled: dev.renameEnabled !== undefined ? dev.renameEnabled : true,
             sensors: dev.sensors || [],
             actuators: dev.actuators || []
         };
@@ -302,6 +304,7 @@ async function pingAllExtenders(stationConfig) {
                 if (data.name) extender.name = data.name;
                 if (data.description) extender.description = data.description;
                 if (data.version) extender.version = data.version;
+                if (data.rename_enabled !== undefined) extender.renameEnabled = !!data.rename_enabled;
             } else {
                 extender.available = false;
             }
@@ -401,6 +404,7 @@ async function addExtenderToStation(stationConfig, { type, host }, reqHost) {
         apiKey: apiKey,
         available: true,
         version: capacity.version || '',
+        renameEnabled: capacity.rename_enabled !== undefined ? !!capacity.rename_enabled : true,
         sensors: capacity.sensors || [],
         actuators: capacity.actuators || []
     };
@@ -422,7 +426,7 @@ async function addExtenderToStation(stationConfig, { type, host }, reqHost) {
 /**
  * Update extender name and description on both local config and ESP32 NVS
  */
-async function updateExtenderInStation(stationConfig, { mac, name, description }, reqHost) {
+async function updateExtenderInStation(stationConfig, { mac, name, description, renameEnabled }, reqHost) {
     if (!stationConfig.extenders || !stationConfig.extenders.WhisperEye) {
         throw new Error(`Aucun extendeur configuré pour cette station.`);
     }
@@ -454,7 +458,8 @@ async function updateExtenderInStation(stationConfig, { mac, name, description }
             ext_name: uniqueName,
             ext_desc: description || '',
             ntp_server: stationConfig.ntpServer || stationConfig.host || 'pool.ntp.org',
-            metrics_url: metricsUrl
+            metrics_url: metricsUrl,
+            rename_enabled: renameEnabled !== undefined ? renameEnabled : (extender.renameEnabled !== false)
         }, { timeout: 3000 });
     } catch (error) {
         console.error(`[EXTENDERS] Échec de la mise à jour de la config NVS sur le WhisperEye à l'adresse ${extender.host}:`, error.message);
@@ -463,6 +468,9 @@ async function updateExtenderInStation(stationConfig, { mac, name, description }
 
     extender.name = uniqueName;
     extender.description = description || '';
+    if (renameEnabled !== undefined) {
+        extender.renameEnabled = !!renameEnabled;
+    }
 
     configManager.saveConfig(stationConfig.id, stationConfig);
     return stationConfig;

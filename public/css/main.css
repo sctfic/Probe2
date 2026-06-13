@@ -549,7 +549,7 @@ label {
     position: relative;
     display: inline-block;
     width: 40px;
-    height: 22px;
+    height: 24px;
     flex-shrink: 0
 }
 
@@ -582,7 +582,8 @@ label {
 }
 
 input:checked+.slider {
-    background-color: var(--accent-blue)
+    background-color: var(--accent-blue);
+    border: 1px solid var(--primary-dark);
 }
 
 input:focus+.slider {
@@ -594,7 +595,9 @@ input:checked+.slider:before {
 }
 
 .slider.round {
-    border-radius: 34px
+    border-radius: 34px;
+    width: 40px;
+    border: 1px solid var(--accent-blue);
 }
 
 .slider.round:before {
