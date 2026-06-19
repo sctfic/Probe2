@@ -956,8 +956,8 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
                 latitude: latitude.toFixed(2),
                 longitude: longitude.toFixed(2),
                 elevation: elevation.toFixed(0),
-                start_date: '2026-01-01', //startDate.toISOString().split('T')[0],
-                end_date: '2026-06-18', //endDate.toISOString().split('T')[0],
+                start_date: startDate.toISOString().split('T')[0],
+                end_date: endDate.toISOString().split('T')[0],
                 hourly: hourlyKeys.join(','),
                 timeformat: 'unixtime'
             };
@@ -1020,7 +1020,7 @@ exports.getOpenMeteoForecast = async (req, res) => {
         const historicalEnabled = !!(stationConfig.historical && stationConfig.historical.enabled);
         const forecastEnabled = !!(stationConfig.forecast && stationConfig.forecast.enabled);
 
-        const xx = historicalEnabled ? 30 : 0;
+        const xx = historicalEnabled ? 7 : 0;
         const yy = forecastEnabled ? 7 : 0;
 
         if (xx === 0 && yy === 0) {
