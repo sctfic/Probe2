@@ -264,8 +264,11 @@ async function executeQuery(fluxQuery, bucketKey = 'Stations') {
     });
 }
 
-async function getInfluxMetadata(stationId = null, daysBack = 100) {
-    const activeBuckets = Object.keys(influxInstances).filter(k => !!influxInstances[k]);
+async function getInfluxMetadata(stationId = null, daysBack = 100, bucketKey = null) {
+    let activeBuckets = Object.keys(influxInstances).filter(k => !!influxInstances[k]);
+    if (bucketKey) {
+        activeBuckets = activeBuckets.filter(k => k === bucketKey);
+    }
     if (activeBuckets.length === 0) return null;
 
     const mergedStructure = {};

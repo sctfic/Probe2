@@ -209,28 +209,11 @@ const Stats = {
     },
 
     /**
-     * CAGR — Taux de croissance annuel composé.
-     * Calculé entre la première et la dernière valeur sur la durée réelle.
-     * @param {string} [scope='all'] - 'past', 'future', ou 'all'
-     * @returns {number|null} CAGR (ex: 0.05 = 5% de croissance annuelle)
-     */
-    cagr(data, field, scope = 'all') {
-        const pairs = this._extractTimedValues(data, field, scope);
-        if (pairs.length < 2) return null;
-
-        const firstVal = pairs[0].v;
-        const lastVal = pairs[pairs.length - 1].v;
-
-        if (firstVal <= 0 || lastVal <= 0) return null; // CAGR nécessite des valeurs positives
-
-        const durationYears = (pairs[pairs.length - 1].t - pairs[0].t) / (1000 * 3600 * 24 * 365.25);
-        if (durationYears <= 0) return null;
-
-        return Math.pow(lastVal / firstVal, 1 / durationYears) - 1;
-    },
-
-    /**
      * Test de Mann-Kendall pour détecter une tendance monotone.
+     * utilisé pour analyser si une série de données temporelles présente une tendance à la hausse
+     * ou à la baisse monotone (constante). Puisqu'il est non paramétrique,
+     * il ne nécessite pas que les données suivent une distribution particulière (comme la distribution normale)
+     * et il est peu sensible aux valeurs aberrantes (outliers) ainsi qu'aux données manquantes.
      * @param {string} [scope='all'] - 'past', 'future', ou 'all'
      * @returns {{ S: number, Z: number, trend: string, p: number }}
      */
@@ -270,6 +253,208 @@ const Stats = {
         }
 
         return { S, Z: Math.round(Z * 1000) / 1000, trend, p: Math.round(p * 10000) / 10000 };
+    },
+
+    /**
+     * Détecteur d'épisodes météorologiques favorables — version simplifiée.
+     * 
+     * Paramètres fixes (optimisés pour données météo 5min passé / 60min futur) :
+     * - Seuil : percentile 80 (pic) / 20 (creux) sur l'ensemble des données
+     * - Durée min : 2h (pas d'épisode trop court)
+     * - Durée max : 24h (pas de saison entière)
+     * - Tolérance gap : 2h (fusionne les trous raisonnables)
+     * - Couverture min : 50% (données futures éparse tolérées)
+     * 
+     * @param {Array} data - Données brutes [{_time, [field]: value}, ...]
+     * @param {string} field - Nom du champ (ex: 'temperature:outTemp')
+     * @param {string} type - 'peak' | 'trough'
+     * @param {string} [scope='all'] - 'past', 'future', 'all'
+     * @returns {Array} Épisodes au format legacy
+     * @throws {Error} Si data ne couvre pas J-12h → J+36h
+     */
+    FavorableEpisodeDetector(data, field, type, scope = 'all') {
+        // ─── VALIDATION TEMPORALE STRICTE ─────────────────────────────
+        const pairs = this._extractTimedValues(data, field, scope)
+            .filter(p => p.v !== null && !isNaN(p.v))
+            .sort((a, b) => a.t - b.t);
+
+        if (pairs.length < 2) {
+            throw new Error(`[FavorableEpisodeDetector] ${field}: pas assez de données valides`);
+        }
+
+        const dataStart = pairs[0].t;
+        const dataEnd = pairs[pairs.length - 1].t;
+        const dataSpanHours = (dataEnd - dataStart) / 3600000;
+
+        const now = Date.now();
+        const minStart = now - 12 * 3600 * 1000;  // J-12h
+        const minEnd = now + 36 * 3600 * 1000;     // J+36h
+
+        if (dataStart > minStart + 3600 * 1000) {  // tolérance 1h
+            throw new Error(
+                `[FavorableEpisodeDetector] ${field}: data commence trop tard ` +
+                `(début: ${new Date(dataStart).toISOString()}, ` +
+                `requis: <= ${new Date(minStart).toISOString()})`
+            );
+        }
+        if (dataEnd < minEnd - 3600 * 1000) {  // tolérance 1h
+            throw new Error(
+                `[FavorableEpisodeDetector] ${field}: data finit trop tôt ` +
+                `(fin: ${new Date(dataEnd).toISOString()}, ` +
+                `requis: >= ${new Date(minEnd).toISOString()})`
+            );
+        }
+
+        // ─── PARAMÈTRES FIXES ─────────────────────────────────────────
+        const MIN_DURATION_MS = 2 * 3600 * 1000;   // 2h
+        const MAX_DURATION_MS = 24 * 3600 * 1000;  // 24h
+        const GAP_TOLERANCE_MS = 2 * 3600 * 1000;  // 2h
+        const MIN_COVERAGE = 0.50;                  // 50%
+        const PERCENTILE = type === 'peak' ? 80 : 20;
+
+        // ─── SEUIL DYNAMIQUE ──────────────────────────────────────────
+        const values = pairs.map(p => p.v).sort((a, b) => a - b);
+        const idxThreshold = Math.floor((PERCENTILE / 100) * (values.length - 1));
+        const threshold = values[idxThreshold];
+
+        // ─── SEGMENTATION ─────────────────────────────────────────────
+        const segments = [];
+        let current = null;
+
+        for (const p of pairs) {
+            const isFav = type === 'peak' ? p.v >= threshold : p.v <= threshold;
+
+            if (!isFav) {
+                // Vérifier si trou tolérable dans segment actif
+                if (current) {
+                    const lastPoint = current.points[current.points.length - 1];
+                    const gap = p.t - lastPoint.t;
+                    if (gap > GAP_TOLERANCE_MS) {
+                        segments.push(current);
+                        current = null;
+                    }
+                    // sinon: on ignore ce point, il fait partie du segment
+                }
+                continue;
+            }
+
+            if (!current) {
+                current = { points: [p], startT: p.t, endT: p.t };
+            } else {
+                current.points.push(p);
+                current.endT = p.t;
+            }
+        }
+        if (current) segments.push(current);
+
+        // ─── FILTRAGE ET FORMATAGE ────────────────────────────────────
+        const episodes = [];
+
+        for (const seg of segments) {
+            const duration = seg.endT - seg.startT;
+
+            if (duration < MIN_DURATION_MS || duration > MAX_DURATION_MS) continue;
+
+            // Estimation intervalle moyen pour couverture
+            const avgInterval = (pairs[pairs.length - 1].t - pairs[0].t) / (pairs.length - 1);
+            const expectedPoints = Math.floor(duration / avgInterval) + 1;
+            const coverage = seg.points.length / expectedPoints;
+            if (coverage < MIN_COVERAGE) continue;
+
+            const segValues = seg.points.map(p => p.v);
+            const avg = segValues.reduce((a, b) => a + b, 0) / segValues.length;
+
+            episodes.push({
+                type,
+                avg: Math.round(avg * 100) / 100,
+                start: {
+                    d: new Date(seg.points[0].t).toISOString(),
+                    [field]: Math.round(seg.points[0].v * 100) / 100
+                },
+                end: {
+                    d: new Date(seg.points[seg.points.length - 1].t).toISOString(),
+                    [field]: Math.round(seg.points[seg.points.length - 1].v * 100) / 100
+                }
+            });
+        }
+
+        // Fusion des chevauchements
+        const merged = [];
+        episodes.sort((a, b) => new Date(a.start.d).getTime() - new Date(b.start.d).getTime());
+
+        for (const ep of episodes) {
+            const last = merged[merged.length - 1];
+            if (last) {
+                const lastEnd = new Date(last.end.d).getTime();
+                const currStart = new Date(ep.start.d).getTime();
+                if (currStart <= lastEnd + GAP_TOLERANCE_MS) {
+                    // Fusion: moyenne pondérée par durée
+                    const lastDur = lastEnd - new Date(last.start.d).getTime();
+                    const currDur = new Date(ep.end.d).getTime() - currStart;
+                    const totalDur = lastDur + currDur;
+                    last.avg = Math.round(
+                        (last.avg * lastDur + ep.avg * currDur) / totalDur * 100
+                    ) / 100;
+                    last.end = ep.end;
+                    continue;
+                }
+            }
+            merged.push(ep);
+        }
+
+        return merged;
+    },
+
+    /**
+     * Prochain pic favorable (épisode de valeurs hautes).
+     * @throws {Error} Si data invalide
+     */
+    nextPeak(data, field) {
+        const ms5Min = 5 * 60 * 1000;
+        const realNow = Math.floor(Date.now() / ms5Min) * ms5Min;
+        const pastRows = data.filter(row => row._time && new Date(row._time).getTime() == realNow);
+        const now = pastRows.length > 0
+            ? new Date(pastRows[pastRows.length - 1]._time).getTime()
+            : realNow;
+
+        const limit = now + 24 * 3600 * 1000;
+
+        const episodes = this.FavorableEpisodeDetector(data, field, 'peak', 'all');
+
+        const futurePeaks = episodes
+            .filter(e => {
+                const tEnd = new Date(e.end.d).getTime();
+                return tEnd >= now && tEnd <= limit;
+            })
+            .sort((a, b) => new Date(a.end.d).getTime() - new Date(b.end.d).getTime());
+
+        return futurePeaks.length > 0 ? futurePeaks[0] : null;
+    },
+
+    /**
+     * Prochain creux favorable (épisode de valeurs basses).
+     * @throws {Error} Si data invalide
+     */
+    nextTrough(data, field) {
+        const ms5Min = 5 * 60 * 1000;
+        const realNow = Math.floor(Date.now() / ms5Min) * ms5Min;
+        const pastRows = data.filter(row => row._time && new Date(row._time).getTime() == realNow);
+        const now = pastRows.length > 0
+            ? new Date(pastRows[pastRows.length - 1]._time).getTime()
+            : realNow;
+
+        const limit = now + 24 * 3600 * 1000;
+
+        const episodes = this.FavorableEpisodeDetector(data, field, 'trough', 'all');
+
+        const futureTroughs = episodes
+            .filter(e => {
+                const tEnd = new Date(e.end.d).getTime();
+                return tEnd >= now && tEnd <= limit;
+            })
+            .sort((a, b) => new Date(a.end.d).getTime() - new Date(b.end.d).getTime());
+
+        return futureTroughs.length > 0 ? futureTroughs[0] : null;
     }
 };
 

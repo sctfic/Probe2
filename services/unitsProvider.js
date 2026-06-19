@@ -72,19 +72,21 @@ class UnitsProvider {
         }
 
         try {
-            // 1. Charger depuis InfluxDB (toutes les stations)
+            // 1. Charger depuis InfluxDB (uniquement pour le bucket Stations)
             // Import dynamique pour éviter la dépendance circulaire au démarrage
             const influxdbService = require('./influxdbService');
-            const metadata = await influxdbService.getInfluxMetadata();
+            const metadata = await influxdbService.getInfluxMetadata(null, 100, 'Stations');
 
             if (metadata) {
                 for (const measurementType in metadata) {
                     const sensors = metadata[measurementType] || [];
                     for (const sensor of sensors) {
-                        map[sensor] = measurementType;
+                        if (!map[sensor]) {
+                            map[sensor] = measurementType;
+                        }
                     }
                 }
-                console.log(`${V.info} Sensor map loaded from InfluxDB: ${Object.keys(map).length} sensors.`);
+                console.log(`${V.info} Sensor map loaded from InfluxDB (bucket Stations): ${Object.keys(map).length} sensors.`);
             } else {
                 console.warn(`${V.Warn} InfluxDB metadata returned null. Sensor map may be incomplete.`);
             }
@@ -98,7 +100,9 @@ class UnitsProvider {
             const compositeProbes = JSON.parse(compositeData);
             for (const probeKey in compositeProbes) {
                 if (compositeProbes[probeKey].measurement) {
-                    map[probeKey] = compositeProbes[probeKey].measurement;
+                    if (!map[probeKey]) {
+                        map[probeKey] = compositeProbes[probeKey].measurement;
+                    }
                 }
             }
         } catch (err) {
@@ -111,7 +115,9 @@ class UnitsProvider {
             const integratorProbes = JSON.parse(integratorData);
             for (const probeKey in integratorProbes) {
                 if (integratorProbes[probeKey].measurement) {
-                    map[probeKey] = integratorProbes[probeKey].measurement;
+                    if (!map[probeKey]) {
+                        map[probeKey] = integratorProbes[probeKey].measurement;
+                    }
                 }
             }
         } catch (err) {

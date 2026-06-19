@@ -750,7 +750,7 @@ function getHistoricalMapping() {
  * Gère 3 cas:
  * 1. Bucket vide: de 2000-01-01 jusqu'à aujourd'hui.
  * 2. moreYears param fourni: recule de 'moreYears' années à partir de la plus ancienne date existante.
- * 3. moreYears absent/zéro (appel par cron): complète depuis la dernière date existante jusqu'à aujourd'hui.
+ * 3. moreYears absent/zéro (appel par cron): complète 3 derniers mois jusqu'à aujourd'hui.
  */
 async function determineDateRange(stationId, moreYearsParam) {
     const { firstUtc, lastUtc } = await influxdbService.queryDateRange(stationId, 'pressure:barometer', null, null, 'Archives');
