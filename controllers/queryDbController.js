@@ -761,19 +761,26 @@ async function determineDateRange(stationId, moreYearsParam) {
     let moreYearsValue = parseInt(moreYearsParam || 0, 10);
     if (isNaN(moreYearsValue) || moreYearsValue < 0) moreYearsValue = 0;
 
-    if (!firstUtc || new Date(firstUtc).getTime() === new Date('1970-01-01T00:00:00Z').getTime()) {
-        // 1. Bucket vide, premier appel
-        startDate = new Date('2000-01-01T00:00:00Z');
+    const hasData = firstUtc && new Date(firstUtc).getTime() !== new Date('1970-01-01T00:00:00Z').getTime();
+
+    if (!hasData) {
+        // Bucket vide, premier appel
         endDate = new Date();
+        if (moreYearsValue > 0) {
+            startDate = new Date(endDate);
+            startDate.setFullYear(startDate.getFullYear() - moreYearsValue);
+        } else {
+            startDate = new Date('2000-01-01T00:00:00Z');
+        }
     } else {
         // Bucket non vide
         if (moreYearsValue > 0) {
-            // 2. Expansion vers le passé
+            // Expansion vers le passé
             endDate = new Date(firstUtc);
             startDate = new Date(endDate);
             startDate.setFullYear(startDate.getFullYear() - moreYearsValue);
         } else {
-            // 3. Complétion vers le présent (cron)
+            // Complétion vers le présent (cron)
             // on reprend les 90 dernier jours avant lastUtc pour integre les consolidations
             startDate = new Date(lastUtc);
             startDate.setDate(startDate.getDate() - 90);
@@ -922,7 +929,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
     const stationConfig = req.stationConfig;
 
     try {
-        console.log(V.Travaux, `Expansion de la base de données pour ${stationId} avec les données Open-Meteo.`, stationConfig);
+        console.log(V.Travaux, `Expansion de la base de données pour ${stationId} avec les données Open-Meteo.`);
 
         const latitude = stationConfig.latitude.desired;
         const longitude = stationConfig.longitude.desired;
@@ -949,8 +956,8 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
                 latitude: latitude.toFixed(2),
                 longitude: longitude.toFixed(2),
                 elevation: elevation.toFixed(0),
-                start_date: startDate.toISOString().split('T')[0],
-                end_date: endDate.toISOString().split('T')[0],
+                start_date: '2026-01-01', //startDate.toISOString().split('T')[0],
+                end_date: '2026-06-18', //endDate.toISOString().split('T')[0],
                 hourly: hourlyKeys.join(','),
                 timeformat: 'unixtime'
             };
@@ -964,7 +971,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
         }
 
         if (totalPointsWritten === 0) {
-            console.log(`${V.info} Aucune nouvelle donnée à importer. La base de données est peut-être déjà à jour pour cette période.`);
+            console.log(`${V.info} Aucune nouvelle donnée à importer.La base de données est peut - être déjà à jour pour cette période.`);
             return res.json({
                 success: true,
                 version: probeVersion,
@@ -976,7 +983,7 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             success: true,
             stationId: stationId,
             version: probeVersion,
-            message: `${totalPointsWritten} points de données historiques ont été importés avec succès pour la station ${stationId}, pour la période [${startDate.toISOString().slice(0, 16).replace('T', ' ')}, ${endDate.toISOString().slice(0, 16).replace('T', ' ')}]`,
+            message: `${totalPointsWritten} points de données historiques ont été importés avec succès pour la station ${stationId}, pour la période[${startDate.toISOString().slice(0, 16).replace('T', ' ')}, ${endDate.toISOString().slice(0, 16).replace('T', ' ')}]`,
             pointsCount: totalPointsWritten,
             startDate,
             endDate
@@ -997,18 +1004,38 @@ exports.getOpenMeteoForecast = async (req, res) => {
     const stationConfig = req.stationConfig;
 
     try {
-        console.log(V.Travaux, `Récupération et écriture des prévisions Open-Meteo pour ${stationId}.`);
+        console.log(V.Travaux, `Récupération et écriture des prévisions Open - Meteo pour ${stationId}.`);
 
         const { latitude, longitude, elevation } = {
             latitude: stationConfig.latitude.desired,
             longitude: stationConfig.longitude.desired,
             elevation: stationConfig.altitude.desired,
         };
-        const model = (stationConfig.forecast && stationConfig.forecast.model) || 'best_match';
+        const model = (stationConfig.forecast && stationConfig.forecast.model) || 'icon_eu';
 
         if (!latitude && !longitude && !elevation) {
             throw new Error("Les coordonnées GPS de la station ne sont pas définies.", stationConfig);
         }
+
+        const historicalEnabled = !!(stationConfig.historical && stationConfig.historical.enabled);
+        const forecastEnabled = !!(stationConfig.forecast && stationConfig.forecast.enabled);
+
+        const xx = historicalEnabled ? 30 : 0;
+        const yy = forecastEnabled ? 7 : 0;
+
+        if (xx === 0 && yy === 0) {
+            console.log(`${V.info} Collecte historique et prévisionnelle désactivée pour la station ${stationId}.`);
+            return res.json({
+                success: true,
+                stationId: stationId,
+                version: probeVersion,
+                message: "La collecte historique et prévisionnelle est désactivée pour cette station.",
+                data: { pastWrittenCount: 0, futureWrittenCount: 0 },
+                pointsWritten: 0
+            });
+        }
+
+
 
         const openMeteoUrl = `https://api.open-meteo.com/v1/forecast`;
         const params = {
@@ -1030,7 +1057,8 @@ exports.getOpenMeteoForecast = async (req, res) => {
             ],
             models: model,
             timezone: 'auto',
-            forecast_days: 7 // Récupère 7 jours de prévisions
+            forecast_days: yy,
+            past_days: xx
         };
 
         // Appel à l'API de prévisions
@@ -1045,85 +1073,108 @@ exports.getOpenMeteoForecast = async (req, res) => {
 
         const { time, ...metrics } = openMeteoData.hourly;
         console.log(`${V.gear} Traitement de ${time.length} points de données de prévisions...`);
-        let pointsChunk = [];
-        let totalPointsGenerated = 0;
+
+        let pastPointsChunk = [];
+        let futurePointsChunk = [];
+        const now = new Date();
 
         // Mapping sans le préfixe 'open-meteo_'
         const mapping = {
             'temperature_2m': { type: 'temperature', sensor: ['outTemp'], convert: (v) => v + 273.15 }, // °C -> K
             'relative_humidity_2m': { type: 'humidity', sensor: ['outHumidity'] },
             'precipitation': { type: 'rain', sensor: ['rainFall'] },
+            'pressure_msl': { type: 'pressure', sensor: ['barometer'] },
             'et0_fao_evapotranspiration': { type: 'rain', sensor: ['ET'] },
             'wind_speed_10m': { type: 'speed', sensor: ['Wind'], convert: (v) => v / 3.6 }, // km/h -> m/s
-            'wind_gusts_10m': { type: 'speed', sensor: ['Gust'], convert: (v) => v / 3.6 }, // km/h -> m/s
             'wind_direction_10m': { type: 'direction', sensor: ['Wind', 'Gust'] },
+            'wind_gusts_10m': { type: 'speed', sensor: ['Gust'], convert: (v) => v / 3.6 }, // km/h -> m/s
             'soil_temperature_18cm': { type: 'temperature', sensor: ['soilTemp'], convert: (v) => v + 273.15 }, // °C -> K
             'soil_moisture_9_to_27cm': { type: 'soilMoisture', sensor: ['soilMoisture'], convert: (v) => v * 100 },
-            'pressure_msl': { type: 'pressure', sensor: ['barometer'] },
             'shortwave_radiation': { type: 'irradiance', sensor: ['solar'] }
         };
 
-        let timestamp;
         for (let i = 0; i < time.length; i++) {
-            // Le temps est déjà un ISO string local à la station.
-            // On le traite comme une chaîne pour éviter les conversions de fuseau horaire du serveur.
             const localTimestampStr = time[i];
-            timestamp = new Date(localTimestampStr);
+            const timestamp = new Date(localTimestampStr);
+            const isPast = timestamp < now;
 
-            if (timestamp > (new Date())) {
-                for (const [openMeteoKey, values] of Object.entries(metrics)) {
-                    const value = values[i];
-                    if (value !== null && mapping[openMeteoKey]) {
-                        // console.log(V.Parabol, openMeteoKey, value);
-                        const { type, sensor, convert } = mapping[openMeteoKey];
-                        const metricValue = convert ? convert(value) : value;
-                        sensor.forEach(s => {
-                            pointsChunk.push(new influxdbService.Point(type)
-                                .tag('station_id', stationId)
-                                .tag('sensor', s)
-                                .tag('source', 'forecast')
-                                .floatField('value', parseFloat(metricValue.toFixed(2)))
-                                .timestamp(timestamp));
-                        });
-                    }
+            const targetChunk = isPast ? pastPointsChunk : futurePointsChunk;
+            const sourceTag = isPast ? 'rebuildedHistoricalData' : 'forecast';
+
+            for (const [openMeteoKey, values] of Object.entries(metrics)) {
+                const value = values[i];
+                if (value !== null && mapping[openMeteoKey]) {
+                    const { type, sensor, convert } = mapping[openMeteoKey];
+                    const metricValue = convert ? convert(value) : value;
+                    sensor.forEach(s => {
+                        targetChunk.push(new influxdbService.Point(type)
+                            .tag('station_id', stationId)
+                            .tag('sensor', s)
+                            .tag('source', sourceTag)
+                            .floatField('value', parseFloat(metricValue.toFixed(2)))
+                            .timestamp(timestamp));
+                    });
                 }
+            }
 
-                const Wind = metrics.wind_speed_10m[i] / 3.6;
+            if (metrics.wind_speed_10m && metrics.wind_direction_10m) {
+                const Wind = metrics.wind_speed_10m[i];
                 const WindDir = metrics.wind_direction_10m[i];
-                const UxWind = Math.round(Wind * Math.sin(Math.PI * WindDir / 180.0) * 1000) / 1000;
-                const VyWind = Math.round(Wind * Math.cos(Math.PI * WindDir / 180.0) * 1000) / 1000;
-                pointsChunk.push(new influxdbService.Point('vector')
-                    .tag('station_id', stationId)
-                    .floatField('Ux', UxWind)
-                    .floatField('Vy', VyWind)
-                    .tag('sensor', 'Wind')
-                    .tag('source', 'forecast')
-                    .timestamp(timestamp));
+                if (Wind !== null && WindDir !== null) {
+                    const WindMs = Wind / 3.6;
+                    const UxWind = Math.round(WindMs * Math.sin(Math.PI * WindDir / 180.0) * 1000) / 1000;
+                    const VyWind = Math.round(WindMs * Math.cos(Math.PI * WindDir / 180.0) * 1000) / 1000;
+                    targetChunk.push(new influxdbService.Point('vector')
+                        .tag('station_id', stationId)
+                        .floatField('Ux', UxWind)
+                        .floatField('Vy', VyWind)
+                        .tag('sensor', 'Wind')
+                        .tag('source', sourceTag)
+                        .timestamp(timestamp));
+                }
+            }
 
-                const Gust = metrics.wind_gusts_10m[i] / 3.6;
+            if (metrics.wind_gusts_10m && metrics.wind_direction_10m) {
+                const Gust = metrics.wind_gusts_10m[i];
                 const GustDir = metrics.wind_direction_10m[i];
-                const UxGust = Math.round(Gust * Math.sin(Math.PI * GustDir / 180.0) * 1000) / 1000;
-                const VyGust = Math.round(Gust * Math.cos(Math.PI * GustDir / 180.0) * 1000) / 1000;
-                pointsChunk.push(new influxdbService.Point('vector')
-                    .tag('station_id', stationId)
-                    .floatField('Ux', UxGust)
-                    .floatField('Vy', VyGust)
-                    .tag('sensor', 'Gust')
-                    .tag('source', 'forecast')
-                    .timestamp(timestamp));
-
-                totalPointsGenerated += (Object.keys(mapping).length * 2) + 2; // Estimation grossière du nombre de points
+                if (Gust !== null && GustDir !== null) {
+                    const GustMs = Gust / 3.6;
+                    const UxGust = Math.round(GustMs * Math.sin(Math.PI * GustDir / 180.0) * 1000) / 1000;
+                    const VyGust = Math.round(GustMs * Math.cos(Math.PI * GustDir / 180.0) * 1000) / 1000;
+                    targetChunk.push(new influxdbService.Point('vector')
+                        .tag('station_id', stationId)
+                        .floatField('Ux', UxGust)
+                        .floatField('Vy', VyGust)
+                        .tag('sensor', 'Gust')
+                        .tag('source', sourceTag)
+                        .timestamp(timestamp));
+                }
             }
         }
 
-        let writtenCount = 0;
-        if (pointsChunk.length > 0) {
-            writtenCount = await influxdbService.writePoints(pointsChunk, 'Forecasts');
+        let pastWrittenCount = 0;
+        let futureWrittenCount = 0;
+
+        if (pastPointsChunk.length > 0) {
+            pastWrittenCount = await influxdbService.writePoints(pastPointsChunk, 'Archives');
+        }
+        if (futurePointsChunk.length > 0) {
+            futureWrittenCount = await influxdbService.writePoints(futurePointsChunk, 'Forecasts');
         }
 
-        if (stationConfig.forecast) {
-            stationConfig.forecast.lastRun = new Date().toISOString();
-            stationConfig.forecast.msg = `${writtenCount} points imported`;
+        const nowIso = new Date().toISOString();
+        let configChanged = false;
+        if (stationConfig.forecast && forecastEnabled) {
+            stationConfig.forecast.lastRun = nowIso;
+            stationConfig.forecast.msg = `${futureWrittenCount} points de prévisions importés`;
+            configChanged = true;
+        }
+        if (stationConfig.historical && historicalEnabled) {
+            stationConfig.historical.lastRun = nowIso;
+            stationConfig.historical.msg = `${pastWrittenCount} points d'historique court terme importés`;
+            configChanged = true;
+        }
+        if (configChanged) {
             configManager.autoSaveConfig(stationConfig);
         }
 
@@ -1131,14 +1182,25 @@ exports.getOpenMeteoForecast = async (req, res) => {
             success: true,
             stationId: stationId,
             version: probeVersion,
-            message: `${writtenCount} points de données de prévisions ont été importés avec succès pour la station ${stationId}, jusqu'au [${timestamp.toISOString().slice(0, 16).replace('T', ' ')}]`,
-            pointsWritten: writtenCount,
+            message: `Données Open-Meteo synchronisées : ${pastWrittenCount} points d'historique (bucket Archives) et ${futureWrittenCount} points de prévisions (bucket Forecasts) importés.`,
+            data: { pastWrittenCount, futureWrittenCount },
+            pointsWritten: pastWrittenCount + futureWrittenCount,
         });
 
     } catch (error) {
-        if (stationConfig && stationConfig.forecast) {
-            stationConfig.forecast.lastRun = new Date().toISOString();
+        const nowIso = new Date().toISOString();
+        let configChanged = false;
+        if (stationConfig && stationConfig.forecast && stationConfig.forecast.enabled) {
+            stationConfig.forecast.lastRun = nowIso;
             stationConfig.forecast.msg = `Error: ${error.message}`;
+            configChanged = true;
+        }
+        if (stationConfig && stationConfig.historical && stationConfig.historical.enabled) {
+            stationConfig.historical.lastRun = nowIso;
+            stationConfig.historical.msg = `Error: ${error.message}`;
+            configChanged = true;
+        }
+        if (configChanged) {
             configManager.autoSaveConfig(stationConfig);
         }
         handleError(res, stationId, error, 'getOpenMeteoForecast');

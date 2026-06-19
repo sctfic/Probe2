@@ -142,7 +142,6 @@ async function displaySettingsForm() {
                 padding: 2px 6px;
                 border-radius: 4px;
                 color: #666;
-                display: none; 
             }
             .extender-tab:hover .extender-type-badge, 
             .extender-tab.active .extender-type-badge {
@@ -589,7 +588,6 @@ function renderExtendersManager() {
             <button type="button" class="extender-tab ${isActive}" onclick="switchExtenderDevice('${safeType}', ${item.index})">
                 <span class="ping-indicator ${pingStatus}" title="${pingTitle}"></span>
                 ${item.name}
-                <span class="extender-type-badge">${item.type}</span>
             </button>
         `;
     });
@@ -769,6 +767,7 @@ function renderExtenderDetails() {
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                             </button>
                             ` : ''}
+                            <span class="extender-type-badge">${safeType}</span>
                         </div>
                     </div>
                     <div class="extender-config-row" style="margin-bottom: 0;">
@@ -1407,7 +1406,7 @@ function createHistoricalFieldHTML(field, range, historicalSettings) {
     const rangeText = (range && range.first && range.last)
         ? `Archived since ${new Date(range.first).toLocaleDateString()} to ${new Date(range.last).toLocaleDateString()}`
         : (range === null ? "Loading Open-Meteo range..." : "No Open-Meteo data !");
-    const downloadUrl = `/query/${selectedStation.id}/dbexpand`;
+    const downloadUrl = `/query/${selectedStation.id}/forecast`;
 
     const lastRun = historicalSettings?.lastRun ? new Date(historicalSettings.lastRun).toLocaleString('fr-FR', localFormat) : 'Jamais';
     const msg = historicalSettings?.msg || '';
@@ -1447,11 +1446,11 @@ function createForecastFieldHTML(forecastSettings) {
     const msg = forecastSettings?.msg || '';
 
     const models = [
+        { value: 'icon_eu', label: 'DWD ICON EU (5d) - recommandé' },
         { value: 'best_match', label: 'Best Match (14d)' },
         { value: 'meteofrance_arome_france', label: 'Météo-France AROME France (4d)' },
         { value: 'meteofrance_arpege_europe', label: 'Météo-France ARPEGE Europe (4d)' },
-        { value: 'meteofrance_arpege_world', label: 'Météo-France ARPEGE World (4d)' },
-        { value: 'meteofrance_seamless', label: 'Météo-France Seamless (4d)' }
+        { value: 'meteofrance_arpege_world', label: 'Météo-France ARPEGE World (4d)' }
     ];
 
     let optionsHTML = models.map(m =>
