@@ -34,7 +34,7 @@ let integratorJsCompletions = [
     'Stats.sum(data, "measurement:sensor", scope)', 'Stats.first(data, "measurement:sensor", scope)', 'Stats.last(data, "measurement:sensor", scope)',
     'Stats.trend(data, "measurement:sensor", scope)', 'Stats.movingAverage(data, "measurement:sensor", window, scope)',
     'Stats.linearSlope(data, "measurement:sensor", scope)', 'Stats.cagr(data, "measurement:sensor", scope)', 'Stats.mannKendall(data, "measurement:sensor", scope)',
-    'Stats.split(data)',
+    'Stats.split(data)', 'Stats.nextPeak(data,field,scope)', 'Stats.nextTrough(data,field,scope)', 'Stats.FavorableEpisodeDetector(data,field,type="peak")', 'Stats.FavorableEpisodeDetector(data,field,type="trough")',
     "'past'", "'future'", "'all'"
 ];
 
@@ -444,7 +444,7 @@ function parseFnModel(fnModelStr) {
 
     const matches = [...fnModelStr.matchAll(regex)];
     const dataNeededRaw = [...new Set(matches.map(m => m[1].slice(1, -1)))]; //on retire le 1er et dernier caractere des strings
-    
+
     // les dataNeeded doivent etre exister dans metadataPayload.metadata.sensor
     let dataNeeded = dataNeededRaw;
     if (window.integratorAvailableSensors) {
