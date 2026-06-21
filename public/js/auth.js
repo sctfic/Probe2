@@ -24,6 +24,13 @@ function hideLoginModal() {
     authModal.style.display = 'none';
     loginForm.reset();
     document.getElementById('auth-error-msg').style.display = 'none';
+    
+    if (window.blockedRequestsQueue && window.blockedRequestsQueue.length > 0) {
+        window.blockedRequestsQueue.forEach(req => {
+            req.reject(new Error('Authentification requise'));
+        });
+        window.blockedRequestsQueue = [];
+    }
 }
 
 function showPasswordModal(isInitialSetup = false) {
@@ -109,6 +116,10 @@ async function handleLogin(event) {
         if (response.ok) {
             isAuthenticated = true;
             showGlobalStatus(result.message, 'success');
+            
+            const queue = window.blockedRequestsQueue ? [...window.blockedRequestsQueue] : [];
+            window.blockedRequestsQueue = [];
+            
             hideLoginModal();
             updateAuthUI();
             if (result.mustChangePassword) {
@@ -116,6 +127,15 @@ async function handleLogin(event) {
                 showPasswordModal(true);
             } else {
                 isPasswordSet = true;
+            }
+
+            for (const req of queue) {
+                try {
+                    const res = await fetch(...req.args);
+                    req.resolve(res);
+                } catch (err) {
+                    req.reject(err);
+                }
             }
         } else {
             errorMsg.textContent = result.error || 'Erreur de connexion';

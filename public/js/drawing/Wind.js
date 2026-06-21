@@ -464,7 +464,7 @@ async function createVectorPlot(data, metadata, chartDiv, fullUse = false, url =
     } else {
         const speedSensor = metadata.measurement.speed[0];
         unit = metadata.toUserUnit[speedSensor].userUnit;
-        fn = eval(metadata.toUserUnit[speedSensor].fnFromMetric);
+        fn = eval(metadata.toUserUnit[speedSensor].fnFromMetric || '(_) => _');
     }
 
     if (data.length === 0) {

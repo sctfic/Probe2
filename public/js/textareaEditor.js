@@ -487,6 +487,13 @@ function createCodeEditor(textareaId, autoCompletions = []) {
             e.preventDefault();
             const form = newTextarea.closest('form');
             if (form) {
+                // Si le formulaire contient un bouton de "Run" (comme pour les sondes intégrateur), on l'exécute
+                const runButton = form.querySelector('.btn-run-integrator');
+                if (runButton) {
+                    runButton.click();
+                    return;
+                }
+
                 // Déclencher l'événement de soumission du formulaire (compatible avec requestSubmit si dispo)
                 if (typeof form.requestSubmit === 'function') {
                     form.requestSubmit();

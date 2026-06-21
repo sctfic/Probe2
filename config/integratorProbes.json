@@ -2,13 +2,15 @@
     "agro_trend": {
         "label": "modele Agronomique",
         "comment": "modele Agronomique multi cultural",
-        "fnModel": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n  // Affiche un log de debug (visible dans l'API et la console serveur)\n  // console.log(\"Nombre de lignes reçues:\", data.length);\n  // console.log(\"Exemple de lignes reçues:\", data[0]);\n  // const x = Stats.split(data);\n  // console.log(\"Stats past et future\", x);\n\n  // Exemple 2 : Isoler les données passées\n  // const maxHumidity = Stats.max(data, 'humidity:outHumidity', 'past');\n  return  {\n      'last:outHumidity': Stats.last(data, \"humidity:outHumidity\"),\n      'max:outHumidity':Stats.max(data, 'humidity:outHumidity', 'past'),\n      'mean:outHumidity-':Stats.mean(data, 'humidity:outHumidity', 'past'),\n      'current:outHumidity':Stats.current(data, 'humidity:outHumidity'),\n      'mean:-outHumidity':Stats.mean(data, 'humidity:outHumidity', 'future'),\n      'linearSlope:outHumidity-':Stats.linearSlope(data, 'humidity:outHumidity', 'past'),\n      'linearSlope:-outHumidity':Stats.linearSlope(data, 'humidity:outHumidity', 'future'),\n  };\n}\n",
+        "fnModel": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n// probe.local/api/station/VP2_Serramoune/integrator/build\n  // Affiche un log de debug (visible dans l'API et la console serveur)\n  // console.log(\"Nombre de lignes reçues:\", data.length);\n  // console.log(\"Exemple de lignes reçues:\", data[0]);\n  // const x = Stats.split(data);\n  // console.log(\"Stats past et future\", x);\n\n  // Exemple 2 : Isoler les données passées\n  // const maxHumidity = Stats.max(data, 'humidity:inHumidity', 'past');\n  Stats._getResampledData(data, 'temperature:outTemp', 'cubic');\n  const episodes = Stats.ExtremeEpisodeDetector(data, 'temperature:outTemp');\n  // console.log('episodes ', episodes);\n    const Trough = Stats.nextTrough(data, 'temperature:outTemp');\n    console.log('Trough', Trough, {'test':3,'truc':4});\n    console.error('Trough', Trough, {'test':3,'truc':4});\n    \n  return  {\n      Trough,\n      episodes \n  };\n}\n",
         "dataNeeded": [
-            "humidity:outHumidity"
+            "humidity:inHumidity",
+            "temperature:outTemp"
         ],
         "currentMap": {
             "d": "timestamp",
-            "humidity:outHumidity": "outHumidity"
+            "humidity:inHumidity": "inHumidity",
+            "temperature:outTemp": "outTemp"
         },
         "scriptJS": [],
         "contextPeriod": 86400,

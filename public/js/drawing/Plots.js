@@ -985,19 +985,19 @@ class TimeSeriesPlot {
             .attr("width", this.innerWidth).attr("height", this.innerHeight);
 
         this.xScale.range([0, this.innerWidth]);
-        
+
         this.g.select(".axis-x")
             .attr("transform", `translate(0,${this.innerHeight})`);
 
         Object.entries(this.yScales).forEach(([groupName, scaleInfo]) => {
             scaleInfo.scale.range([this.innerHeight, 0]);
-            
+
             const isLeft = scaleInfo.position === 'left';
             const transform = isLeft ? `translate(0,0)` : `translate(${this.innerWidth},0)`;
-            
+
             this.g.select(`.axis-${groupName}`)
                 .attr("transform", transform);
-                
+
             const labelX = (isLeft ? 0 : this.innerWidth) + (scaleInfo.orientation === 'left' ? -20 : 20);
             this.g.select(`.axis-label-${groupName}`)
                 .attr("transform", `translate(${labelX},-2)`);
@@ -1012,10 +1012,10 @@ class TimeSeriesPlot {
         this.createNowLine();
         this.updateLines(false);
         this.updateGradients();
-        
+
         this.g.select(".legend")
             .attr("transform", `translate(${this.innerWidth - 150}, 20)`);
-            
+
         const isFullscreenPage = !!document.getElementById('fs-btn');
         d3.select(this.container).select(".plot-controls")
             .style("right", isFullscreenPage ? "50px" : "5px");
@@ -1036,7 +1036,7 @@ class TimeSeriesPlot {
 function processData(rawData, metadata) {
     // Préparer les fonctions de conversion
     Object.keys(metadata.toUserUnit).forEach(key => {
-        metadata.toUserUnit[key].fnFromMetric = eval(metadata.toUserUnit[key].fnFromMetric);
+        metadata.toUserUnit[key].fnFromMetric = eval(metadata.toUserUnit[key].fnFromMetric || '(_) => _');
     });
 
     // Convertir les données
@@ -1046,7 +1046,7 @@ function processData(rawData, metadata) {
             if (d[key] === null) {
                 // processedPoint[key] = null;
             } else if (key !== 'd' && key !== 'datetime') {
-                processedPoint[key] = metadata.toUserUnit[key].fnFromMetric(d[key]);
+                processedPoint[key] = metadata.toUserUnit[key].fnFromMetric(d[key]) || '(_) => _';
             }
         });
 

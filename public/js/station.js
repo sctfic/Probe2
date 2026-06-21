@@ -721,6 +721,21 @@ function renderExtenderDetails() {
             const displayName = actuator.Name;
             const rangeStr = actuator.range ? ` [${actuator.range}]` : '';
             const safePeripheralId = actuator.Name.replace(/:/g, '-');
+            
+            let schedHtml = '';
+            if (actuator.schedules && actuator.schedules.length > 0) {
+                schedHtml += `<div style="margin-top: 5px; padding-left: 10px; border-left: 2px solid var(--accent-blue);">`;
+                actuator.schedules.forEach(sc => {
+                    const dt = new Date(sc.datetime_utc).toLocaleString();
+                    const stateText = sc.state ? '<span style="color: #28a745; font-weight: bold;">ON</span>' : '<span style="color: #dc3545; font-weight: bold;">OFF</span>';
+                    schedHtml += `<div style="font-size: 0.75rem; color: #555; display: flex; gap: 8px;">
+                        <span>📅 ${dt} :</span>
+                        <span>${stateText}</span>
+                    </div>`;
+                });
+                schedHtml += `</div>`;
+            }
+
             actuatorsHtml += `
                 <div class="extender-form-row">
                     <div style="display: flex; align-items: center; gap: 8px; width: 100%; min-height: 24px;">
@@ -739,6 +754,7 @@ function renderExtenderDetails() {
                         ` : ''}
                     </div>
                     <div style="font-size: 0.75rem; color: #666; font-family: monospace; margin-top: -.5em;" title="${displayName}">${displayName}${rangeStr}</div>
+                    ${schedHtml}
                 </div>
             `;
         });

@@ -130,7 +130,7 @@ async function getCompositeProbes(weatherData, stationConfig) {
                 measurement: type || null,
                 Unit: measurement?.metric || null,
                 userUnit: measurement?.user || null,
-                toUserUnit: measurement?.available_units?.[measurement.user]?.fnFromMetric || null,
+                toUserUnit: measurement?.available_units?.[measurement.user]?.fnFromMetric || '(_) => _',
                 period: probeConfig.period,
                 groupUsage: probeConfig.groupUsage,
                 groupCustom: probeConfig.groupCustom,
@@ -176,7 +176,7 @@ async function getDbProbes(stationConfig) {
             const type = units[dbData[sensorKey].measurement] || null;
             dbData[sensorKey].Unit = type?.metric || null;
             dbData[sensorKey].userUnit = type?.user || null;
-            dbData[sensorKey].toUserUnit = type?.available_units?.[type.user]?.fnFromMetric || null;
+            dbData[sensorKey].toUserUnit = type?.available_units?.[type.user]?.fnFromMetric || '(_) => _';
 
         }
         return dbData;
@@ -404,7 +404,7 @@ exports.updateStationConfig = (req, res) => {
         if (updates && updates.extenders && updates.extenders.WhisperEye) {
             const oldExtenders = (stationConfig.extenders && stationConfig.extenders.WhisperEye) || [];
             const newExtenders = updates.extenders.WhisperEye || [];
-            const deleted = oldExtenders.filter(oldExt => 
+            const deleted = oldExtenders.filter(oldExt =>
                 !newExtenders.some(newExt => newExt.mac.toLowerCase() === oldExt.mac.toLowerCase())
             );
             for (const ext of deleted) {
@@ -415,11 +415,11 @@ exports.updateStationConfig = (req, res) => {
                     const buf = Buffer.alloc(8);
                     buf.writeUInt32BE(0, 0);
                     buf.writeUInt32BE(epoch, 4);
-                    
+
                     const hmac = crypto.createHmac('sha256', ext.apiKey);
                     hmac.update(buf);
                     const token = hmac.digest('hex');
-                    
+
                     console.log(`[EXTENDERS] Extendeur ${ext.name} (MAC: ${ext.mac}) supprimé de la config. Envoi de l'effacement TOTP à http://${ext.host}/api/clear-totp`);
                     axios.post(`http://${ext.host}/api/clear-totp`, { token }, { timeout: 2000 })
                         .then(() => {

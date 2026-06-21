@@ -27,35 +27,58 @@ function loadIntegratorProbes() {
 
 /**
  * Outils statistiques injectés dans le contexte VM des modèles intégrateurs.
- * Toutes les fonctions acceptent un paramètre optionnel `scope` :
- *   - 'past'   : uniquement les données passées (avant maintenant)
- *   - 'future' : uniquement les données futures (après maintenant)
- *   - 'all'    : toutes les données (défaut)
  */
 const Stats = {
-    /**
-     * Filtre les données selon le scope temporel.
-     * @param {Array} data - Tableau de lignes de données
-     * @param {string} [scope='all'] - 'past', 'future', ou 'all'
-     * @returns {Array} Données filtrées
-     */
+    // Caches
+    _lastData: null,
+    _current: null,
+    _past: null,
+    _future: null,
+    _lastResampledData: null,
+    _resampledCache: {},
+    _lastDataEpisodes: null,
+    _episodesCache: {},
+
+    _getNow(data) {
+        const ms5Min = 5 * 60 * 1000;
+        const realNow = Math.floor(Date.now() / ms5Min) * ms5Min;
+        const pastRows = data.filter(row => {
+            const t = row._time ? new Date(row._time).getTime() : row.t;
+            return t === realNow;
+        });
+        return pastRows.length > 0
+            ? (pastRows[pastRows.length - 1]._time ? new Date(pastRows[pastRows.length - 1]._time).getTime() : pastRows[pastRows.length - 1].t)
+            : realNow;
+    },
+
     _filterByScope(data, scope = 'all') {
         if (!Array.isArray(data) || data.length === 0) return [];
         if (scope === 'all') return data;
 
-        // Utiliser le cache si la référence 'data' est la même
         if (this._lastData !== data) {
             this._lastData = data;
             const ms5Min = 5 * 60 * 1000;
-            const realNow = Math.floor(Date.now() / ms5Min) * ms5Min; // Arrondi au précédent multiple de 5 min
-            const pastRows = data.filter(row => row._time && new Date(row._time).getTime() == realNow);
+            const realNow = Math.floor(Date.now() / ms5Min) * ms5Min;
+            const pastRows = data.filter(row => {
+                const t = row._time ? new Date(row._time).getTime() : row.t;
+                return t === realNow;
+            });
             const now = pastRows.length > 0
-                ? new Date(pastRows[pastRows.length - 1]._time).getTime()
+                ? (pastRows[pastRows.length - 1]._time ? new Date(pastRows[pastRows.length - 1]._time).getTime() : pastRows[pastRows.length - 1].t)
                 : realNow;
 
-            this._current = data.filter(row => row._time && new Date(row._time).getTime() === now)[0];
-            this._past = data.filter(row => row._time && new Date(row._time).getTime() <= now);
-            this._future = data.filter(row => row._time && new Date(row._time).getTime() > now);
+            this._current = data.filter(row => {
+                const t = row._time ? new Date(row._time).getTime() : row.t;
+                return t === now;
+            })[0];
+            this._past = data.filter(row => {
+                const t = row._time ? new Date(row._time).getTime() : row.t;
+                return t !== undefined && t <= now;
+            });
+            this._future = data.filter(row => {
+                const t = row._time ? new Date(row._time).getTime() : row.t;
+                return t !== undefined && t > now;
+            });
         }
 
         if (scope === 'past') return this._past;
@@ -64,36 +87,63 @@ const Stats = {
         else return data;
     },
 
-    /**
-     * Extrait les valeurs numériques valides d'un champ dans un tableau de données.
-     * @param {Array} data - Tableau de lignes de données
-     * @param {string} field - Nom du champ à extraire (ex: 'temperature:outTemp')
-     * @param {string} [scope='all'] - 'past', 'future', ou 'all'
-     * @returns {Array<number>} Tableau de valeurs numériques
-     */
-    _extractValues(data, field, scope = 'all') {
+    _isResampled(data, field) {
+        if (!Array.isArray(data) || data.length === 0) return false;
+        const firstRow = data[0];
+        return (firstRow && typeof firstRow === 'object' && 't' in firstRow && 'v' in firstRow && !(field in firstRow));
+    },
+
+    _extractRawValues(data, field, scope = 'all') {
         const filtered = this._filterByScope(data, scope);
-        console.log(`[INTEGRATOR VM DEBUG - _extractValues] field: ${field}, scope: ${scope}, filtered: ${filtered.length}`);
         return filtered
             .map(row => row[field])
             .filter(v => v !== null && v !== undefined && !isNaN(v))
             .map(Number);
     },
 
-    /**
-     * Extrait les paires (timestamp, valeur) pour les calculs temporels.
-     * @param {Array} data - Tableau de lignes de données
-     * @param {string} field - Nom du champ
-     * @param {string} [scope='all'] - 'past', 'future', ou 'all'
-     * @returns {Array<{t: number, v: number}>}
-     */
-    _extractTimedValues(data, field, scope = 'all') {
+    _extractRawTimedValues(data, field, scope = 'all') {
         const filtered = this._filterByScope(data, scope);
         return filtered
             .filter(row => row[field] !== null && row[field] !== undefined && !isNaN(row[field]) && row._time)
             .map(row => ({
                 t: new Date(row._time).getTime(),
                 v: Number(row[field])
+            }));
+    },
+
+    _extractValues(data, field, scope = 'all') {
+        if (this._isResampled(data, field)) {
+            const filtered = this._filterByScope(data, scope);
+            return filtered
+                .map(row => row.v)
+                .filter(v => v !== null && v !== undefined && !isNaN(v))
+                .map(Number);
+        }
+        const resampled = this._getResampledData(data, field, 'linear');
+        const filtered = this._filterByScope(resampled, scope);
+        return filtered
+            .map(row => row.v)
+            .filter(v => v !== null && v !== undefined && !isNaN(v))
+            .map(Number);
+    },
+
+    _extractTimedValues(data, field, scope = 'all') {
+        if (this._isResampled(data, field)) {
+            const filtered = this._filterByScope(data, scope);
+            return filtered
+                .filter(row => row.v !== null && row.v !== undefined && !isNaN(row.v))
+                .map(row => ({
+                    t: row.t,
+                    v: Number(row.v)
+                }));
+        }
+        const resampled = this._getResampledData(data, field, 'linear');
+        const filtered = this._filterByScope(resampled, scope);
+        return filtered
+            .filter(row => row.v !== null && row.v !== undefined && !isNaN(row.v))
+            .map(row => ({
+                t: row.t,
+                v: Number(row.v)
             }));
     },
 
@@ -105,45 +155,44 @@ const Stats = {
         };
     },
 
-    /** Valeur actuelle (valeur au point "now" calculé par _filterByScope) */
     current(data, field) {
-        return this._filterByScope(data, 'current')[field];
+        if (this._isResampled(data, field)) {
+            const currRow = this._filterByScope(data, 'current');
+            return currRow ? currRow.v : null;
+        }
+        const resampled = this._getResampledData(data, field, 'linear');
+        const currRow = this._filterByScope(resampled, 'current');
+        return currRow ? currRow.v : null;
     },
 
-    /** Première valeur */
     first(data, field, scope = 'all') {
         const vals = this._extractValues(data, field, scope);
         return vals.length > 0 ? vals[0] : null;
     },
 
-    /** Dernière valeur */
     last(data, field, scope = 'all') {
         const vals = this._extractValues(data, field, scope);
         return vals.length > 0 ? vals[vals.length - 1] : null;
     },
 
-    /** Moyenne */
     mean(data, field, scope = 'all') {
         const vals = this._extractValues(data, field, scope);
         if (vals.length === 0) return null;
         return vals.reduce((a, b) => a + b, 0) / vals.length;
     },
 
-    /** Minimum */
     min(data, field, scope = 'all') {
         const vals = this._extractValues(data, field, scope);
         if (vals.length === 0) return null;
         return Math.min(...vals);
     },
 
-    /** Maximum */
     max(data, field, scope = 'all') {
         const vals = this._extractValues(data, field, scope);
         if (vals.length === 0) return null;
         return Math.max(...vals);
     },
 
-    /** Somme */
     sum(data, field, scope = 'all') {
         const vals = this._extractValues(data, field, scope);
         if (vals.length === 0) return null;
@@ -151,22 +200,13 @@ const Stats = {
     },
 
     /**
-     * Tendance : différence entre la dernière et la première valeur.
-     * Positif = croissant, négatif = décroissant.
-     */
-    trend(data, field, scope = 'all') {
-        const vals = this._extractValues(data, field, scope);
-        if (vals.length < 2) return null;
-        return vals[vals.length - 1] - vals[0];
-    },
-
-    /**
-     * Moyenne mobile sur une fenêtre glissante.
-     * @param {Array} data - Données
-     * @param {string} field - Champ
-     * @param {number} [window=5] - Taille de la fenêtre (nombre de points)
-     * @param {string} [scope='all'] - 'past', 'future', ou 'all'
-     * @returns {Array<number>} Tableau de moyennes mobiles
+     * Calcule la moyenne mobile simple d'une série de valeurs.
+     * 
+     * @param {Array} data - Les données brutes ou déjà rééchantillonnées.
+     * @param {string} field - Le champ sur lequel calculer la moyenne mobile.
+     * @param {number} [window=5] - La taille de la fenêtre de calcul (nombre de points).
+     * @param {string} [scope='all'] - Le scope temporel à appliquer ('all', 'past', 'current', 'future').
+     * @returns {Array<number>} Un tableau contenant les moyennes mobiles calculées.
      */
     movingAverage(data, field, window = 5, scope = 'all') {
         const vals = this._extractValues(data, field, scope);
@@ -180,50 +220,50 @@ const Stats = {
     },
 
     /**
-     * Pente de régression linéaire (moindres carrés).
-     * Retourne la pente par seconde (variation du champ par seconde).
-     * @param {string} [scope='all'] - 'past', 'future', ou 'all'
-     * @returns {number|null} Pente (unité/seconde)
+     * Calcule la pente linéaire (régression linéaire simple) des valeurs par rapport au temps.
+     * La pente est exprimée en unités de valeur par seconde.
+     * 
+     * @param {Array} data - Les données brutes ou déjà rééchantillonnées.
+     * @param {string} field - Le champ sur lequel calculer la pente.
+     * @param {string} [scope='all'] - Le scope temporel à appliquer ('all', 'past', 'current', 'future').
+     * @returns {number|null} La pente (coefficient directeur), ou null s'il y a moins de 2 points.
      */
     linearSlope(data, field, scope = 'all') {
         const pairs = this._extractTimedValues(data, field, scope);
         if (pairs.length < 2) return null;
-
         const n = pairs.length;
-        // Normaliser les timestamps en secondes depuis le premier point
         const t0 = pairs[0].t;
         let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-
         for (const p of pairs) {
-            const x = (p.t - t0) / 1000; // secondes
+            const x = (p.t - t0) / 1000;
             const y = p.v;
             sumX += x;
             sumY += y;
             sumXY += x * y;
             sumX2 += x * x;
         }
-
         const denom = n * sumX2 - sumX * sumX;
         if (denom === 0) return 0;
         return (n * sumXY - sumX * sumY) / denom;
     },
 
     /**
-     * Test de Mann-Kendall pour détecter une tendance monotone.
-     * utilisé pour analyser si une série de données temporelles présente une tendance à la hausse
-     * ou à la baisse monotone (constante). Puisqu'il est non paramétrique,
-     * il ne nécessite pas que les données suivent une distribution particulière (comme la distribution normale)
-     * et il est peu sensible aux valeurs aberrantes (outliers) ainsi qu'aux données manquantes.
-     * @param {string} [scope='all'] - 'past', 'future', ou 'all'
-     * @returns {{ S: number, Z: number, trend: string, p: number }}
+     * Effectue le test statistique non-paramétrique de Mann-Kendall pour détecter
+     * la présence d'une tendance monotone significative dans la série temporelle.
+     * 
+     * @param {Array} data - Les données brutes ou déjà rééchantillonnées.
+     * @param {string} field - Le champ sur lequel effectuer le test.
+     * @param {string} [scope='all'] - Le scope temporel à appliquer ('all', 'past', 'current', 'future').
+     * @returns {Object} Un objet contenant :
+     *   - S {number} : La statistique S de Mann-Kendall.
+     *   - Z {number} : Le score Z standardisé.
+     *   - trend {string} : La tendance détectée ('increasing', 'decreasing', 'no trend' ou 'insufficient data').
+     *   - p {number} : La p-value (seuil de signification de 0.05 pour rejeter l'hypothèse nulle).
      */
     mannKendall(data, field, scope = 'all') {
         const vals = this._extractValues(data, field, scope);
         const n = vals.length;
-
         if (n < 4) return { S: 0, Z: 0, trend: 'insufficient data', p: 1 };
-
-        // Calcul de S
         let S = 0;
         for (let k = 0; k < n - 1; k++) {
             for (let j = k + 1; j < n; j++) {
@@ -232,108 +272,233 @@ const Stats = {
                 else if (diff < 0) S--;
             }
         }
-
-        // Calcul de la variance (sans correction des ex-aequo pour simplifier)
         const variance = (n * (n - 1) * (2 * n + 5)) / 18;
         const stdDev = Math.sqrt(variance);
-
-        // Calcul de Z
         let Z;
         if (S > 0) Z = (S - 1) / stdDev;
         else if (S < 0) Z = (S + 1) / stdDev;
         else Z = 0;
-
-        // P-value approximative via la distribution normale
         const absZ = Math.abs(Z);
         const p = 2 * (1 - 0.5 * (1 + Math.sign(absZ) * (1 - Math.exp(-absZ * absZ * (4 / Math.PI + 0.147 * absZ * absZ) / (1 + 0.147 * absZ * absZ)))));
-
         let trend = 'no trend';
-        if (p < 0.05) {
-            trend = S > 0 ? 'increasing' : 'decreasing';
-        }
-
+        if (p < 0.05) trend = S > 0 ? 'increasing' : 'decreasing';
         return { S, Z: Math.round(Z * 1000) / 1000, trend, p: Math.round(p * 10000) / 10000 };
     },
 
+    // ═════════════════════════════════════════════════════════════════
+    //  RÉÉCHANTILLONNAGE : conserve les bruts, interpole les trous
+    // ═════════════════════════════════════════════════════════════════
+
+    _resampleTo5Min(pairs, method = 'linear') {
+        const step = 5 * 60 * 1000;
+        const start = Math.floor(pairs[0].t / step) * step;
+        const end = Math.ceil(pairs[pairs.length - 1].t / step) * step;
+        const resampled = [];
+
+        // Map des points bruts par timestamp aligné
+        const rawMap = new Map();
+        for (const p of pairs) {
+            const aligned = Math.round(p.t / step) * step;
+            rawMap.set(aligned, p.v);
+        }
+
+        // Pré-calcul spline cubique si demandé
+        let coeffs = null;
+        if (method === 'cubic' && pairs.length >= 3) {
+            const t0 = pairs[0].t;
+            const x = pairs.map(p => (p.t - t0) / 60000); // minutes
+            const y = pairs.map(p => p.v);
+            coeffs = this._naturalCubicSpline(x, y);
+        }
+
+        let rawIdx = 0;
+
+        for (let t = start; t <= end; t += step) {
+            // Point brut existe → conservé (TOUJOURS, quel que soit le méthode)
+            if (rawMap.has(t)) {
+                resampled.push({ t, v: rawMap.get(t), isRaw: true });
+                continue;
+            }
+
+            // Trou → interpolation selon méthode
+            while (rawIdx < pairs.length - 1 && pairs[rawIdx + 1].t < t) rawIdx++;
+            const p0 = pairs[rawIdx];
+            const p1 = pairs[rawIdx + 1];
+
+            let v;
+            if (coeffs) {
+                const xi = (t - pairs[0].t) / 60000;
+                v = this._evalSpline(coeffs, xi);
+            } else {
+                if (!p1 || t <= p0.t) {
+                    v = p0.v;
+                } else {
+                    const ratio = (t - p0.t) / (p1.t - p0.t);
+                    v = p0.v + ratio * (p1.v - p0.v);
+                }
+            }
+
+            resampled.push({ t, v, isRaw: false });
+        }
+
+        return resampled;
+    },
     /**
-     * Détecteur d'épisodes météorologiques favorables — version simplifiée.
-     * 
-     * Paramètres fixes (optimisés pour données météo 5min passé / 60min futur) :
-     * - Seuil : percentile 80 (pic) / 20 (creux) sur l'ensemble des données
-     * - Durée min : 2h (pas d'épisode trop court)
-     * - Durée max : 24h (pas de saison entière)
-     * - Tolérance gap : 2h (fusionne les trous raisonnables)
-     * - Couverture min : 50% (données futures éparse tolérées)
-     * 
-     * @param {Array} data - Données brutes [{_time, [field]: value}, ...]
-     * @param {string} field - Nom du champ (ex: 'temperature:outTemp')
-     * @param {string} type - 'peak' | 'trough'
-     * @param {string} [scope='all'] - 'past', 'future', 'all'
-     * @returns {Array} Épisodes au format legacy
-     * @throws {Error} Si data ne couvre pas J-12h → J+36h
+     * Construit les coefficients d'une spline cubique naturelle 1D.
+     * x et y doivent être triés par x croissant.
      */
-    FavorableEpisodeDetector(data, field, type, scope = 'all') {
-        // ─── VALIDATION TEMPORALE STRICTE ─────────────────────────────
-        const pairs = this._extractTimedValues(data, field, scope)
+    _naturalCubicSpline(x, y) {
+        const n = x.length;
+        if (n < 3) return null;
+        const h = [];
+        for (let i = 0; i < n - 1; i++) h.push(x[i + 1] - x[i]);
+        const alpha = [0];
+        for (let i = 1; i < n - 1; i++) {
+            alpha.push((3 / h[i]) * (y[i + 1] - y[i]) - (3 / h[i - 1]) * (y[i] - y[i - 1]));
+        }
+        const l = [1], mu = [0], z = [0];
+        for (let i = 1; i < n - 1; i++) {
+            l.push(2 * (x[i + 1] - x[i - 1]) - h[i - 1] * mu[i - 1]);
+            mu.push(h[i] / l[i]);
+            z.push((alpha[i] - h[i - 1] * z[i - 1]) / l[i]);
+        }
+        l.push(1);
+        z.push(0);
+        const c = new Array(n).fill(0);
+        const b = new Array(n - 1).fill(0);
+        const d = new Array(n - 1).fill(0);
+        const a = new Array(n - 1).fill(0);
+        for (let i = 0; i < n - 1; i++) a[i] = y[i];
+        for (let j = n - 2; j >= 0; j--) {
+            c[j] = z[j] - mu[j] * c[j + 1];
+            b[j] = (y[j + 1] - y[j]) / h[j] - h[j] * (c[j + 1] + 2 * c[j]) / 3;
+            d[j] = (c[j + 1] - c[j]) / (3 * h[j]);
+        }
+        return { a, b, c, d, x };
+    },
+
+    _evalSpline(coeffs, xi) {
+        const { a, b, c, d, x } = coeffs;
+        let i = 0;
+        while (i < x.length - 1 && xi > x[i + 1]) i++;
+        if (i >= x.length - 1) {
+            const j = x.length - 2;
+            const dx = xi - x[j];
+            return a[j] + b[j] * dx + c[j] * dx * dx + d[j] * dx * dx * dx;
+        }
+        const dx = xi - x[i];
+        return a[i] + b[i] * dx + c[i] * dx * dx + d[i] * dx * dx * dx;
+    },
+
+    _getResampledData(data, field, method = 'linear') {
+        if (this._lastResampledData !== data) {
+            this._lastResampledData = data;
+            this._resampledCache = {};
+        }
+        const cacheKey = `${field}|${method}`;
+        if (this._resampledCache[cacheKey]) return this._resampledCache[cacheKey];
+
+        const pairs = this._extractRawTimedValues(data, field, 'all')
             .filter(p => p.v !== null && !isNaN(p.v))
             .sort((a, b) => a.t - b.t);
 
         if (pairs.length < 2) {
-            throw new Error(`[FavorableEpisodeDetector] ${field}: pas assez de données valides`);
+            throw new Error(`[ExtremeEpisodeDetector] ${field}: pas assez de données`);
+        }
+
+        const resampled = this._resampleTo5Min(pairs, method);
+        this._resampledCache[cacheKey] = resampled;
+        return resampled;
+    },
+
+    // ═════════════════════════════════════════════════════════════════
+    //  DÉTECTION D'ÉPISODES
+    // ═════════════════════════════════════════════════════════════════
+
+    ExtremeEpisodeDetector(data, field) {
+        if (this._lastDataEpisodes !== data) {
+            this._lastDataEpisodes = data;
+            this._episodesCache = {};
+        }
+        if (this._episodesCache[field]) return this._episodesCache[field];
+
+        const peaks = this._detectEpisodes(data, field, 'peak');
+        const troughs = this._detectEpisodes(data, field, 'trough');
+
+        const combined = [...peaks, ...troughs].sort((a, b) =>
+            new Date(a.start.d).getTime() - new Date(b.start.d).getTime()
+        );
+
+        this._episodesCache[field] = combined;
+        return combined;
+    },
+
+    _detectEpisodes(data, field, type) {
+        // ─── 1. VALIDATION TEMPORALE ──────────────────────────────────
+        const pairs = this._extractTimedValues(data, field, 'all')
+            .filter(p => p.v !== null && !isNaN(p.v))
+            .sort((a, b) => a.t - b.t);
+
+        if (pairs.length < 2) {
+            throw new Error(`[ExtremeEpisodeDetector] ${field}: pas assez de données valides`);
         }
 
         const dataStart = pairs[0].t;
         const dataEnd = pairs[pairs.length - 1].t;
-        const dataSpanHours = (dataEnd - dataStart) / 3600000;
+        const now = this._getNow(data);
 
-        const now = Date.now();
-        const minStart = now - 12 * 3600 * 1000;  // J-12h
-        const minEnd = now + 36 * 3600 * 1000;     // J+36h
+        const minStart = now - 12 * 3600 * 1000;
+        const minEnd = now + 24 * 3600 * 1000;
 
-        if (dataStart > minStart + 3600 * 1000) {  // tolérance 1h
+        if (dataStart > minStart + 3600 * 1000) {
             throw new Error(
-                `[FavorableEpisodeDetector] ${field}: data commence trop tard ` +
-                `(début: ${new Date(dataStart).toISOString()}, ` +
-                `requis: <= ${new Date(minStart).toISOString()})`
+                `[ExtremeEpisodeDetector] ${field}: data commence trop tard ` +
+                `(début: ${new Date(dataStart).toISOString()}, requis: <= ${new Date(minStart).toISOString()})`
             );
         }
-        if (dataEnd < minEnd - 3600 * 1000) {  // tolérance 1h
+        if (dataEnd < minEnd - 3600 * 1000) {
             throw new Error(
-                `[FavorableEpisodeDetector] ${field}: data finit trop tôt ` +
-                `(fin: ${new Date(dataEnd).toISOString()}, ` +
-                `requis: >= ${new Date(minEnd).toISOString()})`
+                `[ExtremeEpisodeDetector] ${field}: data finit trop tôt ` +
+                `(fin: ${new Date(dataEnd).toISOString()}, requis: >= ${new Date(minEnd).toISOString()})`
             );
         }
 
-        // ─── PARAMÈTRES FIXES ─────────────────────────────────────────
-        const MIN_DURATION_MS = 2 * 3600 * 1000;   // 2h
-        const MAX_DURATION_MS = 24 * 3600 * 1000;  // 24h
-        const GAP_TOLERANCE_MS = 2 * 3600 * 1000;  // 2h
-        const MIN_COVERAGE = 0.50;                  // 50%
+        // ─── 2. RÉÉCHANTILLONNAGE 5 MIN ───────────────────────────────
+        const resampled = this._getResampledData(data, field);
+        const step = 5 * 60 * 1000;
+
+        // ─── 3. SEUIL PERCENTILE SUR 24H PASSÉES ──────────────────────
+        const windowStart = now - 24 * 3600 * 1000;
+        const windowEnd = now;
+        let windowValues = resampled
+            .filter(p => p.t >= windowStart && p.t <= windowEnd)
+            .map(p => p.v);
+
+        if (windowValues.length < 10) {
+            windowValues = resampled.map(p => p.v);
+        }
+        windowValues.sort((a, b) => a - b);
+
         const PERCENTILE = type === 'peak' ? 80 : 20;
+        const idxThreshold = Math.floor((PERCENTILE / 100) * (windowValues.length - 1));
+        const threshold = windowValues[idxThreshold];
 
-        // ─── SEUIL DYNAMIQUE ──────────────────────────────────────────
-        const values = pairs.map(p => p.v).sort((a, b) => a - b);
-        const idxThreshold = Math.floor((PERCENTILE / 100) * (values.length - 1));
-        const threshold = values[idxThreshold];
+        // ─── 4. PARAMÈTRES ────────────────────────────────────────────
+        const MIN_DURATION_MS = 2 * 3600 * 1000;
+        const MAX_DURATION_MS = 24 * 3600 * 1000;
+        const GAP_TOLERANCE_MS = 2 * 3600 * 1000;
 
-        // ─── SEGMENTATION ─────────────────────────────────────────────
+        // ─── 5. SEGMENTATION ──────────────────────────────────────────
         const segments = [];
         let current = null;
 
-        for (const p of pairs) {
+        for (const p of resampled) {
             const isFav = type === 'peak' ? p.v >= threshold : p.v <= threshold;
 
             if (!isFav) {
-                // Vérifier si trou tolérable dans segment actif
                 if (current) {
-                    const lastPoint = current.points[current.points.length - 1];
-                    const gap = p.t - lastPoint.t;
-                    if (gap > GAP_TOLERANCE_MS) {
-                        segments.push(current);
-                        current = null;
-                    }
-                    // sinon: on ignore ce point, il fait partie du segment
+                    segments.push(current);
+                    current = null;
                 }
                 continue;
             }
@@ -347,19 +512,12 @@ const Stats = {
         }
         if (current) segments.push(current);
 
-        // ─── FILTRAGE ET FORMATAGE ────────────────────────────────────
+        // ─── 6. FILTRAGE ET FORMATAGE ─────────────────────────────────
         const episodes = [];
 
         for (const seg of segments) {
             const duration = seg.endT - seg.startT;
-
             if (duration < MIN_DURATION_MS || duration > MAX_DURATION_MS) continue;
-
-            // Estimation intervalle moyen pour couverture
-            const avgInterval = (pairs[pairs.length - 1].t - pairs[0].t) / (pairs.length - 1);
-            const expectedPoints = Math.floor(duration / avgInterval) + 1;
-            const coverage = seg.points.length / expectedPoints;
-            if (coverage < MIN_COVERAGE) continue;
 
             const segValues = seg.points.map(p => p.v);
             const avg = segValues.reduce((a, b) => a + b, 0) / segValues.length;
@@ -367,6 +525,7 @@ const Stats = {
             episodes.push({
                 type,
                 avg: Math.round(avg * 100) / 100,
+                duration: Math.round(duration / 1000),
                 start: {
                     d: new Date(seg.points[0].t).toISOString(),
                     [field]: Math.round(seg.points[0].v * 100) / 100
@@ -378,24 +537,22 @@ const Stats = {
             });
         }
 
-        // Fusion des chevauchements
+        // ─── 7. FUSION DES CHEVAUCHEMENTS (même type) ─────────────────
         const merged = [];
         episodes.sort((a, b) => new Date(a.start.d).getTime() - new Date(b.start.d).getTime());
 
         for (const ep of episodes) {
             const last = merged[merged.length - 1];
-            if (last) {
+            if (last && last.type === ep.type) {
                 const lastEnd = new Date(last.end.d).getTime();
                 const currStart = new Date(ep.start.d).getTime();
                 if (currStart <= lastEnd + GAP_TOLERANCE_MS) {
-                    // Fusion: moyenne pondérée par durée
                     const lastDur = lastEnd - new Date(last.start.d).getTime();
                     const currDur = new Date(ep.end.d).getTime() - currStart;
                     const totalDur = lastDur + currDur;
-                    last.avg = Math.round(
-                        (last.avg * lastDur + ep.avg * currDur) / totalDur * 100
-                    ) / 100;
+                    last.avg = Math.round((last.avg * lastDur + ep.avg * currDur) / totalDur * 100) / 100;
                     last.end = ep.end;
+                    last.duration = Math.round(totalDur / 1000);
                     continue;
                 }
             }
@@ -405,56 +562,32 @@ const Stats = {
         return merged;
     },
 
-    /**
-     * Prochain pic favorable (épisode de valeurs hautes).
-     * @throws {Error} Si data invalide
-     */
+    // ═════════════════════════════════════════════════════════════════
+    //  FONCTIONS DIRECTES
+    // ═════════════════════════════════════════════════════════════════
+
     nextPeak(data, field) {
-        const ms5Min = 5 * 60 * 1000;
-        const realNow = Math.floor(Date.now() / ms5Min) * ms5Min;
-        const pastRows = data.filter(row => row._time && new Date(row._time).getTime() == realNow);
-        const now = pastRows.length > 0
-            ? new Date(pastRows[pastRows.length - 1]._time).getTime()
-            : realNow;
-
-        const limit = now + 24 * 3600 * 1000;
-
-        const episodes = this.FavorableEpisodeDetector(data, field, 'peak', 'all');
-
-        const futurePeaks = episodes
-            .filter(e => {
-                const tEnd = new Date(e.end.d).getTime();
-                return tEnd >= now && tEnd <= limit;
-            })
-            .sort((a, b) => new Date(a.end.d).getTime() - new Date(b.end.d).getTime());
-
-        return futurePeaks.length > 0 ? futurePeaks[0] : null;
+        const now = this._getNow(data);
+        const episodes = this.ExtremeEpisodeDetector(data, field);
+        return episodes
+            .filter(e => e.type === 'peak' && new Date(e.end.d).getTime() >= now)
+            .sort((a, b) => new Date(a.start.d).getTime() - new Date(b.start.d).getTime())[0] || null;
     },
 
-    /**
-     * Prochain creux favorable (épisode de valeurs basses).
-     * @throws {Error} Si data invalide
-     */
     nextTrough(data, field) {
-        const ms5Min = 5 * 60 * 1000;
-        const realNow = Math.floor(Date.now() / ms5Min) * ms5Min;
-        const pastRows = data.filter(row => row._time && new Date(row._time).getTime() == realNow);
-        const now = pastRows.length > 0
-            ? new Date(pastRows[pastRows.length - 1]._time).getTime()
-            : realNow;
+        const now = this._getNow(data);
+        const episodes = this.ExtremeEpisodeDetector(data, field);
+        return episodes
+            .filter(e => e.type === 'trough' && new Date(e.end.d).getTime() >= now)
+            .sort((a, b) => new Date(a.start.d).getTime() - new Date(b.start.d).getTime())[0] || null;
+    },
 
-        const limit = now + 24 * 3600 * 1000;
-
-        const episodes = this.FavorableEpisodeDetector(data, field, 'trough', 'all');
-
-        const futureTroughs = episodes
-            .filter(e => {
-                const tEnd = new Date(e.end.d).getTime();
-                return tEnd >= now && tEnd <= limit;
-            })
-            .sort((a, b) => new Date(a.end.d).getTime() - new Date(b.end.d).getTime());
-
-        return futureTroughs.length > 0 ? futureTroughs[0] : null;
+    nextEpisode(data, field) {
+        const now = this._getNow(data);
+        const episodes = this.ExtremeEpisodeDetector(data, field);
+        return episodes
+            .filter(e => new Date(e.end.d).getTime() >= now)
+            .sort((a, b) => new Date(a.start.d).getTime() - new Date(b.start.d).getTime())[0] || null;
     }
 };
 
@@ -463,14 +596,25 @@ const Stats = {
  * Calcule les nouvelles valeurs des modèles intégrateurs et les écrit dans le bucket Integrators.
  */
 exports.runIntegrator = async (req, res) => {
-    const { stationId } = req.params;
+    const { stationId, modelKey } = req.params;
     const stationConfig = req.stationConfig;
 
     console.log(`${V.info} [INTEGRATOR] Démarrage du calcul des modèles intégrateurs pour ${stationId}`);
 
     try {
         const integratorProbes = loadIntegratorProbes();
-        const probeKeys = Object.keys(integratorProbes);
+        let probeKeys = Object.keys(integratorProbes);
+
+        if (modelKey) {
+            if (!integratorProbes[modelKey]) {
+                return res.status(404).json({
+                    success: false,
+                    stationId,
+                    error: `Le modèle intégrateur '${modelKey}' n'existe pas.`
+                });
+            }
+            probeKeys = [modelKey];
+        }
 
         if (probeKeys.length === 0) {
             return res.json({ success: true, message: 'Aucun modèle intégrateur configuré.', results: [] });
@@ -525,7 +669,7 @@ exports.runIntegrator = async (req, res) => {
 
                 // Intervalle de requête : on prend des échantillons raisonnables
                 // Pour 1 jour de données, on prend un intervalle de 5 minutes (300s)
-                const intervalSeconds = Math.max(300, Math.round(contextPeriod / 1000));
+                const intervalSeconds = 300; // Math.max(300, Math.round(contextPeriod / 1000));
 
                 console.log(V.Ampoule, `[INTEGRATOR] Traitement de ${probeKey}: ${start} → ${end} (interval: ${intervalSeconds}s)`);
 

@@ -91,7 +91,7 @@ function getMetadata(req, sensorRefs, { start, end, intervalSeconds }, data) {
             sensorsFnFromMetric[merge] = {
                 unit: units?.[type]?.metric || null,
                 userUnit: units?.[type]?.user || null,
-                fnFromMetric: units?.[type]?.available_units?.[units?.[type]?.user]?.fnFromMetric || null
+                fnFromMetric: units?.[type]?.available_units?.[units?.[type]?.user]?.fnFromMetric || '(_) => _'
             };
         }
     });
@@ -219,7 +219,7 @@ exports.getQueryRange = async (req, res) => {
                 count: null,
                 unit: null,
                 userUnit: unitsProvider.getUnits()?.[type]?.user || '',
-                toUserUnit: unitsProvider.getUnits()?.[type]?.available_units?.[unitsProvider.getUnits()?.[type]?.user]?.fnFromMetric || null
+                toUserUnit: unitsProvider.getUnits()?.[type]?.available_units?.[unitsProvider.getUnits()?.[type]?.user]?.fnFromMetric || '(_) => _'
             },
             data: []
         });
@@ -349,7 +349,7 @@ exports.getQueryRaw = async (req, res) => {
             count: Data.length,
             unit: measurement?.metric || null,
             userUnit: measurement?.user || null,
-            toUserUnit: measurement?.available_units?.[measurement.user]?.fnFromMetric || null
+            toUserUnit: measurement?.available_units?.[measurement.user]?.fnFromMetric || '(_) => _'
         };
         // --- Common Response ---
         res.json({
@@ -590,7 +590,7 @@ exports.getQueryCandle = async (req, res) => {
             count: Data.length,
             unit: measurement?.metric || null,
             userUnit: measurement?.user || null,
-            toUserUnit: measurement?.available_units?.[measurement.user]?.fnFromMetric || null
+            toUserUnit: measurement?.available_units?.[measurement.user]?.fnFromMetric || '(_) => _'
         };
 
         res.json({
@@ -693,7 +693,7 @@ exports.getQueryVectors = async (req, res) => {
                 count: data.length,
                 unit: measurement?.metric || null,
                 userUnit: measurement?.user || null,
-                toUserUnit: measurement?.available_units?.[measurement?.user]?.fnFromMetric || null
+                toUserUnit: measurement?.available_units?.[measurement?.user]?.fnFromMetric || '(_) => _'
             };
             // console.log(metadata);
         } else {

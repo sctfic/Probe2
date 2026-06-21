@@ -46,7 +46,7 @@
     "temperature": {
         "title": "Temperature",
         "description": "Unités de mesure de la température",
-        "user": "°C",
+        "user": "K",
         "metric": "K",
         "available_units": {
             "°C": {
@@ -114,7 +114,7 @@
     "ticksByMin": {
         "title": "countByMin",
         "description": "conteur par minute",
-        "user": "t/min",
+        "user": "rpm",
         "metric": "ticks/min",
         "available_units": {
             "rpm": {

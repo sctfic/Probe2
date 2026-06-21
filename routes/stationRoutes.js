@@ -32,7 +32,8 @@ router.delete('/:stationId/extenders/:mac/', isAuthenticated, extendersControlle
 router.put('/:stationId/extenders/:mac/peripherals', isAuthenticated, extendersController.updateExtenderPeripheral);
 
 
-// Calcule les modèles intégrateurs pour la station
+// Calcule les modèles intégrateurs pour la station (tous ou un modèle spécifique)
+router.get('/:stationId/integrator/build/:modelKey', integratorController.runIntegrator); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/integrator/build/mon_model_trend
 router.get('/:stationId/integrator/build', integratorController.runIntegrator); //http://Probe.lpz.ovh/api/station/VP2_Serramoune/integrator/build
 
 // Vérifie le statut (avaiblité) des extenders par un appel api

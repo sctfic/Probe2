@@ -5,6 +5,38 @@
 let currentIntegratorProbesSettings = {};
 let integratorUnitCategories = {};
 
+// Enregistrement du langage JSON pour highlight.js s'il n'est pas présent
+if (window.hljs && !hljs.getLanguage('json')) {
+    hljs.registerLanguage('json', function(hljs) {
+        return {
+            name: 'JSON',
+            contains: [
+                {
+                    className: 'attr',
+                    begin: /"(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(?=\s*:)/,
+                    relevance: 1.01
+                },
+                {
+                    className: 'string',
+                    begin: /"/, end: /"/,
+                    contains: [hljs.BACKSLASH_ESCAPE],
+                    relevance: 0
+                },
+                hljs.C_NUMBER_MODE,
+                {
+                    className: 'literal',
+                    begin: /\b(true|false|null)\b/
+                },
+                {
+                    className: 'punctuation',
+                    match: /[{}[\],:]/,
+                    relevance: 0
+                }
+            ]
+        };
+    });
+}
+
 const PERIOD_OPTIONS = [
     { label: '5 minutes', value: 300 },
     { label: '30 minutes', value: 1800 },
@@ -30,11 +62,12 @@ let integratorJsCompletions = [
     'alert();', 'prompt();', 'confirm();',
     'localStorage();', 'sessionStorage();', 'getItem();', 'setItem();', 'removeItem();',
     'Math.random();', 'Math.floor();', 'Math.ceil();', 'Math.round();', 'Math.max();', 'Math.min();',
+    'Stats.nextPeak(data,field)', 'Stats.nextTrough(data,field)', 'Stats.nextEpisode(data,field)', 'Stats.ExtremeEpisodeDetector(data,field)',
     'Stats.current(data, "measurement:sensor")', 'Stats.mean(data, "measurement:sensor", scope)', 'Stats.min(data, "measurement:sensor", scope)', 'Stats.max(data, "measurement:sensor", scope)',
     'Stats.sum(data, "measurement:sensor", scope)', 'Stats.first(data, "measurement:sensor", scope)', 'Stats.last(data, "measurement:sensor", scope)',
     'Stats.trend(data, "measurement:sensor", scope)', 'Stats.movingAverage(data, "measurement:sensor", window, scope)',
     'Stats.linearSlope(data, "measurement:sensor", scope)', 'Stats.cagr(data, "measurement:sensor", scope)', 'Stats.mannKendall(data, "measurement:sensor", scope)',
-    'Stats.split(data)', 'Stats.nextPeak(data,field,scope)', 'Stats.nextTrough(data,field,scope)', 'Stats.FavorableEpisodeDetector(data,field,type="peak")', 'Stats.FavorableEpisodeDetector(data,field,type="trough")',
+    'Stats.split(data)',
     "'past'", "'future'", "'all'"
 ];
 
@@ -67,6 +100,10 @@ const INTEGRATOR_HELP_CONTENT_HTML = `
         <li><code>Stats.cagr(data, field, scope)</code> : Taux de croissance composé annuel.</li>
         <li><code>Stats.mannKendall(data, field, scope)</code> : Test de tendance monotone.</li>
         <li><code>Stats.split(data)</code> : Retourne <code>{ past: [], future: [] }</code>.</li>
+        <li><code>Stats.ExtremeEpisodeDetector(data, field)</code> : Détecteur d'épisodes météo favorables (cherche simultanément les pics et les creux).</li>
+        <li><code>Stats.nextPeak(data, field)</code> : Prochain pic favorable (valeurs hautes) à venir (dont le temps de fin n'est pas dépassé).</li>
+        <li><code>Stats.nextTrough(data, field)</code> : Prochain creux favorable (valeurs basses) à venir (dont le temps de fin n'est pas dépassé).</li>
+        <li><code>Stats.nextEpisode(data, field)</code> : Prochain épisode favorable (pic ou creux) à venir (dont le temps de fin n'est pas dépassé).</li>
     </ul>
 
     <h4>Exemple</h4>
@@ -211,10 +248,41 @@ function displayIntegratorProbesList(settings) {
         button.addEventListener('click', handleDeleteIntegratorProbe);
     });
 
-    // Use event delegation for help buttons for better performance and simplicity
+    // Use event delegation for help and run buttons for better performance and simplicity
     container.addEventListener('click', function (event) {
         if (event.target.matches('.btn-show-integrator-help')) {
             showIntegratorHelpModal();
+        }
+        if (event.target.matches('.btn-run-integrator')) {
+            handleRunIntegrator(event);
+        }
+        if (event.target.matches('.integrator-tab-btn')) {
+            const btn = event.target;
+            const probeKey = btn.dataset.probeKey;
+            const tab = btn.dataset.tab;
+            
+            const tabContainer = btn.closest('.settings-field');
+            tabContainer.querySelectorAll('.integrator-tab-btn').forEach(b => {
+                b.classList.toggle('active', b === btn);
+                if (b === btn) {
+                    b.style.background = '#222';
+                    b.style.color = '#ccc';
+                } else {
+                    b.style.background = '#111';
+                    b.style.color = '#888';
+                }
+            });
+
+            const outputEl = document.getElementById(`integrator-probe-${probeKey}-output`);
+            const logsEl = document.getElementById(`integrator-probe-${probeKey}-logs`);
+            
+            if (tab === 'result') {
+                outputEl.style.display = 'block';
+                logsEl.style.display = 'none';
+            } else {
+                outputEl.style.display = 'none';
+                logsEl.style.display = 'block';
+            }
         }
     });
     container.addEventListener('submit', handleIntegratorProbesFormSubmit);
@@ -266,19 +334,33 @@ function createIntegratorProbeItemHTML(probeKey, probeData, isOpen = false) {
                         <div class="form-row">
                             ${generateIntegratorProbeField(probeKey, 'comment', probeData.comment, 'text', 'Commentaire')}
                         </div>
-                        <div class="settings-field">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                                <label for="integrator-probe-${probeKey}-fnModel">Fonction du modèle</label>
-                                <button type="button" class="btn-help btn-show-integrator-help">Aide</button>
+                        <div class="settings-field-container" style="display: flex; gap: 15px; flex-wrap: wrap;">
+                            <div class="settings-field" style="flex: 1; min-width: 300px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                    <label for="integrator-probe-${probeKey}-fnModel">Fonction du modèle</label>
+                                    <button type="button" class="btn-help btn-show-integrator-help">Aide</button>
+                                </div>
+                                <textarea id="integrator-probe-${probeKey}-fnModel" name="${probeKey}.fnModel" placeholder="Fonction du modèle" rows="30">${fnModelValue}</textarea>
                             </div>
-                            <textarea id="integrator-probe-${probeKey}-fnModel" name="${probeKey}.fnModel" placeholder="Fonction du modèle" rows="30">${fnModelValue}</textarea>
+                            <div class="settings-field" style="flex: 1; min-width: 300px; display: flex; flex-direction: column;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                    <div class="integrator-tabs" style="display: flex; gap: 5px;">
+                                        <button type="button" class="integrator-tab-btn active" data-tab="result" data-probe-key="${probeKey}" style="padding: 4px 12px; font-size: 0.85em; cursor: pointer; border: 1px solid #444; background: #222; color: #ccc; border-bottom: none; border-top-left-radius: 4px; border-top-right-radius: 4px;">Résultats</button>
+                                        <button type="button" class="integrator-tab-btn" data-tab="logs" data-probe-key="${probeKey}" style="padding: 4px 12px; font-size: 0.85em; cursor: pointer; border: 1px solid #444; background: #111; color: #888; border-bottom: none; border-top-left-radius: 4px; border-top-right-radius: 4px;">Logs</button>
+                                    </div>
+                                    <button type="button" class="btn-primary btn-run-integrator" data-probe-key="${probeKey}" style="height: 35px;width: 70px;padding: 4px 12px; font-size: 0.85em; cursor: pointer;">▶ Run</button>
+                                </div>
+                                <div class="integrator-tab-contents" style="position: relative; flex: 1; min-height: 460px;">
+                                    <pre id="integrator-probe-${probeKey}-output" class="hljs" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #23241f; color: #f8f8f2; border-radius: 4px; overflow: auto; margin: 0; font-family: monospace; font-size: 0.85em; border: 1px solid #333; white-space: pre-wrap; word-break: break-all; padding: 10px; box-sizing: border-box;"></pre>
+                                    <pre id="integrator-probe-${probeKey}-logs" class="hljs" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #23241f; color: #f8f8f2; border-radius: 4px; overflow: auto; margin: 0; font-family: monospace; font-size: 0.85em; border: 1px solid #333; white-space: pre-wrap; word-break: break-all; padding: 10px; box-sizing: border-box; display: none;"></pre>
+                                </div>
+                            </div>
                         </div>
                         <div class="form-row">
                             ${generateIntegratorProbeField(probeKey, 'scriptJS', (probeData.scriptJS || []).join(','), 'text', 'Scripts JS (séparés par une virgule)')}
                         </div>
                         <div class="form-row">
                             ${generatePeriodSelect(probeKey, 'contextPeriod', probeData.contextPeriod || 86400, 'Période de contexte de calcul')}
-                            ${generatePeriodSelect(probeKey, 'drawingPeriod', probeData.drawingPeriod || 604800, 'Période d\'affichage')}
                         </div>
                         <input type="hidden" name="${probeKey}.sensorDb" value="${probeData.sensorDb || probeKey}">
                     </div>
@@ -465,10 +547,12 @@ function parseFnModel(fnModelStr) {
 async function handleIntegratorProbesFormSubmit(event) {
     event.preventDefault();
     if (event.target.tagName !== 'FORM') return;
+    await submitIntegratorForm(event.target);
+}
 
-    const form = event.target;
+async function submitIntegratorForm(form) {
     const probeKey = form.dataset.probeKey;
-    if (!probeKey) return;
+    if (!probeKey) return false;
 
     showGlobalStatus(`Enregistrement de ${probeKey}...`, 'loading');
 
@@ -508,9 +592,11 @@ async function handleIntegratorProbesFormSubmit(event) {
             item.querySelector('.probe-label-preview').textContent = `(${probeData.label || 'N/A'})`;
             item.querySelector('.probe-measurement-preview').textContent = `(${probeData.measurement || 'None'})`;
         }
+        return true;
     } catch (error) {
         console.error('Erreur:', error);
         showGlobalStatus(`Erreur: ${error.message}`, 'error');
+        return false;
     }
 }
 
@@ -536,5 +622,132 @@ async function saveAllIntegratorProbesSettings(settings) {
     } catch (error) {
         console.error('Erreur:', error);
         showGlobalStatus(`Erreur: ${error.message}`, 'error');
+        throw error;
+    }
+}
+
+async function handleRunIntegrator(event) {
+    const button = event.target;
+    const probeKey = button.dataset.probeKey;
+    if (!probeKey || !selectedStation) return;
+
+    const form = button.closest('form');
+    if (!form) return;
+
+    const outputEl = document.getElementById(`integrator-probe-${probeKey}-output`);
+    const logsEl = document.getElementById(`integrator-probe-${probeKey}-logs`);
+    if (!outputEl) return;
+
+    // Bloquer le bouton Run
+    button.disabled = true;
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<div class="spinner" style="display: inline-block; margin-right: 8px; vertical-align: middle; width: 10px; height: 10px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 1s linear infinite;"></div>Saving...';
+
+    outputEl.textContent = "Sauvegarde du modèle en cours...";
+    if (logsEl) logsEl.textContent = "Sauvegarde du modèle en cours...";
+
+    // Simuler le clic pour le flash couleur sur le bouton Enregistrer
+    const submitBtn = form.querySelector('.settings-actions button[type="submit"]');
+    if (submitBtn) {
+        window.lastClickedButton = submitBtn;
+    }
+
+    const saveSuccess = await submitIntegratorForm(form);
+    if (!saveSuccess) {
+        outputEl.textContent = "Erreur lors de la sauvegarde automatique. Calcul annulé.";
+        if (logsEl) logsEl.textContent = "Erreur lors de la sauvegarde automatique. Calcul annulé.";
+        button.disabled = false;
+        button.innerHTML = originalHTML;
+        return;
+    }
+
+    outputEl.textContent = "Sauvegarde réussie. Calcul du modèle en cours...";
+    if (logsEl) logsEl.textContent = "Sauvegarde réussie. Calcul du modèle en cours...";
+    button.innerHTML = '<div class="spinner" style="display: inline-block; margin-right: 8px; vertical-align: middle; width: 10px; height: 10px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 1s linear infinite;"></div>Running...';
+
+    try {
+        const response = await fetch(`/api/station/${selectedStation.id}/integrator/build/${probeKey}`);
+        const result = await response.json();
+        
+        let logs = [];
+        let cleanResult = { ...result };
+        
+        if (result && Array.isArray(result.results)) {
+            const probeResult = result.results.find(r => r.probe === probeKey);
+            if (probeResult && Array.isArray(probeResult.logs)) {
+                logs = probeResult.logs;
+            }
+            cleanResult.results = result.results.map(r => {
+                const { logs, ...rest } = r;
+                return rest;
+            });
+        }
+
+        // Affichage des résultats
+        if (cleanResult && typeof cleanResult === 'object') {
+            const jsonString = JSON.stringify(cleanResult, null, 2);
+            try {
+                outputEl.innerHTML = hljs.highlight(jsonString, { language: 'json' }).value;
+            } catch (e) {
+                try {
+                    outputEl.innerHTML = hljs.highlightAuto(jsonString).value;
+                } catch (err) {
+                    outputEl.textContent = jsonString;
+                }
+            }
+        } else {
+            outputEl.textContent = String(cleanResult);
+        }
+
+        // Affichage des logs
+        if (logsEl) {
+            if (logs.length === 0) {
+                logsEl.innerHTML = '<span style="color: #888; font-style: italic;">Aucun log généré pour ce modèle.</span>';
+            } else {
+                let logsHTML = '';
+                logs.forEach(log => {
+                    const date = new Date(log.timestamp);
+                    const timeStr = !isNaN(date.getTime()) 
+                        ? date.toTimeString().split(' ')[0] + '.' + String(date.getMilliseconds()).padStart(3, '0')
+                        : '00:00:00.000';
+                    
+                    const levelStr = String(log.level).toUpperCase();
+                    
+                    let levelColor = '#888';
+                    let textColor = '#f8f8f2';
+                    if (log.level === 'error') {
+                        levelColor = '#ff5555';
+                        textColor = '#ff5555';
+                    } else if (log.level === 'warn') {
+                        levelColor = '#ffb86c';
+                        textColor = '#ffb86c';
+                    } else if (log.level === 'log') {
+                        levelColor = '#50fa7b';
+                        textColor = '#f8f8f2';
+                    }
+                    
+                    const formattedArgs = log.args.map(arg => {
+                        if (arg !== null && typeof arg === 'object') {
+                            return JSON.stringify(arg, null, 2);
+                        }
+                        return String(arg);
+                    }).join(' ');
+
+                    logsHTML += `<div style="margin-bottom: 8px; line-height: 1.4; border-left: 3px solid ${levelColor}; padding-left: 8px;">` +
+                                `<span style="color: #888;">[${timeStr}]</span> ` +
+                                `<span style="color: ${levelColor}; font-weight: bold;">[${levelStr}]</span> ` +
+                                `<span style="color: ${textColor}; white-space: pre-wrap;">${formattedArgs}</span>` +
+                                `</div>`;
+                });
+                logsEl.innerHTML = logsHTML;
+            }
+        }
+    } catch (error) {
+        console.error("Erreur lors de l'exécution du modèle:", error);
+        outputEl.textContent = `Erreur: ${error.message}`;
+        if (logsEl) logsEl.textContent = `Erreur: ${error.message}`;
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalHTML;
     }
 }
