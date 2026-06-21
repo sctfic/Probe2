@@ -991,6 +991,9 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             chunkStart.setDate(chunkStart.getDate() + 1);
         }
 
+        // Inverser l'ordre des tranches pour traiter les plus récentes d'abord
+        dateRanges.reverse();
+
         console.log(V.info, `Découpage de l'importation historique en ${dateRanges.length} tranches de 3 ans maximum.`);
 
         let totalPointsWritten = 0;
