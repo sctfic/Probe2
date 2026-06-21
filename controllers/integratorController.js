@@ -718,12 +718,24 @@ exports.runIntegrator = async (req, res) => {
                 const probeLogs = [];
                 const customConsole = {
                     log: (...args) => {
-                        console.log(`[INTEGRATOR VM DEBUG - ${probeKey}]`, ...args);
+                        console.log(`[INTEGRATOR VM LOG - ${probeKey}]`, ...args);
                         probeLogs.push({ level: 'log', timestamp: new Date().toISOString(), args: args.length === 1 ? args[0] : args });
                     },
                     error: (...args) => {
                         console.error(`[INTEGRATOR VM ERROR - ${probeKey}]`, ...args);
                         probeLogs.push({ level: 'error', timestamp: new Date().toISOString(), args: args.length === 1 ? args[0] : args });
+                    },
+                    debug: (...args) => {
+                        console.debug(`[INTEGRATOR VM DEBUG - ${probeKey}]`, ...args);
+                        probeLogs.push({ level: 'debug', timestamp: new Date().toISOString(), args: args.length === 1 ? args[0] : args });
+                    },
+                    warn: (...args) => {
+                        console.warn(`[INTEGRATOR VM WARN - ${probeKey}]`, ...args);
+                        probeLogs.push({ level: 'warn', timestamp: new Date().toISOString(), args: args.length === 1 ? args[0] : args });
+                    },
+                    info: (...args) => {
+                        console.info(`[INTEGRATOR VM INFO - ${probeKey}]`, ...args);
+                        probeLogs.push({ level: 'info', timestamp: new Date().toISOString(), args: args.length === 1 ? args[0] : args });
                     }
                 };
 

@@ -7,7 +7,7 @@ let integratorUnitCategories = {};
 
 // Enregistrement du langage JSON pour highlight.js s'il n'est pas présent
 if (window.hljs && !hljs.getLanguage('json')) {
-    hljs.registerLanguage('json', function(hljs) {
+    hljs.registerLanguage('json', function (hljs) {
         return {
             name: 'JSON',
             contains: [
@@ -38,15 +38,17 @@ if (window.hljs && !hljs.getLanguage('json')) {
 }
 
 const PERIOD_OPTIONS = [
-    { label: '5 minutes', value: 300 },
-    { label: '30 minutes', value: 1800 },
-    { label: '1 heure', value: 3600 },
-    { label: '6 heures', value: 21600 },
-    { label: '12 heures', value: 43200 },
-    { label: '1 jour', value: 86400 },
-    { label: '1 semaine', value: 604800 },
-    { label: '2 semaines', value: 1209600 },
-    { label: '1 mois', value: 2592000 }
+    // { label: '5 minutes', value: 300 },
+    // { label: '30 minutes', value: 1800 },
+    // { label: '1 heure', value: 3600 },
+    { label: '6 heures avant / 6h après', value: 21600 },
+    { label: '12 heures avant / 12h après', value: 43200 },
+    { label: '1 jour avant / 1 jour après', value: 86400 },
+    { label: '1 semaine avant / 1 semaine après', value: 604800 },
+    { label: '2 semaines avant / max après', value: 1209600 },
+    { label: '1 mois avant / max après', value: 2592000 },
+    { label: '6 mois avant / max après', value: 15552000 },
+    { label: '1 an avant / max après', value: 31536000 }
 ];
 
 let integratorJsCompletions = [
@@ -79,13 +81,12 @@ const INTEGRATOR_HELP_CONTENT_HTML = `
     <ul>
         <li><strong>Numérique</strong> : Retourne un simple nombre (arrondi à 1 décimale).</li>
         <li><strong>Vecteur</strong> : Si type <code>vector</code>, objet <code>{ Ux, Vy, Value? }</code>.</li>
-        <li><strong>Multi-mesures</strong> : Si type <code>None</code>, objet avec clés <code>Meas:sensor</code>.</li>
+        <li><strong>Multi-mesures</strong> : Si type <code>None</code>, objet avec clés <code>Mean:sensor</code>.</li>
     </ul>
 
     <h4>Détails des paramètres Stats</h4>
     <ul>
         <li><code>field</code> : Chaîne identifiant le capteur (ex: <code>'temperature:outTemp'</code>).</li>
-        <li><code>window</code> : Nombre de points pour la moyenne mobile (défaut: 5).</li>
         <li><code>scope</code> : <code>'past'</code> (passé), <code>'future'</code> (prévisions), <code>'all'</code> (total).</li>
     </ul>
 
@@ -94,16 +95,14 @@ const INTEGRATOR_HELP_CONTENT_HTML = `
         <li><code>Stats.current(data, field)</code> : Valeur au point "now".</li>
         <li><code>Stats.mean(data, field, scope)</code>, <code>Stats.min()</code>, <code>Stats.max()</code>, <code>Stats.sum()</code></li>
         <li><code>Stats.first(data, field, scope)</code>, <code>Stats.last(data, field, scope)</code></li>
-        <li><code>Stats.trend(data, field, scope)</code> : Différence last - first sur le scope.</li>
         <li><code>Stats.movingAverage(data, field, window, scope)</code> : Moyenne mobile.</li>
         <li><code>Stats.linearSlope(data, field, scope)</code> : Pente de régression linéaire.</li>
-        <li><code>Stats.cagr(data, field, scope)</code> : Taux de croissance composé annuel.</li>
         <li><code>Stats.mannKendall(data, field, scope)</code> : Test de tendance monotone.</li>
-        <li><code>Stats.split(data)</code> : Retourne <code>{ past: [], future: [] }</code>.</li>
-        <li><code>Stats.ExtremeEpisodeDetector(data, field)</code> : Détecteur d'épisodes météo favorables (cherche simultanément les pics et les creux).</li>
-        <li><code>Stats.nextPeak(data, field)</code> : Prochain pic favorable (valeurs hautes) à venir (dont le temps de fin n'est pas dépassé).</li>
-        <li><code>Stats.nextTrough(data, field)</code> : Prochain creux favorable (valeurs basses) à venir (dont le temps de fin n'est pas dépassé).</li>
-        <li><code>Stats.nextEpisode(data, field)</code> : Prochain épisode favorable (pic ou creux) à venir (dont le temps de fin n'est pas dépassé).</li>
+        <li><code>Stats.split(data)</code> : Retourne <code>{ past: [], current: [], future: [] }</code>.</li>
+        <li><code>Stats.ExtremeEpisodeDetector(data, field)</code> : Détecteur les bosses et les creux</li>
+        <li><code>Stats.nextPeak(data, field)</code> : Prochaine bosse (pas totalement écoulé).</li>
+        <li><code>Stats.nextTrough(data, field)</code> : Prochain creux (pas totalement écoulé).</li>
+        <li><code>Stats.nextEpisode(data, field)</code> : Le Prochain épisode (bosse ou creux).</li>
     </ul>
 
     <h4>Exemple</h4>
@@ -260,22 +259,25 @@ function displayIntegratorProbesList(settings) {
             const btn = event.target;
             const probeKey = btn.dataset.probeKey;
             const tab = btn.dataset.tab;
-            
+
             const tabContainer = btn.closest('.settings-field');
             tabContainer.querySelectorAll('.integrator-tab-btn').forEach(b => {
-                b.classList.toggle('active', b === btn);
-                if (b === btn) {
-                    b.style.background = '#222';
+                const isActive = (b === btn);
+                b.classList.toggle('active', isActive);
+                if (isActive) {
+                    b.style.background = '#23241f';
                     b.style.color = '#ccc';
+                    b.style.borderBottom = '3px solid #4DC0E0';
                 } else {
                     b.style.background = '#111';
                     b.style.color = '#888';
+                    b.style.borderBottom = 'none';
                 }
             });
 
             const outputEl = document.getElementById(`integrator-probe-${probeKey}-output`);
             const logsEl = document.getElementById(`integrator-probe-${probeKey}-logs`);
-            
+
             if (tab === 'result') {
                 outputEl.style.display = 'block';
                 logsEl.style.display = 'none';
@@ -344,9 +346,9 @@ function createIntegratorProbeItemHTML(probeKey, probeData, isOpen = false) {
                             </div>
                             <div class="settings-field" style="flex: 1; min-width: 300px; display: flex; flex-direction: column;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                                    <div class="integrator-tabs" style="display: flex; gap: 5px;">
-                                        <button type="button" class="integrator-tab-btn active" data-tab="result" data-probe-key="${probeKey}" style="padding: 4px 12px; font-size: 0.85em; cursor: pointer; border: 1px solid #444; background: #222; color: #ccc; border-bottom: none; border-top-left-radius: 4px; border-top-right-radius: 4px;">Résultats</button>
-                                        <button type="button" class="integrator-tab-btn" data-tab="logs" data-probe-key="${probeKey}" style="padding: 4px 12px; font-size: 0.85em; cursor: pointer; border: 1px solid #444; background: #111; color: #888; border-bottom: none; border-top-left-radius: 4px; border-top-right-radius: 4px;">Logs</button>
+                                    <div class="integrator-tabs" style="display: flex; gap: 5px; margin-bottom: -15px; z-index: 10; position: relative;">
+                                        <button type="button" class="integrator-tab-btn active" data-tab="result" data-probe-key="${probeKey}" style="padding: 4px 12px; font-size: 0.85em; cursor: pointer; border: 1px solid #444; border-bottom: 3px solid #4DC0E0; background: #23241f; color: #ccc; height: 32px;width: 120px;">Résultats</button>
+                                        <button type="button" class="integrator-tab-btn" data-tab="logs" data-probe-key="${probeKey}" style="padding: 4px 12px; font-size: 0.85em; cursor: pointer; border: 1px solid #444; border-bottom: none; background: #111; color: #888; height: 32px;width: 120px;">Logs</button>
                                     </div>
                                     <button type="button" class="btn-primary btn-run-integrator" data-probe-key="${probeKey}" style="height: 35px;width: 70px;padding: 4px 12px; font-size: 0.85em; cursor: pointer;">▶ Run</button>
                                 </div>
@@ -357,10 +359,8 @@ function createIntegratorProbeItemHTML(probeKey, probeData, isOpen = false) {
                             </div>
                         </div>
                         <div class="form-row">
-                            ${generateIntegratorProbeField(probeKey, 'scriptJS', (probeData.scriptJS || []).join(','), 'text', 'Scripts JS (séparés par une virgule)')}
-                        </div>
-                        <div class="form-row">
                             ${generatePeriodSelect(probeKey, 'contextPeriod', probeData.contextPeriod || 86400, 'Période de contexte de calcul')}
+                            ${generateIntegratorProbeField(probeKey, 'scriptJS', (probeData.scriptJS || []).join(','), 'text', 'Scripts JS (séparés par une virgule)')}
                         </div>
                         <input type="hidden" name="${probeKey}.sensorDb" value="${probeData.sensorDb || probeKey}">
                     </div>
@@ -668,10 +668,10 @@ async function handleRunIntegrator(event) {
     try {
         const response = await fetch(`/api/station/${selectedStation.id}/integrator/build/${probeKey}`);
         const result = await response.json();
-        
+
         let logs = [];
         let cleanResult = { ...result };
-        
+
         if (result && Array.isArray(result.results)) {
             const probeResult = result.results.find(r => r.probe === probeKey);
             if (probeResult && Array.isArray(probeResult.logs)) {
@@ -707,12 +707,12 @@ async function handleRunIntegrator(event) {
                 let logsHTML = '';
                 logs.forEach(log => {
                     const date = new Date(log.timestamp);
-                    const timeStr = !isNaN(date.getTime()) 
+                    const timeStr = !isNaN(date.getTime())
                         ? date.toTimeString().split(' ')[0] + '.' + String(date.getMilliseconds()).padStart(3, '0')
                         : '00:00:00.000';
-                    
+
                     const levelStr = String(log.level).toUpperCase();
-                    
+
                     let levelColor = '#888';
                     let textColor = '#f8f8f2';
                     if (log.level === 'error') {
@@ -721,12 +721,19 @@ async function handleRunIntegrator(event) {
                     } else if (log.level === 'warn') {
                         levelColor = '#ffb86c';
                         textColor = '#ffb86c';
+                    } else if (log.level === 'info') {
+                        levelColor = '#8be9fd';
+                        textColor = '#8be9fd';
+                    } else if (log.level === 'debug') {
+                        levelColor = '#bd93f9';
+                        textColor = '#bd93f9';
                     } else if (log.level === 'log') {
                         levelColor = '#50fa7b';
                         textColor = '#f8f8f2';
                     }
-                    
-                    const formattedArgs = log.args.map(arg => {
+
+                    const argsArray = Array.isArray(log.args) ? log.args : [log.args];
+                    const formattedArgs = argsArray.map(arg => {
                         if (arg !== null && typeof arg === 'object') {
                             return JSON.stringify(arg, null, 2);
                         }
@@ -734,10 +741,10 @@ async function handleRunIntegrator(event) {
                     }).join(' ');
 
                     logsHTML += `<div style="margin-bottom: 8px; line-height: 1.4; border-left: 3px solid ${levelColor}; padding-left: 8px;">` +
-                                `<span style="color: #888;">[${timeStr}]</span> ` +
-                                `<span style="color: ${levelColor}; font-weight: bold;">[${levelStr}]</span> ` +
-                                `<span style="color: ${textColor}; white-space: pre-wrap;">${formattedArgs}</span>` +
-                                `</div>`;
+                        `<span style="color: #888;">[${timeStr}]</span> ` +
+                        `<span style="color: ${levelColor}; font-weight: bold;">[${levelStr}]</span> ` +
+                        `<span style="color: ${textColor}; white-space: pre-wrap;">${formattedArgs}</span>` +
+                        `</div>`;
                 });
                 logsEl.innerHTML = logsHTML;
             }

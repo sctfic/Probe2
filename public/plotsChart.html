@@ -569,25 +569,11 @@
                         updateUrl(); // Mettre à jour l'ordre dans l'URL
                         renderSensorUI();
                         // Forcer la mise en évidence
-                        if (plotInstance && plotInstance.g) {
+                        if (plotInstance) {
+                            plotInstance.highlightSensor(selectedSensor);
                             if (selectedSensor) {
-                                plotInstance.g.selectAll('.line')
-                                    .style("opacity", 1)
-                                    .transition()
-                                    .duration(750)
-                                    .style('opacity', 0.1);
-
-                                plotInstance.g.selectAll(`[class*="line-${selectedSensor.replace(":", "_")}"]`)
-                                    .transition()
-                                    .duration(750)
-                                    .style('opacity', 1);
-
                                 showStats(selectedSensor, color, plotInstance);
                             } else {
-                                plotInstance.g.selectAll('.line')
-                                    .transition()
-                                    .duration(750)
-                                    .style('opacity', 1);
                                 hideStats();
                             }
                         }
@@ -604,10 +590,7 @@
                         if (plotInstance && plotInstance.g) {
                             plotInstance.g.selectAll(`[class*="line-${sensorId}"]`).remove();
                             // Restaurer l'opacité des lignes restantes
-                            plotInstance.g.selectAll('.line').style('opacity', selectedSensor ? 0.1 : 1);
-                            if (selectedSensor) {
-                                plotInstance.g.selectAll(`[class*="line-${selectedSensor.replace(":", "_")}"]`).style('opacity', 1);
-                            }
+                            plotInstance.highlightSensor(selectedSensor);
                         }
 
                         updateUrl(); // Centralise maintenant la sync metadata
@@ -624,35 +607,20 @@
                     // Hover handler pour la surbrillance
                     btn.addEventListener('mouseenter', () => {
                         const plotInstance = container.__current_plot_instance;
-                        if (plotInstance && plotInstance.g) {
-                            // Griser les autres lignes
-                            plotInstance.g.selectAll('.line')
-                                .style('opacity', 0.1);
-                            // Mettre en évidence cette ligne (y compris segments before/after)
-                            plotInstance.g.selectAll(`[class*="line-${sensorId}"]`)
-                                .style('opacity', 1);
-
+                        if (plotInstance) {
+                            plotInstance.highlightSensor(sensor);
                             showStats(sensor, color, plotInstance);
                         }
                     });
 
                     btn.addEventListener('mouseleave', () => {
                         const plotInstance = container.__current_plot_instance;
-                        if (plotInstance && plotInstance.g) {
-                            // Si un autre capteur est sélectionné, on restaure SA surbrillance
-                            if (selectedSensor && selectedSensor !== sensor) {
+                        if (plotInstance) {
+                            plotInstance.highlightSensor(selectedSensor);
+                            if (selectedSensor) {
                                 const selId = selectedSensor.replace(":", "_");
-                                plotInstance.g.selectAll('.line').style('opacity', 0.1);
-                                plotInstance.g.selectAll(`[class*="line-${selId}"]`).style('opacity', 1);
                                 showStats(selectedSensor, plotInstance.colorScale(selId), plotInstance);
-                            } else if (selectedSensor === sensor) {
-                                // On reste surbrillant si c'est celui sélectionné
-                                plotInstance.g.selectAll('.line').style('opacity', 0.1);
-                                plotInstance.g.selectAll(`[class*="line-${sensorId}"]`).style('opacity', 1);
-                                showStats(sensor, color, plotInstance);
                             } else {
-                                // Restaurer tout
-                                plotInstance.g.selectAll('.line').style('opacity', 1);
                                 hideStats();
                             }
                         }
@@ -748,19 +716,10 @@
                             if (selectedSensor) {
                                 const sensorId = selectedSensor.replace(":", "_");
                                 const color = plotInstance.colorScale(sensorId);
-
-                                // Restaurer la surbrillance avec transition (un peu plus rapide pour le redraw)
-                                plotInstance.g.selectAll('.line')
-                                    .transition()
-                                    .duration(300)
-                                    .style('opacity', 0.1);
-
-                                plotInstance.g.selectAll(`[class*="line-${sensorId}"]`)
-                                    .transition()
-                                    .duration(300)
-                                    .style('opacity', 1);
-
+                                plotInstance.highlightSensor(selectedSensor);
                                 showStats(selectedSensor, color, plotInstance);
+                            } else {
+                                plotInstance.highlightSensor(null);
                             }
                         };
 

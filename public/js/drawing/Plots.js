@@ -381,6 +381,9 @@ class TimeSeriesPlot {
                 const sensorId = sensor.replace(":", "_");
                 const solidColor = this.colorScale(sensorId);
 
+                // Calculer la moyenne mobile sur 24h (fenêtre centrée [-12h, +12h])
+                const mvData = this.computeMovingAverage(filteredData, sensor);
+
                 if (showNowEffects) {
                     // Séparer les données avant et après "now"
                     const beforeNow = filteredData.filter(d => d.datetime <= now);
@@ -424,6 +427,49 @@ class TimeSeriesPlot {
                             .duration(500)
                             .style("opacity", 1);
                     }
+
+                    // Tracé de la moyenne mobile avant/après "now"
+                    if (mvData.length >= 2) {
+                        const mvBeforeNow = mvData.filter(d => d.datetime <= now);
+                        const mvAfterNow = mvData.filter(d => d.datetime >= now);
+
+                        if (mvBeforeNow.length >= 2) {
+                            const mvLineBefore = d3.line()
+                                .x(d => this.xScale(d.datetime))
+                                .y(d => scaleInfo.scale(d.value))
+                                .defined(d => d.value !== null && d.value !== undefined && !isNaN(d.value))
+                                .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
+
+                            linesGroup.append("path")
+                                .datum(mvBeforeNow)
+                                .attr("class", `line line-mv line-${sensorId}-mv-before`)
+                                .attr("d", mvLineBefore)
+                                .style("stroke", solidColor)
+                                .style("opacity", 0)
+                                .transition()
+                                .duration(500)
+                                .style("opacity", 0.6);
+                        }
+
+                        if (mvAfterNow.length >= 2) {
+                            const mvLineAfter = d3.line()
+                                .x(d => this.xScale(d.datetime))
+                                .y(d => scaleInfo.scale(d.value))
+                                .defined(d => d.value !== null && d.value !== undefined && !isNaN(d.value))
+                                .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
+
+                            linesGroup.append("path")
+                                .datum(mvAfterNow)
+                                .attr("class", `line line-mv line-${sensorId}-mv-after`)
+                                .attr("d", mvLineAfter)
+                                .style("stroke", `url(#gradient-${this.id}-${sensorId})`)
+                                .style("filter", `url(#blur-${this.id})`)
+                                .style("opacity", 0)
+                                .transition()
+                                .duration(500)
+                                .style("opacity", 0.6);
+                        }
+                    }
                 } else {
                     // Ligne normale sans effets
                     const line = d3.line()
@@ -441,6 +487,25 @@ class TimeSeriesPlot {
                         .transition()
                         .duration(500)
                         .style("opacity", 1);
+
+                    // Moyenne mobile normale
+                    if (mvData.length >= 2) {
+                        const mvLine = d3.line()
+                            .x(d => this.xScale(d.datetime))
+                            .y(d => scaleInfo.scale(d.value))
+                            .defined(d => d.value !== null && d.value !== undefined && !isNaN(d.value))
+                            .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
+
+                        linesGroup.append("path")
+                            .datum(mvData)
+                            .attr("class", `line line-mv line-${sensorId}-mv`)
+                            .attr("d", mvLine)
+                            .style("stroke", solidColor)
+                            .style("opacity", 0)
+                            .transition()
+                            .duration(500)
+                            .style("opacity", 0.6);
+                    }
                 }
             });
         });
@@ -708,6 +773,9 @@ class TimeSeriesPlot {
                 const sensorId = sensor.replace(":", "_");
                 const solidColor = this.colorScale(sensorId);
 
+                // Calculer la moyenne mobile sur 24h (fenêtre centrée [-12h, +12h])
+                const mvData = this.computeMovingAverage(filteredData, sensor);
+
                 if (showNowEffects) {
                     // Séparer les données avant et après "now"
                     const beforeNow = filteredData.filter(d => d.datetime <= now);
@@ -757,6 +825,59 @@ class TimeSeriesPlot {
                                 .style("opacity", 1);
                         }
                     }
+
+                    // Moyenne mobile avant/après "now"
+                    if (mvData.length >= 2) {
+                        const mvBeforeNow = mvData.filter(d => d.datetime <= now);
+                        const mvAfterNow = mvData.filter(d => d.datetime >= now);
+
+                        if (mvBeforeNow.length >= 2) {
+                            const mvLineBefore = d3.line()
+                                .x(d => this.xScale(d.datetime))
+                                .y(d => scaleInfo.scale(d.value))
+                                .defined(d => d.value !== null && d.value !== undefined && !isNaN(d.value))
+                                .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
+
+                            const pathMvBefore = linesGroup.append("path")
+                                .datum(mvBeforeNow)
+                                .attr("class", `line line-mv line-${sensorId}-mv-before`)
+                                .attr("d", mvLineBefore)
+                                .style("stroke", solidColor);
+
+                            if (withTransition) {
+                                pathMvBefore.style("opacity", 0)
+                                    .transition()
+                                    .duration(750)
+                                    .style("opacity", 0.6);
+                            } else {
+                                pathMvBefore.style("opacity", 0.6);
+                            }
+                        }
+
+                        if (mvAfterNow.length >= 2) {
+                            const mvLineAfter = d3.line()
+                                .x(d => this.xScale(d.datetime))
+                                .y(d => scaleInfo.scale(d.value))
+                                .defined(d => d.value !== null && d.value !== undefined && !isNaN(d.value))
+                                .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
+
+                            const pathMvAfter = linesGroup.append("path")
+                                .datum(mvAfterNow)
+                                .attr("class", `line line-mv line-${sensorId}-mv-after`)
+                                .attr("d", mvLineAfter)
+                                .style("stroke", `url(#gradient-${this.id}-${sensorId})`)
+                                .style("filter", `url(#blur-${this.id})`);
+
+                            if (withTransition) {
+                                pathMvAfter.style("opacity", 0)
+                                    .transition()
+                                    .duration(750)
+                                    .style("opacity", 0.6);
+                            } else {
+                                pathMvAfter.style("opacity", 0.6);
+                            }
+                        }
+                    }
                 } else {
                     // Ligne normale sans effets
                     const line = d3.line()
@@ -776,6 +897,30 @@ class TimeSeriesPlot {
                             .transition()
                             .duration(750)
                             .style("opacity", 1);
+                    }
+
+                    // Moyenne mobile normale sans effets
+                    if (mvData.length >= 2) {
+                        const mvLine = d3.line()
+                            .x(d => this.xScale(d.datetime))
+                            .y(d => scaleInfo.scale(d.value))
+                            .defined(d => d.value !== null && d.value !== undefined && !isNaN(d.value))
+                            .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
+
+                        const pathMv = linesGroup.append("path")
+                            .datum(mvData)
+                            .attr("class", `line line-mv line-${sensorId}-mv`)
+                            .attr("d", mvLine)
+                            .style("stroke", solidColor);
+
+                        if (withTransition) {
+                            pathMv.style("opacity", 0)
+                                .transition()
+                                .duration(750)
+                                .style("opacity", 0.6);
+                        } else {
+                            pathMv.style("opacity", 0.6);
+                        }
                     }
                 }
             });
@@ -1029,6 +1174,80 @@ class TimeSeriesPlot {
         this.updateAxes();
         this.createNowLine();
         this.updateLines(false);
+    }
+
+    // Calcule la moyenne mobile centrée temporelle (24 heures par défaut, soit -12h à +12h)
+    computeMovingAverage(filteredData, sensor, windowMs = 24 * 60 * 60 * 1000) {
+        const halfWindowMs = windowMs / 2;
+        const result = [];
+        for (let i = 0; i < filteredData.length; i++) {
+            const currentT = filteredData[i].datetime.getTime();
+            const minT = currentT - halfWindowMs;
+            const maxT = currentT + halfWindowMs;
+            let sum = 0;
+            let count = 0;
+
+            // Reculer à partir de i
+            for (let j = i; j >= 0; j--) {
+                if (filteredData[j].datetime.getTime() < minT) {
+                    break;
+                }
+                const val = filteredData[j][sensor];
+                if (val !== null && val !== undefined && !isNaN(val)) {
+                    sum += val;
+                    count++;
+                }
+            }
+
+            // Avancer à partir de i + 1
+            for (let j = i + 1; j < filteredData.length; j++) {
+                if (filteredData[j].datetime.getTime() > maxT) {
+                    break;
+                }
+                const val = filteredData[j][sensor];
+                if (val !== null && val !== undefined && !isNaN(val)) {
+                    sum += val;
+                    count++;
+                }
+            }
+
+            if (count > 0) {
+                result.push({
+                    datetime: filteredData[i].datetime,
+                    value: sum / count
+                });
+            }
+        }
+        return result;
+    }
+
+    // Gère la surbrillance d'un capteur spécifique en modifiant l'opacité
+    highlightSensor(sensorName) {
+        if (!this.g) return;
+        const targetSensorId = sensorName ? sensorName.replace(":", "_") : null;
+
+        this.g.selectAll('.line')
+            .transition()
+            .duration(300)
+            .style('opacity', function () {
+                const isMv = d3.select(this).classed('line-mv');
+                if (!targetSensorId) {
+                    return isMv ? 0.6 : 1.0;
+                }
+
+                const isTarget = d3.select(this).classed(`line-${targetSensorId}`) ||
+                                 d3.select(this).classed(`line-${targetSensorId}-before`) ||
+                                 d3.select(this).classed(`line-${targetSensorId}-after`) ||
+                                 d3.select(this).classed(`line-${targetSensorId}-mv`) ||
+                                 d3.select(this).classed(`line-${targetSensorId}-mv-before`) ||
+                                 d3.select(this).classed(`line-${targetSensorId}-mv-after`);
+
+                if (isTarget) {
+                    return isMv ? 0.6 : 1.0;
+                } else {
+                    return 0.1;
+                }
+            });
     }
 }
 
