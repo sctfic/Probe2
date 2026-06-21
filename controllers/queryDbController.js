@@ -840,17 +840,18 @@ async function processAndWriteHistoricalData(openMeteoData, stationId, stationCo
     console.log(`${V.gear} Traitement de ${time.length} points de données en ordre inversé...`);
 
     const writeApi = influxdbService.createWriteApi('Archives');
-    let pointsChunk = [];
+    let pointsChunk = []; // Tableau de chaînes de caractères au format Line Protocol
     let totalPointsWritten = 0;
     const CHUNK_SIZE_DAYS = 31;
     let currentChunkEndDate = time.length > 0 ? new Date(time[time.length - 1] * 1000) : null;
-    let chunkCount = 0;
+    const nsMultiplier = 1000000;
 
     try {
         // Parcourir de la fin (plus récent) vers le début (plus ancien)
         for (let i = time.length - 1; i >= 0; i--) {
             const timestamp = new Date(time[i] * 1000);
             timestamp.setMinutes(0, 0, 0);
+            const tsNs = timestamp.getTime() * nsMultiplier;
 
             for (const [openMeteoKey, values] of Object.entries(metrics)) {
                 const value = values[i];
@@ -858,12 +859,7 @@ async function processAndWriteHistoricalData(openMeteoData, stationId, stationCo
                     const { type, sensor, convert } = mapping[openMeteoKey];
                     const metricValue = convert ? convert(value) : value;
                     for (const s of sensor) {
-                        pointsChunk.push(new influxdbService.Point(type)
-                            .tag('station_id', stationId)
-                            .tag('sensor', s)
-                            .tag('source', 'rebuildedHistoricalData')
-                            .floatField('value', metricValue.toFixed(2))
-                            .timestamp(timestamp));
+                        pointsChunk.push(`${type},station_id=${stationId},sensor=${s},source=rebuildedHistoricalData value=${metricValue.toFixed(2)} ${tsNs}`);
                     }
                 }
             }
@@ -876,13 +872,7 @@ async function processAndWriteHistoricalData(openMeteoData, stationId, stationCo
                     const WindMs = Wind / 3.6;
                     const UxWind = Math.round(WindMs * Math.sin(Math.PI * WindDir / 180.0) * 1000) / 1000;
                     const VyWind = Math.round(WindMs * Math.cos(Math.PI * WindDir / 180.0) * 1000) / 1000;
-                    pointsChunk.push(new influxdbService.Point('vector')
-                        .tag('station_id', stationId)
-                        .floatField('Ux', UxWind)
-                        .floatField('Vy', VyWind)
-                        .tag('sensor', 'Wind')
-                        .tag('source', 'rebuildedHistoricalData')
-                        .timestamp(timestamp));
+                    pointsChunk.push(`vector,station_id=${stationId},sensor=Wind,source=rebuildedHistoricalData Ux=${UxWind},Vy=${VyWind} ${tsNs}`);
                 }
             }
 
@@ -893,13 +883,7 @@ async function processAndWriteHistoricalData(openMeteoData, stationId, stationCo
                     const GustMs = Gust / 3.6;
                     const UxGust = Math.round(GustMs * Math.sin(Math.PI * GustDir / 180.0) * 1000) / 1000;
                     const VyGust = Math.round(GustMs * Math.cos(Math.PI * GustDir / 180.0) * 1000) / 1000;
-                    pointsChunk.push(new influxdbService.Point('vector')
-                        .tag('station_id', stationId)
-                        .floatField('Ux', UxGust)
-                        .floatField('Vy', VyGust)
-                        .tag('sensor', 'Gust')
-                        .tag('source', 'rebuildedHistoricalData')
-                        .timestamp(timestamp));
+                    pointsChunk.push(`vector,station_id=${stationId},sensor=Gust,source=rebuildedHistoricalData Ux=${UxGust},Vy=${VyGust} ${tsNs}`);
                 }
             }
 
@@ -907,11 +891,10 @@ async function processAndWriteHistoricalData(openMeteoData, stationId, stationCo
 
             // Écrire le lot si on a accumulé CHUNK_SIZE_DAYS ou si on est à la fin (i === 0)
             if (pointsChunk.length > 0 && (daysDiff >= CHUNK_SIZE_DAYS || i === 0)) {
-                writeApi.writePoints(pointsChunk);
+                writeApi.writeRecords(pointsChunk);
                 const writtenCount = pointsChunk.length;
                 totalPointsWritten += writtenCount;
                 pointsChunk.length = 0;
-                chunkCount++;
 
                 // Mise à jour de la configuration de la station pour refléter la progression
                 if (!stationConfig.historical) stationConfig.historical = {};
@@ -927,13 +910,12 @@ async function processAndWriteHistoricalData(openMeteoData, stationId, stationCo
                 configManager.autoSaveConfig(stationConfig);
                 currentChunkEndDate = i > 0 ? new Date(time[i - 1] * 1000) : null;
 
-                // Effectuer un flush réseau uniquement toutes les 10 itérations ou sur la dernière itération
-                if (chunkCount % 10 === 0 || i === 0) {
-                    console.log(V.database, `Flush de la file d'attente InfluxDB... (Remonté jusqu'à ${timestamp.toISOString()})`);
-                    await writeApi.flush();
-                    // Pause asynchrone courte pour laisser respirer l'Event Loop et permettre au Garbage Collector de s'exécuter
-                    await new Promise(resolve => setTimeout(resolve, 50));
-                }
+                // Flusher immédiatement le lot pour libérer le cache interne de la WriteApi et éviter la surcharge d'InfluxDB
+                await writeApi.flush();
+                console.log(V.database, `Écrit et flushé ${writtenCount} records... (Remonté jusqu'à ${timestamp.toISOString()})`, V.Check);
+
+                // Pause asynchrone courte pour laisser respirer l'Event Loop et permettre au Garbage Collector de s'exécuter
+                await new Promise(resolve => setTimeout(resolve, 30));
             }
         }
     } finally {
