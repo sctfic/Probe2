@@ -38,6 +38,9 @@ const Stats = {
     _resampledCache: {},
     _lastDataEpisodes: null,
     _episodesCache: {},
+    _lastMovingAverageData: null,
+    _movingAverageCache: {},
+
 
     _getNow(data) {
         const ms5Min = 5 * 60 * 1000;
@@ -200,22 +203,71 @@ const Stats = {
     },
 
     /**
-     * Calcule la moyenne mobile simple d'une série de valeurs.
-     * 
+     * Convertit une chaîne de fenêtre temporelle en nombre de steps de 5 minutes.
+     * Formats supportés : '120min', '24h', '1d', '2w', ou un nombre brut (rétrocompatible).
+     * @param {string|number} window - La fenêtre temporelle.
+     * @returns {number} Le nombre de steps de 5 minutes.
+     */
+    _parseWindowToSteps(window) {
+        if (typeof window === 'number') return Math.max(1, Math.round(window));
+        if (typeof window !== 'string') return 1;
+
+        const match = window.trim().match(/^(\d+(?:\.\d+)?)\s*(min|h|d|w)$/i);
+        if (!match) throw new Error(`[Stats._parseWindowToSteps] Format de fenêtre invalide : '${window}'. Utiliser ex: '120min', '24h', '1d', '2w'.`);
+
+        const value = parseFloat(match[1]);
+        const unit = match[2].toLowerCase();
+        let minutes;
+        switch (unit) {
+            case 'min': minutes = value; break;
+            case 'h': minutes = value * 60; break;
+            case 'd': minutes = value * 24 * 60; break;
+            case 'w': minutes = value * 7 * 24 * 60; break;
+            default: minutes = value; break;
+        }
+        return Math.max(1, Math.round(minutes / 5));
+    },
+
+    /**
+     * Calcule la moyenne mobile centrée d'une série temporelle rééchantillonnée.
+     * La fenêtre est centrée sur [t - window/2, t + window/2].
+     *
      * @param {Array} data - Les données brutes ou déjà rééchantillonnées.
      * @param {string} field - Le champ sur lequel calculer la moyenne mobile.
-     * @param {number} [window=5] - La taille de la fenêtre de calcul (nombre de points).
+     * @param {string|number} [window='24h'] - La taille de la fenêtre ('120min', '24h', '1d', '2w', ou nombre de steps).
      * @param {string} [scope='all'] - Le scope temporel à appliquer ('all', 'past', 'current', 'future').
-     * @returns {Array<number>} Un tableau contenant les moyennes mobiles calculées.
+     * @returns {Array<{t: number, v: number}>} Tableau de points lissés avec timestamps.
      */
-    movingAverage(data, field, window = 5, scope = 'all') {
-        const vals = this._extractValues(data, field, scope);
-        if (vals.length < window) return vals;
-        const result = [];
-        for (let i = 0; i <= vals.length - window; i++) {
-            const slice = vals.slice(i, i + window);
-            result.push(slice.reduce((a, b) => a + b, 0) / window);
+    movingAverage(data, field, window = '24h', scope = 'all') {
+        if (this._lastMovingAverageData !== data) {
+            this._lastMovingAverageData = data;
+            this._movingAverageCache = {};
         }
+        const cacheKey = `${field}|${window}|${scope}`;
+        if (this._movingAverageCache[cacheKey]) return this._movingAverageCache[cacheKey];
+
+        const totalSteps = this._parseWindowToSteps(window);
+        const halfSteps = Math.floor(totalSteps / 2);
+
+        const pairs = this._extractTimedValues(data, field, scope)
+            .filter(p => p.v !== null && !isNaN(p.v))
+            .sort((a, b) => a.t - b.t);
+
+        if (pairs.length === 0) return [];
+
+        const result = [];
+        for (let i = 0; i < pairs.length; i++) {
+            const lo = Math.max(0, i - halfSteps);
+            const hi = Math.min(pairs.length - 1, i + halfSteps);
+            let sum = 0;
+            let count = 0;
+            for (let j = lo; j <= hi; j++) {
+                sum += pairs[j].v;
+                count++;
+            }
+            result.push({ t: pairs[i].t, v: sum / count });
+        }
+        this._movingAverageCache[cacheKey] = result;
         return result;
     },
 
@@ -402,190 +454,181 @@ const Stats = {
             .filter(p => p.v !== null && !isNaN(p.v))
             .sort((a, b) => a.t - b.t);
 
-        if (pairs.length < 2) {
-            throw new Error(`[ExtremeEpisodeDetector] ${field}: pas assez de données`);
-        }
-
+        if (pairs.length === 0) return [];
         const resampled = this._resampleTo5Min(pairs, method);
         this._resampledCache[cacheKey] = resampled;
         return resampled;
     },
 
-    // ═════════════════════════════════════════════════════════════════
-    //  DÉTECTION D'ÉPISODES
-    // ═════════════════════════════════════════════════════════════════
+    // =================================================================
+    //  DÉTECTION D'ÉPISODES (basée sur la comparaison avec movingAverage)
+    // ================================================================= ═════════════════════════════════════════════════════════════════
 
-    ExtremeEpisodeDetector(data, field) {
+    /**
+     * Détecte les épisodes de pics (peak) et de creux (trough) en comparant
+     * les données rééchantillonnées à leur courbe de moyenne mobile.
+     *
+     * Algorithme :
+     * 1. Rééchantillonner les données à 5 min
+     * 2. Calculer la courbe movingAverage sur `window`
+     * 3. Découper en périodes continues au-dessus (peak) / en-dessous (trough) de la MA
+     * 4. Filtrer : garder les périodes de durée ≥ 6 heures
+     * 5. Pour chaque période : calculer la moyenne du segment, garder le plus grand
+     *    sous-groupe contigu au-delà de cette moyenne (bosse ou creux principal)
+     *
+     * @param {Array} data - Les données brutes.
+     * @param {string} field - Le champ capteur.
+     * @param {string|number} [window='24h'] - La fenêtre de la moyenne mobile.
+     * @returns {Array<Object>} Épisodes triés chronologiquement.
+     */
+    ExtremeEpisodeDetector(data, field, window = '24h') {
         if (this._lastDataEpisodes !== data) {
             this._lastDataEpisodes = data;
             this._episodesCache = {};
         }
-        if (this._episodesCache[field]) return this._episodesCache[field];
+        const cacheKey = `${field}|${window}`;
+        if (this._episodesCache[cacheKey]) return this._episodesCache[cacheKey];
 
-        const peaks = this._detectEpisodes(data, field, 'peak');
-        const troughs = this._detectEpisodes(data, field, 'trough');
-
-        const combined = [...peaks, ...troughs].sort((a, b) =>
-            new Date(a.start.d).getTime() - new Date(b.start.d).getTime()
-        );
-
-        this._episodesCache[field] = combined;
-        return combined;
-    },
-
-    _detectEpisodes(data, field, type) {
-        // ─── 1. VALIDATION TEMPORALE ──────────────────────────────────
-        const pairs = this._extractTimedValues(data, field, 'all')
-            .filter(p => p.v !== null && !isNaN(p.v))
-            .sort((a, b) => a.t - b.t);
-
-        if (pairs.length < 2) {
-            throw new Error(`[ExtremeEpisodeDetector] ${field}: pas assez de données valides`);
+        // ─── 1. RÉÉCHANTILLONNAGE ─────────────────────────────────────
+        const resampled = this._getResampledData(data, field, 'cubic');
+        if (resampled.length < 2) {
+            throw new Error(`[ExtremeEpisodeDetector] ${field}: pas assez de données`);
         }
 
-        const dataStart = pairs[0].t;
-        const dataEnd = pairs[pairs.length - 1].t;
-        const now = this._getNow(data);
-
-        const minStart = now - 12 * 3600 * 1000;
-        const minEnd = now + 24 * 3600 * 1000;
-
-        if (dataStart > minStart + 3600 * 1000) {
-            throw new Error(
-                `[ExtremeEpisodeDetector] ${field}: data commence trop tard ` +
-                `(début: ${new Date(dataStart).toISOString()}, requis: <= ${new Date(minStart).toISOString()})`
-            );
-        }
-        if (dataEnd < minEnd - 3600 * 1000) {
-            throw new Error(
-                `[ExtremeEpisodeDetector] ${field}: data finit trop tôt ` +
-                `(fin: ${new Date(dataEnd).toISOString()}, requis: >= ${new Date(minEnd).toISOString()})`
-            );
+        // ─── 2. COURBE MOYENNE MOBILE ─────────────────────────────────
+        const maData = this.movingAverage(data, field, window, 'all');
+        if (maData.length < 2) {
+            throw new Error(`[ExtremeEpisodeDetector] ${field}: pas assez de données pour la MA`);
         }
 
-        // ─── 2. RÉÉCHANTILLONNAGE 5 MIN ───────────────────────────────
-        const resampled = this._getResampledData(data, field);
-        const step = 5 * 60 * 1000;
-
-        // ─── 3. SEUIL PERCENTILE SUR 24H PASSÉES ──────────────────────
-        const windowStart = now - 24 * 3600 * 1000;
-        const windowEnd = now;
-        let windowValues = resampled
-            .filter(p => p.t >= windowStart && p.t <= windowEnd)
-            .map(p => p.v);
-
-        if (windowValues.length < 10) {
-            windowValues = resampled.map(p => p.v);
+        // Créer une map rapide t → valeur MA
+        const maMap = new Map();
+        for (const p of maData) {
+            maMap.set(p.t, p.v);
         }
-        windowValues.sort((a, b) => a - b);
 
-        const PERCENTILE = type === 'peak' ? 80 : 20;
-        const idxThreshold = Math.floor((PERCENTILE / 100) * (windowValues.length - 1));
-        const threshold = windowValues[idxThreshold];
-
-        // ─── 4. PARAMÈTRES ────────────────────────────────────────────
-        const MIN_DURATION_MS = 2 * 3600 * 1000;
-        const MAX_DURATION_MS = 24 * 3600 * 1000;
-        const GAP_TOLERANCE_MS = 2 * 3600 * 1000;
-
-        // ─── 5. SEGMENTATION ──────────────────────────────────────────
-        const segments = [];
-        let current = null;
+        // ─── 3. DÉCOUPAGE EN PÉRIODES AU-DESSUS / EN-DESSOUS ──────────
+        const totalSteps = this._parseWindowToSteps(window);
+        const MIN_DURATION_MS = (totalSteps * 5 * 60 * 1000) / 4;
+        const segments = [];   // { type: 'peak'|'trough', points: [{t, v}] }
+        let currentSeg = null;
 
         for (const p of resampled) {
-            const isFav = type === 'peak' ? p.v >= threshold : p.v <= threshold;
+            const maVal = maMap.get(p.t);
+            if (maVal === undefined) continue;
 
-            if (!isFav) {
-                if (current) {
-                    segments.push(current);
-                    current = null;
-                }
-                continue;
-            }
+            const segType = p.v >= maVal ? 'peak' : 'trough';
 
-            if (!current) {
-                current = { points: [p], startT: p.t, endT: p.t };
+            if (!currentSeg || currentSeg.type !== segType) {
+                if (currentSeg) segments.push(currentSeg);
+                currentSeg = { type: segType, points: [p] };
             } else {
-                current.points.push(p);
-                current.endT = p.t;
+                currentSeg.points.push(p);
             }
         }
-        if (current) segments.push(current);
+        if (currentSeg) segments.push(currentSeg);
 
-        // ─── 6. FILTRAGE ET FORMATAGE ─────────────────────────────────
+        // ─── 4. FILTRER LES PÉRIODES TROP COURTES (< 6h) ──────────────
+        const validSegments = segments.filter(seg => {
+            const duration = seg.points[seg.points.length - 1].t - seg.points[0].t;
+            return duration >= MIN_DURATION_MS;
+        });
+
+        // ─── 5. POUR CHAQUE PÉRIODE : EXTRAIRE LE GROUPE PRINCIPAL ────
         const episodes = [];
 
-        for (const seg of segments) {
-            const duration = seg.endT - seg.startT;
-            if (duration < MIN_DURATION_MS || duration > MAX_DURATION_MS) continue;
-
+        for (const seg of validSegments) {
             const segValues = seg.points.map(p => p.v);
-            const avg = segValues.reduce((a, b) => a + b, 0) / segValues.length;
+            const segAvg = segValues.reduce((a, b) => a + b, 0) / segValues.length;
+
+            // Trouver le plus grand sous-groupe contigu
+            // Peak : points au-dessus de la moyenne du segment
+            // Trough : points en-dessous de la moyenne du segment
+            let bestGroup = null;
+            let currentGroup = null;
+
+            for (const p of seg.points) {
+                const isInGroup = seg.type === 'peak'
+                    ? p.v >= segAvg
+                    : p.v <= segAvg;
+
+                if (isInGroup) {
+                    if (!currentGroup) {
+                        currentGroup = [p];
+                    } else {
+                        currentGroup.push(p);
+                    }
+                } else {
+                    if (currentGroup) {
+                        if (!bestGroup || currentGroup.length > bestGroup.length) {
+                            bestGroup = currentGroup;
+                        }
+                        currentGroup = null;
+                    }
+                }
+            }
+            // Fermer le dernier groupe
+            if (currentGroup) {
+                if (!bestGroup || currentGroup.length > bestGroup.length) {
+                    bestGroup = currentGroup;
+                }
+            }
+
+            if (!bestGroup || bestGroup.length < 2) continue;
+
+            const groupValues = bestGroup.map(p => p.v);
+            const groupAvg = groupValues.reduce((a, b) => a + b, 0) / groupValues.length;
+            const duration = bestGroup[bestGroup.length - 1].t - bestGroup[0].t;
 
             episodes.push({
-                type,
-                avg: Math.round(avg * 100) / 100,
+                type: seg.type,
+                avg: Math.round(groupAvg * 100) / 100,
                 duration: Math.round(duration / 1000),
                 start: {
-                    d: new Date(seg.points[0].t).toISOString(),
-                    [field]: Math.round(seg.points[0].v * 100) / 100
+                    d: new Date(bestGroup[0].t).toISOString(),
+                    [field]: Math.round(bestGroup[0].v * 100) / 100
                 },
                 end: {
-                    d: new Date(seg.points[seg.points.length - 1].t).toISOString(),
-                    [field]: Math.round(seg.points[seg.points.length - 1].v * 100) / 100
+                    d: new Date(bestGroup[bestGroup.length - 1].t).toISOString(),
+                    [field]: Math.round(bestGroup[bestGroup.length - 1].v * 100) / 100
                 }
             });
         }
 
-        // ─── 7. FUSION DES CHEVAUCHEMENTS (même type) ─────────────────
-        const merged = [];
-        episodes.sort((a, b) => new Date(a.start.d).getTime() - new Date(b.start.d).getTime());
+        // ─── 6. TRIER CHRONOLOGIQUEMENT ───────────────────────────────
+        episodes.sort((a, b) =>
+            new Date(a.start.d).getTime() - new Date(b.start.d).getTime()
+        );
 
-        for (const ep of episodes) {
-            const last = merged[merged.length - 1];
-            if (last && last.type === ep.type) {
-                const lastEnd = new Date(last.end.d).getTime();
-                const currStart = new Date(ep.start.d).getTime();
-                if (currStart <= lastEnd + GAP_TOLERANCE_MS) {
-                    const lastDur = lastEnd - new Date(last.start.d).getTime();
-                    const currDur = new Date(ep.end.d).getTime() - currStart;
-                    const totalDur = lastDur + currDur;
-                    last.avg = Math.round((last.avg * lastDur + ep.avg * currDur) / totalDur * 100) / 100;
-                    last.end = ep.end;
-                    last.duration = Math.round(totalDur / 1000);
-                    continue;
-                }
-            }
-            merged.push(ep);
-        }
-
-        return merged;
+        this._episodesCache[cacheKey] = episodes;
+        return episodes;
     },
 
     // ═════════════════════════════════════════════════════════════════
     //  FONCTIONS DIRECTES
     // ═════════════════════════════════════════════════════════════════
 
-    nextPeak(data, field) {
+    nextPeak(data, field, window = '24h') {
         const now = this._getNow(data);
-        const episodes = this.ExtremeEpisodeDetector(data, field);
+        const episodes = this.ExtremeEpisodeDetector(data, field, window);
         return episodes
             .filter(e => e.type === 'peak' && new Date(e.end.d).getTime() >= now)
             .sort((a, b) => new Date(a.start.d).getTime() - new Date(b.start.d).getTime())[0] || null;
     },
 
-    nextTrough(data, field) {
+    nextTrough(data, field, window = '24h') {
         const now = this._getNow(data);
-        const episodes = this.ExtremeEpisodeDetector(data, field);
+        const episodes = this.ExtremeEpisodeDetector(data, field, window);
         return episodes
             .filter(e => e.type === 'trough' && new Date(e.end.d).getTime() >= now)
             .sort((a, b) => new Date(a.start.d).getTime() - new Date(b.start.d).getTime())[0] || null;
     },
 
-    nextEpisode(data, field) {
+    nextEpisode(data, field, window = '24h') {
         const now = this._getNow(data);
-        const episodes = this.ExtremeEpisodeDetector(data, field);
+        const episodes = this.ExtremeEpisodeDetector(data, field, window);
         return episodes
+            .filter(e => e.type === 'trough' || e.type === 'peak') // Just filter if needed, or filter as before
             .filter(e => new Date(e.end.d).getTime() >= now)
             .sort((a, b) => new Date(a.start.d).getTime() - new Date(b.start.d).getTime())[0] || null;
     }

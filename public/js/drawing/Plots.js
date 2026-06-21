@@ -1236,11 +1236,11 @@ class TimeSeriesPlot {
                 }
 
                 const isTarget = d3.select(this).classed(`line-${targetSensorId}`) ||
-                                 d3.select(this).classed(`line-${targetSensorId}-before`) ||
-                                 d3.select(this).classed(`line-${targetSensorId}-after`) ||
-                                 d3.select(this).classed(`line-${targetSensorId}-mv`) ||
-                                 d3.select(this).classed(`line-${targetSensorId}-mv-before`) ||
-                                 d3.select(this).classed(`line-${targetSensorId}-mv-after`);
+                    d3.select(this).classed(`line-${targetSensorId}-before`) ||
+                    d3.select(this).classed(`line-${targetSensorId}-after`) ||
+                    d3.select(this).classed(`line-${targetSensorId}-mv`) ||
+                    d3.select(this).classed(`line-${targetSensorId}-mv-before`) ||
+                    d3.select(this).classed(`line-${targetSensorId}-mv-after`);
 
                 if (isTarget) {
                     return isMv ? 0.6 : 1.0;
@@ -1265,7 +1265,7 @@ function processData(rawData, metadata) {
             if (d[key] === null) {
                 // processedPoint[key] = null;
             } else if (key !== 'd' && key !== 'datetime') {
-                processedPoint[key] = metadata.toUserUnit[key].fnFromMetric(d[key]) || '(_) => _';
+                processedPoint[key] = metadata.toUserUnit[key].fnFromMetric(d[key]);
             }
         });
 

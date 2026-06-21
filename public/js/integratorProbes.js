@@ -64,7 +64,7 @@ let integratorJsCompletions = [
     'alert();', 'prompt();', 'confirm();',
     'localStorage();', 'sessionStorage();', 'getItem();', 'setItem();', 'removeItem();',
     'Math.random();', 'Math.floor();', 'Math.ceil();', 'Math.round();', 'Math.max();', 'Math.min();',
-    'Stats.nextPeak(data,field)', 'Stats.nextTrough(data,field)', 'Stats.nextEpisode(data,field)', 'Stats.ExtremeEpisodeDetector(data,field)',
+    'Stats.nextPeak(data,field,window)', 'Stats.nextTrough(data,field,window)', 'Stats.nextEpisode(data,field,window)', 'Stats.ExtremeEpisodeDetector(data,field,window)',
     'Stats.current(data, "measurement:sensor")', 'Stats.mean(data, "measurement:sensor", scope)', 'Stats.min(data, "measurement:sensor", scope)', 'Stats.max(data, "measurement:sensor", scope)',
     'Stats.sum(data, "measurement:sensor", scope)', 'Stats.first(data, "measurement:sensor", scope)', 'Stats.last(data, "measurement:sensor", scope)',
     'Stats.trend(data, "measurement:sensor", scope)', 'Stats.movingAverage(data, "measurement:sensor", window, scope)',
@@ -95,7 +95,7 @@ const INTEGRATOR_HELP_CONTENT_HTML = `
         <li><code>Stats.current(data, field)</code> : Valeur au point "now".</li>
         <li><code>Stats.mean(data, field, scope)</code>, <code>Stats.min()</code>, <code>Stats.max()</code>, <code>Stats.sum()</code></li>
         <li><code>Stats.first(data, field, scope)</code>, <code>Stats.last(data, field, scope)</code></li>
-        <li><code>Stats.movingAverage(data, field, window, scope)</code> : Moyenne mobile.</li>
+        <li><code>Stats.movingAverage(data, field, window, scope)</code> : Moyenne mobile (window ex: '24h', '120min', '1d').</li>
         <li><code>Stats.linearSlope(data, field, scope)</code> : Pente de régression linéaire.</li>
         <li><code>Stats.mannKendall(data, field, scope)</code> : Test de tendance monotone.</li>
         <li><code>Stats.split(data)</code> : Retourne <code>{ past: [], current: [], future: [] }</code>.</li>
