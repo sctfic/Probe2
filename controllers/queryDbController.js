@@ -962,61 +962,100 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             modelsMap[modelStr].push(key);
         }
 
-        const timeMap = new Map();
-        const allMetricKeys = new Set();
-
-        for (const [model, hourlyKeys] of Object.entries(modelsMap)) {
-            const params = {
-                latitude: latitude.toFixed(2),
-                longitude: longitude.toFixed(2),
-                elevation: elevation.toFixed(0),
-                start_date: startDate.toISOString().split('T')[0],
-                end_date: endDate.toISOString().split('T')[0],
-                hourly: hourlyKeys.join(','),
-                timeformat: 'unixtime'
-            };
-
-            if (model !== 'default') {
-                params.models = model;
+        // Découper la période [startDate, endDate] en sous-plages de 3 ans maximum
+        const dateRanges = [];
+        let chunkStart = new Date(startDate.getTime());
+        while (chunkStart < endDate) {
+            let chunkEnd = new Date(chunkStart.getTime());
+            chunkEnd.setFullYear(chunkEnd.getFullYear() + 3);
+            chunkEnd.setDate(chunkEnd.getDate() - 1);
+            
+            if (chunkEnd > endDate) {
+                chunkEnd = new Date(endDate.getTime());
             }
-
-            const openMeteoData = await fetchOpenMeteoArchiveStream(params);
-            const { time, ...metrics } = openMeteoData.hourly;
-
-            for (let i = 0; i < time.length; i++) {
-                const t = time[i];
-                if (!timeMap.has(t)) {
-                    timeMap.set(t, {});
-                }
-                const entry = timeMap.get(t);
-                for (const [key, values] of Object.entries(metrics)) {
-                    allMetricKeys.add(key);
-                    entry[key] = values[i];
-                }
+            
+            if (chunkStart < chunkEnd) {
+                dateRanges.push({
+                    start: new Date(chunkStart.getTime()),
+                    end: new Date(chunkEnd.getTime())
+                });
+            } else {
+                dateRanges.push({
+                    start: new Date(chunkStart.getTime()),
+                    end: new Date(endDate.getTime())
+                });
+                break;
             }
+            
+            chunkStart = new Date(chunkEnd.getTime());
+            chunkStart.setDate(chunkStart.getDate() + 1);
         }
+
+        console.log(V.info, `Découpage de l'importation historique en ${dateRanges.length} tranches de 3 ans maximum.`);
 
         let totalPointsWritten = 0;
 
-        if (timeMap.size > 0) {
-            // Reconstruire les données fusionnées par timestamp
-            const sortedTimes = Array.from(timeMap.keys()).sort((a, b) => a - b);
-            const combinedHourly = { time: sortedTimes };
-            for (const key of allMetricKeys) {
-                combinedHourly[key] = sortedTimes.map(t => {
-                    const val = timeMap.get(t)[key];
-                    return val !== undefined ? val : null;
-                });
+        for (const range of dateRanges) {
+            console.log(V.gear, `Traitement de la tranche historique du ${range.start.toISOString().split('T')[0]} au ${range.end.toISOString().split('T')[0]}`);
+            
+            const timeMap = new Map();
+            const allMetricKeys = new Set();
+
+            for (const [model, hourlyKeys] of Object.entries(modelsMap)) {
+                const params = {
+                    latitude: latitude.toFixed(2),
+                    longitude: longitude.toFixed(2),
+                    elevation: elevation.toFixed(0),
+                    start_date: range.start.toISOString().split('T')[0],
+                    end_date: range.end.toISOString().split('T')[0],
+                    hourly: hourlyKeys.join(','),
+                    timeformat: 'unixtime'
+                };
+
+                if (model !== 'default') {
+                    params.models = model;
+                }
+
+                const openMeteoData = await fetchOpenMeteoArchiveStream(params);
+                const { time, ...metrics } = openMeteoData.hourly;
+
+                for (let i = 0; i < time.length; i++) {
+                    const t = time[i];
+                    if (!timeMap.has(t)) {
+                        timeMap.set(t, {});
+                    }
+                    const entry = timeMap.get(t);
+                    for (const [key, values] of Object.entries(metrics)) {
+                        allMetricKeys.add(key);
+                        entry[key] = values[i];
+                    }
+                }
             }
 
-            // Libérer immédiatement la Map intermédiaire volumineuse avant de lancer les écritures en DB
-            timeMap.clear();
+            if (timeMap.size > 0) {
+                // Reconstruire les données fusionnées par timestamp
+                const sortedTimes = Array.from(timeMap.keys()).sort((a, b) => a - b);
+                const combinedHourly = { time: sortedTimes };
+                for (const key of allMetricKeys) {
+                    combinedHourly[key] = sortedTimes.map(t => {
+                        const val = timeMap.get(t)[key];
+                        return val !== undefined ? val : null;
+                    });
+                }
 
-            const combinedOpenMeteoData = { hourly: combinedHourly };
-            totalPointsWritten = await processAndWriteHistoricalData(combinedOpenMeteoData, stationId, stationConfig, isForward);
+                // Libérer immédiatement la Map intermédiaire volumineuse avant de lancer les écritures en DB
+                timeMap.clear();
 
-            // Libérer la référence des données combinées après écriture
-            combinedOpenMeteoData.hourly = null;
+                const combinedOpenMeteoData = { hourly: combinedHourly };
+                const written = await processAndWriteHistoricalData(combinedOpenMeteoData, stationId, stationConfig, isForward);
+                totalPointsWritten += written;
+
+                // Libérer la référence des données combinées après écriture
+                combinedOpenMeteoData.hourly = null;
+            }
+
+            // Pause courte entre les tranches de 3 ans pour aider le Garbage Collector global
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         if (totalPointsWritten === 0) {
