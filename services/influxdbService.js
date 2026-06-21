@@ -1078,6 +1078,20 @@ function getBucketMetadata(bucketKey) {
     return influxInstances[bucketKey] ? influxInstances[bucketKey].metadata : null;
 }
 
+/**
+ * Crée et retourne une instance de WriteApi dédiée pour un bucket donné.
+ * Permet de gérer des imports volumineux et de fermer proprement l'instance avec close().
+ * @param {string} bucketKey - Clé du bucket.
+ * @returns {WriteApi}
+ */
+function createWriteApi(bucketKey) {
+    const instance = influxInstances[bucketKey];
+    if (!instance) {
+        throw new Error(`Instance InfluxDB non initialisée pour le bucket '${bucketKey}'`);
+    }
+    return instance.client.getWriteApi(instance.org, instance.bucket);
+}
+
 
 module.exports = {
     getSettings,
@@ -1085,6 +1099,7 @@ module.exports = {
     testInfluxConnection,
     writePoints,
     Point,
+    createWriteApi,
     getInfluxMetadata,
     queryDateRange,
     queryRaw,
