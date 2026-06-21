@@ -832,6 +832,11 @@ async function processAndWriteHistoricalData(openMeteoData, stationId, stationCo
     const { mapping } = getHistoricalMapping();
     const { time, ...metrics } = openMeteoData.hourly;
 
+    // Libérer la référence interne de openMeteoData pour aider le Garbage Collector
+    if (openMeteoData) {
+        openMeteoData.hourly = null;
+    }
+
     console.log(`${V.gear} Traitement de ${time.length} points de données en ordre inversé...`);
 
     let pointsChunk = [];
@@ -916,9 +921,18 @@ async function processAndWriteHistoricalData(openMeteoData, stationId, stationCo
 
             configManager.autoSaveConfig(stationConfig);
 
-            pointsChunk = [];
+            pointsChunk.length = 0;
             currentChunkEndDate = i > 0 ? new Date(time[i - 1] * 1000) : null;
+
+            // Pause asynchrone courte pour laisser respirer l'Event Loop et permettre au Garbage Collector de s'exécuter
+            await new Promise(resolve => setTimeout(resolve, 50));
         }
+    }
+
+    // Libération explicite finale des variables volumineuses
+    pointsChunk = null;
+    for (const key of Object.keys(metrics)) {
+        metrics[key] = null;
     }
 
     return totalPointsWritten;
@@ -996,8 +1010,14 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
                 });
             }
 
+            // Libérer immédiatement la Map intermédiaire volumineuse avant de lancer les écritures en DB
+            timeMap.clear();
+
             const combinedOpenMeteoData = { hourly: combinedHourly };
             totalPointsWritten = await processAndWriteHistoricalData(combinedOpenMeteoData, stationId, stationConfig, isForward);
+
+            // Libérer la référence des données combinées après écriture
+            combinedOpenMeteoData.hourly = null;
         }
 
         if (totalPointsWritten === 0) {
