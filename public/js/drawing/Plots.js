@@ -85,6 +85,8 @@ class TimeSeriesPlot {
         this.legendVisible = true;
         this.originalData = [...data]; // Pour reset
         this.onUpdate = null; // Callback après mise à jour (zoom/pan/etc)
+        const maSliderEl = document.getElementById('ma-slider');
+        this.movingAverageWindowMs = maSliderEl ? this.sliderToMs(parseInt(maSliderEl.value)) : 24 * 60 * 60 * 1000; // 24h par défaut
 
         this.initializeScales();
     }
@@ -381,8 +383,10 @@ class TimeSeriesPlot {
                 const sensorId = sensor.replace(":", "_");
                 const solidColor = this.colorScale(sensorId);
 
-                // Calculer la moyenne mobile sur 24h (fenêtre centrée [-12h, +12h])
-                const mvData = this.computeMovingAverage(filteredData, sensor);
+                // Calculer la moyenne mobile sur la fenêtre sélectionnée (ou null si désactivé/off)
+                const mvData = (this.movingAverageWindowMs && this.movingAverageWindowMs > 0)
+                    ? this.computeMovingAverage(filteredData, sensor, this.movingAverageWindowMs)
+                    : null;
 
                 if (showNowEffects) {
                     // Séparer les données avant et après "now"
@@ -402,6 +406,7 @@ class TimeSeriesPlot {
                             .attr("class", `line line-${sensorId}-before`)
                             .attr("d", lineBefore)
                             .style("stroke", solidColor)
+                            .style("stroke-width", "0.8px")
                             .style("opacity", 0)
                             .transition()
                             .duration(500)
@@ -422,6 +427,7 @@ class TimeSeriesPlot {
                             .attr("d", lineAfter)
                             .style("stroke", `url(#gradient-${this.id}-${sensorId})`)
                             .style("filter", `url(#blur-${this.id})`)
+                            .style("stroke-width", "0.8px")
                             .style("opacity", 0)
                             .transition()
                             .duration(500)
@@ -429,7 +435,7 @@ class TimeSeriesPlot {
                     }
 
                     // Tracé de la moyenne mobile avant/après "now"
-                    if (mvData.length >= 2) {
+                    if (mvData && mvData.length >= 2) {
                         const mvBeforeNow = mvData.filter(d => d.datetime <= now);
                         const mvAfterNow = mvData.filter(d => d.datetime >= now);
 
@@ -445,6 +451,8 @@ class TimeSeriesPlot {
                                 .attr("class", `line line-mv line-${sensorId}-mv-before`)
                                 .attr("d", mvLineBefore)
                                 .style("stroke", solidColor)
+                                .style("stroke-width", "0.6px")
+                                .style("stroke-dasharray", "2,3")
                                 .style("opacity", 0)
                                 .transition()
                                 .duration(500)
@@ -464,6 +472,8 @@ class TimeSeriesPlot {
                                 .attr("d", mvLineAfter)
                                 .style("stroke", `url(#gradient-${this.id}-${sensorId})`)
                                 .style("filter", `url(#blur-${this.id})`)
+                                .style("stroke-width", "1px")
+                                .style("stroke-dasharray", "2,3")
                                 .style("opacity", 0)
                                 .transition()
                                 .duration(500)
@@ -483,13 +493,14 @@ class TimeSeriesPlot {
                         .attr("class", `line line-${sensorId}`)
                         .attr("d", line)
                         .style("stroke", solidColor)
+                        .style("stroke-width", "1.2px")
                         .style("opacity", 0)
                         .transition()
                         .duration(500)
                         .style("opacity", 1);
 
                     // Moyenne mobile normale
-                    if (mvData.length >= 2) {
+                    if (mvData && mvData.length >= 2) {
                         const mvLine = d3.line()
                             .x(d => this.xScale(d.datetime))
                             .y(d => scaleInfo.scale(d.value))
@@ -501,6 +512,8 @@ class TimeSeriesPlot {
                             .attr("class", `line line-mv line-${sensorId}-mv`)
                             .attr("d", mvLine)
                             .style("stroke", solidColor)
+                            .style("stroke-width", "1px")
+                            .style("stroke-dasharray", "2,3")
                             .style("opacity", 0)
                             .transition()
                             .duration(500)
@@ -548,6 +561,10 @@ class TimeSeriesPlot {
                 event.stopPropagation();
                 this.resetZoom();
             });
+
+        // Zoom avec la roulette de la souris
+        brushGroup.select(".overlay")
+            .on("wheel", (event) => this.handleWheelZoom(event));
     }
 
     // Gestionnaires du brush
@@ -635,7 +652,77 @@ class TimeSeriesPlot {
         // Mettre à jour les lignes avec transition
         this.updateLines();
 
-        // Préparer les dates avec marge pour l'API
+        // Charger les données de l'API
+        this.fetchNewDataForRange(startDate, endDate);
+    }
+
+    // Gère le zoom interactif avec la roulette de la souris
+    handleWheelZoom(event) {
+        // Garde seulement le mouvement de dézoom (deltaY > 0)
+        if (event.deltaY <= 0) return;
+        event.preventDefault();
+
+        // 1. Position du curseur de la souris
+        const [mouseX] = d3.pointer(event, event.currentTarget);
+
+        // 2. Date sous le curseur
+        const mouseDate = this.xScale.invert(mouseX);
+
+        // 3. Sens du zoom (facteur de dézoom)
+        const factor = 1.15;
+
+        // 4. Calcul du nouveau domaine temporel centré sur le curseur
+        const [xMin, xMax] = this.xScale.domain();
+        const duration = xMax.getTime() - xMin.getTime();
+        const percent = mouseX / this.innerWidth;
+
+        let newDuration = duration * factor;
+
+        // Limiter le zoom à un minimum de 12 heures
+        const minDuration = 12 * 60 * 60 * 1000;
+        if (newDuration < minDuration) {
+            newDuration = minDuration;
+        }
+
+        let newStart = new Date(mouseDate.getTime() - percent * newDuration);
+        let newEnd = new Date(mouseDate.getTime() + (1 - percent) * newDuration);
+
+        // Limiter la valeur maxi sur X à aujourd'hui + 15 jours
+        const maxAllowedDate = new Date();
+        maxAllowedDate.setDate(maxAllowedDate.getDate() + 15);
+
+        if (newEnd > maxAllowedDate) {
+            newEnd = maxAllowedDate;
+            newStart = new Date(newEnd.getTime() - newDuration);
+        }
+
+        // 5. Appliquer les nouvelles échelles
+        this.xScale.domain([newStart, newEnd]);
+
+        const filteredData = this.data.filter(d =>
+            d.datetime >= newStart && d.datetime <= newEnd
+        );
+
+        if (filteredData.length > 0) {
+            this.updateYDomains(filteredData);
+        }
+
+        // 6. Mise à jour instantanée de l'affichage
+        this.updateGradients();
+        this.updateAxes(0);
+        this.createNowLine();
+        this.updateLines(false);
+
+        // 7. Décalage/anti-rebond avant de lancer l'appel API
+        if (this.wheelTimeout) clearTimeout(this.wheelTimeout);
+        this.wheelTimeout = setTimeout(() => {
+            this.fetchNewDataForRange(newStart, newEnd);
+        }, 400);
+    }
+
+    // Effectue l'appel API pour charger les données de la plage spécifiée
+    fetchNewDataForRange(startDate, endDate) {
+        const duration = endDate - startDate;
         const durationMargin = duration * 0.2; // 20% de marge
         const adjustedStartDate = new Date(startDate.getTime() - durationMargin);
         const adjustedEndDate = new Date(endDate.getTime() + durationMargin);
@@ -645,8 +732,7 @@ class TimeSeriesPlot {
         const apiStartDate = formatDateAPI(adjustedStartDate);
         const apiEndDate = formatDateAPI(adjustedEndDate);
 
-        // Construire l'URL API sans cache
-        const sensors = Object.values(this.metadata.measurement).flat().join(',');
+        // Construire l'URL API
         let apiUrl = `${APIURL}?stepCount=1000`;
         apiUrl += `&startDate=${apiStartDate}`;
         apiUrl += `&endDate=${apiEndDate}`;
@@ -657,7 +743,7 @@ class TimeSeriesPlot {
                     throw new Error(apiResponse.message || 'Erreur API');
                 }
 
-                // Mettre à jour métadonnées globalement pour les tooltips
+                // Mettre à jour métadonnées globalement
                 window.plotMetadata = apiResponse.metadata;
 
                 // Traiter les nouvelles données
@@ -667,7 +753,7 @@ class TimeSeriesPlot {
                 this.data = newData;
                 this.metadata = apiResponse.metadata;
 
-                // RECALCULER LES DOMAINES Y AVEC LES NOUVELLES DONNÉES
+                // Recalculer les domaines Y et mettre à jour le tracé
                 this.updateYDomains(this.data);
                 this.updateGradients();
                 this.updateAxes();
@@ -730,12 +816,16 @@ class TimeSeriesPlot {
     }
 
     // Mettre à jour tous les axes
-    updateAxes() {
+    updateAxes(duration = 750) {
         // Axe X
-        this.g.select(".axis-x")
-            .transition()
-            .duration(750)
-            .call(d3.axisBottom(this.xScale).tickSize(2));
+        const axisX = this.g.select(".axis-x");
+        if (duration > 0) {
+            axisX.transition()
+                .duration(duration)
+                .call(d3.axisBottom(this.xScale).tickSize(2));
+        } else {
+            axisX.call(d3.axisBottom(this.xScale).tickSize(2));
+        }
 
         // Axes Y
         Object.entries(this.yScales).forEach(([groupName, scaleInfo]) => {
@@ -743,10 +833,14 @@ class TimeSeriesPlot {
                 ? d3.axisLeft(scaleInfo.scale).tickSize(2)
                 : d3.axisRight(scaleInfo.scale).tickSize(3);
 
-            this.g.select(`.axis-${groupName}`)
-                .transition()
-                .duration(750)
-                .call(axis);
+            const axisY = this.g.select(`.axis-${groupName}`);
+            if (duration > 0) {
+                axisY.transition()
+                    .duration(duration)
+                    .call(axis);
+            } else {
+                axisY.call(axis);
+            }
         });
     }
 
@@ -773,8 +867,10 @@ class TimeSeriesPlot {
                 const sensorId = sensor.replace(":", "_");
                 const solidColor = this.colorScale(sensorId);
 
-                // Calculer la moyenne mobile sur 24h (fenêtre centrée [-12h, +12h])
-                const mvData = this.computeMovingAverage(filteredData, sensor);
+                // Calculer la moyenne mobile sur la fenêtre sélectionnée (ou null si désactivé/off)
+                const mvData = (this.movingAverageWindowMs && this.movingAverageWindowMs > 0)
+                    ? this.computeMovingAverage(filteredData, sensor, this.movingAverageWindowMs)
+                    : null;
 
                 if (showNowEffects) {
                     // Séparer les données avant et après "now"
@@ -793,7 +889,8 @@ class TimeSeriesPlot {
                             .datum(beforeNow)
                             .attr("class", `line line-${sensorId}-before`)
                             .attr("d", lineBefore)
-                            .style("stroke", solidColor);
+                            .style("stroke", solidColor)
+                            .style("stroke-width", "1px");
 
                         if (withTransition) {
                             pathBefore.style("opacity", 0)
@@ -816,7 +913,8 @@ class TimeSeriesPlot {
                             .attr("class", `line line-${sensorId}-after`)
                             .attr("d", lineAfter)
                             .style("stroke", `url(#gradient-${this.id}-${sensorId})`)
-                            .style("filter", `url(#blur-${this.id})`);
+                            .style("filter", `url(#blur-${this.id})`)
+                            .style("stroke-width", "1px");
 
                         if (withTransition) {
                             pathAfter.style("opacity", 0)
@@ -827,7 +925,7 @@ class TimeSeriesPlot {
                     }
 
                     // Moyenne mobile avant/après "now"
-                    if (mvData.length >= 2) {
+                    if (mvData && mvData.length >= 2) {
                         const mvBeforeNow = mvData.filter(d => d.datetime <= now);
                         const mvAfterNow = mvData.filter(d => d.datetime >= now);
 
@@ -842,7 +940,9 @@ class TimeSeriesPlot {
                                 .datum(mvBeforeNow)
                                 .attr("class", `line line-mv line-${sensorId}-mv-before`)
                                 .attr("d", mvLineBefore)
-                                .style("stroke", solidColor);
+                                .style("stroke", solidColor)
+                                .style("stroke-width", "1px")
+                                .style("stroke-dasharray", "2,3");
 
                             if (withTransition) {
                                 pathMvBefore.style("opacity", 0)
@@ -866,7 +966,9 @@ class TimeSeriesPlot {
                                 .attr("class", `line line-mv line-${sensorId}-mv-after`)
                                 .attr("d", mvLineAfter)
                                 .style("stroke", `url(#gradient-${this.id}-${sensorId})`)
-                                .style("filter", `url(#blur-${this.id})`);
+                                .style("filter", `url(#blur-${this.id})`)
+                                .style("stroke-width", "1px")
+                                .style("stroke-dasharray", "2,3");
 
                             if (withTransition) {
                                 pathMvAfter.style("opacity", 0)
@@ -890,7 +992,8 @@ class TimeSeriesPlot {
                         .datum(filteredData)
                         .attr("class", `line line-${sensorId}`)
                         .attr("d", line)
-                        .style("stroke", solidColor);
+                        .style("stroke", solidColor)
+                        .style("stroke-width", "1px");
 
                     if (withTransition) {
                         path.style("opacity", 0)
@@ -900,7 +1003,7 @@ class TimeSeriesPlot {
                     }
 
                     // Moyenne mobile normale sans effets
-                    if (mvData.length >= 2) {
+                    if (mvData && mvData.length >= 2) {
                         const mvLine = d3.line()
                             .x(d => this.xScale(d.datetime))
                             .y(d => scaleInfo.scale(d.value))
@@ -911,7 +1014,9 @@ class TimeSeriesPlot {
                             .datum(mvData)
                             .attr("class", `line line-mv line-${sensorId}-mv`)
                             .attr("d", mvLine)
-                            .style("stroke", solidColor);
+                            .style("stroke", solidColor)
+                            .style("stroke-width", "1px")
+                            .style("stroke-dasharray", "2,3");
 
                         if (withTransition) {
                             pathMv.style("opacity", 0)
@@ -1248,6 +1353,52 @@ class TimeSeriesPlot {
                     return 0.1;
                 }
             });
+    }
+
+    // Convertir la valeur du slider (0-100) en millisecondes (logarithmique)
+    sliderToMs(value) {
+        if (value === 0) return 0; // Off
+
+        const minMs = 1 * 60 * 60 * 1000; // 1 heure
+        const maxMs = 90 * 24 * 60 * 60 * 1000; // 90 jours
+
+        const logMin = Math.log(minMs);
+        const logMax = Math.log(maxMs);
+        const rate = (value - 1) / (100 - 1);
+
+        return Math.exp(logMin + rate * (logMax - logMin));
+    }
+
+    // Convertir les millisecondes en valeur du slider (0-100)
+    msToSlider(ms) {
+        if (!ms || ms < 1 * 60 * 60 * 1000) return 0;
+
+        const minMs = 1 * 60 * 60 * 1000;
+        const maxMs = 90 * 24 * 60 * 60 * 1000;
+
+        const logMin = Math.log(minMs);
+        const logMax = Math.log(maxMs);
+        const logVal = Math.log(ms);
+
+        const rate = (logVal - logMin) / (logMax - logMin);
+        return Math.round(1 + rate * (100 - 1));
+    }
+
+    // Formater la durée de la fenêtre pour l'affichage
+    formatMaWindow(ms) {
+        if (!ms || ms <= 0) return "MA: Off";
+
+        const hours = ms / (60 * 60 * 1000);
+        if (hours < 24) {
+            return `MA: ${Math.round(hours)}h`;
+        }
+
+        const days = hours / 24;
+        if (days < 7) {
+            return `MA: ${days.toFixed(1)}j`;
+        }
+
+        return `MA: ${Math.round(days)}j`;
     }
 }
 

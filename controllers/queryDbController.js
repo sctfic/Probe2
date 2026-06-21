@@ -949,7 +949,8 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             modelsMap[modelStr].push(key);
         }
 
-        let totalPointsWritten = 0;
+        const timeMap = new Map();
+        const allMetricKeys = new Set();
 
         for (const [model, hourlyKeys] of Object.entries(modelsMap)) {
             const params = {
@@ -967,7 +968,36 @@ exports.expandDbWithOpenMeteo = async (req, res) => {
             }
 
             const openMeteoData = await fetchOpenMeteoArchiveStream(params);
-            totalPointsWritten += await processAndWriteHistoricalData(openMeteoData, stationId, stationConfig, isForward);
+            const { time, ...metrics } = openMeteoData.hourly;
+
+            for (let i = 0; i < time.length; i++) {
+                const t = time[i];
+                if (!timeMap.has(t)) {
+                    timeMap.set(t, {});
+                }
+                const entry = timeMap.get(t);
+                for (const [key, values] of Object.entries(metrics)) {
+                    allMetricKeys.add(key);
+                    entry[key] = values[i];
+                }
+            }
+        }
+
+        let totalPointsWritten = 0;
+
+        if (timeMap.size > 0) {
+            // Reconstruire les données fusionnées par timestamp
+            const sortedTimes = Array.from(timeMap.keys()).sort((a, b) => a - b);
+            const combinedHourly = { time: sortedTimes };
+            for (const key of allMetricKeys) {
+                combinedHourly[key] = sortedTimes.map(t => {
+                    const val = timeMap.get(t)[key];
+                    return val !== undefined ? val : null;
+                });
+            }
+
+            const combinedOpenMeteoData = { hourly: combinedHourly };
+            totalPointsWritten = await processAndWriteHistoricalData(combinedOpenMeteoData, stationId, stationConfig, isForward);
         }
 
         if (totalPointsWritten === 0) {
