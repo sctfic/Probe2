@@ -561,9 +561,9 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, bucketKe
     const now = new Date();
     const endStopDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // + 30 jours (pour englober Forecasts)
 
-    const startRange = toISO(startDate, '1969-12-31T00:00:00.000Z');
+    const startRange = toISO(startDate, '1900-01-01T00:00:00.000Z');
     const stopRange = toISO(endDate, endStopDate.toISOString());
-    const startMs = parseToMillis(startDate) ?? new Date('1969-12-31T00:00:00.000Z').getTime();
+    const startMs = parseToMillis(startDate) ?? new Date('1900-01-01T00:00:00.000Z').getTime();
     const stopMs = parseToMillis(endDate) ?? endStopDate.getTime();
 
     // Déterminer les buckets à interroger en fonction des métadonnées
