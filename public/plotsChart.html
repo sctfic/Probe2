@@ -63,9 +63,7 @@
             stroke-dasharray: 2, 3;
         }
 
-        .ma-slider-container-hovered .line-mv {
-            stroke-width: 3px !important;
-        }
+
 
         #chart-container {
             padding-top: 8px;
@@ -305,6 +303,13 @@
             <input type="range" id="history-slider" min="0" max="8" value="5"
                 style="cursor: pointer; width: 120px; height: 4px; accent-color: var(--accent-blue);">
             <span id="history-slider-label" style="margin-top:-4px;">1 An</span>
+        </div>
+        <div class="ma-only-container"
+            style="display: flex; align-items: center; margin-left: 20px; gap: 8px; color: #ccc; font-size: 0.9em; font-weight: bold;">
+            <label class="switch">
+                <input type="checkbox" id="ma-only-toggle">
+                <span class="slider round" style="border-radius: 34px;"></span>
+            </label>
         </div>
         <div class="ma-slider-container"
             style="display: flex; align-items: center; margin-left: 20px; gap: 8px; color: #ccc; font-size: 0.9em; font-weight: bold;">
@@ -997,6 +1002,7 @@
                 // Propager selectedSensor et sensorOffsets au conteneur pour le constructeur de TimeSeriesPlot
                 container.selectedSensor = selectedSensor;
                 container.sensorOffsets = sensorOffsets;
+                container.maOnly = document.getElementById('ma-only-toggle') ? document.getElementById('ma-only-toggle').checked : false;
 
                 // Appel de mainPlots qui va vider le conteneur et recréer le SVG
                 // Plots.js définit par défaut height=300, ce qui corrige le problème de hauteur.
@@ -1134,14 +1140,40 @@
                 }
             });
 
+            // Gestionnaire pour le switch MA Only
+            const maOnlyToggle = document.getElementById('ma-only-toggle');
+            if (maOnlyToggle) {
+                maOnlyToggle.addEventListener('change', (e) => {
+                    const maOnly = e.target.checked;
+                    container.maOnly = maOnly;
+
+                    const plotInstance = container.__current_plot_instance;
+                    if (plotInstance) {
+                        plotInstance.maOnly = maOnly;
+                        plotInstance.updateLines(false);
+                        plotInstance.highlightSensor(selectedSensor);
+                    }
+                });
+            }
+
             // Gérer le survol de ma-slider-container
             const maSliderContainer = document.querySelector('.ma-slider-container');
             if (maSliderContainer) {
                 maSliderContainer.addEventListener('mouseenter', () => {
                     document.body.classList.add('ma-slider-container-hovered');
+                    const plotInstance = container.__current_plot_instance;
+                    if (plotInstance) {
+                        plotInstance.updateLines(false);
+                        plotInstance.highlightSensor(selectedSensor);
+                    }
                 });
                 maSliderContainer.addEventListener('mouseleave', () => {
                     document.body.classList.remove('ma-slider-container-hovered');
+                    const plotInstance = container.__current_plot_instance;
+                    if (plotInstance) {
+                        plotInstance.updateLines(false);
+                        plotInstance.highlightSensor(selectedSensor);
+                    }
                 });
             }
         });

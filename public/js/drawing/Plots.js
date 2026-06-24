@@ -90,20 +90,23 @@ class TimeSeriesPlot {
 
         this.selectedSensor = container.selectedSensor || null;
         this.sensorOffsets = container.sensorOffsets || {};
+        this.maOnly = container.maOnly || false;
 
         this.initializeScales();
     }
 
+    get isMaOnlyActive() {
+        return this.maOnly || document.body.classList.contains('ma-slider-container-hovered');
+    }
+
     getSensorOpacity(sensor, isMv) {
-        if (!this.selectedSensor) {
-            return isMv ? 0.6 : 1.0;
+        const hasSelection = !!this.selectedSensor;
+        const isTarget = !hasSelection || (sensor.replace(":", "_") === this.selectedSensor.replace(":", "_"));
+
+        if (isTarget) {
+            return this.isMaOnlyActive ? (isMv ? 1.0 : 0.3) : (isMv ? 0.6 : 1.0);
         }
-        const targetSensorId = this.selectedSensor.replace(":", "_");
-        const sensorId = sensor.replace(":", "_");
-        if (sensorId === targetSensorId) {
-            return isMv ? 0.6 : 1.0;
-        }
-        return 0.1;
+        return 0.2;
     }
 
     // Nettoyage de l'instance
@@ -469,7 +472,7 @@ class TimeSeriesPlot {
                                 .attr("class", `line line-mv line-${sensorId}-mv-before`)
                                 .attr("d", mvLineBefore)
                                 .style("stroke", solidColor)
-                                .style("stroke-width", "0.6px")
+                                .style("stroke-width", this.isMaOnlyActive ? "2px" : "0.6px")
                                 .style("stroke-dasharray", "2,3")
                                 .style("opacity", 0)
                                 .transition()
@@ -490,7 +493,7 @@ class TimeSeriesPlot {
                                 .attr("d", mvLineAfter)
                                 .style("stroke", `url(#gradient-${this.id}-${sensorId})`)
                                 .style("filter", `url(#blur-${this.id})`)
-                                .style("stroke-width", "1px")
+                                .style("stroke-width", this.isMaOnlyActive ? "2px" : "1px")
                                 .style("stroke-dasharray", "2,3")
                                 .style("opacity", 0)
                                 .transition()
@@ -530,7 +533,7 @@ class TimeSeriesPlot {
                             .attr("class", `line line-mv line-${sensorId}-mv`)
                             .attr("d", mvLine)
                             .style("stroke", solidColor)
-                            .style("stroke-width", "1px")
+                            .style("stroke-width", this.isMaOnlyActive ? "2px" : "1px")
                             .style("stroke-dasharray", "2,3")
                             .style("opacity", 0)
                             .transition()
@@ -964,7 +967,7 @@ class TimeSeriesPlot {
                                 .attr("class", `line line-mv line-${sensorId}-mv-before`)
                                 .attr("d", mvLineBefore)
                                 .style("stroke", solidColor)
-                                .style("stroke-width", "1px")
+                                .style("stroke-width", this.isMaOnlyActive ? "2px" : "1px")
                                 .style("stroke-dasharray", "2,3");
 
                             if (withTransition) {
@@ -990,7 +993,7 @@ class TimeSeriesPlot {
                                 .attr("d", mvLineAfter)
                                 .style("stroke", `url(#gradient-${this.id}-${sensorId})`)
                                 .style("filter", `url(#blur-${this.id})`)
-                                .style("stroke-width", "1px")
+                                .style("stroke-width", this.isMaOnlyActive ? "2px" : "1px")
                                 .style("stroke-dasharray", "2,3");
 
                             if (withTransition) {
@@ -1040,7 +1043,7 @@ class TimeSeriesPlot {
                             .attr("class", `line line-mv line-${sensorId}-mv`)
                             .attr("d", mvLine)
                             .style("stroke", solidColor)
-                            .style("stroke-width", "1px")
+                            .style("stroke-width", this.isMaOnlyActive ? "2px" : "1px")
                             .style("stroke-dasharray", "2,3");
 
                         if (withTransition) {
@@ -1401,6 +1404,7 @@ class TimeSeriesPlot {
         this.selectedSensor = sensorName;
         if (!this.g) return;
         const targetSensorId = sensorName ? sensorName.replace(":", "_") : null;
+        const self = this;
 
         this.g.selectAll('.line')
             .transition()
@@ -1408,7 +1412,7 @@ class TimeSeriesPlot {
             .style('opacity', function () {
                 const isMv = d3.select(this).classed('line-mv');
                 if (!targetSensorId) {
-                    return isMv ? 0.6 : 1.0;
+                    return self.isMaOnlyActive ? (isMv ? 1.0 : 0.3) : (isMv ? 0.6 : 1.0);
                 }
 
                 const isTarget = d3.select(this).classed(`line-${targetSensorId}`) ||
@@ -1419,9 +1423,9 @@ class TimeSeriesPlot {
                     d3.select(this).classed(`line-${targetSensorId}-mv-after`);
 
                 if (isTarget) {
-                    return isMv ? 0.6 : 1.0;
+                    return self.isMaOnlyActive ? (isMv ? 1.0 : 0.3) : (isMv ? 0.6 : 1.0);
                 } else {
-                    return 0.1;
+                    return 0.2;
                 }
             });
     }
