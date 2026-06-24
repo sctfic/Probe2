@@ -74,43 +74,140 @@ let integratorJsCompletions = [
 ];
 
 const INTEGRATOR_HELP_CONTENT_HTML = `
-<div style="font-size: 0.85em; line-height: 1.3;">
-    <p>La fonction reçoit l'ensemble du dataset en une seule fois et doit retourner une valeur numérique ou un objet structuré.</p>
-    
-    <h4>Formats de retour supportés</h4>
-    <ul>
-        <li><strong>Numérique</strong> : Retourne un simple nombre (arrondi à 1 décimale).</li>
-        <li><strong>Vecteur</strong> : Si type <code>vector</code>, objet <code>{ Ux, Vy, Value? }</code>.</li>
-        <li><strong>Multi-mesures</strong> : Si type <code>None</code>, objet avec clés <code>Mean:sensor</code>.</li>
-    </ul>
+<div style="font-size: 0.85em; line-height: 1.4;">
+    <!-- Barre d'onglets -->
+    <div class="help-tabs" style="display: flex; gap: 5px; border-bottom: 1px solid #444; margin-bottom: 15px; padding-bottom: 0px;">
+        <button type="button" class="help-tab-btn active" data-tab="parameters" style="padding: 6px 12px; background: #23241f; color: #ccc; border: 1px solid #444; border-bottom: 3px solid #4DC0E0; cursor: pointer; font-size: 0.85em; font-weight: bold; border-radius: 4px 4px 0 0;">Paramètres</button>
+        <button type="button" class="help-tab-btn" data-tab="returns" style="padding: 6px 12px; background: #111; color: #888; border: 1px solid #444; border-bottom: none; cursor: pointer; font-size: 0.85em; font-weight: bold; border-radius: 4px 4px 0 0;">Retours</button>
+        <button type="button" class="help-tab-btn" data-tab="syntax" style="padding: 6px 12px; background: #111; color: #888; border: 1px solid #444; border-bottom: none; cursor: pointer; font-size: 0.85em; font-weight: bold; border-radius: 4px 4px 0 0;">Syntaxe & Stats</button>
+        <button type="button" class="help-tab-btn" data-tab="shortcuts" style="padding: 6px 12px; background: #111; color: #888; border: 1px solid #444; border-bottom: none; cursor: pointer; font-size: 0.85em; font-weight: bold; border-radius: 4px 4px 0 0;">Raccourcis</button>
+    </div>
 
-    <h4>Détails des paramètres Stats</h4>
-    <ul>
-        <li><code>field</code> : Chaîne identifiant le capteur (ex: <code>'temperature:outTemp'</code>).</li>
-        <li><code>scope</code> : <code>'past'</code> (passé), <code>'future'</code> (prévisions), <code>'all'</code> (total).</li>
-    </ul>
+    <!-- Onglet Paramètres -->
+    <div id="help-tab-parameters" class="help-tab-content" style="display: block;">
+        <h4>Paramètres globaux et contexte</h4>
+        <p>Votre fonction de calcul a accès aux variables de contexte suivantes :</p>
+        <ul style="padding-left: 20px;">
+            <li><code>data</code> : Le jeu de données contenant l'ensemble des mesures des capteurs requis sur la période sélectionnée.
+                <br> <code>data</code> contiendra tous les capteurs mentionnés dans le script, même s'ils sont mentionnés uniquement en commentaire.</li>
+            <li><code>lon</code> ou <code>%longitude%</code> : Remplacé par la longitude configurée de la station.</li>
+            <li><code>lat</code> ou <code>%latitude%</code> : Remplacé par la latitude configurée de la station.</li>
+            <li><code>alt</code> ou <code>%altitude%</code> : Remplacé par l'altitude configurée de la station.</li>
+        </ul>
+        <p>Exemple d'utilisation data :</p>
+        <pre style="background: #23241f; padding: 8px; border-radius: 4px; color: #f8f8f2;"><code>data['temperature:outTemp']</code></pre>
+    </div>
 
-    <h4>Outils statistiques (Stats)</h4>
-    <ul>
-        <li><code>Stats.current(data, field)</code> : Valeur au point "now".</li>
-        <li><code>Stats.mean(data, field, scope)</code>, <code>Stats.min()</code>, <code>Stats.max()</code>, <code>Stats.sum()</code></li>
-        <li><code>Stats.first(data, field, scope)</code>, <code>Stats.last(data, field, scope)</code></li>
-        <li><code>Stats.movingAverage(data, field, window, scope)</code> : Moyenne mobile (window ex: '24h', '120min', '1d').</li>
-        <li><code>Stats.linearSlope(data, field, scope)</code> : Pente de régression linéaire.</li>
-        <li><code>Stats.mannKendall(data, field, scope)</code> : Test de tendance monotone.</li>
-        <li><code>Stats.split(data)</code> : Retourne <code>{ past: [], current: [], future: [] }</code>.</li>
-        <li><code>Stats.PeakTroughEpisodeDetector(data, field)</code> : Détecteur les bosses et les creux</li>
-        <li><code>Stats.nextPeak(data, field)</code> : Prochaine bosse (pas totalement écoulé).</li>
-        <li><code>Stats.nextTrough(data, field)</code> : Prochain creux (pas totalement écoulé).</li>
-        <li><code>Stats.nextEpisode(data, field)</code> : Le Prochain épisode (bosse ou creux).</li>
-    </ul>
+    <!-- Onglet Retours -->
+    <div id="help-tab-returns" class="help-tab-content" style="display: none;">
+        <h4>Formats de retour et stockage InfluxDB</h4>
+        <p>Les données calculées sont stockées dans le bucket <code>Integrators</code>. Selon le type de mesure configuré pour votre modèle intégrateur, la fonction doit renvoyer l'un des formats suivants :</p>
+        
+        <h5 style="margin-bottom: 5px; color: var(--accent-blue);">1. Standard (Nombre)</h5>
+        <p style="margin-top: 0;">Retourne un simple nombre décimal.
+            <br><strong>Stockage :</strong> Enregistré sous la mesure correspondant au <em>Type de mesure</em> configuré (ex: <code>temperature</code>) avec le nom du capteur de la sonde en tant que tag <code>sensor</code> (ex: <code>integrator_trend</code>).
+            <br><em>Exemple de clé :</em> <code>temperature:integrator_trend</code>
+        </p>
+        <pre style="background: #23241f; padding: 8px; border-radius: 4px; color: #f8f8f2;"><code>return 12.3;</code></pre>
 
-    <h4>Exemple</h4>
-    <pre style="margin: 5px 0;"><code>// Moyenne passée
-Stats.mean(data, 'temperature:outTemp', 'past')</code></pre>
+        <h5 style="margin-bottom: 5px; color: var(--accent-blue);">2. Vecteur (Vector)</h5>
+        <p style="margin-top: 0;">Retourne un objet contenant les composantes vectorielles.
+            <br><strong>Stockage :</strong> Enregistré sous la mesure <code>vector</code> avec le nom du capteur en tag <code>sensor</code> (ex: <code>moove_trend</code>). Les champs stockés seront <code>Ux</code>, <code>Vy</code> et éventuellement <code>Value</code>.
+            <br><em>Exemple de clé :</em> <code>vector:moove_trend</code>
+        </p>
+        <pre style="background: #23241f; padding: 8px; border-radius: 4px; color: #f8f8f2;"><code>return {
+    Ux: 5.2,     // Vitesse X (float)
+    Vy: -3.1,    // Vitesse Y (float)
+    Value: 6.0   // Magnitude optionnelle (float)
+};</code></pre>
 
-    <h4>Raccourcis</h4>
-    <p style="margin: 0;"><code>Ctrl+S</code>: Enregistrer, <code>Tab</code>: Auto-complétion, <code>Ctrl+/</code>: Commenter, <code>Esc</code>: Fermer.</p>
+        <h5 style="margin-bottom: 5px; color: var(--accent-blue);">3. Multi-mesures (None)</h5>
+        <p style="margin-top: 0;">Si le type de mesure est défini sur <code>None</code>, vous pouvez retourner un objet associant plusieurs capteurs à leur valeur respective.
+            <br><strong>Stockage :</strong> Chaque clé de l'objet (au format obligatoire <code>mesure:sensor</code>) est enregistrée indépendamment sous sa propre mesure et son propre tag de capteur.
+            <br><em>Exemples de clés :</em> <code>temperature:avgTemp</code> et <code>humidity:avgHum</code>
+        </p>
+        <pre style="background: #23241f; padding: 8px; border-radius: 4px; color: #f8f8f2;"><code>return {
+    "temperature:avgTemp": 15.4,
+    "humidity:avgHum": 82.5
+};</code></pre>
+    </div>
+
+    <!-- Onglet Syntaxe & Stats -->
+    <div id="help-tab-syntax" class="help-tab-content" style="display: none;">
+        <h4>Outils statistiques (Stats)</h4>
+        <p>La bibliothèque <code>Stats</code> fournit des fonctions pour analyser le dataset <code>data</code>.</p>
+        <ul style="padding-left: 20px;">
+            <li><code>Stats.current(data, field)</code> : Valeur au point "now".</li>
+            <li><code>Stats.mean(data, field, scope)</code> : Moyenne sur la période (<code>scope</code>: 'past', 'future', 'all').</li>
+            <li><code>Stats.min(data, field, scope)</code> / <code>Stats.max()</code> / <code>Stats.sum()</code></li>
+            <li><code>Stats.first(data, field, scope)</code> / <code>Stats.last()</code></li>
+            <li><code>Stats.movingAverage(data, field, window, scope)</code> : Moyenne mobile (ex: window = <code>'24h'</code>, <code>'120min'</code>).</li>
+            <li><code>Stats.linearSlope(data, field, scope)</code> : Pente de régression linéaire.</li>
+            <li><code>Stats.mannKendall(data, field, scope)</code> : Test de tendance de Mann-Kendall.</li>
+            <li><code>Stats.split(data)</code> : Découpe le dataset en <code>{ past, current, future }</code>.</li>
+        </ul>
+
+        <h4 style="margin-top: 15px;">Gestion du cache & Résampling</h4>
+        <p>Pour optimiser les performances ou forcer un mode d'interpolation spécifique, vous pouvez pré-calculer et mettre en cache les données rééchantillonnées :</p>
+        <pre style="background: #23241f; padding: 8px; border-radius: 4px; color: #f8f8f2; overflow-x: auto;"><code>// Pertinent seulement pour forcer le mode cubique. 
+// Sinon, le resampling linéaire est appelé automatiquement de manière transparente par les autres fonctions Stats.
+Stats._getResampledData(data, 'temperature:outTemp', 'cubic');</code></pre>
+
+        <h4 style="margin-top: 15px;">Épisodes et événements extrêmes</h4>
+        <p>Permet de détecter les pics (bosses) et creux de prévisions météorologiques :</p>
+        <ul style="padding-left: 20px;">
+            <li><code>Stats.PeakTroughEpisodeDetector(data, field, window)</code> : Construit le cache d'épisodes extrêmes.
+                <br><em>Note :</em> Pertinent uniquement pour spécifier une <strong>fenêtre temporelle différente</strong> (ex: <code>'24h'</code>). Sinon, il est appelé de manière transparente par les autres fonctions de recherche (<code>nextPeak</code>, <code>nextTrough</code>, etc.) avec la fenêtre par défaut.
+            </li>
+            <li><code>Stats.nextPeak(data, field)</code> : Retourne le prochain épisode de type "peak" (bosse) à venir.</li>
+            <li><code>Stats.nextTrough(data, field)</code> : Retourne le prochain épisode de type "trough" (creux) à venir.</li>
+            <li><code>Stats.nextEpisode(data, field)</code> : Retourne le tout prochain épisode (bosse ou creux) à venir.</li>
+        </ul>
+        <p>Exemple d'utilisation :</p>
+        <pre style="background: #23241f; padding: 8px; border-radius: 4px; color: #f8f8f2; overflow-x: auto;"><code>// Spécifier une fenêtre d'analyse de 24h (sinon optionnel, géré automatiquement)
+Stats.PeakTroughEpisodeDetector(data, 'temperature:outTemp', '24h');
+
+const episode = Stats.nextPeak(data, 'wind:windGust');
+if (episode) {
+    console.log("Rafale max attendue :", episode.peak.v, "à", episode.peak.d);
+    return episode.peak.v;
+}
+return 0;</code></pre>
+    </div>
+
+    <!-- Onglet Raccourcis -->
+    <div id="help-tab-shortcuts" class="help-tab-content" style="display: none;">
+        <h4>Raccourcis clavier de l'éditeur</h4>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95em;">
+            <thead>
+                <tr style="border-bottom: 1px solid #444; text-align: left;">
+                    <th style="padding: 6px; color: var(--accent-blue);">Raccourci</th>
+                    <th style="padding: 6px; color: var(--accent-blue);">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="border-bottom: 1px solid #333;">
+                    <td style="padding: 6px; font-family: monospace; font-weight: bold; color: #bd93f9; white-space: nowrap;">Ctrl + S</td>
+                    <td style="padding: 6px;">
+                        <strong>Enregistrer et exécuter</strong>. 
+                        <br><em style="color: #ffb86c;">(Soumis à authentification : enregistre la configuration et lance le calcul de la sonde.)</em>
+                    </td>
+                </tr>
+                <tr style="border-bottom: 1px solid #333;">
+                    <td style="padding: 6px; font-family: monospace; font-weight: bold; color: #bd93f9;">Tab</td>
+                    <td style="padding: 6px;">Auto-complétion des fonctions Stats et des capteurs de la station.</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #333;">
+                    <td style="padding: 6px; font-family: monospace; font-weight: bold; color: #bd93f9;">Ctrl + /</td>
+                    <td style="padding: 6px;">Commenter ou décommenter les lignes sélectionnées.</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #333;">
+                    <td style="padding: 6px; font-family: monospace; font-weight: bold; color: #bd93f9;">Echap (Esc)</td>
+                    <td style="padding: 6px;">Fermer la modale d'aide ou d'ajout.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 `;
 
@@ -134,7 +231,40 @@ function escapeIntegratorKeyHandler(event) {
 }
 
 function showIntegratorHelpModal() {
-    document.getElementById('help-modal-body').innerHTML = INTEGRATOR_HELP_CONTENT_HTML;
+    const modalBody = document.getElementById('help-modal-body');
+    modalBody.innerHTML = INTEGRATOR_HELP_CONTENT_HTML;
+
+    // Gestion des onglets interactifs de la modale d'aide
+    modalBody.querySelectorAll('.help-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabId = btn.dataset.tab;
+
+            // Toggle active style on buttons
+            modalBody.querySelectorAll('.help-tab-btn').forEach(b => {
+                const isActive = (b === btn);
+                b.classList.toggle('active', isActive);
+                if (isActive) {
+                    b.style.background = '#23241f';
+                    b.style.color = '#ccc';
+                    b.style.borderBottom = '3px solid #4DC0E0';
+                } else {
+                    b.style.background = '#111';
+                    b.style.color = '#888';
+                    b.style.borderBottom = 'none';
+                }
+            });
+
+            // Toggle display of tab contents
+            modalBody.querySelectorAll('.help-tab-content').forEach(content => {
+                if (content.id === `help-tab-${tabId}`) {
+                    content.style.display = 'block';
+                } else {
+                    content.style.display = 'none';
+                }
+            });
+        });
+    });
+
     document.getElementById('help-modal').classList.add('show');
     window.addEventListener('click', outsideIntegratorModalClickHandler);
     document.addEventListener('keydown', escapeIntegratorKeyHandler);
@@ -223,6 +353,13 @@ function displayIntegratorProbesList(settings) {
 
     listHTML += '</div>';
     container.innerHTML = listHTML;
+
+    // Rendu automatique des résultats enregistrés s'ils existent
+    Object.entries(settings).forEach(([probeKey, probeData]) => {
+        if (probeData.lastResult) {
+            renderProbeResult(probeKey, probeData.lastResult);
+        }
+    });
 
     document.getElementById('add-integrator-probe-btn').addEventListener('click', showAddIntegratorProbeModal);
 
@@ -669,86 +806,7 @@ async function handleRunIntegrator(event) {
         const response = await fetch(`/api/station/${selectedStation.id}/integrator/build/${probeKey}`);
         const result = await response.json();
 
-        let logs = [];
-        let cleanResult = { ...result };
-
-        if (result && Array.isArray(result.results)) {
-            const probeResult = result.results.find(r => r.probe === probeKey);
-            if (probeResult && Array.isArray(probeResult.logs)) {
-                logs = probeResult.logs;
-            }
-            cleanResult.results = result.results.map(r => {
-                const { logs, ...rest } = r;
-                return rest;
-            });
-        }
-
-        // Affichage des résultats
-        if (cleanResult && typeof cleanResult === 'object') {
-            const jsonString = JSON.stringify(cleanResult, null, 2);
-            try {
-                outputEl.innerHTML = hljs.highlight(jsonString, { language: 'json' }).value;
-            } catch (e) {
-                try {
-                    outputEl.innerHTML = hljs.highlightAuto(jsonString).value;
-                } catch (err) {
-                    outputEl.textContent = jsonString;
-                }
-            }
-        } else {
-            outputEl.textContent = String(cleanResult);
-        }
-
-        // Affichage des logs
-        if (logsEl) {
-            if (logs.length === 0) {
-                logsEl.innerHTML = '<span style="color: #888; font-style: italic;">Aucun log généré pour ce modèle.</span>';
-            } else {
-                let logsHTML = '';
-                logs.forEach(log => {
-                    const date = new Date(log.timestamp);
-                    const timeStr = !isNaN(date.getTime())
-                        ? date.toTimeString().split(' ')[0] + '.' + String(date.getMilliseconds()).padStart(3, '0')
-                        : '00:00:00.000';
-
-                    const levelStr = String(log.level).toUpperCase();
-
-                    let levelColor = '#888';
-                    let textColor = '#f8f8f2';
-                    if (log.level === 'error') {
-                        levelColor = '#ff5555';
-                        textColor = '#ff5555';
-                    } else if (log.level === 'warn') {
-                        levelColor = '#ffb86c';
-                        textColor = '#ffb86c';
-                    } else if (log.level === 'info') {
-                        levelColor = '#8be9fd';
-                        textColor = '#8be9fd';
-                    } else if (log.level === 'debug') {
-                        levelColor = '#bd93f9';
-                        textColor = '#bd93f9';
-                    } else if (log.level === 'log') {
-                        levelColor = '#50fa7b';
-                        textColor = '#f8f8f2';
-                    }
-
-                    const argsArray = Array.isArray(log.args) ? log.args : [log.args];
-                    const formattedArgs = argsArray.map(arg => {
-                        if (arg !== null && typeof arg === 'object') {
-                            return JSON.stringify(arg, null, 2);
-                        }
-                        return String(arg);
-                    }).join(' ');
-
-                    logsHTML += `<div style="margin-bottom: 8px; line-height: 1.4; border-left: 3px solid ${levelColor}; padding-left: 8px;">` +
-                        `<span style="color: #888;">[${timeStr}]</span> ` +
-                        `<span style="color: ${levelColor}; font-weight: bold;">[${levelStr}]</span> ` +
-                        `<span style="color: ${textColor}; white-space: pre-wrap;">${formattedArgs}</span>` +
-                        `</div>`;
-                });
-                logsEl.innerHTML = logsHTML;
-            }
-        }
+        renderProbeResult(probeKey, result);
     } catch (error) {
         console.error("Erreur lors de l'exécution du modèle:", error);
         outputEl.textContent = `Erreur: ${error.message}`;
@@ -756,5 +814,98 @@ async function handleRunIntegrator(event) {
     } finally {
         button.disabled = false;
         button.innerHTML = originalHTML;
+    }
+}
+
+/**
+ * Renders the results and logs for a specific probe.
+ * @param {string} probeKey - The probe identifier.
+ * @param {object} result - The result data object containing results and logs.
+ */
+function renderProbeResult(probeKey, result) {
+    const outputEl = document.getElementById(`integrator-probe-${probeKey}-output`);
+    const logsEl = document.getElementById(`integrator-probe-${probeKey}-logs`);
+    if (!outputEl) return;
+
+    let logs = [];
+    let cleanResult = { ...result };
+
+    if (result && Array.isArray(result.results)) {
+        const probeResult = result.results.find(r => r.probe === probeKey);
+        if (probeResult && Array.isArray(probeResult.logs)) {
+            logs = probeResult.logs;
+        }
+        cleanResult.results = result.results.map(r => {
+            const { logs, ...rest } = r;
+            return rest;
+        });
+    }
+
+    // Affichage des résultats
+    const displayData = (cleanResult && cleanResult.results !== undefined) ? cleanResult.results : cleanResult;
+    if (displayData && typeof displayData === 'object') {
+        const jsonString = JSON.stringify(displayData, null, 2);
+        try {
+            outputEl.innerHTML = hljs.highlight(jsonString, { language: 'json' }).value;
+        } catch (e) {
+            try {
+                outputEl.innerHTML = hljs.highlightAuto(jsonString).value;
+            } catch (err) {
+                outputEl.textContent = jsonString;
+            }
+        }
+    } else {
+        outputEl.textContent = String(displayData);
+    }
+
+    // Affichage des logs
+    if (logsEl) {
+        if (logs.length === 0) {
+            logsEl.innerHTML = '<span style="color: #888; font-style: italic;">Aucun log généré pour ce modèle.</span>';
+        } else {
+            let logsHTML = '';
+            logs.forEach(log => {
+                const date = new Date(log.timestamp);
+                const timeStr = !isNaN(date.getTime())
+                    ? date.toTimeString().split(' ')[0] + '.' + String(date.getMilliseconds()).padStart(3, '0')
+                    : '00:00:00.000';
+
+                const levelStr = String(log.level).toUpperCase();
+
+                let levelColor = '#888';
+                let textColor = '#f8f8f2';
+                if (log.level === 'error') {
+                    levelColor = '#ff5555';
+                    textColor = '#ff5555';
+                } else if (log.level === 'warn') {
+                    levelColor = '#ffb86c';
+                    textColor = '#ffb86c';
+                } else if (log.level === 'info') {
+                    levelColor = 'var(--accent-blue)';
+                    textColor = 'var(--accent-blue)';
+                } else if (log.level === 'debug') {
+                    levelColor = '#bd93f9';
+                    textColor = '#bd93f9';
+                } else if (log.level === 'log') {
+                    levelColor = '#50fa7b';
+                    textColor = '#f8f8f2';
+                }
+
+                const argsArray = Array.isArray(log.args) ? log.args : [log.args];
+                const formattedArgs = argsArray.map(arg => {
+                    if (arg !== null && typeof arg === 'object') {
+                        return JSON.stringify(arg, null, 2);
+                    }
+                    return String(arg);
+                }).join(' ');
+
+                logsHTML += `<div style="margin-bottom: 8px; line-height: 1.4; border-left: 3px solid ${levelColor}; padding-left: 8px;">` +
+                    `<span style="color: #888;">[${timeStr}]</span> ` +
+                    `<span style="color: ${levelColor}; font-weight: bold;">[${levelStr}]</span> ` +
+                    `<span style="color: ${textColor}; white-space: pre-wrap;">${formattedArgs}</span>` +
+                    `</div>`;
+            });
+            logsEl.innerHTML = logsHTML;
+        }
     }
 }

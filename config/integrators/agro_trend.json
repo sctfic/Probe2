@@ -1,0 +1,338 @@
+{
+    "success": true,
+    "stationId": "VP2_Serramoune",
+    "timestamp": "2026-06-24T17:54:31.318Z",
+    "message": "Calcul du modèle intégrateur terminé.",
+    "results": [
+        {
+            "probe": "agro_trend",
+            "status": "ok",
+            "type": "vector",
+            "value": {
+                "episodes": [
+                    {
+                        "type": "trough",
+                        "avg": 293.07,
+                        "duration": 26700,
+                        "start": {
+                            "d": "2026-06-17T23:25:00.000Z",
+                            "temperature:outTemp": 293.6
+                        },
+                        "end": {
+                            "d": "2026-06-18T06:50:00.000Z",
+                            "temperature:outTemp": 293.6
+                        }
+                    },
+                    {
+                        "type": "peak",
+                        "avg": 304.71,
+                        "duration": 17400,
+                        "start": {
+                            "d": "2026-06-18T10:05:00.000Z",
+                            "temperature:outTemp": 302.7
+                        },
+                        "end": {
+                            "d": "2026-06-18T14:55:00.000Z",
+                            "temperature:outTemp": 302.7
+                        }
+                    },
+                    {
+                        "type": "trough",
+                        "avg": 291.34,
+                        "duration": 11400,
+                        "start": {
+                            "d": "2026-06-19T02:55:00.000Z",
+                            "temperature:outTemp": 292.8
+                        },
+                        "end": {
+                            "d": "2026-06-19T06:05:00.000Z",
+                            "temperature:outTemp": 292.6
+                        }
+                    },
+                    {
+                        "type": "peak",
+                        "avg": 305.69,
+                        "duration": 15600,
+                        "start": {
+                            "d": "2026-06-19T11:25:00.000Z",
+                            "temperature:outTemp": 303.5
+                        },
+                        "end": {
+                            "d": "2026-06-19T15:45:00.000Z",
+                            "temperature:outTemp": 303.7
+                        }
+                    },
+                    {
+                        "type": "trough",
+                        "avg": 293.03,
+                        "duration": 29400,
+                        "start": {
+                            "d": "2026-06-19T22:05:00.000Z",
+                            "temperature:outTemp": 294.1
+                        },
+                        "end": {
+                            "d": "2026-06-20T06:15:00.000Z",
+                            "temperature:outTemp": 294
+                        }
+                    },
+                    {
+                        "type": "peak",
+                        "avg": 304.42,
+                        "duration": 21000,
+                        "start": {
+                            "d": "2026-06-20T12:45:00.000Z",
+                            "temperature:outTemp": 303
+                        },
+                        "end": {
+                            "d": "2026-06-20T18:35:00.000Z",
+                            "temperature:outTemp": 303
+                        }
+                    },
+                    {
+                        "type": "trough",
+                        "avg": 293.15,
+                        "duration": 21900,
+                        "start": {
+                            "d": "2026-06-21T00:25:00.000Z",
+                            "temperature:outTemp": 295.2
+                        },
+                        "end": {
+                            "d": "2026-06-21T06:30:00.000Z",
+                            "temperature:outTemp": 294.9
+                        }
+                    },
+                    {
+                        "type": "peak",
+                        "avg": 311.3,
+                        "duration": 24600,
+                        "start": {
+                            "d": "2026-06-21T11:10:00.000Z",
+                            "temperature:outTemp": 308.9
+                        },
+                        "end": {
+                            "d": "2026-06-21T18:00:00.000Z",
+                            "temperature:outTemp": 309.1
+                        }
+                    },
+                    {
+                        "type": "trough",
+                        "avg": 293.53,
+                        "duration": 25200,
+                        "start": {
+                            "d": "2026-06-21T23:25:00.000Z",
+                            "temperature:outTemp": 295.6
+                        },
+                        "end": {
+                            "d": "2026-06-22T06:25:00.000Z",
+                            "temperature:outTemp": 295.6
+                        }
+                    },
+                    {
+                        "type": "peak",
+                        "avg": 311.45,
+                        "duration": 27600,
+                        "start": {
+                            "d": "2026-06-22T10:10:00.000Z",
+                            "temperature:outTemp": 309.8
+                        },
+                        "end": {
+                            "d": "2026-06-22T17:50:00.000Z",
+                            "temperature:outTemp": 310
+                        }
+                    },
+                    {
+                        "type": "trough",
+                        "avg": 293.77,
+                        "duration": 24300,
+                        "start": {
+                            "d": "2026-06-22T23:40:00.000Z",
+                            "temperature:outTemp": 295.9
+                        },
+                        "end": {
+                            "d": "2026-06-23T06:25:00.000Z",
+                            "temperature:outTemp": 295.9
+                        }
+                    },
+                    {
+                        "type": "peak",
+                        "avg": 312.4,
+                        "duration": 26100,
+                        "start": {
+                            "d": "2026-06-23T10:40:00.000Z",
+                            "temperature:outTemp": 310.6
+                        },
+                        "end": {
+                            "d": "2026-06-23T17:55:00.000Z",
+                            "temperature:outTemp": 310.5
+                        }
+                    },
+                    {
+                        "type": "trough",
+                        "avg": 293.01,
+                        "duration": 25800,
+                        "start": {
+                            "d": "2026-06-23T23:00:00.000Z",
+                            "temperature:outTemp": 295.3
+                        },
+                        "end": {
+                            "d": "2026-06-24T06:10:00.000Z",
+                            "temperature:outTemp": 295.3
+                        }
+                    },
+                    {
+                        "type": "peak",
+                        "avg": 311.72,
+                        "duration": 26400,
+                        "start": {
+                            "d": "2026-06-24T10:15:00.000Z",
+                            "temperature:outTemp": 310.1
+                        },
+                        "end": {
+                            "d": "2026-06-24T17:35:00.000Z",
+                            "temperature:outTemp": 310.1
+                        }
+                    },
+                    {
+                        "type": "trough",
+                        "avg": 297.31,
+                        "duration": 25800,
+                        "start": {
+                            "d": "2026-06-24T23:35:00.000Z",
+                            "temperature:outTemp": 298.5
+                        },
+                        "end": {
+                            "d": "2026-06-25T06:45:00.000Z",
+                            "temperature:outTemp": 298.49
+                        }
+                    },
+                    {
+                        "type": "peak",
+                        "avg": 309.65,
+                        "duration": 18600,
+                        "start": {
+                            "d": "2026-06-25T10:25:00.000Z",
+                            "temperature:outTemp": 307.32
+                        },
+                        "end": {
+                            "d": "2026-06-25T15:35:00.000Z",
+                            "temperature:outTemp": 307.61
+                        }
+                    },
+                    {
+                        "type": "trough",
+                        "avg": 294.01,
+                        "duration": 31800,
+                        "start": {
+                            "d": "2026-06-25T22:30:00.000Z",
+                            "temperature:outTemp": 295.67
+                        },
+                        "end": {
+                            "d": "2026-06-26T07:20:00.000Z",
+                            "temperature:outTemp": 295.58
+                        }
+                    },
+                    {
+                        "type": "peak",
+                        "avg": 305.18,
+                        "duration": 22500,
+                        "start": {
+                            "d": "2026-06-26T12:40:00.000Z",
+                            "temperature:outTemp": 303.75
+                        },
+                        "end": {
+                            "d": "2026-06-26T18:55:00.000Z",
+                            "temperature:outTemp": 303.75
+                        }
+                    },
+                    {
+                        "type": "trough",
+                        "avg": 295.7,
+                        "duration": 25200,
+                        "start": {
+                            "d": "2026-06-26T23:30:00.000Z",
+                            "temperature:outTemp": 296.73
+                        },
+                        "end": {
+                            "d": "2026-06-27T06:30:00.000Z",
+                            "temperature:outTemp": 296.61
+                        }
+                    },
+                    {
+                        "type": "peak",
+                        "avg": 306.74,
+                        "duration": 22500,
+                        "start": {
+                            "d": "2026-06-27T11:15:00.000Z",
+                            "temperature:outTemp": 305.1
+                        },
+                        "end": {
+                            "d": "2026-06-27T17:30:00.000Z",
+                            "temperature:outTemp": 305.09
+                        }
+                    },
+                    {
+                        "type": "trough",
+                        "avg": 293.97,
+                        "duration": 29700,
+                        "start": {
+                            "d": "2026-06-27T23:00:00.000Z",
+                            "temperature:outTemp": 294.56
+                        },
+                        "end": {
+                            "d": "2026-06-28T07:15:00.000Z",
+                            "temperature:outTemp": 294.56
+                        }
+                    },
+                    {
+                        "type": "peak",
+                        "avg": 297.16,
+                        "duration": 15300,
+                        "start": {
+                            "d": "2026-06-28T09:30:00.000Z",
+                            "temperature:outTemp": 296.29
+                        },
+                        "end": {
+                            "d": "2026-06-28T13:45:00.000Z",
+                            "temperature:outTemp": 296.26
+                        }
+                    },
+                    {
+                        "type": "trough",
+                        "avg": 291.82,
+                        "duration": 33600,
+                        "start": {
+                            "d": "2026-06-28T22:55:00.000Z",
+                            "temperature:outTemp": 292.31
+                        },
+                        "end": {
+                            "d": "2026-06-29T08:15:00.000Z",
+                            "temperature:outTemp": 292.31
+                        }
+                    }
+                ]
+            },
+            "logs": [
+                {
+                    "level": "info",
+                    "timestamp": "2026-06-24T17:54:31.316Z",
+                    "args": [
+                        "Trough",
+                        {
+                            "type": "trough",
+                            "avg": 297.31,
+                            "duration": 25800,
+                            "start": {
+                                "d": "2026-06-24T23:35:00.000Z",
+                                "temperature:outTemp": 298.5
+                            },
+                            "end": {
+                                "d": "2026-06-25T06:45:00.000Z",
+                                "temperature:outTemp": 298.49
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

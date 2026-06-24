@@ -799,6 +799,7 @@ exports.runIntegrator = async (req, res) => {
                 const baseSensorName = sensorDb.includes(':') ? sensorDb.split(':')[1] : sensorDb;
 
                 if (measurementType === 'vector' && typeof calculatedValue === 'object') {
+                    // console.log(sensorDb);
                     // Cas vecteur : { Ux, Vy, Value? }
                     const point = new influxdbService.Point('vector')
                         .tag('station_id', stationId)
@@ -863,6 +864,28 @@ exports.runIntegrator = async (req, res) => {
         if (points.length > 0) {
             const written = await influxdbService.writePoints(points, 'Integrators');
             console.log(`${V.database} [INTEGRATOR] ${written} points écrits dans le bucket Integrators.`);
+        }
+
+        // Sauvegarder le résultat de chaque sonde dans config/integrators/${probeKey}.json
+        const integratorsDir = path.join(__dirname, '..', 'config', 'integrators');
+        try {
+            if (!fs.existsSync(integratorsDir)) {
+                fs.mkdirSync(integratorsDir, { recursive: true });
+            }
+            for (const r of results) {
+                const singleResponseData = {
+                    success: true,
+                    stationId,
+                    timestamp: new Date().toISOString(),
+                    message: `Calcul du modèle intégrateur terminé.`,
+                    results: [r]
+                };
+                const resultPath = path.join(integratorsDir, `${r.probe}.json`);
+                fs.writeFileSync(resultPath, JSON.stringify(singleResponseData, null, 4), 'utf8');
+                console.log(`${V.write} [INTEGRATOR] Sauvegarde du résultat individuel pour la sonde ${r.probe}`);
+            }
+        } catch (saveErr) {
+            console.error(`${V.error} [INTEGRATOR] Erreur lors de la sauvegarde des résultats individuels:`, saveErr.message);
         }
 
         res.json({

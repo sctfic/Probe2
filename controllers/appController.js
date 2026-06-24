@@ -796,6 +796,21 @@ exports.getIntegratorProbesSettings = (req, res) => {
         console.log(`${V.gear} Récupération de la configuration des Modeles Intégrateur (integratorProbes.json)`);
         const probesPath = path.join(__dirname, '..', 'config', 'integratorProbes.json');
         const probesConfig = JSON.parse(fs.readFileSync(probesPath, 'utf8'));
+
+        // Charger les derniers résultats d'exécution s'ils existent
+        const integratorsDir = path.join(__dirname, '..', 'config', 'integrators');
+        for (const probeKey of Object.keys(probesConfig)) {
+            const probeResultPath = path.join(integratorsDir, `${probeKey}.json`);
+            if (fs.existsSync(probeResultPath)) {
+                try {
+                    const resultData = JSON.parse(fs.readFileSync(probeResultPath, 'utf8'));
+                    probesConfig[probeKey].lastResult = resultData;
+                } catch (readErr) {
+                    console.error(`${V.error} Erreur lors de la lecture du résultat pour ${probeKey}:`, readErr.message);
+                }
+            }
+        }
+
         res.json({
             success: true,
             timestamp: new Date().toISOString(),

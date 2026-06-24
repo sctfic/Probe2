@@ -681,11 +681,12 @@ input:checked+.slider:before {
 
 .modal-content {
     background-color: #fff;
-    margin: 10% auto;
+    margin: 2% auto;
     padding: 0;
     border-radius: 8px;
     width: 90%;
-    max-width: 500px;
+    max-height: 90%;
+    max-width: 640px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, .3);
     animation: slideIn .3s ease-out
 }

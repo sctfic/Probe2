@@ -447,7 +447,8 @@
             "Gust",
             "Wind",
             "MoonTrajectory_calc",
-            "SunTrajectory_calc"
+            "SunTrajectory_calc",
+            "agro_trend"
         ]
     }
 }
