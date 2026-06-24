@@ -60,7 +60,11 @@
 
         .line-mv {
             stroke-width: 0.6px;
-            stroke-dasharray: 2,3;
+            stroke-dasharray: 2, 3;
+        }
+
+        .ma-slider-container-hovered .line-mv {
+            stroke-width: 3px !important;
         }
 
         #chart-container {
@@ -296,20 +300,17 @@
                 <option value="" disabled selected>Add Sensor :</option>
             </select>
         </div>
-        <div class="history-switch-container"
+        <div class="history-slider-container"
             style="display: flex; align-items: center; margin-left: 20px; gap: 8px; color: #ccc; font-size: 0.9em; font-weight: bold;">
-            <span id="label-1y" style="color: var(--futuristic-cyan);margin-top:-4px;">1 An</span>
-            <label class="switch" title="Basculer entre 1 an et l'historique complet">
-                <input type="checkbox" id="history-toggle">
-                <span class="slider round"></span>
-            </label>
-            <span id="label-full" style="margin-top:-4px;">Complet</span>
+            <input type="range" id="history-slider" min="0" max="8" value="5"
+                style="cursor: pointer; width: 120px; height: 4px; accent-color: var(--accent-blue);">
+            <span id="history-slider-label" style="margin-top:-4px;">1 An</span>
         </div>
         <div class="ma-slider-container"
             style="display: flex; align-items: center; margin-left: 20px; gap: 8px; color: #ccc; font-size: 0.9em; font-weight: bold;">
-            <span id="ma-slider-label" style="margin-top:-4px;">MA: 24h</span>
-            <input type="range" id="ma-slider" min="0" max="100" value="42" 
+            <input type="range" id="ma-slider" min="0" max="100" value="42"
                 style="cursor: pointer; width: 100px; height: 4px; accent-color: var(--accent-blue);">
+            <span id="ma-slider-label" style="margin-top:-4px;" title="Moving Average">mAvg: 24h</span>
         </div>
     </div>
     <div id="chart-container">
@@ -375,20 +376,111 @@
             let currentSensors = sensorList.split(',').filter(s => s.trim() !== '');
             let allStationSensors = [];
             let selectedSensor = null; // Capteur "verrouillé" par clic
+            let sensorOffsets = {}; // Décalages temporels par capteur
             let currentStartDate = null;
             let currentEndDate = null;
 
-            function set1YearRange() {
-                const end = new Date(); // plus 14 jours, pour les prevision
-                end.setDate(end.getDate() + 14);
-                const start = new Date(); // moins 1 an
-                start.setFullYear(end.getFullYear() - 1);
-                currentStartDate = start.toISOString().split('T')[0];
-                currentEndDate = end.toISOString().split('T')[0];
+            // Fonctions de conversion pour l'offset logarithmique (valeur de -500 à 500)
+            function offsetSliderToMs(value) {
+                const val = parseInt(value);
+                if (val === 0) return 0;
+
+                const sign = val > 0 ? 1 : -1;
+                const absVal = Math.abs(val);
+
+                const minMs = 5 * 60 * 1000; // 5 minutes
+                const maxMs = 365 * 24 * 60 * 60 * 1000; // 365 jours
+
+                const logMin = Math.log(minMs);
+                const logMax = Math.log(maxMs);
+                const rate = (absVal - 1) / (500 - 1);
+
+                const ms = Math.exp(logMin + rate * (logMax - logMin));
+                return sign * Math.round(ms / 60000) * 60000; // Arrondi à la minute
             }
 
-            // Par défaut : 1 dernière année
-            set1YearRange();
+            function msToOffsetSlider(ms) {
+                if (!ms) return 0;
+                const sign = ms > 0 ? 1 : -1;
+                const absMs = Math.abs(ms);
+
+                const minMs = 5 * 60 * 1000;
+                const maxMs = 365 * 24 * 60 * 60 * 1000;
+
+                if (absMs < minMs) return 0;
+
+                const logMin = Math.log(minMs);
+                const logMax = Math.log(maxMs);
+                const logVal = Math.log(absMs);
+
+                const rate = (logVal - logMin) / (logMax - logMin);
+                const val = 1 + rate * (500 - 1);
+                return sign * Math.round(val);
+            }
+
+            function formatOffset(offsetMs) {
+                if (!offsetMs) return "Aucun décalage";
+
+                const sign = offsetMs > 0 ? "+ " : "- ";
+                const absMs = Math.abs(offsetMs);
+
+                const minutes = Math.round(absMs / 60000);
+                const days = Math.floor(minutes / (24 * 60));
+                const hours = Math.floor((minutes % (24 * 60)) / 60);
+                const mins = minutes % 60;
+
+                const parts = [];
+                if (days > 0) parts.push(`${days}j`);
+                if (hours > 0) parts.push(`${hours}h`);
+                if (mins > 0) parts.push(`${mins}m`);
+
+                return sign + parts.join(' ');
+            }
+
+            // Fonction commune pour décaler l'offset du capteur sélectionné
+            function shiftSensorOffset(direction) {
+                if (!selectedSensor) return;
+
+                const plotInstance = container.__current_plot_instance;
+                if (!plotInstance) return;
+
+                const domain = plotInstance.xScale.domain();
+                const offset = sensorOffsets[selectedSensor] || 0;
+
+                // Filtrer les données visibles du capteur pour estimer avgIntervalMs
+                const visibleData = plotInstance.data.filter(d => {
+                    const displayedDate = new Date(d.datetime.getTime() + offset);
+                    return displayedDate >= domain[0] && displayedDate <= domain[1];
+                });
+                const dates = visibleData.map(d => d.datetime).filter(d => d instanceof Date && !isNaN(d));
+
+                let avgIntervalMs = 300000; // 5 min par défaut
+                if (window.plotMetadata && window.plotMetadata.intervalSeconds) {
+                    avgIntervalMs = window.plotMetadata.intervalSeconds * 1000;
+                } else if (dates.length > 1) {
+                    avgIntervalMs = (dates[dates.length - 1] - dates[0]) / (dates.length - 1);
+                }
+
+                // Calculer le step en millisecondes (multiple de 300 secondes le plus proche de avgIntervalMs)
+                let stepMs = Math.round(avgIntervalMs / 300000) * 300000;
+                if (stepMs <= 0) stepMs = 300000;
+
+                let newOffset = (sensorOffsets[selectedSensor] || 0) + direction * stepMs;
+
+                // Limites de -1 an à +1 an
+                const oneYearMs = 365 * 24 * 60 * 60 * 1000;
+                newOffset = Math.max(-oneYearMs, Math.min(oneYearMs, newOffset));
+
+                sensorOffsets[selectedSensor] = newOffset;
+
+                // Mettre à jour l'instance graphique et redessiner
+                plotInstance.sensorOffsets[selectedSensor] = newOffset;
+                plotInstance.updateLines(false);
+
+                // Rafraîchir le panneau des statistiques
+                const color = plotInstance.colorScale(selectedSensor.replace(":", "_"));
+                showStats(selectedSensor, color, plotInstance);
+            }
 
             // Fonction utilitaire pour générer l'URL de données
             function getQueryUrl(sensorListStr) {
@@ -431,12 +523,24 @@
                 const currentStatsPanel = document.getElementById('sensor-stats-panel');
                 if (!currentStatsPanel || !plotInstance || !plotInstance.data) return;
 
-                // Extraire les valeurs valides pour ce capteur
-                const values = plotInstance.data
+                // Ne considérer que la fenêtre visible (domaine de xScale)
+                const domain = plotInstance.xScale.domain();
+                const offset = sensorOffsets[sensor] || 0;
+
+                // Filtrer les données visibles du capteur en prenant en compte son offset
+                const visibleData = plotInstance.data.filter(d => {
+                    const displayedDate = new Date(d.datetime.getTime() + offset);
+                    return displayedDate >= domain[0] && displayedDate <= domain[1];
+                });
+
+                const values = visibleData
                     .map(d => d[sensor])
                     .filter(v => v !== null && v !== undefined && !isNaN(v));
 
-                if (values.length === 0) return;
+                if (values.length === 0) {
+                    currentStatsPanel.style.display = 'none';
+                    return;
+                }
 
                 const min = d3.min(values); // Minimum
                 const max = d3.max(values); // Maximum
@@ -446,31 +550,35 @@
                 const stdDev = d3.deviation(values) || 0; // Écart-type, racine carrée de la variance
                 const p5 = d3.quantile(values, 0.05); // 5ème percentile
                 const p20 = d3.quantile(values, 0.20); // 20ème percentile
-                const median = d3.median(values); // d3.quantile(values, 0.50); // 50ème percentile
+                const median = d3.median(values); // 50ème percentile
                 const p80 = d3.quantile(values, 0.80); // 80ème percentile
                 const p95 = d3.quantile(values, 0.95); // 95ème percentile
 
                 // Trouver l'unité
                 let unit = '';
+                let intervalSeconds = 0;
                 if (window.plotMetadata && window.plotMetadata.toUserUnit && window.plotMetadata.toUserUnit[sensor]) {
                     unit = window.plotMetadata.toUserUnit[sensor].userUnit;
                     intervalSeconds = window.plotMetadata.intervalSeconds;
                 }
 
+                // Calcul de la durée de la fenêtre visible
+                const durationMs = domain[1] - domain[0];
+                const days = Math.floor(durationMs / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((durationMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const durationStr = `${days}j ${hours}h`;
+
+                // Dates de début et fin de la fenêtre de zoom
+                const formatDate = d3.timeFormat("%d/%m/%y %H:%M");
+                const startDateStr = formatDate(domain[0]);
+                const endDateStr = formatDate(domain[1]);
+
                 // Intervalle
-                const dates = plotInstance.data.map(d => d.datetime).filter(d => d instanceof Date && !isNaN(d));
-                let durationStr = '';
+                const dates = visibleData.map(d => d.datetime).filter(d => d instanceof Date && !isNaN(d));
                 let intervalStr = '';
                 if (dates.length > 1) {
-                    const firstDate = dates[0];
-                    const lastDate = dates[dates.length - 1];
-                    const durationMs = lastDate - firstDate;
-                    const days = Math.floor(durationMs / (1000 * 60 * 60 * 24));
-                    const hours = Math.floor((durationMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                    durationStr = `${days}j ${hours}h`;
-
                     // Calcul de l'intervalle moyen
-                    const avgIntervalMs = intervalSeconds ? intervalSeconds * 1000 : durationMs / (dates.length - 1);
+                    const avgIntervalMs = intervalSeconds ? intervalSeconds * 1000 : (dates[dates.length - 1] - dates[0]) / (dates.length - 1);
                     const totalMin = Math.round(avgIntervalMs / 60000);
                     const iDays = Math.floor(totalMin / (24 * 60));
                     const iHours = Math.floor((totalMin % (24 * 60)) / 60);
@@ -481,38 +589,110 @@
                     else intervalStr = `${totalMin}m`;
                 }
 
-                currentStatsPanel.innerHTML = `
-                    <div class="stats-container">
-                        <div class="stats-column" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                            <span style="font-size: 1.5em; line-height: 1;">
-                                <span style="font-size: 1.6em;">&larrb;</span> <b style="color: ${color};">${durationStr}</b> <span style="font-size: 1.6em;"> &rarrb;</span>
-                            </span>
-                            <span style="font-size: 0.9em; opacity: 0.8; margin-top: 5px;" title="Intervalle moyen entre 2 points">Step: <b style="color: ${color};">${intervalStr}</b></span>
-                        </div>
+                const isSelected = (sensor === selectedSensor);
+                const offsetHtml = isSelected ? `
+                     <!-- Séparateur vertical -->
+                     <div style="width: 1px; height: 50px; background-color: #555; margin: 0 15px;"></div>
+                     
+                     <!-- Colonne Offset Slider (Agrandie, désactivée pour indicateur, avec boutons flèches) -->
+                     <div class="stats-column" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 500px;">
+                         <span style="font-size: 0.9em; font-weight: bold; margin-bottom: 5px; color: ${color};">Décalage temporel (touches &larr; / &rarr;) :</span>
+                         <div style="display: flex; align-items: center; gap: 8px;">
+                             <button id="offset-dec-btn" title="Reculer d'un pas" 
+                                 style="background: rgba(255,255,255,0.1); border: 1px solid #555; color: #ccc; cursor: pointer; padding: 2px 8px; font-size: 12px; border-radius: 3px; outline: none; transition: background 0.2s;">
+                                 &larr;
+                             </button>
+                             <input type="range" id="offset-slider" min="-500" max="500" value="${msToOffsetSlider(sensorOffsets[sensor] || 0)}" 
+                                 style="cursor: default; width: 300px; height: 4px; accent-color: ${color}; opacity: 0.7;" disabled>
+                             <button id="offset-inc-btn" title="Avancer d'un pas" 
+                                 style="background: rgba(255,255,255,0.1); border: 1px solid #555; color: #ccc; cursor: pointer; padding: 2px 8px; font-size: 12px; border-radius: 3px; outline: none; transition: background 0.2s;">
+                                 &rarr;
+                             </button>
+                         </div>
+                         <span id="offset-val-label" style="font-size: 0.85em; margin: 5px; font-weight: bold; color: #ccc;">Aucun décalage</span>
+                             <button id="reset-offset-btn" title="Réinitialiser le décalage à 0" 
+                                 style="background: rgba(255,255,255,0.1); border: 1px solid #555; color: #ccc; cursor: pointer; padding: 2px 6px; font-size: 10px; border-radius: 3px; outline: none; transition: background 0.2s; margin-left: 5px;">
+                                 Reset
+                             </button>
+                     </div>
+                 ` : '';
 
-                        <div class="stats-column">
-                            <span title="Maximum"><span class="stats-label">Max.</span><b class="stats-value" style="color: ${color};">${max} ${unit}</b></span>
-                            <span title="Moyenne"><span class="stats-label">Moy.</span><b class="stats-value" style="color: ${color};">${avg.toFixed(2)} ${unit}</b></span>
-                            <span title="Minimum"><span class="stats-label">Min.</span><b class="stats-value" style="color: ${color};">${min} ${unit}</b></span>
-                        </div>
-                        <div class="stats-column" style="font-size: 0.9em;">
-                            <span title="95ème percentile"><span class="stats-label">P.95</span><b class="stats-value" style="color: ${color};">${p95.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8679;</span></span>
-                            <span title="80ème percentile"><span class="stats-label">P.80</span><b class="stats-value" style="color: ${color};">${p80.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8673;</span></span>
-                            <span title="50ème percentile"><span class="stats-label">Méd.</span><b class="stats-value" style="color: ${color};">${median.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8596;</span></span>
-                            <span title="20ème percentile"><span class="stats-label">P.20</span><b class="stats-value" style="color: ${color};">${p20.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8675;</span></span>
-                            <span title="5ème percentile"><span class="stats-label">P.05</span><b class="stats-value" style="color: ${color};">${p5.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8681;</span></span>
-                        </div>` +
+                currentStatsPanel.innerHTML = `
+                     <div class="stats-container">
+                         <div class="stats-column" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                             <span style="font-size: 1.5em; line-height: 1;">
+                                 <span style="font-size: 1.6em;">&larrb;</span> <b style="color: ${color};">${durationStr}</b> <span style="font-size: 1.6em;"> &rarrb;</span>
+                             </span>
+                             <span style="font-size: 0.75em; opacity: 0.7; margin-top: 2px; font-weight: normal;">
+                                 Du ${startDateStr} au ${endDateStr}
+                             </span>
+                             <span style="font-size: 0.9em; opacity: 0.8; margin-top: 5px;" title="Intervalle moyen entre 2 points">Step: <b style="color: ${color};">${intervalStr}</b></span>
+                         </div>
+ 
+                         <div class="stats-column">
+                             <span title="Maximum"><span class="stats-label">Max.</span><b class="stats-value" style="color: ${color};">${max} ${unit}</b></span>
+                             <span title="Moyenne"><span class="stats-label">Moy.</span><b class="stats-value" style="color: ${color};">${avg.toFixed(2)} ${unit}</b></span>
+                             <span title="Minimum"><span class="stats-label">Min.</span><b class="stats-value" style="color: ${color};">${min} ${unit}</b></span>
+                         </div>
+                         <div class="stats-column" style="font-size: 0.9em;">
+                             <span title="95ème percentile"><span class="stats-label">P.95</span><b class="stats-value" style="color: ${color};">${p95.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8679;</span></span>
+                             <span title="80ème percentile"><span class="stats-label">P.80</span><b class="stats-value" style="color: ${color};">${p80.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8673;</span></span>
+                             <span title="50ème percentile"><span class="stats-label">Méd.</span><b class="stats-value" style="color: ${color};">${median.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8596;</span></span>
+                             <span title="20ème percentile"><span class="stats-label">P.20</span><b class="stats-value" style="color: ${color};">${p20.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8675;</span></span>
+                             <span title="5ème percentile"><span class="stats-label">P.05</span><b class="stats-value" style="color: ${color};">${p5.toFixed(2)}${unit}</b> <span style='font-size:1.5em'>&#8681;</span></span>
+                         </div>` +
                     (sensor.startsWith('rain:') ?
                         `<div class="stats-column">
-                            <span title="Cumul"><span style='font-size:1.2em'>&sum;</span> <b class="stats-value" style="color: ${color};">${sum.toFixed(1)} ${unit}</b></span>
-                        </div>` :
+                             <span title="Cumul"><span style='font-size:1.2em'>&sum;</span> <b class="stats-value" style="color: ${color};">${sum.toFixed(1)} ${unit}</b></span>
+                         </div>` :
                         `<div class="stats-column">
-                            <span title="Écart-type, racine carrée de la variance"><span style='font-size:1.4em'>&sigma;</span> <span class="stats-label">(stdDev)</span><b class="stats-value" style="color: ${color};">${stdDev.toFixed(2)} ${unit}</b></span>
-                            <span title="Variance, moyenne des carrés des écarts à la moyenne (2ème moment central)"><span class="stats-label">Variance</span><b class="stats-value" style="color: ${color};">${variance.toFixed(2)} (${unit})²</b></span>
-                        </div>`) +
+                             <span title="Écart-type, racine carrée de la variance"><span style='font-size:1.4em'>&sigma;</span> <span class="stats-label">(stdDev)</span><b class="stats-value" style="color: ${color};">${stdDev.toFixed(2)} ${unit}</b></span>
+                             <span title="Variance, moyenne des carrés des écarts à la moyenne (2ème moment central)"><span class="stats-label">Variance</span><b class="stats-value" style="color: ${color};">${variance.toFixed(2)} (${unit})²</b></span>
+                         </div>`) +
+                    offsetHtml +
                     `</div>
-                `;
+                 `;
                 currentStatsPanel.style.display = 'block';
+
+                if (isSelected) {
+                    const offsetValLabel = document.getElementById('offset-val-label');
+                    const resetOffsetBtn = document.getElementById('reset-offset-btn');
+                    const decBtn = document.getElementById('offset-dec-btn');
+                    const incBtn = document.getElementById('offset-inc-btn');
+
+                    if (offsetValLabel) {
+                        offsetValLabel.textContent = formatOffset(sensorOffsets[sensor] || 0);
+                    }
+
+                    if (decBtn) {
+                        decBtn.addEventListener('mouseenter', () => decBtn.style.background = 'rgba(255,255,255,0.25)');
+                        decBtn.addEventListener('mouseleave', () => decBtn.style.background = 'rgba(255,255,255,0.1)');
+                        decBtn.addEventListener('click', () => {
+                            shiftSensorOffset(-1);
+                        });
+                    }
+
+                    if (incBtn) {
+                        incBtn.addEventListener('mouseenter', () => incBtn.style.background = 'rgba(255,255,255,0.25)');
+                        incBtn.addEventListener('mouseleave', () => incBtn.style.background = 'rgba(255,255,255,0.1)');
+                        incBtn.addEventListener('click', () => {
+                            shiftSensorOffset(1);
+                        });
+                    }
+
+                    if (resetOffsetBtn) {
+                        resetOffsetBtn.addEventListener('mouseenter', () => resetOffsetBtn.style.background = 'rgba(255,255,255,0.25)');
+                        resetOffsetBtn.addEventListener('mouseleave', () => resetOffsetBtn.style.background = 'rgba(255,255,255,0.1)');
+                        resetOffsetBtn.addEventListener('click', () => {
+                            sensorOffsets[sensor] = 0;
+                            if (plotInstance) {
+                                plotInstance.sensorOffsets[sensor] = 0;
+                                plotInstance.updateLines(false);
+                            }
+                            showStats(sensor, color, plotInstance);
+                        });
+                    }
+                }
             }
 
             function hideStats() {
@@ -648,43 +828,141 @@
                     currentSensors.push(selectedSensor);
                     const newSensorStr = updateUrl();
                     const dataUrl = getQueryUrl(newSensorStr);
+
+                    // Conserver la fenêtre de date (zoom temporel) si elle existe déjà dans l'instance
+                    const plotInstance = container.__current_plot_instance;
+                    let prevZoomDomain = null;
+                    if (plotInstance && plotInstance.xScale) {
+                        prevZoomDomain = plotInstance.xScale.domain();
+                    }
+
                     container.innerHTML = ''; // Clear pour le spinner ou re-draw
                     await drawChart(dataUrl);
+
+                    const newPlotInstance = container.__current_plot_instance;
+                    if (newPlotInstance && prevZoomDomain) {
+                        newPlotInstance.xScale.domain(prevZoomDomain);
+                        const filteredData = newPlotInstance.data.filter(d =>
+                            d.datetime >= prevZoomDomain[0] && d.datetime <= prevZoomDomain[1]
+                        );
+                        if (filteredData.length > 0) {
+                            newPlotInstance.updateYDomains(filteredData);
+                        }
+                        newPlotInstance.updateGradients();
+                        newPlotInstance.updateAxes(0);
+                        newPlotInstance.createNowLine();
+                        newPlotInstance.updateLines(false);
+                    }
                     renderSensorUI();
                 }
             });
 
-            // Gestionnaire Bouton Historique Complet
-            const historyToggle = document.getElementById('history-toggle');
-            const label1y = document.getElementById('label-1y');
-            const labelFull = document.getElementById('label-full');
+            // Gestionnaire Slider Historique
+            const historySlider = document.getElementById('history-slider');
+            const historySliderLabel = document.getElementById('history-slider-label');
 
-            // Synchroniser l'état initial
-            historyToggle.checked = (currentStartDate === null);
+            const sliderLabels = [
+                "1 Jour",
+                "1 Semaine",
+                "1 Mois",
+                "3 Mois",
+                "6 Mois",
+                "1 An",
+                "3 Ans",
+                "10 Ans",
+                "Complet"
+            ];
 
-            const updateSwitchUI = () => {
-                if (!historyToggle.checked) {
-                    label1y.style.color = 'var(--futuristic-cyan)';
-                    labelFull.style.color = '#ccc';
-                } else {
-                    labelFull.style.color = 'var(--futuristic-cyan)';
-                    label1y.style.color = '#ccc';
+            function setSliderRange(value) {
+                const today = new Date();
+
+                const end = new Date(today);
+                end.setDate(today.getDate() + 14); // Fin = Aujourd'hui + 14 jours
+
+                const start = new Date(today); // Début = Aujourd'hui - Durée
+                switch (parseInt(value)) {
+                    case 0:
+                        start.setDate(today.getDate() - 1);
+                        break;
+                    case 1:
+                        start.setDate(today.getDate() - 7);
+                        break;
+                    case 2:
+                        start.setMonth(today.getMonth() - 1);
+                        break;
+                    case 3:
+                        start.setMonth(today.getMonth() - 3);
+                        break;
+                    case 4:
+                        start.setMonth(today.getMonth() - 6);
+                        break;
+                    case 5:
+                        start.setFullYear(today.getFullYear() - 1);
+                        break;
+                    case 6:
+                        start.setFullYear(today.getFullYear() - 3);
+                        break;
+                    case 7:
+                        start.setFullYear(today.getFullYear() - 10);
+                        break;
+                    case 8:
+                        currentStartDate = null;
+                        currentEndDate = null;
+                        return;
                 }
-            };
+                currentStartDate = start.toISOString().split('T')[0];
+                currentEndDate = end.toISOString().split('T')[0];
+            }
 
-            historyToggle.addEventListener('change', async (e) => {
-                if (e.target.checked) {
-                    currentStartDate = null;
-                    currentEndDate = null;
-                } else {
-                    set1YearRange();
-                }
+            // Charger la valeur sauvegardée dans le localStorage si présente
+            const savedSliderValue = localStorage.getItem('historySliderValue');
+            const initialSliderVal = savedSliderValue !== null ? parseInt(savedSliderValue) : 5; // 5 = 1 An par défaut
+            historySlider.value = initialSliderVal;
+            setSliderRange(initialSliderVal);
 
-                updateSwitchUI();
+            historySliderLabel.textContent = `${sliderLabels[historySlider.value]}`;
+
+            historySlider.addEventListener('input', async (e) => {
+                const val = parseInt(e.target.value);
+                historySliderLabel.textContent = `${sliderLabels[val]}`;
+                localStorage.setItem('historySliderValue', val); // Sauvegarder la valeur
+                setSliderRange(val);
+
                 container.innerHTML = '';
                 initialDataUrl = getQueryUrl(currentSensors.join(','));
                 await drawChart(initialDataUrl);
                 renderSensorUI();
+            });
+
+            // Gérer le changement de valeur avec la roulette de la souris
+            historySlider.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const direction = e.deltaY < 0 ? 1 : -1;
+                let newVal = parseInt(historySlider.value) + direction;
+                newVal = Math.max(parseInt(historySlider.min), Math.min(parseInt(historySlider.max), newVal));
+                if (newVal !== parseInt(historySlider.value)) {
+                    historySlider.value = newVal;
+                    historySlider.dispatchEvent(new Event('input'));
+                }
+            });
+
+            // Gérer le décalage de l'offset au clavier (flèches gauche et droite) pour le capteur sélectionné
+            document.addEventListener('keydown', (e) => {
+                if (!selectedSensor) return;
+
+                // Ne pas intercepter les touches si l'utilisateur saisit du texte dans un autre champ actif
+                if (e.target.tagName === 'INPUT' && !e.target.disabled) {
+                    return;
+                }
+                if (e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+                    return;
+                }
+
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    const direction = e.key === 'ArrowRight' ? 1 : -1;
+                    shiftSensorOffset(direction);
+                }
             });
 
             // Récupérer la liste complète des capteurs pour la station
@@ -716,6 +994,10 @@
 
                 const targetUrl = url || initialDataUrl;
 
+                // Propager selectedSensor et sensorOffsets au conteneur pour le constructeur de TimeSeriesPlot
+                container.selectedSensor = selectedSensor;
+                container.sensorOffsets = sensorOffsets;
+
                 // Appel de mainPlots qui va vider le conteneur et recréer le SVG
                 // Plots.js définit par défaut height=300, ce qui corrige le problème de hauteur.
                 if (typeof mainPlots === 'function') {
@@ -727,10 +1009,9 @@
                             if (selectedSensor) {
                                 const sensorId = selectedSensor.replace(":", "_");
                                 const color = plotInstance.colorScale(sensorId);
-                                plotInstance.highlightSensor(selectedSensor);
                                 showStats(selectedSensor, color, plotInstance);
                             } else {
-                                plotInstance.highlightSensor(null);
+                                hideStats();
                             }
                         };
 
@@ -738,8 +1019,7 @@
 
                         // Restaurer immédiatement si un capteur est déjà sélectionné
                         if (selectedSensor) {
-                            // On attend un tout petit peu que les lignes initiales soient rendues
-                            setTimeout(restoreSelection, 50);
+                            restoreSelection();
                         }
                     }
 
@@ -810,19 +1090,19 @@
             }
 
             function formatMaWindow(ms) {
-                if (!ms || ms <= 0) return "MA: Off";
+                if (!ms || ms <= 0) return "mAvg: Off";
 
                 const hours = ms / (60 * 60 * 1000);
                 if (hours < 24) {
-                    return `MA: ${Math.round(hours)}h`;
+                    return `mAvg: ${Math.round(hours)}h`;
                 }
 
                 const days = hours / 24;
                 if (days < 7) {
-                    return `MA: ${days.toFixed(1)}j`;
+                    return `mAvg: ${days.toFixed(1)}j`;
                 }
 
-                return `MA: ${Math.round(days)}j`;
+                return `mAvg: ${Math.round(days)}j`;
             }
 
             const maSlider = document.getElementById('ma-slider');
@@ -841,6 +1121,29 @@
                     plotInstance.updateLines(false);
                 }
             });
+
+            // Gérer le changement de valeur avec la roulette de la souris
+            maSlider.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const direction = e.deltaY < 0 ? 1 : -1;
+                let newVal = parseInt(maSlider.value) + direction * 2; // pas de 2
+                newVal = Math.max(parseInt(maSlider.min), Math.min(parseInt(maSlider.max), newVal));
+                if (newVal !== parseInt(maSlider.value)) {
+                    maSlider.value = newVal;
+                    maSlider.dispatchEvent(new Event('input'));
+                }
+            });
+
+            // Gérer le survol de ma-slider-container
+            const maSliderContainer = document.querySelector('.ma-slider-container');
+            if (maSliderContainer) {
+                maSliderContainer.addEventListener('mouseenter', () => {
+                    document.body.classList.add('ma-slider-container-hovered');
+                });
+                maSliderContainer.addEventListener('mouseleave', () => {
+                    document.body.classList.remove('ma-slider-container-hovered');
+                });
+            }
         });
     </script>
 </body>

@@ -2,7 +2,7 @@
     "agro_trend": {
         "label": "modele Agronomique",
         "comment": "modele Agronomique multi cultural",
-        "fnModel": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n// probe.local/api/station/VP2_Serramoune/integrator/build\n  // Affiche un log de debug (visible dans l'API et la console serveur)\n\n  // Exemple 2 : Isoler les données passées\n  // const maxHumidity = Stats.max(data, 'humidity:inHumidity', 'past');\n  Stats._getResampledData(data, 'temperature:outTemp', 'cubic');\n  const episodes = Stats.ExtremeEpisodeDetector(data, 'temperature:outTemp', '12h');\n  // console.log('episodes ', episodes);\n    const Trough = Stats.nextTrough(data, 'temperature:outTemp');\n    console.info('Trough', Trough);\n    \n  return  {\n      episodes \n  };\n}\n",
+        "fnModel": "(data, lon=%longitude%, lat=%latitude% , alt=%altitude%) => {\n// probe.local/api/station/VP2_Serramoune/integrator/build\n  // Affiche un log de debug (visible dans l'API et la console serveur)\n\n  // Exemple 2 : Isoler les données passées\n  // const maxHumidity = Stats.max(data, 'humidity:inHumidity', 'past');\n  Stats._getResampledData(data, 'temperature:outTemp', 'cubic');\n  const episodes = Stats.PeakTroughEpisodeDetector(data, 'temperature:outTemp', '24h');\n  // console.log('episodes ', episodes);\n    const Trough = Stats.nextTrough(data, 'temperature:outTemp');\n    console.info('Trough', Trough);\n    \n  return  {\n      episodes \n  };\n}\n",
         "dataNeeded": [
             "humidity:inHumidity",
             "temperature:outTemp"

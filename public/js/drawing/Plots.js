@@ -71,7 +71,7 @@ class TimeSeriesPlot {
         this.margin = { top: 10, right: 40, bottom: 20, left: 40 };
         this.width = window.innerWidth;
 
-        this.height = isMobile ? 200 : 300;
+        this.height = isMobile ? 240 : 640;
         this.innerWidth = this.width - this.margin.left - this.margin.right;
         this.innerHeight = this.height - this.margin.top - this.margin.bottom;
 
@@ -88,7 +88,22 @@ class TimeSeriesPlot {
         const maSliderEl = document.getElementById('ma-slider');
         this.movingAverageWindowMs = maSliderEl ? this.sliderToMs(parseInt(maSliderEl.value)) : 24 * 60 * 60 * 1000; // 24h par défaut
 
+        this.selectedSensor = container.selectedSensor || null;
+        this.sensorOffsets = container.sensorOffsets || {};
+
         this.initializeScales();
+    }
+
+    getSensorOpacity(sensor, isMv) {
+        if (!this.selectedSensor) {
+            return isMv ? 0.6 : 1.0;
+        }
+        const targetSensorId = this.selectedSensor.replace(":", "_");
+        const sensorId = sensor.replace(":", "_");
+        if (sensorId === targetSensorId) {
+            return isMv ? 0.6 : 1.0;
+        }
+        return 0.1;
     }
 
     // Nettoyage de l'instance
@@ -369,7 +384,9 @@ class TimeSeriesPlot {
 
         Object.entries(this.yScales).forEach(([groupName, scaleInfo]) => {
             const activeSensors = this.metadata.measurement[groupName] || [];
+            // console.log("activeSensors :", activeSensors);
             scaleInfo.sensors.filter(s => activeSensors.includes(s)).forEach(sensor => {
+                // console.log("sensor :", sensor);
                 // 1. Filtrer les données pour ce capteur spécifique
                 const filteredData = this.data.filter(d =>
                     d[sensor] !== null &&
@@ -382,6 +399,7 @@ class TimeSeriesPlot {
 
                 const sensorId = sensor.replace(":", "_");
                 const solidColor = this.colorScale(sensorId);
+                const offset = this.sensorOffsets[sensor] || 0;
 
                 // Calculer la moyenne mobile sur la fenêtre sélectionnée (ou null si désactivé/off)
                 const mvData = (this.movingAverageWindowMs && this.movingAverageWindowMs > 0)
@@ -396,7 +414,7 @@ class TimeSeriesPlot {
                     // Ligne avant "now" (nette, couleur pleine)
                     if (beforeNow.length >= 2) {
                         const lineBefore = d3.line()
-                            .x(d => this.xScale(d.datetime))
+                            .x(d => this.xScale(new Date(d.datetime.getTime() + offset)))
                             .y(d => scaleInfo.scale(d[sensor]))
                             .defined(d => d[sensor] !== null && d[sensor] !== undefined && !isNaN(d[sensor]))
                             .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
@@ -410,13 +428,13 @@ class TimeSeriesPlot {
                             .style("opacity", 0)
                             .transition()
                             .duration(500)
-                            .style("opacity", 1);
+                            .style("opacity", this.getSensorOpacity(sensor, false));
                     }
 
                     // Ligne après "now" (avec gradient et blur)
                     if (afterNow.length >= 2) {
                         const lineAfter = d3.line()
-                            .x(d => this.xScale(d.datetime))
+                            .x(d => this.xScale(new Date(d.datetime.getTime() + offset)))
                             .y(d => scaleInfo.scale(d[sensor]))
                             .defined(d => d[sensor] !== null && d[sensor] !== undefined && !isNaN(d[sensor]))
                             .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
@@ -431,7 +449,7 @@ class TimeSeriesPlot {
                             .style("opacity", 0)
                             .transition()
                             .duration(500)
-                            .style("opacity", 1);
+                            .style("opacity", this.getSensorOpacity(sensor, false));
                     }
 
                     // Tracé de la moyenne mobile avant/après "now"
@@ -441,7 +459,7 @@ class TimeSeriesPlot {
 
                         if (mvBeforeNow.length >= 2) {
                             const mvLineBefore = d3.line()
-                                .x(d => this.xScale(d.datetime))
+                                .x(d => this.xScale(new Date(d.datetime.getTime() + offset)))
                                 .y(d => scaleInfo.scale(d.value))
                                 .defined(d => d.value !== null && d.value !== undefined && !isNaN(d.value))
                                 .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
@@ -456,12 +474,12 @@ class TimeSeriesPlot {
                                 .style("opacity", 0)
                                 .transition()
                                 .duration(500)
-                                .style("opacity", 0.6);
+                                .style("opacity", this.getSensorOpacity(sensor, true));
                         }
 
                         if (mvAfterNow.length >= 2) {
                             const mvLineAfter = d3.line()
-                                .x(d => this.xScale(d.datetime))
+                                .x(d => this.xScale(new Date(d.datetime.getTime() + offset)))
                                 .y(d => scaleInfo.scale(d.value))
                                 .defined(d => d.value !== null && d.value !== undefined && !isNaN(d.value))
                                 .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
@@ -477,13 +495,13 @@ class TimeSeriesPlot {
                                 .style("opacity", 0)
                                 .transition()
                                 .duration(500)
-                                .style("opacity", 0.6);
+                                .style("opacity", this.getSensorOpacity(sensor, true));
                         }
                     }
                 } else {
                     // Ligne normale sans effets
                     const line = d3.line()
-                        .x(d => this.xScale(d.datetime))
+                        .x(d => this.xScale(new Date(d.datetime.getTime() + offset)))
                         .y(d => scaleInfo.scale(d[sensor]))
                         .defined(d => d[sensor] !== null && d[sensor] !== undefined && !isNaN(d[sensor]))
                         .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
@@ -497,12 +515,12 @@ class TimeSeriesPlot {
                         .style("opacity", 0)
                         .transition()
                         .duration(500)
-                        .style("opacity", 1);
+                        .style("opacity", this.getSensorOpacity(sensor, false));
 
                     // Moyenne mobile normale
                     if (mvData && mvData.length >= 2) {
                         const mvLine = d3.line()
-                            .x(d => this.xScale(d.datetime))
+                            .x(d => this.xScale(new Date(d.datetime.getTime() + offset)))
                             .y(d => scaleInfo.scale(d.value))
                             .defined(d => d.value !== null && d.value !== undefined && !isNaN(d.value))
                             .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
@@ -517,7 +535,7 @@ class TimeSeriesPlot {
                             .style("opacity", 0)
                             .transition()
                             .duration(500)
-                            .style("opacity", 0.6);
+                            .style("opacity", this.getSensorOpacity(sensor, true));
                     }
                 }
             });
@@ -866,6 +884,7 @@ class TimeSeriesPlot {
 
                 const sensorId = sensor.replace(":", "_");
                 const solidColor = this.colorScale(sensorId);
+                const offset = this.sensorOffsets[sensor] || 0;
 
                 // Calculer la moyenne mobile sur la fenêtre sélectionnée (ou null si désactivé/off)
                 const mvData = (this.movingAverageWindowMs && this.movingAverageWindowMs > 0)
@@ -880,7 +899,7 @@ class TimeSeriesPlot {
                     // Ligne avant "now" (nette, couleur pleine)
                     if (beforeNow.length >= 2) {
                         const lineBefore = d3.line()
-                            .x(d => this.xScale(d.datetime))
+                            .x(d => this.xScale(new Date(d.datetime.getTime() + offset)))
                             .y(d => scaleInfo.scale(d[sensor]))
                             .defined(d => d[sensor] !== null && d[sensor] !== undefined && !isNaN(d[sensor]))
                             .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
@@ -896,14 +915,16 @@ class TimeSeriesPlot {
                             pathBefore.style("opacity", 0)
                                 .transition()
                                 .duration(750)
-                                .style("opacity", 1);
+                                .style("opacity", this.getSensorOpacity(sensor, false));
+                        } else {
+                            pathBefore.style("opacity", this.getSensorOpacity(sensor, false));
                         }
                     }
 
                     // Ligne après "now" (avec gradient et blur)
                     if (afterNow.length >= 2) {
                         const lineAfter = d3.line()
-                            .x(d => this.xScale(d.datetime))
+                            .x(d => this.xScale(new Date(d.datetime.getTime() + offset)))
                             .y(d => scaleInfo.scale(d[sensor]))
                             .defined(d => d[sensor] !== null && d[sensor] !== undefined && !isNaN(d[sensor]))
                             .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
@@ -920,7 +941,9 @@ class TimeSeriesPlot {
                             pathAfter.style("opacity", 0)
                                 .transition()
                                 .duration(750)
-                                .style("opacity", 1);
+                                .style("opacity", this.getSensorOpacity(sensor, false));
+                        } else {
+                            pathAfter.style("opacity", this.getSensorOpacity(sensor, false));
                         }
                     }
 
@@ -931,7 +954,7 @@ class TimeSeriesPlot {
 
                         if (mvBeforeNow.length >= 2) {
                             const mvLineBefore = d3.line()
-                                .x(d => this.xScale(d.datetime))
+                                .x(d => this.xScale(new Date(d.datetime.getTime() + offset)))
                                 .y(d => scaleInfo.scale(d.value))
                                 .defined(d => d.value !== null && d.value !== undefined && !isNaN(d.value))
                                 .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
@@ -948,15 +971,15 @@ class TimeSeriesPlot {
                                 pathMvBefore.style("opacity", 0)
                                     .transition()
                                     .duration(750)
-                                    .style("opacity", 0.6);
+                                    .style("opacity", this.getSensorOpacity(sensor, true));
                             } else {
-                                pathMvBefore.style("opacity", 0.6);
+                                pathMvBefore.style("opacity", this.getSensorOpacity(sensor, true));
                             }
                         }
 
                         if (mvAfterNow.length >= 2) {
                             const mvLineAfter = d3.line()
-                                .x(d => this.xScale(d.datetime))
+                                .x(d => this.xScale(new Date(d.datetime.getTime() + offset)))
                                 .y(d => scaleInfo.scale(d.value))
                                 .defined(d => d.value !== null && d.value !== undefined && !isNaN(d.value))
                                 .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
@@ -974,16 +997,16 @@ class TimeSeriesPlot {
                                 pathMvAfter.style("opacity", 0)
                                     .transition()
                                     .duration(750)
-                                    .style("opacity", 0.6);
+                                    .style("opacity", this.getSensorOpacity(sensor, true));
                             } else {
-                                pathMvAfter.style("opacity", 0.6);
+                                pathMvAfter.style("opacity", this.getSensorOpacity(sensor, true));
                             }
                         }
                     }
                 } else {
                     // Ligne normale sans effets
                     const line = d3.line()
-                        .x(d => this.xScale(d.datetime))
+                        .x(d => this.xScale(new Date(d.datetime.getTime() + offset)))
                         .y(d => scaleInfo.scale(d[sensor]))
                         .defined(d => d[sensor] !== null && d[sensor] !== undefined && !isNaN(d[sensor]))
                         .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
@@ -999,13 +1022,15 @@ class TimeSeriesPlot {
                         path.style("opacity", 0)
                             .transition()
                             .duration(750)
-                            .style("opacity", 1);
+                            .style("opacity", this.getSensorOpacity(sensor, false));
+                    } else {
+                        path.style("opacity", this.getSensorOpacity(sensor, false));
                     }
 
                     // Moyenne mobile normale sans effets
                     if (mvData && mvData.length >= 2) {
                         const mvLine = d3.line()
-                            .x(d => this.xScale(d.datetime))
+                            .x(d => this.xScale(new Date(d.datetime.getTime() + offset)))
                             .y(d => scaleInfo.scale(d.value))
                             .defined(d => d.value !== null && d.value !== undefined && !isNaN(d.value))
                             .curve(sensor.startsWith('rain:') ? d3.curveStep : d3.curveCatmullRom.alpha(0.35));
@@ -1022,9 +1047,9 @@ class TimeSeriesPlot {
                             pathMv.style("opacity", 0)
                                 .transition()
                                 .duration(750)
-                                .style("opacity", 0.6);
+                                .style("opacity", this.getSensorOpacity(sensor, true));
                         } else {
-                            pathMv.style("opacity", 0.6);
+                            pathMv.style("opacity", this.getSensorOpacity(sensor, true));
                         }
                     }
                 }
@@ -1064,6 +1089,46 @@ class TimeSeriesPlot {
             .on("mousemove", (event) => this.updateTooltip(event, focus));
     }
 
+    getClosestDataPointForSensor(sensor, targetDate) {
+        const bisect = d3.bisector(d => d.datetime).left;
+        const i = bisect(this.data, targetDate, 1);
+
+        let bestPoint = null;
+        let minDiff = Infinity;
+
+        // Tester les indices i-1 et i
+        for (const idx of [i - 1, i]) {
+            const pt = this.data[idx];
+            if (pt && pt[sensor] !== null && pt[sensor] !== undefined && !isNaN(pt[sensor])) {
+                const diff = Math.abs(pt.datetime - targetDate);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    bestPoint = pt;
+                }
+            }
+        }
+
+        // Si aucun point proche n'est valide pour ce capteur, faire une recherche élargie autour de i
+        if (!bestPoint) {
+            for (let k = Math.max(0, i - 5); k < Math.min(this.data.length, i + 5); k++) {
+                const pt = this.data[k];
+                if (pt && pt[sensor] !== null && pt[sensor] !== undefined && !isNaN(pt[sensor])) {
+                    const diff = Math.abs(pt.datetime - targetDate);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        bestPoint = pt;
+                    }
+                }
+            }
+        }
+
+        // Tolérance maximum : 15 jours
+        if (bestPoint && minDiff < 15 * 24 * 60 * 60 * 1000) {
+            return bestPoint;
+        }
+        return null;
+    }
+
     // Mettre à jour le tooltip
     updateTooltip(event, focus) {
         const bisect = d3.bisector(d => d.datetime).left;
@@ -1098,11 +1163,16 @@ class TimeSeriesPlot {
         let yPos = 12;
         Object.entries(this.yScales).forEach(([groupName, scaleInfo]) => {
             scaleInfo.sensors.forEach(sensor => {
-                if (d[sensor] !== null && d[sensor] !== undefined) {
+                const offset = this.sensorOffsets[sensor] || 0;
+                const targetDate = new Date(d.datetime.getTime() - offset);
+                const dOffset = this.getClosestDataPointForSensor(sensor, targetDate);
+
+                if (dOffset && dOffset[sensor] !== null && dOffset[sensor] !== undefined && !isNaN(dOffset[sensor])) {
+                    const val = dOffset[sensor];
                     // Point
                     dotsGroup.append("circle")
                         .attr("cx", 0)
-                        .attr("cy", scaleInfo.scale(d[sensor]))
+                        .attr("cy", scaleInfo.scale(val))
                         .attr("r", 3)
                         .attr("stroke", this.colorScale(sensor.replace(":", "_")))
                         .attr("stroke-width", 1)
@@ -1114,7 +1184,7 @@ class TimeSeriesPlot {
                         .attr("y", yPos)
                         .style("font-size", "10px")
                         .style("fill", this.colorScale(sensor.replace(":", "_")))
-                        .text(`${d[sensor]} ${this.metadata.toUserUnit[sensor].userUnit}`);
+                        .text(`${val} ${this.metadata.toUserUnit[sensor].userUnit}`);
 
                     // Nom du capteur
                     tooltip.append("text")
@@ -1328,6 +1398,7 @@ class TimeSeriesPlot {
 
     // Gère la surbrillance d'un capteur spécifique en modifiant l'opacité
     highlightSensor(sensorName) {
+        this.selectedSensor = sensorName;
         if (!this.g) return;
         const targetSensorId = sensorName ? sensorName.replace(":", "_") : null;
 

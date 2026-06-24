@@ -64,7 +64,7 @@ let integratorJsCompletions = [
     'alert();', 'prompt();', 'confirm();',
     'localStorage();', 'sessionStorage();', 'getItem();', 'setItem();', 'removeItem();',
     'Math.random();', 'Math.floor();', 'Math.ceil();', 'Math.round();', 'Math.max();', 'Math.min();',
-    'Stats.nextPeak(data,field,window)', 'Stats.nextTrough(data,field,window)', 'Stats.nextEpisode(data,field,window)', 'Stats.ExtremeEpisodeDetector(data,field,window)',
+    'Stats.nextPeak(data,field,window)', 'Stats.nextTrough(data,field,window)', 'Stats.nextEpisode(data,field,window)', 'Stats.PeakTroughEpisodeDetector(data,field,window)',
     'Stats.current(data, "measurement:sensor")', 'Stats.mean(data, "measurement:sensor", scope)', 'Stats.min(data, "measurement:sensor", scope)', 'Stats.max(data, "measurement:sensor", scope)',
     'Stats.sum(data, "measurement:sensor", scope)', 'Stats.first(data, "measurement:sensor", scope)', 'Stats.last(data, "measurement:sensor", scope)',
     'Stats.trend(data, "measurement:sensor", scope)', 'Stats.movingAverage(data, "measurement:sensor", window, scope)',
@@ -99,7 +99,7 @@ const INTEGRATOR_HELP_CONTENT_HTML = `
         <li><code>Stats.linearSlope(data, field, scope)</code> : Pente de régression linéaire.</li>
         <li><code>Stats.mannKendall(data, field, scope)</code> : Test de tendance monotone.</li>
         <li><code>Stats.split(data)</code> : Retourne <code>{ past: [], current: [], future: [] }</code>.</li>
-        <li><code>Stats.ExtremeEpisodeDetector(data, field)</code> : Détecteur les bosses et les creux</li>
+        <li><code>Stats.PeakTroughEpisodeDetector(data, field)</code> : Détecteur les bosses et les creux</li>
         <li><code>Stats.nextPeak(data, field)</code> : Prochaine bosse (pas totalement écoulé).</li>
         <li><code>Stats.nextTrough(data, field)</code> : Prochain creux (pas totalement écoulé).</li>
         <li><code>Stats.nextEpisode(data, field)</code> : Le Prochain épisode (bosse ou creux).</li>

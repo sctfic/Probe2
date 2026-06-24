@@ -481,7 +481,7 @@ const Stats = {
      * @param {string|number} [window='24h'] - La fenêtre de la moyenne mobile.
      * @returns {Array<Object>} Épisodes triés chronologiquement.
      */
-    ExtremeEpisodeDetector(data, field, window = '24h') {
+    PeakTroughEpisodeDetector(data, field, window = '24h') {
         if (this._lastDataEpisodes !== data) {
             this._lastDataEpisodes = data;
             this._episodesCache = {};
@@ -492,13 +492,13 @@ const Stats = {
         // ─── 1. RÉÉCHANTILLONNAGE ─────────────────────────────────────
         const resampled = this._getResampledData(data, field, 'cubic');
         if (resampled.length < 2) {
-            throw new Error(`[ExtremeEpisodeDetector] ${field}: pas assez de données`);
+            throw new Error(`[PeakTroughEpisodeDetector] ${field}: pas assez de données`);
         }
 
         // ─── 2. COURBE MOYENNE MOBILE ─────────────────────────────────
         const maData = this.movingAverage(data, field, window, 'all');
         if (maData.length < 2) {
-            throw new Error(`[ExtremeEpisodeDetector] ${field}: pas assez de données pour la MA`);
+            throw new Error(`[PeakTroughEpisodeDetector] ${field}: pas assez de données pour la MA`);
         }
 
         // Créer une map rapide t → valeur MA
@@ -610,7 +610,7 @@ const Stats = {
 
     nextPeak(data, field, window = '24h') {
         const now = this._getNow(data);
-        const episodes = this.ExtremeEpisodeDetector(data, field, window);
+        const episodes = this.PeakTroughEpisodeDetector(data, field, window);
         return episodes
             .filter(e => e.type === 'peak' && new Date(e.end.d).getTime() >= now)
             .sort((a, b) => new Date(a.start.d).getTime() - new Date(b.start.d).getTime())[0] || null;
@@ -618,7 +618,7 @@ const Stats = {
 
     nextTrough(data, field, window = '24h') {
         const now = this._getNow(data);
-        const episodes = this.ExtremeEpisodeDetector(data, field, window);
+        const episodes = this.PeakTroughEpisodeDetector(data, field, window);
         return episodes
             .filter(e => e.type === 'trough' && new Date(e.end.d).getTime() >= now)
             .sort((a, b) => new Date(a.start.d).getTime() - new Date(b.start.d).getTime())[0] || null;
@@ -626,7 +626,7 @@ const Stats = {
 
     nextEpisode(data, field, window = '24h') {
         const now = this._getNow(data);
-        const episodes = this.ExtremeEpisodeDetector(data, field, window);
+        const episodes = this.PeakTroughEpisodeDetector(data, field, window);
         return episodes
             .filter(e => e.type === 'trough' || e.type === 'peak') // Just filter if needed, or filter as before
             .filter(e => new Date(e.end.d).getTime() >= now)
