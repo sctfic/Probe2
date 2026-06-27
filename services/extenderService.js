@@ -1,6 +1,7 @@
 const axios = require('axios');
 const crypto = require('crypto');
 const os = require('os');
+const dgram = require('dgram');
 const influxdbService = require('./influxdbService');
 const { V } = require('../utils/icons');
 const configManager = require('./configManager');
@@ -108,54 +109,80 @@ function getUniqueExtenderName(proposedName, excludeMac = null) {
 }
 
 /**
- * Subnet HTTP Ping scanning logic. Ping IP on port 80 at /api/capacity.
+ * Scan network using UDP Broadcast to port 3030.
  */
-async function scanSubnet(prefix, knownIps) {
-    const ips = [];
-    for (let i = 1; i <= 254; i++) {
-        const ip = `${prefix}.${i}`;
-        if (!knownIps.has(ip)) {
-            ips.push(ip);
-        }
-    }
+function discoverExtendersViaUdp(timeoutMs = 1500) {
+    return new Promise((resolve) => {
+        const client = dgram.createSocket('udp4');
+        const discovered = [];
+        const seenMacs = new Set();
 
-    const discovered = [];
-    const batchSize = 25;
-    for (let i = 0; i < ips.length; i += batchSize) {
-        const batch = ips.slice(i, i + batchSize);
-        const promises = batch.map(async (ip) => {
+        client.on('message', (msg, rinfo) => {
             try {
-                const res = await axios.get(`http://${ip}/api/capacity`, { timeout: 1500 });
-                if (res.data && res.data.mac) {
-                    console.log(`[EXTENDERS] WhisperEye détecté à l'adresse IP : ${ip} (MAC: ${res.data.mac})`);
-                    return {
-                        host: ip,
-                        mac: res.data.mac,
-                        name: res.data.name || '',
-                        description: res.data.description || '',
-                        version: res.data.version || '',
-                        renameEnabled: res.data.rename_enabled !== undefined ? !!res.data.rename_enabled : true,
-                        sensors: res.data.sensors || [],
-                        actuators: res.data.actuators || []
-                    };
+                const data = JSON.parse(msg.toString());
+                if (data && data.mac) {
+                    const macUpper = data.mac.toUpperCase();
+                    if (!seenMacs.has(macUpper)) {
+                        seenMacs.add(macUpper);
+                        console.log(`[EXTENDERS UDP] WhisperEye détecté à l'adresse IP : ${rinfo.address} (MAC: ${data.mac})`);
+                        discovered.push({
+                            host: rinfo.address,
+                            mac: data.mac,
+                            name: data.name || '',
+                            description: data.description || '',
+                            version: data.version || '',
+                            renameEnabled: data.rename_enabled !== undefined ? !!data.rename_enabled : true,
+                            sensors: data.sensors || [],
+                            actuators: data.actuators || []
+                        });
+                    }
                 }
             } catch (err) {
-                // Offline or not a WhisperEye
+                console.error('[EXTENDERS UDP] Error parsing response:', err.message);
             }
-            return null;
         });
 
-        const results = await Promise.all(promises);
-        discovered.push(...results.filter(r => r !== null));
-    }
-    return discovered;
+        client.on('error', (err) => {
+            console.error('[EXTENDERS UDP] Socket error:', err.message);
+        });
+
+        client.bind(0, () => {
+            try {
+                client.setBroadcast(true);
+                
+                const message = Buffer.from('DISCOVER_WHISPEREYE');
+                
+                // Broadcast to general address
+                client.send(message, 0, message.length, 3030, '255.255.255.255', (err) => {
+                    if (err) console.error('[EXTENDERS UDP] Send error (255.255.255.255):', err.message);
+                });
+
+                // Also broadcast to subnet-specific addresses
+                const subnets = getLocalSubnets();
+                for (const prefix of subnets) {
+                    const broadcastAddr = `${prefix}.255`;
+                    client.send(message, 0, message.length, 3030, broadcastAddr, (err) => {
+                        if (err) console.error(`[EXTENDERS UDP] Send error (${broadcastAddr}):`, err.message);
+                    });
+                }
+            } catch (err) {
+                console.error('[EXTENDERS UDP] Setup error:', err.message);
+            }
+        });
+
+        setTimeout(() => {
+            try {
+                client.close();
+            } catch (e) {}
+            resolve(discovered);
+        }, timeoutMs);
+    });
 }
 
 /**
  * Scan all subnets and register discovered WhisperEyes not already registered.
  */
 async function autoDiscoverAndRegisterExtenders(stationConfig, reqHost) {
-    const knownIps = new Set();
     const existingMacs = new Set();
     const report = {
         scannedSubnets: [],
@@ -166,19 +193,15 @@ async function autoDiscoverAndRegisterExtenders(stationConfig, reqHost) {
 
     if (stationConfig.extenders && stationConfig.extenders.WhisperEye) {
         stationConfig.extenders.WhisperEye.forEach(ext => {
-            if (ext.host) knownIps.add(ext.host);
             if (ext.mac) existingMacs.add(ext.mac.toLowerCase());
         });
     }
 
     const subnets = getLocalSubnets();
-    const allDiscovered = [];
-    for (const prefix of subnets) {
-        console.log(`[EXTENDERS] Balayage du sous-réseau ${prefix}.0/24...`);
-        report.scannedSubnets.push(`${prefix}.0/24`);
-        const found = await scanSubnet(prefix, knownIps);
-        allDiscovered.push(...found);
-    }
+    report.scannedSubnets = subnets.map(prefix => `${prefix}.0/24`);
+
+    console.log(`[EXTENDERS] Lancement de la détection par Broadcast UDP (port 3030)...`);
+    const allDiscovered = await discoverExtendersViaUdp(2000);
 
     let addedCount = 0;
     for (const dev of allDiscovered) {
@@ -197,12 +220,7 @@ async function autoDiscoverAndRegisterExtenders(stationConfig, reqHost) {
 
         try {
             const pairingPayload = {
-                // wifi_ssid: null,
-                // wifi_psk: null,
-                // update_url: null,
-                // update_interval: null,
                 apply_only: true,
-                // auto_update: null,
                 totp_secret: apiKey,
                 ext_name: uniqueName,
                 ext_desc: dev.description,
