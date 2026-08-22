@@ -149,9 +149,9 @@ function discoverExtendersViaUdp(timeoutMs = 1500) {
         client.bind(0, () => {
             try {
                 client.setBroadcast(true);
-                
+
                 const message = Buffer.from('DISCOVER_WHISPEREYE');
-                
+
                 // Broadcast to general address
                 client.send(message, 0, message.length, 3030, '255.255.255.255', (err) => {
                     if (err) console.error('[EXTENDERS UDP] Send error (255.255.255.255):', err.message);
@@ -173,7 +173,7 @@ function discoverExtendersViaUdp(timeoutMs = 1500) {
         setTimeout(() => {
             try {
                 client.close();
-            } catch (e) {}
+            } catch (e) { }
             resolve(discovered);
         }, timeoutMs);
     });
@@ -399,7 +399,7 @@ async function addExtenderToStation(stationConfig, { type, host }, reqHost) {
             ntp_server: detectSystemNtpServer(),
             metrics_url: metricsUrl
         };
-        console.log(`[EXTENDERS] Envoi de la configuration d'appairage à l'extendeur à l'adresse http://${host} :`, JSON.stringify(pairingPayload, null, 2));
+        console.log(`[EXTENDERS] Envoi de la configuration d'appairage à l'extendeur à l'adresse http://${host}/api/config :`, JSON.stringify(pairingPayload, null, 2));
         await axios.post(`http://${host}/api/config`, pairingPayload, { timeout: 3000 });
     } catch (error) {
         let reason = `Échec de la négociation TOTP : ${error.message}`;

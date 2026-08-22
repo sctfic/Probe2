@@ -8,6 +8,47 @@
 //  Version: CONTROLS IN PARENT + ADAPTIVE LAYOUT (Compact Vert / Full Horiz)
 // =======================================
 
+// --- Configuration du cumul glissant pluviométrique ---
+// Nombre de jours de la fenêtre de cumul glissant pour les capteurs de type "rain".
+// Exemple : avec 365, chaque point affiche le cumul des précipitations tombées
+// sur les 365 derniers jours (12 mois glissant).
+// Valeurs possibles via le slider : 1, 2, 3, 5, 7, 10, 15, 30, 45, 61, 91, 121, 182, 365.
+// Valeur par défaut : 7 jours.
+let currentRainRollingDays = 7;
+
+/**
+ * Calcule le cumul glissant sur `days` jours pour un tableau de points [{date, ts, val, intervalVal}].
+ * Remplace `val` de chaque point par le cumul de ses `intervalVal` dans la fenêtre [date - days, date].
+ * Cette fonction est pure côté données : elle ne déclenche PAS de rafraîchissement graphique
+ * (l'appelant doit le faire). Ainsi on peut changer la fenêtre sans refaire l'appel API.
+ *
+ * @param {Array<{date: Date, ts: number, val: number, intervalVal: number}>} data - Points triés par ts.
+ * @param {number} days - Nombre de jours de la fenêtre glissante.
+ */
+function applyRollingSum(data, days) {
+    // Durée de la fenêtre glissante en millisecondes.
+    const rollingMs = days * 24 * 60 * 60 * 1000;
+
+    // Cumul courant dans la fenêtre glissante.
+    let windowSum = 0;
+    // Index du premier point encore dans la fenêtre.
+    let left = 0;
+
+    for (let right = 0; right < data.length; right++) {
+        // Ajout de la valeur d'intervalle du point courant.
+        windowSum += data[right].intervalVal;
+
+        // Retrait des points sortis de la fenêtre.
+        while (left < right && data[left].ts < data[right].ts - rollingMs) {
+            windowSum -= data[left].intervalVal;
+            left++;
+        }
+
+        // Remplace val par le cumul glissant, arrondi à 2 décimales.
+        data[right].val = Math.round(windowSum * 100) / 100;
+    }
+}
+
 /**
  * Charge et affiche le graphique spirale.
  * @param {HTMLElement} container - Le conteneur DOM.
@@ -91,6 +132,7 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
         if (!apiResponse || !apiResponse.data) throw new Error("Données API invalides");
 
         const convertFn = getConversionFunction(meta);
+        const isRainData = meta.measurement === 'rain'; // Booléen : données pluviométriques ?
 
         const processedData = apiResponse.data.map(item => {
             const date = new Date(item.d);
@@ -98,9 +140,26 @@ async function loadSpiralePlot(container, url, forcedMode = null) {
                 date: date,
                 rawVal: item.v,
                 val: convertFn(item.v),
-                ts: date.getTime()
+                ts: date.getTime(),
+                isRain: isRainData // Indique si ce point est un cumul glissant (nécessaire pour le slider).
             };
         }).sort((a, b) => a.ts - b.ts);
+
+        // --- Pour les capteurs pluviométriques (rain), on remplace chaque valeur ---
+        // --- brute par le CUMUL sur N jours glissant.                            ---
+        // --- Min et Max sont alors basés sur ce cumul glissant.                  ---
+        // --- Le cumul total affiché dans le panneau latéral reste la somme       ---
+        // --- des valeurs d'intervalle brutes (quantité de pluie tombée).         ---
+        if (isRainData) {
+            // Sauvegarde de la valeur d'intervalle brute AVANT de la remplacer
+            // par le cumul glissant. Cette valeur servira pour le "Cumul" affiché
+            // dans le panneau latéral (total de pluie tombée, pas le cumul glissant)
+            // ET pour les recalculs quand l'utilisateur change la fenêtre glissante.
+            processedData.forEach(point => { point.intervalVal = point.val; });
+
+            // Applique le cumul glissant avec la valeur courante (7 jours par défaut).
+            applyRollingSum(processedData, currentRainRollingDays);
+        }
 
         // Initialisation du Plot
         container.innerHTML = '';
@@ -657,6 +716,85 @@ class SpiralePlot {
             const newMode = (this.grouping === 'year') ? 'day' : 'year';
             loadSpiralePlot(this.container, this.options.originalUrl, newMode);
         });
+
+        // --- Slider vertical pour la fenêtre de cumul glissant pluviométrique ---
+        // N'apparaît QUE si les données sont de type rain (pluie).
+        // Permet de changer le nombre de jours de la fenêtre glissante sans refaire
+        // l'appel API (très long). Les calculs sont refaits localement.
+        if (this.data.length > 0 && this.data[0].isRain) {
+            // Valeurs discrètes possibles pour le cumul glissant.
+            const rollingDayValues = [1, 2, 3, 5, 7, 10, 15, 30, 45, 61, 91, 121, 182, 365];
+
+            // Wrapper pour le slider et son label.
+            const sliderWrapper = leftC.append("div")
+                .attr("class", "spiral-rain-slider-wrapper")
+                .style("display", "flex")
+                .style("flex-direction", "column")
+                .style("align-items", "center")
+                .style("gap", "4px")
+                .style("margin-top", "8px");
+
+            // Label indiquant la valeur actuelle de la fenêtre glissante.
+            const sliderLabel = sliderWrapper.append("span")
+                .style("color", "#aaa")
+                .style("font-size", "10px")
+                .style("font-family", "sans-serif")
+                .style("text-align", "center")
+                .text(`Somme\n${currentRainRollingDays}j`);
+
+            // Slider vertical HTML (input range orienté verticalement).
+            const slider = sliderWrapper.append("input")
+                .attr("type", "range")
+                .attr("orient", "vertical") // Attribut non standard mais reconnu par Firefox.
+                .style("writing-mode", "vertical-lr") // Mode vertical pour Chrome/Edge.
+                .style("direction", "rtl")             // Sens bas→haut.
+                .style("height", "120px")
+                .style("width", "20px")
+                .style("accent-color", "#00bfff")
+                .style("cursor", "pointer")
+                .attr("min", 0)
+                .attr("max", rollingDayValues.length - 1)
+                .attr("step", 1);
+
+            // Initialise le slider à la position correspondant à la valeur courante.
+            const currentIndex = rollingDayValues.indexOf(currentRainRollingDays);
+            slider.property("value", currentIndex >= 0 ? currentIndex : 4); // Index 4 = 7 jours.
+
+            slider.on("input", (e) => {
+                e.stopPropagation();
+                const idx = parseInt(slider.property("value"), 10);
+                const newDays = rollingDayValues[idx];
+
+                if (newDays === currentRainRollingDays) return; // Pas de changement.
+
+                // Met à jour la variable globale de configuration.
+                currentRainRollingDays = newDays;
+
+                // Met à jour le label du slider.
+                sliderLabel.text(`Somme\n${newDays}j`);
+
+                // --- RECALCUL LOCAL SANS APPEL API ---
+                // 1. Réinitialise val à partir de intervalVal (valeur d'intervalle brute).
+                this.data.forEach(point => {
+                    point.val = point.intervalVal !== undefined ? point.intervalVal : point.val;
+                });
+                // 2. Applique le cumul glissant avec la nouvelle fenêtre.
+                applyRollingSum(this.data, newDays);
+                // 3. Recalcule les échelles et statistiques basées sur val.
+                this.initScales();
+                this.computeGlobalStats();
+                this.precompute3DCoordinates();
+                // 4. Redessine la vue 3D.
+                this.updateView(false);
+                // 5. Rafraîchit le panneau latéral si une période est sélectionnée.
+                if (this.currentPlayKey) {
+                    const pointsInPeriod = this.data.filter(d => this.getPeriodKeyForDate(d.date) === this.currentPlayKey);
+                    if (pointsInPeriod.length > 0) {
+                        this.updateSidePanel(pointsInPeriod[0], this.currentPlayKey, false);
+                    }
+                }
+            });
+        }
     }
 
     drawAxes() {
@@ -1143,7 +1281,14 @@ class SpiralePlot {
         }
 
         const isRain = this.options.metadata.measurement === 'rain';
-        const aggregateValue = isRain ? d3.sum(data, d => d.val) : d3.mean(data, d => d.val);
+        // Pour les capteurs pluie, le "Cumul" affiche la SOMME DES VALEURS
+        // D'INTERVALLE BRUTES (quantité réelle de pluie tombée sur la période)
+        // et NON le cumul glissant sur 365 jours.
+        // Min/Max/σ sont basés sur le cumul glissant (val) car val a été
+        // remplacé par le rolling sum dans loadSpiralePlot.
+        const aggregateValue = isRain
+            ? d3.sum(data, d => (d.intervalVal !== undefined ? d.intervalVal : d.val))
+            : d3.mean(data, d => d.val);
         const aggregateLabel = isRain ? 'Cumul' : 'Moyenne';
 
         const min = d3.min(data, d => d.val);
