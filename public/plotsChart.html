@@ -353,6 +353,60 @@
             }
         }
 
+        /**
+         * @function handleAutoFullscreen
+         * @type {() => void}
+         * @description Gère l'activation automatique du mode plein écran lors du passage en orientation paysage sur smartphone, et la sortie lors du retour en mode portrait.
+         */
+        function handleAutoFullscreen() {
+            /** @type {boolean} isMobileDevice - Indique si l'appareil exécutant la page est un smartphone ou terminal mobile */
+            const isMobileDevice = window.isMobile || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+            if (!isMobileDevice) {
+                return;
+            }
+
+            /** @type {boolean} isLandscape - Indique si l'écran est actuellement orienté en mode paysage (landscape) */
+            const isLandscape = window.matchMedia('(orientation: landscape)').matches || (window.innerWidth > window.innerHeight);
+
+            /** @type {Element|null} currentFsElem - Référence vers l'élément HTML actuellement affiché en plein écran (s'il existe) */
+            const currentFsElem = document.fullscreenElement || document.webkitFullscreenElement;
+
+            if (isLandscape) {
+                if (!currentFsElem) {
+                    /** @type {HTMLElement} docElem - Référence vers la racine HTML du document */
+                    const docElem = document.documentElement;
+
+                    if (docElem.requestFullscreen) {
+                        docElem.requestFullscreen().catch(/** @param {Error} err */ (err) => {
+                            console.warn("Demande de plein écran automatique ignorée par le navigateur :", err);
+                        });
+                    } else if (docElem.webkitRequestFullscreen) {
+                        docElem.webkitRequestFullscreen();
+                    }
+                }
+            } else {
+                if (currentFsElem) {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen().catch(/** @param {Error} err */ (err) => {
+                            console.warn("Erreur lors de la sortie du mode plein écran :", err);
+                        });
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    }
+                }
+            }
+        }
+
+        // Écoute des évènements de changement d'orientation de l'écran pour smartphone
+        if (window.screen && window.screen.orientation && window.screen.orientation.addEventListener) {
+            window.screen.orientation.addEventListener('change', handleAutoFullscreen);
+        }
+        if (window.matchMedia) {
+            window.matchMedia('(orientation: landscape)').addEventListener('change', handleAutoFullscreen);
+        }
+        window.addEventListener('orientationchange', handleAutoFullscreen);
+
         document.getElementById('fs-btn').addEventListener('click', toggleFullscreen);
 
         let resizeTimeout;
@@ -360,6 +414,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
 
             updateFsButton(!!document.fullscreenElement);
+            handleAutoFullscreen();
 
             // 1. Récupération des paramètres URL
             const params = new URLSearchParams(window.location.search);
