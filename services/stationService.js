@@ -366,6 +366,77 @@ function identifyRequiredChanges(currentSettings, stationConfig) {
     return changes;
 }
 
+/**
+ * Fonction : synchronizeStationSettingsInMemory
+ * Type de retour : {boolean}
+ * Utilité : Vérifie et synchronise directement dans le JSON (en mémoire et sur disque)
+ *           les propriétés lastReadValue avec leurs valeurs desired respectives pour
+ *           l'ensemble de la station, sans interroger la station physique (ce qui évite
+ *           d'ajouter de la latence au processus de collecte).
+ *           Pour la latitude et la longitude, seule la première décimale est significative
+ *           selon le format matériel Davis Vantage Pro 2 (arrondi à 1 chiffre après la virgule).
+ *
+ * @param {object} stationConfig - Structure contenant l'intégralité de la configuration de la station
+ * @returns {boolean} - Vrai si au moins une modification a été effectuée et enregistrée, faux sinon
+ */
+function synchronizeStationSettingsInMemory(stationConfig) {
+    // Type : Array<string> - Clés des propriétés matérielles synchronisables de la station
+    const syncFieldKeys = [
+        'longitude',
+        'latitude',
+        'altitude',
+        'timezone',
+        'AMPMMode',
+        'dateFormat',
+        'windCupSize',
+        'rainCollectorSize',
+        'rainSaisonStart',
+        'latitudeNorthSouth',
+        'longitudeEastWest',
+        'archiveInterval'
+    ];
+
+    // Type : boolean - Indicateur indiquant si une valeur a été modifiée dans la configuration
+    let hasModified = false;
+
+    // Parcours de chaque paramètre de configuration pour vérifier la cohérence
+    for (const key of syncFieldKeys) {
+        // Type : object | undefined - Objet représentant le paramètre (contenant desired et lastReadValue)
+        const paramObj = stationConfig[key];
+
+        // On ne traite que les objets disposant d'une valeur desired définie
+        if (paramObj && typeof paramObj === 'object' && paramObj.desired !== undefined) {
+            if (key === 'latitude' || key === 'longitude') {
+                // Pour la latitude et la longitude, seul le premier chiffre après la virgule (1 décimale) est significatif
+                // Type : number - Valeur desired arrondie à 1 décimale
+                const desiredRounded = Math.round(Number(paramObj.desired) * 10) / 10;
+                // Type : number - Valeur lastReadValue existante arrondie à 1 décimale
+                const lastReadRounded = Math.round(Number(paramObj.lastReadValue ?? 0) * 10) / 10;
+
+                // Si lastReadValue est indéfini ou que la première décimale diffère
+                if (paramObj.lastReadValue === undefined || lastReadRounded !== desiredRounded) {
+                    paramObj.lastReadValue = desiredRounded;
+                    hasModified = true;
+                }
+            } else {
+                // Pour tous les autres paramètres, lastReadValue et desired doivent être rigoureusement identiques
+                if (paramObj.lastReadValue !== paramObj.desired) {
+                    paramObj.lastReadValue = paramObj.desired;
+                    hasModified = true;
+                }
+            }
+        }
+    }
+
+    // Si des valeurs ont été mises à jour, on enregistre la configuration sur le disque
+    if (hasModified) {
+        console.log(`${V.Check} [SETTINGS] Synchronisation JSON réussie : lastReadValue aligné sur desired pour la station ${stationConfig.id}`);
+        configManager.autoSaveConfig(stationConfig);
+    }
+
+    return hasModified;
+}
+
 async function syncStationSettings(req, stationConfig) {
     const stationId = stationConfig.id;
     let changesMade = false;
@@ -446,6 +517,8 @@ async function syncStationSettings(req, stationConfig) {
         if (changesMade) {
             console.log(`${V.memory} Application des changements avec NEWSETUP...`);
             await sendCommand(req, stationConfig, 'NEWSETUP', 2000, "<ACK>");
+            // Mise à jour de lastReadValue avec les valeurs desired désormais actives sur la station
+            synchronizeStationSettingsInMemory(stationConfig);
             // updateStationTime(req, stationConfig);
             configManager.saveConfig(stationId, stationConfig);
 
@@ -604,6 +677,12 @@ async function writeArchiveToInfluxDB(processedData, datetime, stationId) {
 }
 
 async function downloadArchiveData(req, stationConfig, startDate, ignoreLimit = false) {
+    // Vérification préalable dans le JSON (sans interroger la station physique, qui est très lente)
+    // afin de s'assurer que les propriétés lastReadValue et desired sont cohérentes avant toute conversion de données
+    if (stationConfig.collect && stationConfig.collect.enabled) {
+        synchronizeStationSettingsInMemory(stationConfig);
+    }
+
     let effectiveStartDate;
 
     if (startDate) { // 02/10/2025 22:05:00
@@ -682,6 +761,7 @@ module.exports = {
     getVp2DateTime,
     updateStationTime,
     syncStationSettings,
+    synchronizeStationSettingsInMemory,
     updateArchiveConfiguration,
     getCurrentWeatherData,
     getStationInfo,

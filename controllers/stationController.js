@@ -217,11 +217,14 @@ exports.getCurrentWeather = async (req, res) => {
 
 exports.getArchiveData = async (req, res) => {
     try {
+        // Type : object - Configuration de la station récupérée via middleware
         const stationConfig = req.stationConfig;
         console.log(`${V.Parabol} Demande de données d'archive pour la station ${stationConfig.id}`);
 
+        // Type : string - Date UTC la plus récente trouvée dans la base InfluxDB
         const endDate = (await queryDateRange(stationConfig.id, 'pressure:barometer', '-107d', '1d', 'Stations')).lastUtc;
         // si endDate est 01/01/1970, on se comporte comme getArchiveDataAll
+        // Type : boolean - Flag indiquant s'il faut forcer la récupération complète des archives
         let force = (endDate === '1970-01-01T00:00:00Z');
         const archiveData = await stationService.downloadArchiveData(req, stationConfig, endDate, force);
         if (stationConfig.collect) {
@@ -482,6 +485,12 @@ exports.updateStationConfig = (req, res) => {
         if (forecastChanged) {
             console.log(`[CRON] Le paramètre de prévision a changé pour ${stationConfig.id}. Replanification...`);
             cronService.scheduleOpenMeteoForecastJob(stationConfig.id, updatedConfig);
+        }
+
+        // Si la collecte est activée, resynchroniser les paramètres dans le JSON (sans interroger la station physique)
+        // afin que lastReadValue et desired soient parfaitement identiques pour ajuster correctement les données
+        if (updatedConfig.collect && updatedConfig.collect.enabled === true) {
+            stationService.synchronizeStationSettingsInMemory(updatedConfig);
         }
 
         // Sauvegarder la configuration mise à jour

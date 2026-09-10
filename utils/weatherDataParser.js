@@ -182,8 +182,10 @@ function convertRawValue2NativeValue(rawValue, nativeUnit, stationConfig) {
         case 'in_100th': return rawValue / 100;
         case 'in_1000th': return rawValue / 1000;
         case 'clicks*cup_size':
-            // stationConfig.rainCollectorSize.value peut avoir 3 valeurs : "1-0.2mm", "2-0.1mm", "0-0.01mm"
-            const cup = stationConfig.rainCollectorSize.lastReadValue;
+            // stationConfig.rainCollectorSize.value peut avoir 3 valeurs : "0-0.01in" (0), "1-0.2mm" (1), "2-0.1mm" (2)
+            // Type : number - Code identifiant le calibrage du godet du pluviomètre.
+            // Utilise lastReadValue, avec repli défensif sur desired ou valeur standard (1 = 0.2mm) si non initialisé.
+            const cup = stationConfig?.rainCollectorSize?.lastReadValue ?? stationConfig?.rainCollectorSize?.desired ?? 1;
             switch (cup) {
                 case 0: return Math.round(rawValue * 0.254 * 1000) / 1000;
                 case 1: return Math.round(rawValue * 0.2 * 10) / 10;
