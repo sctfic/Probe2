@@ -221,11 +221,33 @@ exports.getArchiveData = async (req, res) => {
         const stationConfig = req.stationConfig;
         console.log(`${V.Parabol} Demande de données d'archive pour la station ${stationConfig.id}`);
 
-        // Type : string - Date UTC la plus récente trouvée dans la base InfluxDB
-        const endDate = (await queryDateRange(stationConfig.id, 'pressure:barometer', '-107d', '1d', 'Stations')).lastUtc;
-        // si endDate est 01/01/1970, on se comporte comme getArchiveDataAll
+        // Type : string | null - Date UTC de la dernière archive trouvée dans InfluxDB
+        let endDate = null;
+        try {
+            // Requête de la dernière date avec timeout court de 3 secondes
+            const dateRangeResult = await queryDateRange(stationConfig.id, 'pressure:barometer', '-107d', '1d', 'Stations');
+            endDate = dateRangeResult?.lastUtc;
+        } catch (dbErr) {
+            // Si InfluxDB est inaccessible sur le réseau ou dépasse le timeout de 3 secondes, on abandonne immédiatement la collecte
+            if (influxdbService.isNetworkOrTimeoutError(dbErr)) {
+                console.error(`${V.error} InfluxDB non accessible sur le réseau (timeout 3s). Abandon immédiat de la collecte pour ${stationConfig.id}.`);
+                if (stationConfig.collect) {
+                    stationConfig.collect.lastRun = new Date().toISOString();
+                    stationConfig.collect.msg = `Collecte abandonnée : InfluxDB inaccessible sur le réseau (timeout 3s)`;
+                    configManager.autoSaveConfig(stationConfig);
+                }
+                return res.status(503).json({
+                    success: false,
+                    stationId: stationConfig.id,
+                    error: "Collecte abandonnée : InfluxDB inaccessible sur le réseau (timeout 3s)"
+                });
+            }
+            throw dbErr;
+        }
+
+        // Si endDate est absent (bucket vide lors de la 1ère collecte) ou égal à l'époque Unix, on force la récupération complète
         // Type : boolean - Flag indiquant s'il faut forcer la récupération complète des archives
-        let force = (endDate === '1970-01-01T00:00:00Z');
+        let force = (!endDate || endDate === '1970-01-01T00:00:00Z');
         const archiveData = await stationService.downloadArchiveData(req, stationConfig, endDate, force);
         if (stationConfig.collect) {
             stationConfig.collect.lastRun = new Date().toISOString();
@@ -260,12 +282,33 @@ exports.getArchiveData = async (req, res) => {
 
 exports.getArchiveDataAll = async (req, res) => {
     try {
+        // Type : object - Configuration de la station récupérée via middleware
         const stationConfig = req.stationConfig;
         console.log(`${V.Parabol} Demande de TOUTES les données d'archive (buffer complet) pour la station ${stationConfig.id}`);
 
+        // Vérification préalable de l'accessibilité réseau d'InfluxDB (timeout court 3s)
+        // afin d'abandonner immédiatement la collecte sans interroger la station si la base est injoignable
+        const isDbAvailable = await influxdbService.checkInfluxAvailability('Stations', 3000);
+        if (!isDbAvailable) {
+            console.error(`${V.error} InfluxDB non accessible sur le réseau (timeout 3s). Abandon immédiat de la collecte complète pour ${stationConfig.id}.`);
+            if (stationConfig.collect) {
+                stationConfig.collect.lastRun = new Date().toISOString();
+                stationConfig.collect.msg = `Collecte complète abandonnée : InfluxDB inaccessible sur le réseau (timeout 3s)`;
+                configManager.autoSaveConfig(stationConfig);
+            }
+            return res.status(503).json({
+                success: false,
+                stationId: stationConfig.id,
+                error: "Collecte complète abandonnée : InfluxDB inaccessible sur le réseau (timeout 3s)"
+            });
+        }
+
         // Calcul de l'intervalle d'archive (VP2 buffer is 2560 records = 512 pages)
+        // Type : number - Période d'archivage en minutes configurée sur la station
         const archiveInterval = stationConfig.archiveInterval?.lastReadValue || stationConfig.archiveInterval?.desired || 5;
+        // Type : number - Nombre total d'enregistrements du buffer matériel VP2
         const totalRecords = 512 * archiveInterval; // 2560
+        // Type : Date - Date de départ calculée pour remonter l'intégralité du buffer
         const startDate = new Date(Date.now() - (totalRecords * archiveInterval * 60 * 1000));
 
         console.log(`${V.info} Collecte complète démarrée depuis ${startDate.toISOString()} (Interval: ${archiveInterval}min)`);

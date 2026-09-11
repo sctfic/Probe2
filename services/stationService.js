@@ -8,7 +8,7 @@ const { findDavisTimeZoneIndex } = require('../utils/timeZoneMapping');
 const dbProbes = require('../config/dbProbes.json');
 const { V, O } = require('../utils/icons');
 const configManager = require('./configManager');
-const { writePoints, Point } = require('./influxdbService'); // Ajout pour InfluxDB
+const { writePoints, Point, isNetworkOrTimeoutError } = require('./influxdbService'); // Ajout pour InfluxDB
 const unitsProvider = require('../services/unitsProvider');
 const ACK = Buffer.from([0x06]);
 const NAK = Buffer.from([0x21]);
@@ -733,12 +733,28 @@ async function downloadArchiveData(req, stationConfig, startDate, ignoreLimit = 
                 const datetime = conversionTable.date['yyyy-mm-dd'](nativedate) + ' ' + conversionTable.time['hh:mm'](nativetime);
                 if ((new Date(datetime)) > effectiveStartDate || ignoreLimit) {
                     allRecords[datetime] = processedData;
-                    const WriteToDB = await writeArchiveToInfluxDB(processedData, new Date(datetime), stationConfig.id);
-                    if (WriteToDB) {
-                        console.log(`${V.package} Pages ${pageNumber + 1}.${j + 1}/${numberOfPages} Archives / Write ${WriteToDB} points influxDb for [${datetime}] ✅`);
-                        stationConfig.lastArchiveDate = datetime;
-                    } else {
-                        console.warn(`${V.package} Pages ${pageNumber + 1}.${j + 1}/${numberOfPages} Archives / Error writing points influxDb for [${datetime}] ${V.error}`);
+                    try {
+                        // Type : number | boolean - Résultat d'écriture dans InfluxDB
+                        const WriteToDB = await writeArchiveToInfluxDB(processedData, new Date(datetime), stationConfig.id);
+                        if (WriteToDB) {
+                            console.log(`${V.package} Pages ${pageNumber + 1}.${j + 1}/${numberOfPages} Archives / Write ${WriteToDB} points influxDb for [${datetime}] ✅`);
+                            stationConfig.lastArchiveDate = datetime;
+                        } else {
+                            console.warn(`${V.package} Pages ${pageNumber + 1}.${j + 1}/${numberOfPages} Archives / Error writing points influxDb for [${datetime}] ${V.error}`);
+                        }
+                    } catch (writeErr) {
+                        // Si InfluxDB n'est pas accessible sur le réseau ou en timeout, abandon immédiat de la collecte
+                        if (isNetworkOrTimeoutError(writeErr) || writeErr.isNetworkError) {
+                            console.error(`${V.error} InfluxDB inaccessible sur le réseau lors de l'écriture des archives : abandon immédiat de la collecte pour ${stationConfig.id} !`);
+                            // Clôture immédiate et propre de la liaison avec la station
+                            await sendCommand(req, stationConfig, ESC_LF, 1200, "2");
+                            if (stationConfig.collect) {
+                                stationConfig.collect.msg = `Collecte interrompue : InfluxDB inaccessible sur le réseau (${writeErr.message})`;
+                                configManager.autoSaveConfig(stationConfig);
+                            }
+                            throw writeErr;
+                        }
+                        console.error(`${V.error} Erreur inattendue lors de l'écriture InfluxDB pour [${datetime}]:`, writeErr.message);
                     }
                 } else {
                     console.warn(`${V.Gyro} ${pageNumber + 1}[${j + 1}]/${numberOfPages} Skip ${datetime} < ${effectiveStartDate.toISOString()}`);

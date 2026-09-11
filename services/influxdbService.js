@@ -22,7 +22,8 @@ function initializeBucket(key, config) {
     }
 
     try {
-        const client = new InfluxDB({ url: config.url, token: config.token, timeout: 12000 });
+        // Type : InfluxDB - Client InfluxDB configuré avec un timeout court de 3 secondes (3000 ms)
+        const client = new InfluxDB({ url: config.url, token: config.token, timeout: 3000 });
         influxInstances[key] = {
             client,
             writeApi: client.getWriteApi(config.org, config.bucket),
@@ -168,14 +169,81 @@ async function testInfluxConnection(config) {
 
 
 /**
- * Écrit un ensemble de points de données dans InfluxDB.
- * @param {Array<Point>} points - Un tableau d'objets Point à écrire.
- * @returns {Promise<boolean>} Retourne `true` si l'écriture a réussi, sinon `false`.
+ * Fonction : isNetworkOrTimeoutError
+ * Type de retour : {boolean}
+ * Utilité : Détermine si une erreur InfluxDB correspond à une indisponibilité réseau
+ *           (connexion refusée, hôte introuvable, timeout de 3s) plutôt qu'à une
+ *           absence normale de données (ex: bucket vide à la 1ère collecte).
+ *
+ * @param {Error|any} error - L'objet erreur capturé
+ * @returns {boolean} - Vrai si l'erreur est d'origine réseau/timeout, faux sinon
  */
-async function writePoints(points, bucketKey = 'Stations') {
+function isNetworkOrTimeoutError(error) {
+    if (!error) return false;
+    // Type : string | undefined - Code d'erreur réseau système Node.js
+    const code = error.code || (error.cause && error.cause.code);
+    if (code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'EHOSTUNREACH' || code === 'ETIMEDOUT' || code === 'INFLUX_TIMEOUT') {
+        return true;
+    }
+    // Type : string - Message d'erreur
+    const msg = (error.message || '').toLowerCase();
+    if (msg.includes('timeout') || msg.includes('econnrefused') || msg.includes('enotfound') || msg.includes('ehostunreach') || msg.includes('fetch failed')) {
+        return true;
+    }
+    // Type : number | undefined - Code statut HTTP
+    if (error.statusCode === 0 || error.status === 0) {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Fonction : checkInfluxAvailability
+ * Type de retour : {Promise<boolean>}
+ * Utilité : Vérifie si le serveur InfluxDB est accessible sur le réseau
+ *           avec un timeout court de 3 secondes maximum.
+ *           Ne teste pas si le bucket contient des données, mais seulement
+ *           si le service InfluxDB répond sur le réseau.
+ *
+ * @param {string} bucketKey - Clé du bucket à tester (ex: 'Stations')
+ * @param {number} timeoutMs - Délai maximal en ms avant abandon (défaut : 3000 ms)
+ * @returns {Promise<boolean>} - Vrai si InfluxDB répond, faux si inaccessible ou timeout
+ */
+async function checkInfluxAvailability(bucketKey = 'Stations', timeoutMs = 3000) {
+    // Type : object | undefined - Instance InfluxDB configurée
+    const instance = influxInstances[bucketKey];
+    if (!instance) {
+        return false;
+    }
+
+    // Type : string - Requête Flux minimale pour tester la connexion sans charger de données
+    const testQuery = `buckets() |> limit(n: 1)`;
+
+    try {
+        await executeQuery(testQuery, bucketKey, timeoutMs);
+        return true;
+    } catch (error) {
+        if (isNetworkOrTimeoutError(error)) {
+            console.warn(`${V.warning} [INFLUX] Serveur InfluxDB inaccessible sur le réseau (${bucketKey}):`, error.message);
+            return false;
+        }
+        // Si l'erreur n'est pas réseau (ex: droits insuffisants sur buckets()), InfluxDB est quand même joignable
+        return true;
+    }
+}
+
+/**
+ * Écrit un ensemble de points de données dans InfluxDB avec un timeout strict de 3 secondes.
+ * @param {Array<Point>} points - Un tableau d'objets Point à écrire.
+ * @param {string} bucketKey - Clé du bucket cible
+ * @param {number} timeoutMs - Timeout en millisecondes (défaut : 3000 ms)
+ * @returns {Promise<number|boolean>} Retourne le nombre de points écrits si succès, lève une erreur si réseau indisponible, ou retourne false.
+ */
+async function writePoints(points, bucketKey = 'Stations', timeoutMs = 3000) {
     if (!points || points.length === 0) {
         return 0;
     }
+    // Type : object | undefined - Instance InfluxDB pour le bucket demandé
     const instance = influxInstances[bucketKey];
     if (!instance) {
         console.error(`${V.error} Instance InfluxDB non trouvée pour le bucket '${bucketKey}'`);
@@ -183,22 +251,47 @@ async function writePoints(points, bucketKey = 'Stations') {
     }
     try {
         instance.writeApi.writePoints(points);
-        await instance.writeApi.flush();
-        //        console.log(V.database, `Confirmation d'écriture de ${points.length} points dans [${bucketKey}].`, V.Check);
+
+        // Exécution de flush avec timeout strict de 3 secondes (3000 ms)
+        // Type : Promise<void> - Promesse de flush concurrencée par le timer de timeout
+        await Promise.race([
+            instance.writeApi.flush(),
+            new Promise((_, reject) => {
+                setTimeout(() => {
+                    // Type : Error - Erreur de timeout d'écriture InfluxDB
+                    const timeoutErr = new Error(`Délai d'attente dépassé (timeout ${timeoutMs}ms) lors de l'écriture InfluxDB`);
+                    timeoutErr.code = 'INFLUX_TIMEOUT';
+                    reject(timeoutErr);
+                }, timeoutMs);
+            })
+        ]);
+
         return points.length;
     } catch (error) {
-        console.error(`${V.error} Erreur lors de l'écriture dans InfluxDB (${bucketKey}):`, error);
+        console.error(`${V.error} Erreur lors de l'écriture dans InfluxDB (${bucketKey}):`, error.message || error);
+        // Si l'erreur est d'origine réseau ou timeout, propager pour permettre à l'appelant d'abandonner immédiatement
+        if (isNetworkOrTimeoutError(error)) {
+            // Type : Error - Erreur d'inaccessibilité réseau InfluxDB
+            const netErr = new Error(`InfluxDB inaccessible sur le réseau (${error.message})`);
+            netErr.code = error.code || 'INFLUX_NETWORK_ERROR';
+            netErr.isNetworkError = true;
+            throw netErr;
+        }
         return false;
     }
 }
 
 /**
- * Exécute une requête Flux sur InfluxDB.
+ * Exécute une requête Flux sur InfluxDB avec un timeout court de 3 secondes.
  * @param {string} fluxQuery - La requête Flux à exécuter.
+ * @param {string} bucketKey - La clé du bucket cible (ex: 'Stations').
+ * @param {number} timeoutMs - Délai maximal d'attente en ms (défaut : 3000 ms).
  * @returns {Promise<Array>} Un tableau des résultats de la requête.
  */
-async function executeQuery(fluxQuery, bucketKey = 'Stations') {
+async function executeQuery(fluxQuery, bucketKey = 'Stations', timeoutMs = 3000) {
+    // Type : number - Timestamp de début de la requête
     const start = Date.now();
+    // Type : object | undefined - Instance InfluxDB du bucket
     const instance = influxInstances[bucketKey];
     if (!instance) {
         throw new Error(`Instance InfluxDB non initialisée pour le bucket '${bucketKey}'`);
@@ -211,8 +304,6 @@ async function executeQuery(fluxQuery, bucketKey = 'Stations') {
     // Remonter la pile pour ignorer les wrappers internes et les callbacks anonymes
     for (let i = 2; i < stackLines.length; i++) {
         const line = stackLines[i];
-        // On cherche une ligne contenant un nom de fonction explicite (ex: "at queryRaw (...") 
-        // et qui n'est pas un de nos helpers internes d'exécution.
         if (!line.includes('executeQuery') &&
             !line.includes('fetchDataAcrossBuckets') &&
             !line.includes('Array.map') &&
@@ -223,32 +314,35 @@ async function executeQuery(fluxQuery, bucketKey = 'Stations') {
         }
     }
 
-    // Enlève "at " et "async " au début et Object.
     let clean = stackLine.replace(/^\s*at\s+/, '').replace(/^async\s+/, '').replace('Object.', '');
-
-    // Extrait le nom de fonction (s'il existe avant une parenthèse)
     let funcName = '';
     if (clean.includes('(')) {
         funcName = clean.split('(')[0].trim();
         clean = clean.slice(clean.indexOf('('));
     }
 
-    // Extrait fichier:ligne depuis le chemin complet
     const pathMatch = clean.match(/([^\/\\]+?):(\d+):(\d+)\)?$/);
     const fileName = pathMatch?.[1] || 'inconnu';
     const lineNum = pathMatch?.[2] || '?';
-
-    const caller = funcName
-        ? `${funcName} @ ${fileName}:${lineNum}`
-        : `${fileName}:${lineNum}`;
+    const caller = funcName ? `${funcName} @ ${fileName}:${lineNum}` : `${fileName}:${lineNum}`;
 
     return new Promise((resolve, reject) => {
+        // Type : Array<object> - Résultats accumulés de la requête Flux
         const results = [];
+        // Type : NodeJS.Timeout - Timer de timeout de 3 secondes
+        const timer = setTimeout(() => {
+            // Type : Error - Erreur explicite de dépassement de délai
+            const timeoutError = new Error(`Délai d'attente dépassé (timeout ${timeoutMs}ms) lors de l'exécution de la requête InfluxDB`);
+            timeoutError.code = 'INFLUX_TIMEOUT';
+            reject(timeoutError);
+        }, timeoutMs);
+
         instance.queryApi.queryRows(fluxQuery, {
             next(row, tableMeta) {
                 results.push(tableMeta.toObject(row));
             },
             error(error) {
+                clearTimeout(timer);
                 console.error(`${V.error} Erreur lors de l'exécution de la requête Flux:`, fluxQuery);
                 if (error.body && error.body.message) {
                     error.body.message = 'Influxdb ' + error.body.message;
@@ -256,6 +350,7 @@ async function executeQuery(fluxQuery, bucketKey = 'Stations') {
                 reject(error);
             },
             complete() {
+                clearTimeout(timer);
                 const duration = Date.now() - start;
                 console.log(V.Check, `Requête Flux [${(bucketKey + ']').padEnd(12)} ${caller.padEnd(30)} ${duration}ms`);
                 resolve(results);
@@ -623,9 +718,16 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, bucketKe
             union(tables: [t1, t2])
         `;
         try {
-            return await executeQuery(query, k);
+            // Type : Array<object> - Résultats de la requête Flux avec timeout de 3 secondes
+            return await executeQuery(query, k, 3000);
         } catch (e) {
-            return []; // Fail silent pour les buckets vides ou non concernés
+            // Si l'erreur est d'origine réseau ou timeout, on la propage pour abandonner la collecte
+            if (isNetworkOrTimeoutError(e)) {
+                console.error(`${V.error} InfluxDB inaccessible sur le réseau lors de queryDateRange sur [${k}]:`, e.message);
+                throw e;
+            }
+            // En revanche, si le bucket est vide ou sans données (normal lors de la 1ère collecte), on retourne []
+            return [];
         }
     };
 
@@ -1097,6 +1199,8 @@ module.exports = {
     getSettings,
     updateSettings,
     testInfluxConnection,
+    checkInfluxAvailability,
+    isNetworkOrTimeoutError,
     writePoints,
     Point,
     createWriteApi,
