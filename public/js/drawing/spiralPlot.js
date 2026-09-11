@@ -665,6 +665,7 @@ class SpiralePlot {
             }
         });
 
+        // Boutons de vue prédéfinie : Dessus, Face, Iso
         [{ l: "Dessus", a: -Math.PI / 2, b: 0 }, { l: "Face", a: 0, b: 0 }, { l: "Iso", a: -Math.PI / 6, b: Math.PI / 4 }]
             .forEach(v => {
                 rightC.append("button")
@@ -683,50 +684,18 @@ class SpiralePlot {
                     });
             });
 
-        // MODIF: Attaché au container parent
-        const leftC = controlsContainer.append("div")
-            .attr("class", "spiral-controls-left")
-            .style("position", "absolute")
-            .style("top", "10px")
-            .style("left", "10px")
-            .style("display", "flex")
-            .style("flex-direction", "column")
-            .style("gap", "6px")
-            .style("align-items", "flex-start")
-            .style("z-index", "20"); // Augmenté pour être au dessus
-
-        const colorBtn = leftC.append("button")
-            .attr("class", "spiral-btn")
-            .html(this.colorMode === 'mean' ? "<small>Amplitude</small> / Mean" : "Amplitude / <small>Mean</small>");
-
-        colorBtn.on("click", (e) => {
-            e.stopPropagation();
-            this.colorMode = (this.colorMode === 'standard') ? 'mean' : 'standard';
-            colorBtn.html(this.colorMode === 'mean' ? "<small>Amplitude</small> / Mean" : "Amplitude / <small>Mean</small>");
-            this.updateView(false);
-        });
-
-        const toggleBtn = leftC.append("button")
-            .attr("class", "spiral-btn")
-            .style("font-weight", "bold")
-            .html(this.grouping === 'year' ? "Year / <small>Day</small>" : "<small>Year</small> / Day");
-
-        toggleBtn.on("click", (e) => {
-            e.stopPropagation();
-            const newMode = (this.grouping === 'year') ? 'day' : 'year';
-            loadSpiralePlot(this.container, this.options.originalUrl, newMode);
-        });
-
         // --- Slider vertical pour la fenêtre de cumul glissant pluviométrique ---
+        // Placé dans les contrôles droite, juste après le bouton ISO.
         // N'apparaît QUE si les données sont de type rain (pluie).
         // Permet de changer le nombre de jours de la fenêtre glissante sans refaire
         // l'appel API (très long). Les calculs sont refaits localement.
         if (this.data.length > 0 && this.data[0].isRain) {
             // Valeurs discrètes possibles pour le cumul glissant.
-            const rollingDayValues = [1, 2, 3, 5, 7, 10, 15, 30, 45, 61, 91, 121, 182, 365];
+            // 0 = "Brut" : aucun regroupement, affiche la valeur d'intervalle brute.
+            const rollingDayValues = [0, 1, 2, 3, 5, 7, 10, 15, 30, 45, 61, 91, 121, 182, 365];
 
             // Wrapper pour le slider et son label.
-            const sliderWrapper = leftC.append("div")
+            const sliderWrapper = rightC.append("div")
                 .attr("class", "spiral-rain-slider-wrapper")
                 .style("display", "flex")
                 .style("flex-direction", "column")
@@ -734,13 +703,22 @@ class SpiralePlot {
                 .style("gap", "4px")
                 .style("margin-top", "8px");
 
+            /**
+             * Génère le texte du label du slider en fonction du nombre de jours.
+             * @param {number} days - Nombre de jours de la fenêtre glissante (0 = Brut).
+             * @returns {string} Texte à afficher dans le label.
+             */
+            const getSliderLabelText = (days) => {
+                return days === 0 ? "Brut" : `Σ ${days}j`;
+            };
+
             // Label indiquant la valeur actuelle de la fenêtre glissante.
             const sliderLabel = sliderWrapper.append("span")
                 .style("color", "#aaa")
                 .style("font-size", "10px")
                 .style("font-family", "sans-serif")
                 .style("text-align", "center")
-                .text(`Somme\n${currentRainRollingDays}j`);
+                .text(getSliderLabelText(currentRainRollingDays));
 
             // Slider vertical HTML (input range orienté verticalement).
             const slider = sliderWrapper.append("input")
@@ -758,7 +736,7 @@ class SpiralePlot {
 
             // Initialise le slider à la position correspondant à la valeur courante.
             const currentIndex = rollingDayValues.indexOf(currentRainRollingDays);
-            slider.property("value", currentIndex >= 0 ? currentIndex : 4); // Index 4 = 7 jours.
+            slider.property("value", currentIndex >= 0 ? currentIndex : 5); // Index 5 = 7 jours.
 
             slider.on("input", (e) => {
                 e.stopPropagation();
@@ -771,15 +749,20 @@ class SpiralePlot {
                 currentRainRollingDays = newDays;
 
                 // Met à jour le label du slider.
-                sliderLabel.text(`Somme\n${newDays}j`);
+                sliderLabel.text(getSliderLabelText(newDays));
 
                 // --- RECALCUL LOCAL SANS APPEL API ---
                 // 1. Réinitialise val à partir de intervalVal (valeur d'intervalle brute).
                 this.data.forEach(point => {
                     point.val = point.intervalVal !== undefined ? point.intervalVal : point.val;
                 });
-                // 2. Applique le cumul glissant avec la nouvelle fenêtre.
-                applyRollingSum(this.data, newDays);
+
+                // 2. Si newDays > 0 : applique le cumul glissant.
+                //    Si newDays === 0 : pas de cumul, on garde les valeurs brutes.
+                if (newDays > 0) {
+                    applyRollingSum(this.data, newDays);
+                }
+
                 // 3. Recalcule les échelles et statistiques basées sur val.
                 this.initScales();
                 this.computeGlobalStats();
@@ -795,6 +778,42 @@ class SpiralePlot {
                 }
             });
         }
+
+        // Contrôles gauche : mode de couleur et bascule Year/Day
+        const leftC = controlsContainer.append("div")
+            .attr("class", "spiral-controls-left")
+            .style("position", "absolute")
+            .style("top", "10px")
+            .style("left", "10px")
+            .style("display", "flex")
+            .style("flex-direction", "column")
+            .style("gap", "6px")
+            .style("align-items", "flex-start")
+            .style("z-index", "20"); // Augmenté pour être au dessus
+
+        // Bouton de bascule entre les modes de coloration (Amplitude / Mean).
+        const colorBtn = leftC.append("button")
+            .attr("class", "spiral-btn")
+            .html(this.colorMode === 'mean' ? "<small>Amplitude</small> / Mean" : "Amplitude / <small>Mean</small>");
+
+        colorBtn.on("click", (e) => {
+            e.stopPropagation();
+            this.colorMode = (this.colorMode === 'standard') ? 'mean' : 'standard';
+            colorBtn.html(this.colorMode === 'mean' ? "<small>Amplitude</small> / Mean" : "Amplitude / <small>Mean</small>");
+            this.updateView(false);
+        });
+
+        // Bouton de bascule entre les modes de regroupement (Year / Day).
+        const toggleBtn = leftC.append("button")
+            .attr("class", "spiral-btn")
+            .style("font-weight", "bold")
+            .html(this.grouping === 'year' ? "Year / <small>Day</small>" : "<small>Year</small> / Day");
+
+        toggleBtn.on("click", (e) => {
+            e.stopPropagation();
+            const newMode = (this.grouping === 'year') ? 'day' : 'year';
+            loadSpiralePlot(this.container, this.options.originalUrl, newMode);
+        });
     }
 
     drawAxes() {
