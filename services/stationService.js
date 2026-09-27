@@ -693,22 +693,52 @@ async function downloadArchiveData(req, stationConfig, startDate, ignoreLimit = 
     console.log(V.StartFlag, 'date UTC de la derniere archive :', effectiveStartDate)
     await sendCommand(req, stationConfig, 'DMPAFT', 2000, "<ACK>");
 
-    const year = effectiveStartDate.getFullYear();
-    const month = effectiveStartDate.getMonth() + 1;
-    const day = effectiveStartDate.getDate();
-    const hours = effectiveStartDate.getHours();
-    const minutes = effectiveStartDate.getMinutes();
-    // console.log(O.RED, 'year =', year, 'month =', month, 'day =', day, 'hours =', hours, 'minutes =', minutes);
-    const dateStamp = (year - 2000) * 512 + month * 32 + day;
-    const timeStamp = (hours) * 100 + minutes; // -1 pour test
-    // console.log(O.RED, dateStamp, timeStamp);
-    const datePayload = Buffer.from([dateStamp & 0xFF, dateStamp >> 8, timeStamp & 0xFF, timeStamp >> 8]);
+    // Calcul sécurisé du payload DMPAFT : éviter les octets 0x0A (LF) et 0x0D (CR)
+    // qui sont interprétés comme fin de ligne/commande par la console ou les passerelles IP/série
+    let safeStartDate = new Date(effectiveStartDate);
+    let fullPayload;
+    const archiveStepMinutes = stationConfig.archiveInterval?.desired || stationConfig.archiveInterval?.lastReadValue || 5;
 
-    const dateCrc = calculateCRC(datePayload);
-    const dateCrcBytes = Buffer.from([dateCrc >> 8, dateCrc & 0xFF]);
-    const fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
+    for (let attempt = 0; attempt < 12; attempt++) {
+        const year = safeStartDate.getFullYear();
+        const month = safeStartDate.getMonth() + 1;
+        const day = safeStartDate.getDate();
+        const hours = safeStartDate.getHours();
+        const minutes = safeStartDate.getMinutes();
 
-    // console.log(O.RED, dateStamp, timeStamp, 'payload=', datePayload, 'crc=', dateCrcBytes, 'fullBinary=', fullPayload.toString('binary')); // 13123 2100 <Buffer 43 33 34 08> 8684
+        const dateStamp = (year - 2000) * 512 + month * 32 + day;
+        const timeStamp = hours * 100 + minutes;
+        const datePayload = Buffer.from([dateStamp & 0xFF, dateStamp >> 8, timeStamp & 0xFF, timeStamp >> 8]);
+
+        const dateCrc = calculateCRC(datePayload);
+        const dateCrcBytes = Buffer.from([dateCrc >> 8, dateCrc & 0xFF]);
+        const testPayload = Buffer.concat([datePayload, dateCrcBytes]);
+
+        if (!testPayload.includes(0x0A) && !testPayload.includes(0x0D)) {
+            fullPayload = testPayload;
+            if (attempt > 0) {
+                console.log(`${V.info} Date DMPAFT ajustée à ${safeStartDate.toISOString()} (recul de ${attempt * archiveStepMinutes} min) pour éviter les octets de contrôle (LF/CR).`);
+            }
+            break;
+        }
+
+        safeStartDate = new Date(safeStartDate.getTime() - archiveStepMinutes * 60 * 1000);
+    }
+
+    if (!fullPayload) {
+        const year = effectiveStartDate.getFullYear();
+        const month = effectiveStartDate.getMonth() + 1;
+        const day = effectiveStartDate.getDate();
+        const hours = effectiveStartDate.getHours();
+        const minutes = effectiveStartDate.getMinutes();
+        const dateStamp = (year - 2000) * 512 + month * 32 + day;
+        const timeStamp = hours * 100 + minutes;
+        const datePayload = Buffer.from([dateStamp & 0xFF, dateStamp >> 8, timeStamp & 0xFF, timeStamp >> 8]);
+        const dateCrc = calculateCRC(datePayload);
+        const dateCrcBytes = Buffer.from([dateCrc >> 8, dateCrc & 0xFF]);
+        fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
+    }
+
     // on envoit la date de la 1er archive souhaitée
     const pageInfo = await sendCommand(req, stationConfig, fullPayload, 3000, "<ACK>4<CRC>");
     const numberOfPages = pageInfo.readUInt16LE(0);

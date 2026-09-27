@@ -10,18 +10,20 @@ module.exports = {
         //     ou
         // pm2 restart 0
         'node_modules',
+        'config',
+        'config/**',
         'config/stations',
-        'config/compositeProbes.json',
-        'config/integratorProbes.json',
-        'config/Units.json',
-        'config/credential.json',
+        'config/integrators',
+        'config/agronomie',
+        'config/*.json',
         'public',
         'docs',
         '.git',
         'logs/*', // Ajout explicite pour ignorer tout le contenu du répertoire logs
         '*.log',    // Ignorer tous les fichiers .log à la racine
         '**/*.log',  // Ignorer tous les fichiers .log dans tous les sous-répertoires
-        'visits'  // Ignorer
+        'visits',
+        'visits/*'
       ],
       max_memory_restart: '300M',
       instances: 1,

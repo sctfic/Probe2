@@ -69,9 +69,13 @@ const talkStationWithLamp = (handler) => {
             }
         } finally {
             if (socketAcquired) {
-                // Turn off the screen at the end
-                await sendCommand(req, stationConfig, `LAMPS 0`, 1200, "<LF><CR>OK<LF><CR>");
-                console.log(`${O.black} ${stationConfig.id} - Screen OFF`);
+                try {
+                    // Turn off the screen at the end
+                    await sendCommand(req, stationConfig, `LAMPS 0`, 1200, "<LF><CR>OK<LF><CR>");
+                    console.log(`${O.black} ${stationConfig.id} - Screen OFF`);
+                } catch (lampErr) {
+                    console.warn(`${V.error} ${stationConfig.id} - Erreur lors de l'extinction de l'écran:`, lampErr.message);
+                }
             }
             // Clean up the socket if it exists
             if (req.weatherSocket && !req.weatherSocket.destroyed) {

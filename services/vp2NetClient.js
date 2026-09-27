@@ -161,10 +161,14 @@ function sendAndReceive(weatherSocket, command, timeout, parsedFormat) {
         let responseBuffer = Buffer.from([]);
         let timeoutId;
         let dataHandler;
+        let errorHandler;
+        let closeHandler;
 
         const cleanup = () => {
             if (timeoutId) clearTimeout(timeoutId);
             if (dataHandler) weatherSocket.removeListener('data', dataHandler);
+            if (errorHandler) weatherSocket.removeListener('error', errorHandler);
+            if (closeHandler) weatherSocket.removeListener('close', closeHandler);
         };
 
         dataHandler = (data) => {
@@ -212,12 +216,24 @@ function sendAndReceive(weatherSocket, command, timeout, parsedFormat) {
             }
         };
 
+        errorHandler = (err) => {
+            cleanup();
+            reject(err);
+        };
+
+        closeHandler = (hadError) => {
+            cleanup();
+            reject(new Error(`Socket closed unexpectedly (hadError: ${hadError})`));
+        };
+
         timeoutId = setTimeout(() => {
             cleanup();
             reject(new Error(`Command timeout: ${responseBuffer.toString('hex')}`));
         }, timeout);
 
         weatherSocket.on('data', dataHandler);
+        weatherSocket.once('error', errorHandler);
+        weatherSocket.once('close', closeHandler);
 
         const dataToSend = typeof command === 'string' ? Buffer.from(`${command}\n`) : command;
         weatherSocket.write(dataToSend, (err) => {
