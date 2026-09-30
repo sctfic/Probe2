@@ -11,10 +11,10 @@ async function exportDataToJson(bucketKey) {
     const bucketConfig = configs[bucketKey];
     const bucketName = bucketConfig ? bucketConfig.bucket : bucketKey;
 
-    // Query all data from the bucket
+    // Query all data from the bucket (timeout InfluxDB porté à 10 minutes)
     const stop = new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
     const fluxQuery = `from(bucket: "${bucketName}")\n|> range(start: 1970-01-01T00:00:00Z, stop: ${stop})`;
-    const data = await influxdbService.executeQuery(fluxQuery, bucketKey);
+    const data = await influxdbService.executeQuery(fluxQuery, bucketKey, 600000);
 
     const nested = {};
     nested[bucketKey] = {};

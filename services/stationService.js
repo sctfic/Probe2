@@ -691,58 +691,56 @@ async function downloadArchiveData(req, stationConfig, startDate, ignoreLimit = 
         effectiveStartDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     }
     console.log(V.StartFlag, 'date UTC de la derniere archive :', effectiveStartDate)
-    await sendCommand(req, stationConfig, 'DMPAFT', 2000, "<ACK>");
-
-    // Calcul sécurisé du payload DMPAFT : éviter les octets 0x0A (LF) et 0x0D (CR)
-    // qui sont interprétés comme fin de ligne/commande par la console ou les passerelles IP/série
-    let safeStartDate = new Date(effectiveStartDate);
-    let fullPayload;
+    // Boucle de recherche DMPAFT robuste :
+    // Si la console ne trouve pas l'enregistrement exact (trou mémoire, station éteinte à cette minute, etc.),
+    // elle renvoie l'intégralité de sa mémoire tampon (512 ou 513 pages).
+    // Dans ce cas, on annule immédiatement par <ESC> et on recule d'un intervalle (archiveStepMinutes) pour retrouver une archive existante.
     const archiveStepMinutes = stationConfig.archiveInterval?.desired || stationConfig.archiveInterval?.lastReadValue || 5;
+    let targetDate = new Date(effectiveStartDate);
+    let numberOfPages = 0;
+    let firstReccord = 0;
+    const maxDateSearchAttempts = ignoreLimit ? 1 : 12; // Si ignoreLimit (ex: 1970), on ne cherche pas à reculer
 
-    for (let attempt = 0; attempt < 12; attempt++) {
-        const year = safeStartDate.getFullYear();
-        const month = safeStartDate.getMonth() + 1;
-        const day = safeStartDate.getDate();
-        const hours = safeStartDate.getHours();
-        const minutes = safeStartDate.getMinutes();
+    for (let attempt = 0; attempt < maxDateSearchAttempts; attempt++) {
+        await sendCommand(req, stationConfig, 'DMPAFT', 2000, "<ACK>");
+
+        const year = targetDate.getFullYear();
+        const month = targetDate.getMonth() + 1;
+        const day = targetDate.getDate();
+        const hours = targetDate.getHours();
+        const minutes = targetDate.getMinutes();
 
         const dateStamp = (year - 2000) * 512 + month * 32 + day;
         const timeStamp = hours * 100 + minutes;
         const datePayload = Buffer.from([dateStamp & 0xFF, dateStamp >> 8, timeStamp & 0xFF, timeStamp >> 8]);
-
         const dateCrc = calculateCRC(datePayload);
         const dateCrcBytes = Buffer.from([dateCrc >> 8, dateCrc & 0xFF]);
-        const testPayload = Buffer.concat([datePayload, dateCrcBytes]);
+        const fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
 
-        if (!testPayload.includes(0x0A) && !testPayload.includes(0x0D)) {
-            fullPayload = testPayload;
-            if (attempt > 0) {
-                console.log(`${V.info} Date DMPAFT ajustée à ${safeStartDate.toISOString()} (recul de ${attempt * archiveStepMinutes} min) pour éviter les octets de contrôle (LF/CR).`);
+        // Envoi de la date souhaitée, la station répond <ACK> puis 4 octets de header + 2 octets CRC
+        const pageInfo = await sendCommand(req, stationConfig, fullPayload, 3000, "<ACK>4<CRC>");
+        numberOfPages = pageInfo.readUInt16LE(0);
+        firstReccord = pageInfo.readUInt8(2);
+
+        // Si la station renvoie 512 ou 513 pages alors qu'on demandait une date récente (non-ignoreLimit),
+        // cela signifie que l'enregistrement n'a pas été trouvé et qu'elle s'apprête à déverser TOUTE sa mémoire.
+        if (!ignoreLimit && numberOfPages >= 512 && attempt < maxDateSearchAttempts - 1) {
+            console.warn(`${V.warning} DMPAFT: ${numberOfPages} pages signalées pour ${targetDate.toISOString()} (archive introuvable). Annulation et recul de ${archiveStepMinutes} min (tentative ${attempt + 1}/${maxDateSearchAttempts}).`);
+            // Annuler le dump en cours en envoyant <ESC> à la console
+            try {
+                await sendCommand(req, stationConfig, ESC, 1200, "");
+            } catch (ignoreErr) {
+                // Pas de réponse attendue suite à <ESC>
             }
-            break;
+            // Recul d'un pas d'archive
+            targetDate = new Date(targetDate.getTime() - archiveStepMinutes * 60 * 1000);
+            await new Promise(resolve => setTimeout(resolve, 300));
+            continue;
         }
 
-        safeStartDate = new Date(safeStartDate.getTime() - archiveStepMinutes * 60 * 1000);
+        // Enregistrement trouvé ou dump complet intentionnel
+        break;
     }
-
-    if (!fullPayload) {
-        const year = effectiveStartDate.getFullYear();
-        const month = effectiveStartDate.getMonth() + 1;
-        const day = effectiveStartDate.getDate();
-        const hours = effectiveStartDate.getHours();
-        const minutes = effectiveStartDate.getMinutes();
-        const dateStamp = (year - 2000) * 512 + month * 32 + day;
-        const timeStamp = hours * 100 + minutes;
-        const datePayload = Buffer.from([dateStamp & 0xFF, dateStamp >> 8, timeStamp & 0xFF, timeStamp >> 8]);
-        const dateCrc = calculateCRC(datePayload);
-        const dateCrcBytes = Buffer.from([dateCrc >> 8, dateCrc & 0xFF]);
-        fullPayload = Buffer.concat([datePayload, dateCrcBytes]);
-    }
-
-    // on envoit la date de la 1er archive souhaitée
-    const pageInfo = await sendCommand(req, stationConfig, fullPayload, 3000, "<ACK>4<CRC>");
-    const numberOfPages = pageInfo.readUInt16LE(0);
-    let firstReccord = pageInfo.readUInt8(2);
 
     const allRecords = {};
 

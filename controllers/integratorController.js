@@ -786,7 +786,7 @@ exports.runIntegrator = async (req, res) => {
 
                 // Appel UNIQUE de la fonction avec l'ensemble du dataset épuré
                 const calculatedValue = fnModel(cleanData);
-                console.log("calculatedValue:", calculatedValue);
+                // console.log("calculatedValue:", calculatedValue);
 
                 if (calculatedValue === null || calculatedValue === undefined) {
                     console.log(`${V.Warn} [INTEGRATOR] Résultat null pour ${probeKey}, ignoré.`);

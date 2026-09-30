@@ -4,7 +4,7 @@ const influxdbService = require('../services/influxdbService');
 const cronService = require('../services/cronService');
 const configManager = require('../services/configManager');
 const network = require('../services/networkService');
-const { queryDateRange } = require('../services/influxdbService');
+const { queryDateRange, executeQuery } = require('../services/influxdbService');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -221,29 +221,45 @@ exports.getArchiveData = async (req, res) => {
         const stationConfig = req.stationConfig;
         console.log(`${V.Parabol} Demande de données d'archive pour la station ${stationConfig.id}`);
 
-        // Type : string | null - Date UTC de la dernière archive trouvée dans InfluxDB
-        let endDate = null;
-        try {
-            // Requête de la dernière date avec timeout court de 3 secondes
-            const dateRangeResult = await queryDateRange(stationConfig.id, 'pressure:barometer', '-107d', '1d', 'Stations');
-            endDate = dateRangeResult?.lastUtc;
-        } catch (dbErr) {
-            // Si InfluxDB est inaccessible sur le réseau ou dépasse le timeout de 3 secondes, on abandonne immédiatement la collecte
-            if (influxdbService.isNetworkOrTimeoutError(dbErr)) {
-                console.error(`${V.error} InfluxDB non accessible sur le réseau (timeout 3s). Abandon immédiat de la collecte pour ${stationConfig.id}.`);
-                if (stationConfig.collect) {
-                    stationConfig.collect.lastRun = new Date().toISOString();
-                    stationConfig.collect.msg = `Collecte abandonnée : InfluxDB inaccessible sur le réseau (timeout 3s)`;
-                    configManager.autoSaveConfig(stationConfig);
-                }
-                return res.status(503).json({
-                    success: false,
-                    stationId: stationConfig.id,
-                    error: "Collecte abandonnée : InfluxDB inaccessible sur le réseau (timeout 3s)"
-                });
-            }
-            throw dbErr;
-        }
+        // Type : string - Date UTC la plus récente trouvée dans la base InfluxDB
+        const endDate = (await queryDateRange(stationConfig.id, 'pressure:barometer', '-107d', '1d', 'Stations')).lastUtc;
+        // si endDate est 01/01/1970, on se comporte comme getArchiveDataAll
+
+
+        // // Type : string | null - Date UTC de la dernière archive trouvée dans InfluxDB
+        // // Requête optimisée : last() avant group() pour ne pas charger tous les points en mémoire
+        // let endDate = null;
+        // try {
+        //     const lastDateFlux = `
+        //         from(bucket: "Stations")
+        //             |> range(start: -107d)
+        //             |> filter(fn: (r) => r.station_id == "${stationConfig.id}")
+        //             |> last()
+        //             |> group()
+        //             |> sort(columns: ["_time"], desc: true)
+        //             |> limit(n: 1)
+        //             |> keep(columns: ["_time"])
+        //             |> rename(columns: {"_time": "last_time"})
+        //     `;
+        //     const results = await executeQuery(lastDateFlux, 'Stations', 3000);
+        //     endDate = results?.[0]?.last_time ?? null;
+        // } catch (dbErr) {
+        //     // Si InfluxDB est inaccessible sur le réseau ou dépasse le timeout de 3 secondes, on abandonne immédiatement la collecte
+        //     if (influxdbService.isNetworkOrTimeoutError(dbErr)) {
+        //         console.error(`${V.error} InfluxDB non accessible sur le réseau (timeout 3s). Abandon immédiat de la collecte pour ${stationConfig.id}.`);
+        //         if (stationConfig.collect) {
+        //             stationConfig.collect.lastRun = new Date().toISOString();
+        //             stationConfig.collect.msg = `Collecte abandonnée : InfluxDB inaccessible sur le réseau (timeout 3s)`;
+        //             configManager.autoSaveConfig(stationConfig);
+        //         }
+        //         return res.status(503).json({
+        //             success: false,
+        //             stationId: stationConfig.id,
+        //             error: "Collecte abandonnée : InfluxDB inaccessible sur le réseau (timeout 3s)"
+        //         });
+        //     }
+        //     throw dbErr;
+        // }
 
         // Si endDate est absent (bucket vide lors de la 1ère collecte) ou égal à l'époque Unix, on force la récupération complète
         // Type : boolean - Flag indiquant s'il faut forcer la récupération complète des archives

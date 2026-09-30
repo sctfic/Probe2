@@ -240,6 +240,9 @@ function sendAndReceive(weatherSocket, command, timeout, parsedFormat) {
             if (err) {
                 cleanup();
                 reject(err);
+            } else if (parsedFormat.totalExpectedLength === 0) {
+                cleanup();
+                resolve(Buffer.from([]));
             }
         });
         lockManager.touch(weatherSocket._stationId);

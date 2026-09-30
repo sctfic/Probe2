@@ -988,6 +988,10 @@ exports.updateStation = (req, res) => {
 
 
 exports.exportBucketData = async (req, res) => {
+    // Augmente le timeout de la requête Node.js (10 minutes) pour les exports volumineux
+    req.setTimeout(600000);
+    res.setTimeout(600000);
+
     const { V } = require('../utils/icons');
     const dataMaintenanceService = require('../services/dataMaintenanceService');
     const zlib = require('zlib');

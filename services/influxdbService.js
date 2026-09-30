@@ -57,9 +57,12 @@ async function fetchFirstDate(bucketKey) {
     const instance = influxInstances[bucketKey];
     if (!instance) return null;
 
+    // En appliquant first() AVANT group(), InfluxDB n'extrait que le 1er point de chaque série
+    // au lieu de charger et trier en RAM des millions de points. La requête passe de >8s à quelques ms.
     const fluxQuery = `
         from(bucket: "${instance.bucket}")
-            |> range(start: 0)
+            |> range(start: -1000y)
+            |> first()
             |> group()
             |> sort(columns: ["_time"])
             |> limit(n: 1)
@@ -68,7 +71,7 @@ async function fetchFirstDate(bucketKey) {
     `;
 
     try {
-        const results = await executeQuery(fluxQuery, bucketKey);
+        const results = await executeQuery(fluxQuery, bucketKey, 3000);
         if (results && results.length > 0 && results[0].first_time) {
             return results[0].first_time;
         }
@@ -704,15 +707,15 @@ async function queryDateRange(stationId, sensorRef, startDate, endDate, bucketKe
             t1 = from(bucket: "${instance.bucket}")
                 |> range(start: ${bucketStart}, stop: ${stopRange})
                 |> filter(fn: (r) => ${fluxFilter})
-                |> group()
                 |> first()
+                // |> group()
                 |> keep(columns: ["_time"])
 
             t2 = from(bucket: "${instance.bucket}")
                 |> range(start: ${startRange}, stop: ${stopRange})
                 |> filter(fn: (r) => ${fluxFilter})
-                |> group()
                 |> last()
+                // |> group()
                 |> keep(columns: ["_time"])
 
             union(tables: [t1, t2])
